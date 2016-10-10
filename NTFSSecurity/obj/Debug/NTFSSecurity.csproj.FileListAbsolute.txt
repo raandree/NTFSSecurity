@@ -1,0 +1,38 @@
+C:\VS\fssecurity\NTFSSecurity\NTFSSecurity\obj\Debug\NTFSSecurity.csprojResolveAssemblyReference.cache
+C:\VS\fssecurity\NTFSSecurity\NTFSSecurity\obj\Debug\NTFSSecurity.ShowSimpleEffectiveAccessForm.resources
+C:\VS\fssecurity\NTFSSecurity\NTFSSecurity\obj\Debug\NTFSSecurity.Properties.Resources.resources
+C:\VS\fssecurity\NTFSSecurity\NTFSSecurity\obj\Debug\NTFSSecurity.ShowSimpleAccessForm.resources
+C:\VS\fssecurity\NTFSSecurity\NTFSSecurity\obj\Debug\NTFSSecurity.csproj.GenerateResource.Cache
+C:\Users\randr\Documents\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity-Help.xml
+C:\Users\randr\Documents\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.format.ps1xml
+C:\Users\randr\Documents\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.Init.ps1
+C:\Users\randr\Documents\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.psd1
+C:\Users\randr\Documents\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.psm1
+C:\Users\randr\Documents\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.types.ps1xml
+C:\Users\randr\Documents\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.dll
+C:\Users\randr\Documents\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.pdb
+C:\VS\fssecurity\NTFSSecurity\NTFSSecurity\obj\Debug\NTFSSecurity.dll
+C:\VS\fssecurity\NTFSSecurity\NTFSSecurity\obj\Debug\NTFSSecurity.pdb
+C:\Users\Administrator\Desktop\NTFSSecurity\NTFSSecurity\obj\Debug\NTFSSecurity.csprojResolveAssemblyReference.cache
+C:\Users\Administrator\Desktop\NTFSSecurity\NTFSSecurity\obj\Debug\NTFSSecurity.ShowSimpleEffectiveAccessForm.resources
+C:\Users\Administrator\Desktop\NTFSSecurity\NTFSSecurity\obj\Debug\NTFSSecurity.Properties.Resources.resources
+C:\Users\Administrator\Desktop\NTFSSecurity\NTFSSecurity\obj\Debug\NTFSSecurity.ShowSimpleAccessForm.resources
+C:\Users\Administrator\Desktop\NTFSSecurity\NTFSSecurity\obj\Debug\NTFSSecurity.csproj.GenerateResource.Cache
+C:\Users\Administrator\Desktop\NTFSSecurity\NTFSSecurity\obj\Debug\NTFSSecurity.dll
+C:\Users\Administrator\Desktop\NTFSSecurity\NTFSSecurity\obj\Debug\NTFSSecurity.pdb
+C:\Users\Users\randr\Documents\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity-Help.xml
+C:\Users\Users\randr\Documents\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.format.ps1xml
+C:\Users\Users\randr\Documents\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.Init.ps1
+C:\Users\Users\randr\Documents\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.psd1
+C:\Users\Users\randr\Documents\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.psm1
+C:\Users\Users\randr\Documents\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.types.ps1xml
+C:\Users\Users\randr\Documents\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.dll
+C:\Users\Users\randr\Documents\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.pdb
+C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity-Help.xml
+C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.format.ps1xml
+C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.Init.ps1
+C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.psd1
+C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.psm1
+C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.types.ps1xml
+C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.dll
+C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity\NTFSSecurity.pdb

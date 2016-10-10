@@ -1,0 +1,14 @@
+C:\VS\fssecurity\NTFSSecurity\PrivilegeControl\bin\Debug\PrivilegeControl.dll
+C:\VS\fssecurity\NTFSSecurity\PrivilegeControl\bin\Debug\PrivilegeControl.pdb
+C:\VS\fssecurity\NTFSSecurity\PrivilegeControl\bin\Debug\ProcessPrivileges.dll
+C:\VS\fssecurity\NTFSSecurity\PrivilegeControl\bin\Debug\ProcessPrivileges.pdb
+C:\VS\fssecurity\NTFSSecurity\PrivilegeControl\obj\Debug\PrivilegeControl.csprojResolveAssemblyReference.cache
+C:\VS\fssecurity\NTFSSecurity\PrivilegeControl\obj\Debug\PrivilegeControl.dll
+C:\VS\fssecurity\NTFSSecurity\PrivilegeControl\obj\Debug\PrivilegeControl.pdb
+C:\Users\Administrator\Desktop\NTFSSecurity\PrivilegeControl\bin\Debug\PrivilegeControl.dll
+C:\Users\Administrator\Desktop\NTFSSecurity\PrivilegeControl\bin\Debug\PrivilegeControl.pdb
+C:\Users\Administrator\Desktop\NTFSSecurity\PrivilegeControl\bin\Debug\ProcessPrivileges.dll
+C:\Users\Administrator\Desktop\NTFSSecurity\PrivilegeControl\bin\Debug\ProcessPrivileges.pdb
+C:\Users\Administrator\Desktop\NTFSSecurity\PrivilegeControl\obj\Debug\PrivilegeControl.csprojResolveAssemblyReference.cache
+C:\Users\Administrator\Desktop\NTFSSecurity\PrivilegeControl\obj\Debug\PrivilegeControl.dll
+C:\Users\Administrator\Desktop\NTFSSecurity\PrivilegeControl\obj\Debug\PrivilegeControl.pdb

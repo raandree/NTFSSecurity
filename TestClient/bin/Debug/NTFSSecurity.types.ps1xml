@@ -1,0 +1,155 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Types xmlns="http://schemas.microsoft.com/PowerShell/TypeData/2007/04">
+  <!--<Types>-->
+  <Type>
+    <Name>System.IO.FileInfo</Name>
+    <Members>
+      <ScriptProperty>
+        <Name>Owner</Name>
+        <GetScriptBlock>
+          [Security2.IdentityReference2]$this.GetAccessControl().GetOwner([System.Security.Principal.SecurityIdentifier])
+        </GetScriptBlock>
+      </ScriptProperty>
+      <ScriptProperty>
+        <Name>IsInheritanceBlocked</Name>
+        <GetScriptBlock>
+          $this.GetAccessControl([System.Security.AccessControl.AccessControlSections]::Access).AreAccessRulesProtected
+        </GetScriptBlock>
+      </ScriptProperty>
+      <ScriptProperty>
+        <Name>LengthOnDisk</Name>
+        <GetScriptBlock>
+          $driveInfo = New-Object NTFS.DriveInfoExt($this.PSDrive.Name + ":")
+          [Math]::Ceiling($this.Length / ($driveInfo.BytesPerSector * $driveInfo.SectorsPerCluster)) * ($driveInfo.BytesPerSector * $driveInfo.SectorsPerCluster)
+        </GetScriptBlock>
+      </ScriptProperty>
+      <AliasProperty>
+        <Name>Size</Name>
+        <ReferencedMemberName>LengthOnDisk</ReferencedMemberName>
+      </AliasProperty>
+      <ScriptMethod>
+        <Name>EnableInheritance</Name>
+        <Script>
+          $sd = $this.GetAccessControl([System.Security.AccessControl.AccessControlSections]::Access)
+
+          try
+          {
+          $sd.SetAccessRuleProtection($false, $null)
+          $this.SetAccessControl($sd)
+          }
+          catch [Exception]
+          {
+          Write-Error -Exception $_.Exception -Message "Error enabling inheritance on item $($this.FullName)"
+          }
+        </Script>
+      </ScriptMethod>
+      <ScriptMethod>
+        <Name>DisableInheritance</Name>
+        <Script>
+          param(
+          [Parameter(Position = 0, Mandatory = $false)]
+          [bool] $CopySecurity = $true
+          )
+          $sd = $this.GetAccessControl([System.Security.AccessControl.AccessControlSections]::Access)
+
+          try
+          {
+          $sd.SetAccessRuleProtection($true, $CopySecurity)
+          $this.SetAccessControl($sd)
+          }
+          catch [Exception]
+          {
+          Write-Error -Exception $_.Exception -Message "Error enabling inheritance on item $($this.FullName)"
+          }
+        </Script>
+      </ScriptMethod>
+      <ScriptMethod>
+        <Name>GetHash</Name>
+        <Script>
+          $hash = [System.Security.Cryptography.SHA1]::Create().ComputeHash($this.OpenRead())
+          $sb = New-Object System.Text.StringBuilder($hash.Length)
+          for ($i = 0; $i -lt $hash.Length; $i++)
+          {
+          [Void]$sb.Append($hash[$i].ToString("X2"))
+          }
+          $sb.ToString()
+        </Script>
+      </ScriptMethod>
+    </Members>
+  </Type>
+  <Type>
+    <Name>System.IO.DirectoryInfo</Name>
+    <Members>
+      <ScriptProperty>
+        <Name>Owner</Name>
+        <GetScriptBlock>
+          [Security2.IdentityReference2]$this.GetAccessControl().GetOwner([System.Security.Principal.SecurityIdentifier])
+        </GetScriptBlock>
+      </ScriptProperty>
+      <ScriptProperty>
+        <Name>IsInheritanceBlocked</Name>
+        <GetScriptBlock>
+          $this.GetAccessControl([System.Security.AccessControl.AccessControlSections]::Access).AreAccessRulesProtected
+        </GetScriptBlock>
+      </ScriptProperty>
+      <ScriptMethod>
+        <Name>EnableInheritance</Name>
+        <Script>
+          $sd = $this.GetAccessControl([System.Security.AccessControl.AccessControlSections]::Access)
+
+          try
+          {
+          $sd.SetAccessRuleProtection($false, $null)
+          $this.SetAccessControl($sd)
+          }
+          catch [Exception]
+          {
+          Write-Error -Exception $_.Exception -Message "Error enabling inheritance on item $($this.FullName)"
+          }
+        </Script>
+      </ScriptMethod>
+      <ScriptMethod>
+        <Name>DisableInheritance</Name>
+        <Script>
+          param(
+          [Parameter(Position = 0, Mandatory = $false)]
+          [bool] $CopySecurity = $true
+          )
+          $sd = $this.GetAccessControl([System.Security.AccessControl.AccessControlSections]::Access)
+
+          try
+          {
+          $sd.SetAccessRuleProtection($true, $CopySecurity)
+          $this.SetAccessControl($sd)
+          }
+          catch [Exception]
+          {
+          Write-Error -Exception $_.Exception -Message "Error enabling inheritance on item $($this.FullName)"
+          }
+        </Script>
+      </ScriptMethod>
+    </Members>
+  </Type>
+
+  <Type>
+    <Name>Security2.FileSystemAccessRule2</Name>
+    <Members>
+      <ScriptProperty>
+        <Name>AccountType</Name>
+        <GetScriptBlock>
+          if (-not [System.Security.Principal.WindowsIdentity]::GetCurrent().Name.ToLower().Contains([System.Environment]::MachineName.ToLower()))
+          {
+          try
+          {
+          ([ADSI]"LDAP://&lt;SID=$($this.Account.Sid)&gt;").ObjectClass[-1]
+          }
+          catch
+          {
+          [string]::Empty
+          }
+          }
+        </GetScriptBlock>
+      </ScriptProperty>
+    </Members>
+  </Type>
+</Types>

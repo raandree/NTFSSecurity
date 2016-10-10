@@ -1,0 +1,100 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet type="text/xsl" href="c:\program files (x86)\microsoft visual studio 14.0\team tools\static analysis tools\fxcop\Xml\CodeAnalysisReport.xsl"?>
+<FxCopReport Version="14.0">
+ <Targets>
+  <Target Name="C:\Users\Administrator\Desktop\NTFSSecurity\Bin\Debug\Net452\AlphaFS.dll">
+   <Modules>
+    <Module Name="alphafs.dll">
+     <Messages>
+      <Message TypeName="AssembliesShouldHaveValidStrongNames" Category="Microsoft.Design" CheckId="CA2210" Status="Active" Created="2016-10-06 12:29:23Z" FixCategory="NonBreaking">
+       <Issue Name="NoStrongName" Certainty="95" Level="CriticalError">Sign 'AlphaFS.dll' with a strong name key.</Issue>
+      </Message>
+     </Messages>
+     <Namespaces>
+      <Namespace Name="Alphaleonis.Win32.Filesystem">
+       <Types>
+        <Type Name="Path" Kind="Class" Accessibility="Public" ExternallyVisible="True">
+         <Members>
+          <Member Name="#GetFinalPathNameByHandleCore(Microsoft.Win32.SafeHandles.SafeFileHandle,Alphaleonis.Win32.Filesystem.FinalPathFormats)" Kind="Method" Static="True" Accessibility="Assembly" ExternallyVisible="False">
+           <Messages>
+            <Message TypeName="DoNotIndirectlyExposeMethodsWithLinkDemands" Category="Microsoft.Security" CheckId="CA2122" Status="Active" Created="2016-10-06 12:29:23Z" FixCategory="NonBreaking">
+             <Issue Certainty="33" Level="CriticalError" Path="C:\Users\Administrator\Desktop\NTFSSecurity\AlphaFS\Filesystem\Path Class" File="Path.GetFinalPathNameByHandle.cs" Line="76">'Path.GetFinalPathNameByHandleCore(SafeFileHandle, FinalPathFormats)' calls into 'Process.GetCurrentProcess()' which has a LinkDemand. By making this call, 'Process.GetCurrentProcess()' is indirectly exposed to user code. Review the following call stack that might expose a way to circumvent security protection: &#xD;&#xA;   -&gt;'Path.GetFinalPathNameByHandleCore(SafeFileHandle, FinalPathFormats)'&#xD;&#xA;   -&gt;'Path.GetFinalPathNameByHandleCore(SafeFileHandle, FinalPathFormats)'&#xD;&#xA;   -&gt;'Path.GetFinalPathNameByHandle(SafeFileHandle)'</Issue>
+             <Issue Certainty="33" Level="CriticalError" Path="C:\Users\Administrator\Desktop\NTFSSecurity\AlphaFS\Filesystem\Path Class" File="Path.GetFinalPathNameByHandle.cs" Line="76">'Path.GetFinalPathNameByHandleCore(SafeFileHandle, FinalPathFormats)' calls into 'Process.GetCurrentProcess()' which has a LinkDemand. By making this call, 'Process.GetCurrentProcess()' is indirectly exposed to user code. Review the following call stack that might expose a way to circumvent security protection: &#xD;&#xA;   -&gt;'Path.GetFinalPathNameByHandleCore(SafeFileHandle, FinalPathFormats)'&#xD;&#xA;   -&gt;'Path.GetFinalPathNameByHandleCore(SafeFileHandle, FinalPathFormats)'&#xD;&#xA;   -&gt;'Path.GetFinalPathNameByHandle(SafeFileHandle, FinalPathFormats)'</Issue>
+             <Issue Certainty="33" Level="CriticalError" Path="C:\Users\Administrator\Desktop\NTFSSecurity\AlphaFS\Filesystem\Path Class" File="Path.GetFinalPathNameByHandle.cs" Line="76">'Path.GetFinalPathNameByHandleCore(SafeFileHandle, FinalPathFormats)' calls into 'Process.Handle.get()' which has a LinkDemand. By making this call, 'Process.Handle.get()' is indirectly exposed to user code. Review the following call stack that might expose a way to circumvent security protection: &#xD;&#xA;   -&gt;'Path.GetFinalPathNameByHandleCore(SafeFileHandle, FinalPathFormats)'&#xD;&#xA;   -&gt;'Path.GetFinalPathNameByHandleCore(SafeFileHandle, FinalPathFormats)'&#xD;&#xA;   -&gt;'Path.GetFinalPathNameByHandle(SafeFileHandle)'</Issue>
+             <Issue Certainty="33" Level="CriticalError" Path="C:\Users\Administrator\Desktop\NTFSSecurity\AlphaFS\Filesystem\Path Class" File="Path.GetFinalPathNameByHandle.cs" Line="76">'Path.GetFinalPathNameByHandleCore(SafeFileHandle, FinalPathFormats)' calls into 'Process.Handle.get()' which has a LinkDemand. By making this call, 'Process.Handle.get()' is indirectly exposed to user code. Review the following call stack that might expose a way to circumvent security protection: &#xD;&#xA;   -&gt;'Path.GetFinalPathNameByHandleCore(SafeFileHandle, FinalPathFormats)'&#xD;&#xA;   -&gt;'Path.GetFinalPathNameByHandleCore(SafeFileHandle, FinalPathFormats)'&#xD;&#xA;   -&gt;'Path.GetFinalPathNameByHandle(SafeFileHandle, FinalPathFormats)'</Issue>
+            </Message>
+           </Messages>
+          </Member>
+          <Member Name="#NormalizePath(System.String,Alphaleonis.Win32.Filesystem.GetFullPathOptions)" Kind="Method" Static="True" Accessibility="Private" ExternallyVisible="False">
+           <Messages>
+            <Message TypeName="AvoidExcessiveLocals" Category="Microsoft.Performance" CheckId="CA1809" Status="Active" Created="2016-10-06 12:29:23Z" FixCategory="NonBreaking">
+             <Issue Name="Compiler" Certainty="95" Level="Warning" Path="C:\Users\Administrator\Desktop\NTFSSecurity\AlphaFS\Filesystem\Path Class" File="Path.ValidationAndChecks.cs" Line="294">'Path.NormalizePath(string, GetFullPathOptions)' has 71 local variables, 47 of which were generated by the compiler. Refactor 'Path.NormalizePath(string, GetFullPathOptions)' so that it uses fewer than 64 local variables.</Issue>
+            </Message>
+           </Messages>
+          </Member>
+         </Members>
+        </Type>
+       </Types>
+      </Namespace>
+     </Namespaces>
+    </Module>
+   </Modules>
+  </Target>
+ </Targets>
+ <Rules>
+  <Rule TypeName="AssembliesShouldHaveValidStrongNames" Category="Microsoft.Design" CheckId="CA2210">
+   <Name>Assemblies should have valid strong names</Name>
+   <Description>Either the assembly has no strong name, an invalid one, or the strong name is valid only because of the computer configuration. The assembly should not be deployed in this state. The most common causes of this are: 1) The assembly's contents were modified after it was signed. 2) The signing process failed. 3) The assembly was delay-signed. 4) A registry key existed that allowed the check to pass (where it would not have otherwise).</Description>
+   <Resolution Name="NoStrongName">Sign {0} with a strong name key.</Resolution>
+   <Owner />
+   <Url>http://msdn.microsoft.com/library/ms182127.aspx</Url>
+   <Email>[none]</Email>
+   <MessageLevel Certainty="95">CriticalError</MessageLevel>
+   <File Name="designrules.dll" Version="14.0.0.0" />
+  </Rule>
+  <Rule TypeName="AvoidExcessiveLocals" Category="Microsoft.Performance" CheckId="CA1809">
+   <Name>Avoid excessive locals</Name>
+   <Description>Method implementations should not contain more than 64 local variables. In order for the run-time to enregister local variables most efficiently, there should be 64 or fewer of them. Enregistering based on flow analysis will not occur for locals in excess of 64, which may result in slower performance.</Description>
+   <Resolution Name="Compiler">{0} has {1} local variables, {2} of which were generated by the compiler. Refactor {0} so that it uses fewer than 64 local variables.</Resolution>
+   <Owner />
+   <Url>http://msdn.microsoft.com/library/ms182263.aspx</Url>
+   <Email>[none]</Email>
+   <MessageLevel Certainty="95">Warning</MessageLevel>
+   <File Name="performancerules.dll" Version="14.0.0.0" />
+  </Rule>
+  <Rule TypeName="DoNotIndirectlyExposeMethodsWithLinkDemands" Category="Microsoft.Security" CheckId="CA2122">
+   <Name>Do not indirectly expose methods with link demands</Name>
+   <Description>Do not wrap a method protected by a LinkDemand with a method that does not perform a security check. A LinkDemand checks the permissions of the immediate caller rather than checking the permissions of all callers in the call stack. In this case, the permissions of the wrapper method will be checked. If the wrapper method does not, itself, check the permissions of callers higher in the call stack, malicious code might be able to execute the wrapped function even though it lacks permission to do so.</Description>
+   <Resolution Name="Default">{0} calls into {1} which has a LinkDemand. By making this call, {1} is indirectly exposed to user code. Review the following call stack that might expose a way to circumvent security protection: {2}</Resolution>
+   <Owner />
+   <Url>http://msdn.microsoft.com/library/ms182303.aspx</Url>
+   <Email>[none]</Email>
+   <MessageLevel Certainty="33">CriticalError</MessageLevel>
+   <File Name="securityrules.dll" Version="14.0.0.0" />
+  </Rule>
+ </Rules>
+ <Localized>
+  <String Key="Category">Category</String>
+  <String Key="Certainty">Certainty</String>
+  <String Key="CollapseAll">Collapse All</String>
+  <String Key="CheckId">Check Id</String>
+  <String Key="Error">Error</String>
+  <String Key="Errors">error(s)</String>
+  <String Key="ExpandAll">Expand All</String>
+  <String Key="Help">Help</String>
+  <String Key="Line">Line</String>
+  <String Key="Messages">message(s)</String>
+  <String Key="LocationNotStoredInPdb">[Location not stored in Pdb]</String>
+  <String Key="Project">Project</String>
+  <String Key="Resolution">Resolution</String>
+  <String Key="Rule">Rule</String>
+  <String Key="RuleFile">Rule File</String>
+  <String Key="RuleDescription">Rule Description</String>
+  <String Key="Source">Source</String>
+  <String Key="Status">Status</String>
+  <String Key="Target">Target</String>
+  <String Key="Warning">Warning</String>
+  <String Key="Warnings">warning(s)</String>
+  <String Key="ReportTitle">Code Analysis Report</String>
+ </Localized>
+</FxCopReport>
