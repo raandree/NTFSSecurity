@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Management.Automation;
+using System.Linq;
 
 namespace NTFSSecurity
 {
@@ -22,6 +23,7 @@ namespace NTFSSecurity
         private SwitchParameter skipMountPoints;
         private SwitchParameter skipSymbolicLinks;
         private bool getFileSystemModeProperty = false;
+        private bool identifyHardLinks = false;
         private int? depth;
 
         WildcardPattern wildcard = null;
@@ -139,6 +141,7 @@ namespace NTFSSecurity
             modeMethodInfo = typeof(FileSystemCodeMembers).GetMethod("Mode");
 
             getFileSystemModeProperty = (bool)((Hashtable)MyInvocation.MyCommand.Module.PrivateData)["GetFileSystemModeProperty"];
+            identifyHardLinks = (bool)((Hashtable)MyInvocation.MyCommand.Module.PrivateData)["IdentifyHardLinks"];
         }
 
         protected override void ProcessRecord()
@@ -302,6 +305,18 @@ namespace NTFSSecurity
                     //can be disabled for a better performance in the PSD1 file, PrivateData section, GetFileSystemModeProperty = $true / $false
                     if (getFileSystemModeProperty)
                         item.Properties.Add(new PSCodeProperty("Mode", modeMethodInfo));
+
+                    if (identifyHardLinks == true && current is FileInfo)
+                    {
+                        try
+                        {
+                            item.Properties.Add(new PSNoteProperty("HardLinkCount", Alphaleonis.Win32.Filesystem.File.EnumerateHardlinks(current.FullName).Count()));
+                        }
+                        catch
+                        {
+                            WriteDebug(string.Format("Could not read hard links for '{0}'", current.FullName));
+                        }
+                    }
 
                     WriteObject(item);
                 }

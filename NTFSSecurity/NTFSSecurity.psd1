@@ -87,6 +87,7 @@
 		GetInheritedFrom = $true
 		GetFileSystemModeProperty = $true
 		ShowAccountSid = $false
+		IdentifyHardLinks = $true
 
 		PSData = @{
 			Tags = @('AccessControl', 'ACL', 'DirectorySecurity', 'FileSecurity', 'FileSystem', 'FileSystemSecurity', 'NTFS', 'Module', 'AccessRights')
