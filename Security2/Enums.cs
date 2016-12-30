@@ -28,6 +28,7 @@ namespace Security2
         None = 0,
         ListDirectory = 1,
         ReadData = 1,
+        WriteData = 2,
         CreateFiles = 2,
         CreateDirectories = 4,
         AppendData = 4,

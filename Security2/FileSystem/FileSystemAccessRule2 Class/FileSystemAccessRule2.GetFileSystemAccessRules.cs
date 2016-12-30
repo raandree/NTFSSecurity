@@ -32,7 +32,7 @@ namespace Security2
             foreach (FileSystemAccessRule ace in acl)
             {
                 var ace2 = new FileSystemAccessRule2(ace) { FullName = sd.Item.FullName, InheritanceEnabled = !sd.SecurityDescriptor.AreAccessRulesProtected };
-                if (getInheritedFrom)
+                if (getInheritedFrom && inheritedFrom.Count > 0)
                 {
                     ace2.inheritedFrom = string.IsNullOrEmpty(inheritedFrom[aceCounter]) ? "" : inheritedFrom[aceCounter].Substring(0, inheritedFrom[aceCounter].Length - 1);
                     aceCounter++;
