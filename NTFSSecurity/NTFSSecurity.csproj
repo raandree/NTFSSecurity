@@ -1,0 +1,178 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{17768E1A-1422-4BD2-A9A5-42BA9FEB82B8}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>NTFSSecurity</RootNamespace>
+    <AssemblyName>NTFSSecurity</AssemblyName>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile>Client</TargetFrameworkProfile>
+    <SccProjectName>SAK</SccProjectName>
+    <SccLocalPath>SAK</SccLocalPath>
+    <SccAuxPath>SAK</SccAuxPath>
+    <SccProvider>SAK</SccProvider>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>..\..\..\..\..\Program Files\WindowsPowerShell\Modules\NTFSSecurity\</OutputPath>
+    <DefineConstants>TRACE;DEBUG</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+    <DocumentationFile>bin\Release\NTFSSecurity.XML</DocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Configuration.Install" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Management.Automation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Reference Assemblies\Microsoft\WindowsPowerShell\v1.0\System.Management.Automation.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AccessCmdlets\AddAccess.cs" />
+    <Compile Include="AccessCmdlets\ClearAccess.cs" />
+    <Compile Include="AccessCmdlets\GetAccess.cs" />
+    <Compile Include="AccessCmdlets\GetEffectiveAccess.cs" />
+    <Compile Include="AccessCmdlets\GetOrphanedAccess.cs" />
+    <Compile Include="AccessCmdlets\RemoveAccess.cs" />
+    <Compile Include="AuditCmdlets\AddAudit.cs" />
+    <Compile Include="AuditCmdlets\ClearAudit.cs" />
+    <Compile Include="AuditCmdlets\Get-OrphanedAudit.cs" />
+    <Compile Include="AuditCmdlets\GetAudit.cs" />
+    <Compile Include="AuditCmdlets\RemoveAudit.cs" />
+    <Compile Include="BaseCmdlets.cs" />
+    <Compile Include="CodeMembers.cs" />
+    <Compile Include="InheritanceCmdlets\SetInheritance.cs" />
+    <Compile Include="InheritanceCmdlets\DisableAccessInheritance.cs" />
+    <Compile Include="InheritanceCmdlets\DisableAuditInheritance.cs" />
+    <Compile Include="InheritanceCmdlets\EnableAccessInheritance.cs" />
+    <Compile Include="InheritanceCmdlets\EnableAuditInheritance.cs" />
+    <Compile Include="InheritanceCmdlets\GetInheritance.cs" />
+    <Compile Include="ItemCmdlets\GetChildItem2.cs" />
+    <Compile Include="ItemCmdlets\GetDiskSpace.cs" />
+    <Compile Include="ItemCmdlets\GetItem2.cs" />
+    <Compile Include="ItemCmdlets\CopyItem2.cs" />
+    <Compile Include="ItemCmdlets\MoveItem2.cs" />
+    <Compile Include="ItemCmdlets\RemoveItem2.cs" />
+    <Compile Include="LinkCmdlets\NewSymbolicLink.cs" />
+    <Compile Include="LinkCmdlets\NewHardLink.cs" />
+    <Compile Include="LinkCmdlets\GetHardLink.cs" />
+    <Compile Include="MiscCmdlets\GetFileHash2.cs" />
+    <Compile Include="OtherCmdlets.cs" />
+    <Compile Include="OwnerCmdlets\GetOwner.cs" />
+    <Compile Include="OwnerCmdlets\SetOwner.cs" />
+    <Compile Include="PathCmdlets\TestPath2.cs" />
+    <Compile Include="SecurityDescriptorCmdlets\GetSecurityDescriptor.cs" />
+    <Compile Include="SecurityDescriptorCmdlets\SetSecurityDescriptor.cs" />
+    <Compile Include="ShowSimpleEffectiveAccess.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ShowSimpleEffectiveAccess.Designer.cs">
+      <DependentUpon>ShowSimpleEffectiveAccess.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Extensions.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="ShowSimpleAccess.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ShowSimpleAccess.Designer.cs">
+      <DependentUpon>ShowSimpleAccess.cs</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AlphaFS\AlphaFS.csproj">
+      <Project>{f0f9af1e-d5b5-4d72-804a-5380622fbdea}</Project>
+      <Name>AlphaFS</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\PrivilegeControl\PrivilegeControl.csproj">
+      <Project>{01EAB41B-B2CE-49FE-AB5A-0F0FF0A9A7EE}</Project>
+      <Name>PrivilegeControl</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\ProcessPrivileges\ProcessPrivileges.csproj">
+      <Project>{410CAEE5-D287-4A18-9B38-BB87397D218D}</Project>
+      <Name>ProcessPrivileges</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Security2\Security2.csproj">
+      <Project>{B437C364-5BC7-42E4-93F7-0F459A5DF0D0}</Project>
+      <Name>Security2</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Help\NTFSSecurity.Help.pshproj" />
+    <None Include="NTFSSecurity.format.ps1xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="NTFSSecurity.Init.ps1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="NTFSSecurity.psd1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="NTFSSecurity.psm1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="NTFSSecurity.types.ps1xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <Compile Include="SimpleAccessCmdlets.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="ShowSimpleEffectiveAccess.resx">
+      <DependentUpon>ShowSimpleEffectiveAccess.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>PublicResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="ShowSimpleAccess.resx">
+      <DependentUpon>ShowSimpleAccess.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="NTFSSecurity-Help.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\container.jpg" />
+    <Content Include="Resources\User.jpg" />
+    <None Include="Resources\IconContainer.bmp" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
