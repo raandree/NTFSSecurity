@@ -1,3 +1,0 @@
-C:\Users\Administrator\Desktop\NTFSSecurity\AlphaFS\obj\Net35 Debug\AlphaFS.csprojResolveAssemblyReference.cache
-C:\Users\Administrator\Desktop\NTFSSecurity\AlphaFS\obj\Net35 Debug\Alphaleonis.Win32.Resources.resources
-C:\Users\Administrator\Desktop\NTFSSecurity\AlphaFS\obj\Net35 Debug\AlphaFS.csproj.GenerateResource.Cache
