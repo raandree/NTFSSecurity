@@ -1,9 +1,0 @@
-C:\VS\fssecurity\NTFSSecurity\ProcessPrivileges\bin\Debug\ProcessPrivileges.dll
-C:\VS\fssecurity\NTFSSecurity\ProcessPrivileges\bin\Debug\ProcessPrivileges.pdb
-C:\VS\fssecurity\NTFSSecurity\ProcessPrivileges\obj\Debug\ProcessPrivileges.csprojResolveAssemblyReference.cache
-C:\VS\fssecurity\NTFSSecurity\ProcessPrivileges\obj\Debug\ProcessPrivileges.dll
-C:\VS\fssecurity\NTFSSecurity\ProcessPrivileges\obj\Debug\ProcessPrivileges.pdb
-C:\Users\Administrator\Desktop\NTFSSecurity\ProcessPrivileges\bin\Debug\ProcessPrivileges.dll
-C:\Users\Administrator\Desktop\NTFSSecurity\ProcessPrivileges\bin\Debug\ProcessPrivileges.pdb
-C:\Users\Administrator\Desktop\NTFSSecurity\ProcessPrivileges\obj\Debug\ProcessPrivileges.dll
-C:\Users\Administrator\Desktop\NTFSSecurity\ProcessPrivileges\obj\Debug\ProcessPrivileges.pdb

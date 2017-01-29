@@ -1,9 +1,0 @@
-C:\VS\fssecurity\NTFSSecurity\Log\bin\Debug\Log.dll
-C:\VS\fssecurity\NTFSSecurity\Log\bin\Debug\Log.pdb
-C:\VS\fssecurity\NTFSSecurity\Log\obj\Debug\Log.csprojResolveAssemblyReference.cache
-C:\VS\fssecurity\NTFSSecurity\Log\obj\Debug\Log.dll
-C:\VS\fssecurity\NTFSSecurity\Log\obj\Debug\Log.pdb
-C:\Users\Administrator\Desktop\NTFSSecurity\Log\bin\Debug\Log.dll
-C:\Users\Administrator\Desktop\NTFSSecurity\Log\bin\Debug\Log.pdb
-C:\Users\Administrator\Desktop\NTFSSecurity\Log\obj\Debug\Log.dll
-C:\Users\Administrator\Desktop\NTFSSecurity\Log\obj\Debug\Log.pdb
