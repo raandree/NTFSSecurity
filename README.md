@@ -4,7 +4,11 @@ Managing permissions with PowerShell is only a bit easier than in VBS or the com
 ### [Version History](https://github.com/raandree/NTFSSecurity/wiki/Version-History)
 
 ### Installation
-Download the latest release from [here](https://github.com/raandree/NTFSSecurity/releases). Further help can be found in [How to install](https://github.com/raandree/NTFSSecurity/wiki/How-to-install) if you face difficulties getting this module installed.
+You have two options:
+1. Download the latest release from [here](https://github.com/raandree/NTFSSecurity/releases).
+2. Download the module from the PowerShell Gallery: Install-Module -Name NTFSSecurity
+
+Further help can be found in [How to install](https://github.com/raandree/NTFSSecurity/wiki/How-to-install) if you face difficulties getting this module installed.
 
 ### Documentation
 The cmdlets are yet not documented completely so Get-Help will not show help for all the cmdlets. Providing documentation is planned tough.
