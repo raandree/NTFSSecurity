@@ -145,7 +145,7 @@
     <None Include="NTFSSecurity.types.ps1xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <Compile Include="SimpleAccessCmdlets.cs" />
+    <Compile Include="SimpleAccessCmdlets\SimpleAccessCmdlets.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="ShowSimpleEffectiveAccess.resx">

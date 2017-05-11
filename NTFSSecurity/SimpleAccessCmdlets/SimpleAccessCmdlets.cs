@@ -57,7 +57,7 @@ namespace NTFSSecurity
                         WriteVerbose(string.Format("New folder: {0}", item.FullName));
                         directoryList.Add(item);
 
-                        var acl = FileSystemAccessRule2.GetFileSystemAccessRules(item, true, true).Select(ace => ace.ToSimpleFileSystemAccessRule2());
+                        var acl = FileSystemAccessRule2.GetFileSystemAccessRules(item, !ExcludeExplicit, !ExcludeInherited).Select(ace => ace.ToSimpleFileSystemAccessRule2());
 
                         try
                         {
