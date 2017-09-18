@@ -85,7 +85,7 @@ namespace NTFSSecurity
                     actualDestination = destination;
                 }
 
-                if (File.Exists(actualDestination))
+                if (!force & File.Exists(actualDestination))
                 {
                     WriteError(new ErrorRecord(new AlreadyExistsException(), "DestinationFileAlreadyExists", ErrorCategory.ResourceExists, actualDestination));
                     return;
