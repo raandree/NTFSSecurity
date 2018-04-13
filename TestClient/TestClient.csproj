@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>TestClient</RootNamespace>
     <AssemblyName>TestClient</AssemblyName>
-    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <TargetFrameworkProfile>
     </TargetFrameworkProfile>
     <FileAlignment>512</FileAlignment>
@@ -54,10 +54,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\AlphaFS\AlphaFS.csproj">
-      <Project>{f0f9af1e-d5b5-4d72-804a-5380622fbdea}</Project>
-      <Name>AlphaFS</Name>
-    </ProjectReference>
     <ProjectReference Include="..\NTFSSecurity\NTFSSecurity.csproj">
       <Project>{17768e1a-1422-4bd2-a9a5-42ba9feb82b8}</Project>
       <Name>NTFSSecurity</Name>
@@ -74,6 +70,9 @@
       <Project>{B437C364-5BC7-42E4-93F7-0F459A5DF0D0}</Project>
       <Name>Security2</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="app.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
