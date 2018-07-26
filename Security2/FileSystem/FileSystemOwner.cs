@@ -20,6 +20,16 @@ namespace Security2
             get { return owner; }
         }
 
+        public IdentityReference2 Account
+        {
+            get { return owner; }
+        }
+
+        public string FullName
+        {
+            get { return item.FullName; }
+        }
+
         private FileSystemOwner(FileSystemInfo item, IdentityReference2 owner)
         {
             this.item = item;
