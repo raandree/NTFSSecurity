@@ -85,7 +85,7 @@ namespace NTFSSecurity
                     actualDestination = destination;
                 }
 
-                if (File.Exists(actualDestination))
+                if (!force & File.Exists(actualDestination))
                 {
                     WriteError(new ErrorRecord(new AlreadyExistsException(), "DestinationFileAlreadyExists", ErrorCategory.ResourceExists, actualDestination));
                     return;
@@ -97,7 +97,7 @@ namespace NTFSSecurity
                     {
                         if (ShouldProcess(resolvedPath, "Move File"))
                         {
-                            ((FileInfo)item).MoveTo(actualDestination, MoveOptions.CopyAllowed, PathFormat.RelativePath);
+                            ((FileInfo)item).MoveTo(actualDestination, force ? MoveOptions.ReplaceExisting : MoveOptions.CopyAllowed, PathFormat.RelativePath);
                             WriteVerbose(string.Format("File '{0}' moved to '{0}'", resolvedPath, destination));
                         }
                     }
@@ -105,7 +105,7 @@ namespace NTFSSecurity
                     {
                         if (ShouldProcess(resolvedPath, "Move Directory"))
                         {
-                            ((DirectoryInfo)item).MoveTo(actualDestination, MoveOptions.CopyAllowed, PathFormat.RelativePath);
+                            ((DirectoryInfo)item).MoveTo(actualDestination, force ? MoveOptions.ReplaceExisting : MoveOptions.CopyAllowed, PathFormat.RelativePath);
                             WriteVerbose(string.Format("Directory '{0}' moved to '{0}'", resolvedPath, destination));
                         }
                     }
