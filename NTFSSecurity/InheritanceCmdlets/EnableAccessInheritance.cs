@@ -106,7 +106,7 @@ namespace NTFSSecurity
                     {
                         if (passThru)
                         {
-                            FileSystemInheritanceInfo.GetFileSystemInheritanceInfo(item);
+                            WriteObject(FileSystemInheritanceInfo.GetFileSystemInheritanceInfo(item));
                         }
                     }
                 }
@@ -119,7 +119,7 @@ namespace NTFSSecurity
 
                     if (passThru)
                     {
-                        FileSystemInheritanceInfo.GetFileSystemInheritanceInfo(sd);
+                        WriteObject(FileSystemInheritanceInfo.GetFileSystemInheritanceInfo(sd));
                     }
                 }
             }
