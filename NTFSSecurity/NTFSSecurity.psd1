@@ -1,7 +1,7 @@
 ﻿@{
     ModuleToProcess = 'NTFSSecurity.psm1'
 
-    ModuleVersion = '4.2.3'
+    ModuleVersion = '4.2.4'
 
     GUID = 'cd303a6c-f405-4dcb-b1ce-fbc2c52264e9'
 
@@ -91,8 +91,8 @@
 
         PSData = @{
             Tags = @('AccessControl', 'ACL', 'DirectorySecurity', 'FileSecurity', 'FileSystem', 'FileSystemSecurity', 'NTFS', 'Module', 'AccessRights')
-            LicenseUri = 'https://ntfssecurity.codeplex.com/license'
-            ProjectUri = 'https://ntfssecurity.codeplex.com'
+            LicenseUri = 'https://github.com/raandree/NTFSSecurity/blob/master/LICENSE'
+            ProjectUri = 'https://github.com/raandree/NTFSSecurity'
         }
     }
 }
