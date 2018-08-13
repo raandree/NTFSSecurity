@@ -17,7 +17,7 @@ namespace Security2
 
                 ace = (FileSystemAuditRule)sd.AuditRuleFactory(account, (int)rights, false, inheritanceFlags, propagationFlags, type);
 
-                sd.RemoveAuditRuleSpecific(ace);
+                sd.RemoveAuditRule(ace);
 
                 file.SetAccessControl(sd);
             }
@@ -28,7 +28,7 @@ namespace Security2
                 var sd = directory.GetAccessControl(AccessControlSections.Audit);
 
                 ace = (FileSystemAuditRule)sd.AuditRuleFactory(account, (int)rights, false, inheritanceFlags, propagationFlags, type);
-                sd.RemoveAuditRuleSpecific(ace);
+                sd.RemoveAuditRule(ace);
 
                 directory.SetAccessControl(sd);
             }
