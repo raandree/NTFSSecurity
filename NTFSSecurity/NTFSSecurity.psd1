@@ -9,7 +9,7 @@
 
     CompanyName = 'Raimund Andree'
 
-    Copyright = '2015'
+    Copyright = '2018'
 
     Description = 'Windows PowerShell Module for managing file and folder security on NTFS volumes'
 
@@ -77,8 +77,6 @@
     #----------------------------------------------
         'Get-DiskSpace',
         'Get-FileHash2'
-
-    ModuleList = @('NTFSSecurity.dll')
 
     FileList = @('NTFSSecurity.dll', 'NTFSSecurity.types.ps1xml', 'NTFSSecurity.format.ps1xml', 'NTFSSecurity.Init.ps1', 'NTFSSecurity.psm1')
 
