@@ -48,7 +48,7 @@ namespace NTFSSecurity
         }
 
         [Parameter(Mandatory = true, Position = 2, ValueFromPipelineByPropertyName = true)]
-        [Alias("IdentityReference", "ID")]
+        [Alias("IdentityReference, ID")]
         public IdentityReference2[] Account
         {
             get { return account; }

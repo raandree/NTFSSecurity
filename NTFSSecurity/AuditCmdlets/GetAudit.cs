@@ -43,7 +43,7 @@ namespace NTFSSecurity
         }
 
         [Parameter(ValueFromRemainingArguments = true)]
-        [Alias("IdentityReference", "ID")]
+        [Alias("IdentityReference, ID")]
         [ValidateNotNullOrEmpty]
         public IdentityReference2 Account
         {
