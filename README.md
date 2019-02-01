@@ -11,7 +11,7 @@ You have two options:
 Further help can be found in [How to install](https://github.com/raandree/NTFSSecurity/wiki/How-to-install) if you face difficulties getting this module installed.
 
 ### Documentation
-The cmdlets are yet not documented completely so Get-Help will not show help for all the cmdlets. Providing documentation is planned tough.
+The cmdlets are yet not documented completely so Get-Help will not show help for all the cmdlets. Providing documentation is planned though.
 
 Additional documentation is available:
 * [NTFSSecurity Tutorial 1 - Getting, adding and removing permissions](http://blogs.technet.com/b/fieldcoding/archive/2014/12/05/ntfssecurity-tutorial-1-getting-adding-and-removing-permissions.aspx)
