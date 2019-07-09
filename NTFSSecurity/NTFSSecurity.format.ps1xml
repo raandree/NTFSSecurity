@@ -146,7 +146,8 @@
               </TableColumnItem>
               <TableColumnItem>
                 <ScriptBlock>
-                  [Security2.FileSystemSecurity2]::ConvertToApplyTo($_.InheritanceFlags, $_.PropagationFlags)
+                  [Security2.FileSystemSecurity2]::ConvertTo
+                  ($_.InheritanceFlags, $_.PropagationFlags)
                 </ScriptBlock>
               </TableColumnItem>
               <TableColumnItem>

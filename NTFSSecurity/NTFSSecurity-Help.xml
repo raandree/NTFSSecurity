@@ -25,7 +25,9 @@
   - Account (SamAccountName or SID)
   - AccessRights (Read, Change, FullControl, etc., ...)
   - AccessType (Allow or Deny)
-  - ApplyTo (This folder only, Only files, etc.)
+  - 
+  
+(This folder only, Only files, etc.)
   
 All the options are explained in the parameter section.
   

@@ -95,24 +95,12 @@
     <Compile Include="PathCmdlets\TestPath2.cs" />
     <Compile Include="SecurityDescriptorCmdlets\GetSecurityDescriptor.cs" />
     <Compile Include="SecurityDescriptorCmdlets\SetSecurityDescriptor.cs" />
-    <Compile Include="ShowSimpleEffectiveAccess.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="ShowSimpleEffectiveAccess.Designer.cs">
-      <DependentUpon>ShowSimpleEffectiveAccess.cs</DependentUpon>
-    </Compile>
     <Compile Include="Extensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
-    <Compile Include="ShowSimpleAccess.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="ShowSimpleAccess.Designer.cs">
-      <DependentUpon>ShowSimpleAccess.cs</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
@@ -150,15 +138,9 @@
     <Compile Include="SimpleAccessCmdlets\SimpleAccessCmdlets.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="ShowSimpleEffectiveAccess.resx">
-      <DependentUpon>ShowSimpleEffectiveAccess.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>PublicResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-    <EmbeddedResource Include="ShowSimpleAccess.resx">
-      <DependentUpon>ShowSimpleAccess.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
