@@ -68,7 +68,7 @@ namespace Security2
         }
         public SimpleFileSystemAccessRule ToSimpleFileSystemAccessRule2()
         {
-            return new SimpleFileSystemAccessRule(fullName, Account, AccessRights);
+            return new SimpleFileSystemAccessRule(fullName, Account, AccessRights, AccessControlType);
         }
     }
 }

@@ -100,11 +100,12 @@ namespace Security2
             }
         }
 
-        public SimpleFileSystemAccessRule(string Path, IdentityReference2 account, FileSystemRights2 access)
+        public SimpleFileSystemAccessRule(string path, IdentityReference2 account, FileSystemRights2 access, AccessControlType accessControlType)
         {
-            this.fullName = Path;
-            this.accessRights = access;
-            this.identity = account;
+            fullName = path;
+            accessRights = access;
+            identity = account;
+            type = accessControlType;
         }
 
         public override bool Equals(object obj)
