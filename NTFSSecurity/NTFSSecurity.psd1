@@ -1,7 +1,7 @@
 ﻿@{
     ModuleToProcess = 'NTFSSecurity.psm1'
 
-    ModuleVersion = '4.2.4'
+    ModuleVersion = '4.2.5'
 
     GUID = 'cd303a6c-f405-4dcb-b1ce-fbc2c52264e9'
 
