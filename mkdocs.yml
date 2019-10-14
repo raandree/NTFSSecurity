@@ -45,6 +45,6 @@ nav:
   - Style Guide: Contributing/03-Style-Guide.md
   - Markdown Specifics: Contributing:04-Markdown-Specifics.md
 site_name: NTFSSecurity
-theme: material
+theme: readthedocs
 site_author: Raimund Andrée, James Smith
 docs_dir: ./Docs
