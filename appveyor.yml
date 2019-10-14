@@ -17,7 +17,7 @@ test_script:
         $ErrorActionPreference = 'Stop'
         
         # 01. Test that documentation is up-to-date
-        Update-MarkdownHelp -Path ./Docs
+        Update-MarkdownHelp -Path ./Docs/Cmdlets
         $Diff = git diff
         if ($Diff) {
             throw "Help is not up-to-date, run Update-MarkdownHelp: $diff"
