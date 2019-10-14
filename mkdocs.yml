@@ -1,7 +1,7 @@
 copyright: The NTFSSecurity module is licensed under the <a href='https://github.com/raandree/NTFSSecurity/blob/master/LICENSE'>MIT license
 repo_url: https://github.com/raandree/NTFSSecurity
 nav:
-- Home: ./Index.md
+- Home: ./index.md
 site_name: NTFSSecurity
 theme: readthedocs
 site_author: Raimund Andrée, James Smith
