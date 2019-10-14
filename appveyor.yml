@@ -28,4 +28,6 @@ test_script:
         $BrokenLinks = Get-MarkdownLink -Path ./Docs -BrokenOnly
         if ($brokenLinks) {
             throw "Found broken hyperlinks $brokenLinks"
+            $dir = pwd
+            throw "$pwd"
         }
