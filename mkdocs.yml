@@ -39,9 +39,11 @@ nav:
   - Set-NTFSOwner: Cmdlets/Set-NTFSOwner.md
   - Set-NTFSSecurityDescriptor: Cmdlets/Set-NTFSSecurityDescriptor.md
   - Test-Path2: Cmdlets/Test-Path2.md
-- Contributing:
+- Contributing: Contributing.md
   - Getting Started: Contributing/01-Getting-Started.md
-  - Writing: /Contributing/02-Writing.md
+  - Writing: Contributing/02-Writing.md
+  - Style Guide: Contributing/03-Style-Guide.md
+  - Markdown Specifics: Contributing:04-Markdown-Specifics.md
 site_name: NTFSSecurity
 theme: readthedocs
 site_author: Raimund Andrée, James Smith
