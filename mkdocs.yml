@@ -1,7 +1,7 @@
 copyright: The NTFSSecurity module is licensed under the <a href='https://github.com/raandree/NTFSSecurity/blob/master/LICENSE'>MIT license
 repo_url: https://github.com/raandree/NTFSSecurity
 nav:
-- Home: Index.md
+- Home: index.md
 - Cmdlets:
   - Add-NTFSAccess: Cmdlets/Add-NTFSAccess.md
   - Add-NTFSAudit: Cmdlets/Add-NTFSAudit.md
@@ -39,13 +39,11 @@ nav:
   - Set-NTFSOwner: Cmdlets/Set-NTFSOwner.md
   - Set-NTFSSecurityDescriptor: Cmdlets/Set-NTFSSecurityDescriptor.md
   - Test-Path2: Cmdlets/Test-Path2.md
-#- License: ../../License.md
 - Contributing:
   - Getting Started: Contributing/01-Getting-Started.md
   - Writing: /Contributing/02-Writing.md
-
 site_name: NTFSSecurity
 theme: readthedocs
 site_author: Raimund Andrée, James Smith
 edit_uri: edit/master/Help/
-docs_dir: ./Docs
+docs_dir: Docs
