@@ -27,7 +27,7 @@ The default Markdown engine in OPS is built on the top of [markdig][]. This engi
 CommonMark specification and supports extensions for DocFX. In the latest version of the [CommonMark][]
 specification, many spacing rules have changed. Spaces are significant in Markdown. Don't use hard
 tabs in Markdown. For more detailed information about the Markdown specification, see the
-[Markdown Specifics](4-MARKDOWN-SPECIFICS.md) article.
+[Markdown Specifics](04-Markdown-Specifics.md) article.
 
 ## Creating new topics
 
@@ -51,7 +51,7 @@ change to each version of the file.
 
 ## Next Steps
 
-Read the [Style Guide](3-STYLE-GUIDE.md).
+Read the [Style Guide](03-Style-Guide.md).
 
 <!-- External URLs -->
 [markdig]: https://github.com/lunet-io/markdig

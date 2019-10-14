@@ -40,14 +40,14 @@ Here is the workflow for making major edits to existing documentation:
 
 ## Next steps
 
-See [Writing PowerShell documentation](2-WRITING.md).
+See [Writing PowerShell documentation](02-Writing.md).
 
 <!-- External URLs -->
 [git-help]: https://help.github.com/
 [new-issue]: https://help.github.com/articles/creating-an-issue/
-[doc-issues]: https://github.com/Sup3rlativ3/NTFSAccess-Docs/issues
+[doc-issues]: https://github.com/Sup3rlativ3/NTFSAccess/issues
 [edit-file]: https://help.github.com/articles/editing-files-in-another-user-s-repository/
-[docs-repo]: https://github.com/Sup3rlativ3/NTFSAccess-Docs
+[docs-repo]: https://github.com/Sup3rlativ3/NTFSAccess
 [fork]: https://help.github.com/articles/fork-a-repo/
 [clone]: https://help.github.com/articles/cloning-a-repository/
 [push]: https://help.github.com/articles/pushing-to-a-remote/
