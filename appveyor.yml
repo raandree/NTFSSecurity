@@ -10,7 +10,7 @@ init:
     - ps: git config --global core.autocrlf true
 
 build_script:
-    - ps: Import-Module -Force ./NTFSSecurity/NTFSSecurity.psm1
+    - ps: Import-Module -Force NTFSSecurity\NTFSSecurity\NTFSSecurity.psm1
 
 test_script:
     - ps: |
