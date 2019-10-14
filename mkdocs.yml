@@ -1,7 +1,7 @@
 copyright: NTFSSecurity is licensed under the <a href='https://github.com/raandree/NTFSSecurity/blob/master/LICENSE'>MIT license
 repo_url: https://github.com/raandree/NTFSSecurity
 nav:
-- Home: index.md
+- Home: Index.md
 - Cmdlets:
   - Add-NTFSAccess: Cmdlets/Add-NTFSAccess.md
   - Add-NTFSAudit: Cmdlets/Add-NTFSAudit.md
@@ -42,7 +42,8 @@ nav:
 - License: License.md
 - Contributing:
   - Getting Started: Contributing/01-Getting-Started.md
-  - Writing: /Contributing/02-Writing.md                       
+  - Writing: /Contributing/02-Writing.md
+
 site_name: NTFSSecurity
 theme: readthedocs
 site_author: Raimund Andrée, James Smith
