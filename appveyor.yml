@@ -25,7 +25,7 @@ test_script:
         }
 
         # 02. Verify hyperlinks
-        $BrokenLinks = Get-MarkdownLink -Path .\Docs -BrokenOnly
+        $BrokenLinks = Get-MarkdownLink -Path ./Docs -BrokenOnly
         if ($brokenLinks) {
             throw "Found broken hyperlinks $brokenLinks"
         }
