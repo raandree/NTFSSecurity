@@ -3,6 +3,7 @@ install:
         Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
         Install-Module platyPS -Force
         Install-Module MarkdownLinkCheck -Force
+        Install-Module NTFSSecurity -Force 
         Import-Module platyPS
         Import-Module MarkdownLinkCheck
 
