@@ -48,4 +48,4 @@ site_name: NTFSSecurity
 theme: readthedocs
 site_author: Raimund Andrée, James Smith
 edit_uri: edit/master/Help/
-docs_dir: Docs
+docs_dir: ./Docs

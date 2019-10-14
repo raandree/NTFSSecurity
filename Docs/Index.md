@@ -11,7 +11,7 @@ Managing permissions with PowerShell is only a bit easier than in VBS or the com
 You have two options:
 
 * Download the latest release from the [releases](https://github.com/raandree/NTFSSecurity/releases) section on GitHub.
-* Download the module from the [PowerShell Gallery](https://www.powershellgallery.com/packages/NTFSSecurity): 
+* Download the module from the [PowerShell Gallery](https://www.powershellgallery.com/packages/NTFSSecurity):
 
 ```PowerShell
 Install-Module -Name NTFSSecurity
