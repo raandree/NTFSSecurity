@@ -14,31 +14,27 @@ Adds an access control entry (ACE) to an object.
 ## SYNTAX
 
 ### PathComplex (Default)
-
-```PowerShell
+```
 Add-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
  [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
  [-PropagationFlags <PropagationFlags>] [-PassThru] [<CommonParameters>]
 ```
 
 ### PathSimple
-
-```PowerShell
+```
 Add-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
  [-AccessType <AccessControlType>] [-AppliesTo <ApplyTo>] [-PassThru] [<CommonParameters>]
 ```
 
 ### SDSimple
-
-```PowerShell
+```
 Add-NTFSAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
  [-AccessRights] <FileSystemRights2> [-AccessType <AccessControlType>] [-AppliesTo <ApplyTo>] [-PassThru]
  [<CommonParameters>]
 ```
 
 ### SDComplex
-
-```PowerShell
+```
 Add-NTFSAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
  [-AccessRights] <FileSystemRights2> [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
  [-PropagationFlags <PropagationFlags>] [-PassThru] [<CommonParameters>]
@@ -46,25 +42,9 @@ Add-NTFSAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <Identit
 
 ## DESCRIPTION
 
-Adds an access control entry (ACE) to an object such as a file or folder. Other examples would be an object inside of Active Directory.
+Adds an access control entry (ACE) to an object such as a file or folder. NTFSSecurity allows you to apply basic permission groups (read, read/write, full) or advanced permissions that allow you to get granular with the permissions. See the below table for how the basic permissions map to the advanced permissions, and how NTFSSecurity handles them.
 
-## EXAMPLES
-
-### Example 1
-
-```PowerShell
-PS C:\> Add-NTFSAccess -Path C:\Data -Account 'NT AUTHORITY\Authenticated Users' -AccessRights Read
-```
-
-The above command gives the read permissions to the built-in group of 'Authenticated users'
-
-## PARAMETERS
-
-### -AccessRights
-
-The AccessRights parameter designates the permissions to assign. There are individual permissions as well as 'basic' permissions. See the below table for how the basic permissions permissions map the the advanced permissions in the advanced security window.
-
-| AccessRights Applied         | AccessRight displayed        | Advanced Security Window                                                                                                  |
+| NTFSSecurity         | AccessRight displayed        | Advanced Security Window                                                                                                  |
 |------------------------------|------------------------------|---------------------------------------------------------------------------------------------------------------------------|
 | ReadData                     | ListDirectory                | List Folder / Read Data                                                                                                   |
 | ListDirectory                | ListDirectory                | List Folder / Read Data                                                                                                   |
@@ -86,6 +66,22 @@ The AccessRights parameter designates the permissions to assign. There are indiv
 | ReadAndExecute               | ReadAndExecute               |  Traverse Folder / Execute File,   List Folder / Read Data, Read Attributes,   Read Extended Attributes, Read Permissions |
 | Modify                       | Modify                       |  Everything except Full Control,   Delete SubFolders and Files,   Change Permissions, Take Ownership                      |
 | ChangePermissions            | ChangePermissions            | Change Permissions                                                                                                        |
+
+## EXAMPLES
+
+### Example 1
+
+```PowerShell
+PS C:\> Add-NTFSAccess -Path C:\Data -Account 'NT AUTHORITY\Authenticated Users' -AccessRights Read
+```
+
+The above command gives the read permissions to the built-in group of 'Authenticated users'
+
+## PARAMETERS
+
+### -AccessRights
+
+The AccessRights parameter designates the permissions to assign. There are individual permissions as well as 'basic' permissions. See the below table for how the basic permissions permissions map the the advanced permissions in the advanced security window.
 
 ```yaml
 Type: FileSystemRights2
@@ -233,7 +229,6 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
-
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
