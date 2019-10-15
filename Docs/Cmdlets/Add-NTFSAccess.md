@@ -8,44 +8,51 @@ schema: 2.0.0
 # Add-NTFSAccess
 
 ## SYNOPSIS
+
 Adds an access control entry (ACE) to an object.
 
 ## SYNTAX
 
 ### PathComplex (Default)
-```
+
+```PowerShell
 Add-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
  [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
  [-PropagationFlags <PropagationFlags>] [-PassThru] [<CommonParameters>]
 ```
 
 ### PathSimple
-```
+
+```PowerShell
 Add-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
  [-AccessType <AccessControlType>] [-AppliesTo <ApplyTo>] [-PassThru] [<CommonParameters>]
 ```
 
 ### SDSimple
-```
+
+```PowerShell
 Add-NTFSAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
  [-AccessRights] <FileSystemRights2> [-AccessType <AccessControlType>] [-AppliesTo <ApplyTo>] [-PassThru]
  [<CommonParameters>]
 ```
 
 ### SDComplex
-```
+
+```PowerShell
 Add-NTFSAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
  [-AccessRights] <FileSystemRights2> [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
  [-PropagationFlags <PropagationFlags>] [-PassThru] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
+
 Adds an access control entry (ACE) to an object such as a file or folder. Other examples would be an object inside of Active Directory.
 
 ## EXAMPLES
 
 ### Example 1
-```powershell
+
+```PowerShell
 PS C:\> Add-NTFSAccess -Path C:\Data -Account 'NT AUTHORITY\Authenticated Users' -AccessRights Read
 ```
 
@@ -54,24 +61,31 @@ The above command gives the read permissions to the built-in group of 'Authentic
 ## PARAMETERS
 
 ### -AccessRights
-The AccessRights parameter designates the permissions to assign. There are individual permissions as well as 'basic' permissions. See the below table for how the basic permissions permissions map the the advanced permissions.
 
-|         Permissions         	| Basic Full Control 	| Basic Modify 	| Basic Read & Execute 	| Basic List Folder Contents 	| Basic Read 	| Basic Write 	|
-|:---------------------------:	|:------------------:	|:------------:	|:--------------------:	|:--------------------------:	|:----------:	|:-----------:	|
-|    Travers Folder/Execute   	|          X         	|       X      	|           X          	|              X             	|            	|             	|
-|    List Folder/ Read Data   	|          X         	|       X      	|           X          	|              X             	|      X     	|             	|
-|       Read Attributes       	|          X         	|       X      	|           X          	|              X             	|      X     	|             	|
-|   Read Extended Attributes  	|          X         	|       X      	|           X          	|              X             	|      X     	|             	|
-|   Create Files/Write Data   	|          X         	|       X      	|                      	|                            	|            	|      X      	|
-|  Create Folders/Append Data 	|          X         	|       X      	|                      	|                            	|            	|      X      	|
-|       Write Attributes      	|          X         	|       X      	|                      	|                            	|            	|      X      	|
-|  Write Extended Attributes  	|          X         	|       X      	|                      	|                            	|            	|      X      	|
-| Delete Subfolders and Files 	|          X         	|              	|                      	|                            	|            	|             	|
-|            Delete           	|          X         	|       X      	|                      	|                            	|            	|             	|
-|       Read Permissions      	|          X         	|       X      	|           X          	|              X             	|      X     	|      X      	|
-|      Change Permissions     	|          X         	|              	|                      	|                            	|            	|             	|
-|        Take Ownership       	|          X         	|              	|                      	|                            	|            	|             	|
-|         Synchronize         	|          X         	|       X      	|           X          	|              X             	|      X     	|      X      	|
+The AccessRights parameter designates the permissions to assign. There are individual permissions as well as 'basic' permissions. See the below table for how the basic permissions permissions map the the advanced permissions in the advanced security window.
+
+| AccessRights Applied         | AccessRight displayed        | Advanced Security Window                                                                                                  |
+|------------------------------|------------------------------|---------------------------------------------------------------------------------------------------------------------------|
+| ReadData                     | ListDirectory                | List Folder / Read Data                                                                                                   |
+| ListDirectory                | ListDirectory                | List Folder / Read Data                                                                                                   |
+| WriteData                    | CreateFile                   | Create Files / Write Data                                                                                                 |
+| CreateFiles                  | CreateFile                   | Create Files / Write Data                                                                                                 |
+| AppendData                   | CreateDirectories            | Create Folders / Append Data                                                                                              |
+| CreateDirectories            | CreateDirectories            | Create Folders / Append Data                                                                                              |
+| ReadExtendedAttributes       | ReadExtendedAttributes       | Read Extended Attributes                                                                                                  |
+| WriteExtendedAttributes      | WriteExtendedAttributes      | WriteExtendedAttributes                                                                                                   |
+| ExecuteFile                  | Traverse                     | Traverse Folder / Execute File                                                                                            |
+| Traverse                     | Traverse                     | Traverse Folder / Execute File                                                                                            |
+| DeleteSubdirectoriesAndFiles | DeleteSubdirectoriesAndFiles | Delete Sub-folders and Files                                                                                              |
+| ReadAttributes               | ReadAttributes               | Read Attributes                                                                                                           |
+| WriteAttributes              | WriteAttributes              | Write Attributes                                                                                                          |
+| Write                        | Write                        |  Create Files / Write Data,   Create Folders / Append Data,   Write-Attributes, Write Extended Attributes                 |
+| Delete                       | Delete                       | Delete                                                                                                                    |
+| ReadPermissions              | ReadPermissions              | Read Permissions                                                                                                          |
+| Read                         | Read                         |  List Folder / Read Data, Read Attributes,   Read Extended Attributes, Read Permissions                                   |
+| ReadAndExecute               | ReadAndExecute               |  Traverse Folder / Execute File,   List Folder / Read Data, Read Attributes,   Read Extended Attributes, Read Permissions |
+| Modify                       | Modify                       |  Everything except Full Control,   Delete SubFolders and Files,   Change Permissions, Take Ownership                      |
+| ChangePermissions            | ChangePermissions            | Change Permissions                                                                                                        |
 
 ```yaml
 Type: FileSystemRights2
@@ -87,6 +101,7 @@ Accept wildcard characters: False
 ```
 
 ### -AccessType
+
 The AccessType parameter determines if the ACE allows or denies the permissions assigned.
 
 ```yaml
@@ -103,6 +118,7 @@ Accept wildcard characters: False
 ```
 
 ### -Account
+
 {{ Fill Account Description }}
 
 ```yaml
@@ -118,6 +134,7 @@ Accept wildcard characters: False
 ```
 
 ### -AppliesTo
+
 {{ Fill AppliesTo Description }}
 
 ```yaml
@@ -134,6 +151,7 @@ Accept wildcard characters: False
 ```
 
 ### -InheritanceFlags
+
 {{ Fill InheritanceFlags Description }}
 
 ```yaml
@@ -150,6 +168,7 @@ Accept wildcard characters: False
 ```
 
 ### -PassThru
+
 {{ Fill PassThru Description }}
 
 ```yaml
@@ -165,6 +184,7 @@ Accept wildcard characters: False
 ```
 
 ### -Path
+
 {{ Fill Path Description }}
 
 ```yaml
@@ -180,6 +200,7 @@ Accept wildcard characters: False
 ```
 
 ### -PropagationFlags
+
 {{ Fill PropagationFlags Description }}
 
 ```yaml
@@ -196,6 +217,7 @@ Accept wildcard characters: False
 ```
 
 ### -SecurityDescriptor
+
 {{ Fill SecurityDescriptor Description }}
 
 ```yaml
@@ -211,6 +233,7 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
+
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
