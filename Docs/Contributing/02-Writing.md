@@ -1,4 +1,4 @@
-# Writing NTFSAccess documentation
+# WRITING DOCUMENTATION
 
 One of the easiest ways to contribute to the NTFSAccess PowerShell module is by helping to write and edit documentation.
 All the documentation hosted on GitHub is written using *Markdown*. Markdown is a lightweight markup
@@ -18,20 +18,14 @@ Here are some Markdown editors you can try out:
 
 To get started using Markdown, see [How to use Markdown for writing Docs](https://docs.microsoft.com/contribute/how-to-write-use-markdown).
 
-The Open Publishing System (OPS) is the platform used by docs.microsoft.com. OPS uses DocFX Flavored
-Markdown (DFM). DFM supports all GitHub Flavored Markdown (GFM) syntax and is compatible with
-CommonMark. There are some [differences between DFM and GFM][dfm-diffs] that can affect content
-preview in GitHub or your editor.
+NTFSSecurity uses the [Mkdocs][mkdocs] builder on ReadTheDocs for documentation.
 
-The default Markdown engine in OPS is built on the top of [markdig][]. This engine is based on the
-CommonMark specification and supports extensions for DocFX. In the latest version of the [CommonMark][]
-specification, many spacing rules have changed. Spaces are significant in Markdown. Don't use hard
-tabs in Markdown. For more detailed information about the Markdown specification, see the
+Don't use hard tabs in Markdown. For more detailed information about the Markdown specification, see the
 [Markdown Specifics](04-Markdown-Specifics.md) article.
 
 ## Creating new topics
 
-To contribute new documentation, check for issues tagged as ["in progress"][labels] to make sure
+To contribute new documentation, check for issues tagged as ["Help Wanted"][labels] to make sure
 you're not duplicating efforts. If no one seems to be working on what you have planned:
 
 - Open a new issue and label it as "in progress". If you don't have rights to assign labels, add "in
@@ -57,6 +51,5 @@ Read the [Style Guide](03-Style-Guide.md).
 [markdig]: https://github.com/lunet-io/markdig
 [CommonMark]: https://spec.commonmark.org/
 [gfm-help]: https://help.github.com/categories/writing-on-github/
-[labels]: https://github.com/PowerShell/PowerShell-Docs/labels/in%20progress
-[gfm-task]: https://github.github.com/gfm/#task-list-items-extension-
-[dfm-diffs]: https://dotnet.github.io/docfx/spec/docfx_flavored_markdown.html#differences-between-dfm-and-gfm
+[labels]: https://github.com/raandree/NTFSSecurity/labels/Help%20Wanted
+[mkdocs]: https://www.mkdocs.org/user-guide/writing-your-docs/

@@ -9,7 +9,7 @@ See below for details on how you can contribute to our technical documentation.
 ## Providing feedback on NTFSAccess documentation
 
 Report errors, suggest changes, or request new topics by [creating an issue][new-issue] on the
-[NTFSAccess-Docs repository issues page][doc-issues].
+[NTFSAccess repository issues page][doc-issues].
 
 ## Making minor edits to existing topics
 
@@ -30,7 +30,7 @@ repositories offline, and using more powerful native software/tools.
 
 Here is the workflow for making major edits to existing documentation:
 
-1. [Create a fork][fork] of the [NTFSAccess-Docs][docs-repo] repository.
+1. [Create a fork][fork] of the [NTFSAccess][docs-repo] repository.
 2. [Create a clone of your fork][clone] on your local computer.
 3. Create a new local branch in your cloned repository.
 4. Make changes to the file(s) you want to update in a Markdown editor.
@@ -40,14 +40,14 @@ Here is the workflow for making major edits to existing documentation:
 
 ## Next steps
 
-See [Writing PowerShell documentation](02-Writing.md).
+See [Writing documentation](02-Writing.md).
 
 <!-- External URLs -->
 [git-help]: https://help.github.com/
 [new-issue]: https://help.github.com/articles/creating-an-issue/
-[doc-issues]: https://github.com/Sup3rlativ3/NTFSAccess/issues
+[doc-issues]: https://github.com/raandree/NTFSSecurity/issues
 [edit-file]: https://help.github.com/articles/editing-files-in-another-user-s-repository/
-[docs-repo]: https://github.com/Sup3rlativ3/NTFSAccess
+[docs-repo]: https://github.com/raandree/NTFSSecurity/
 [fork]: https://help.github.com/articles/fork-a-repo/
 [clone]: https://help.github.com/articles/cloning-a-repository/
 [push]: https://help.github.com/articles/pushing-to-a-remote/
