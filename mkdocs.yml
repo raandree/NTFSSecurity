@@ -2,7 +2,7 @@ copyright: The NTFSSecurity module is licensed under the <a href='https://github
 repo_url: https://github.com/raandree/NTFSSecurity
 nav:
 - Home: ./index.md
-- Permissions: ./Permissions.md
+- Concepts: ./Concepts.md
 - Cmdlets:
   - Add-NTFSAccess: Cmdlets/Add-NTFSAccess.md
   - Add-NTFSAudit: Cmdlets/Add-NTFSAudit.md

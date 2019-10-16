@@ -1,4 +1,4 @@
-# Permissions
+# CORE CONCEPTS
 
 ## Overview
 
