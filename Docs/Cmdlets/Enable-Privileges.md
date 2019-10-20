@@ -8,21 +8,24 @@ schema: 2.0.0
 # Enable-Privileges
 
 ## SYNOPSIS
+
 {{ Fill in the Synopsis }}
 
 ## SYNTAX
 
-```
+```PowerShell
 Enable-Privileges [-PassThru] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
+
 {{ Fill in the Description }}
 
 ## EXAMPLES
 
 ### Example 1
-```powershell
+
+```PowerShell
 PS C:\> {{ Add example code here }}
 ```
 
@@ -31,6 +34,7 @@ PS C:\> {{ Add example code here }}
 ## PARAMETERS
 
 ### -PassThru
+
 {{ Fill PassThru Description }}
 
 ```yaml
@@ -46,6 +50,7 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
+
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS

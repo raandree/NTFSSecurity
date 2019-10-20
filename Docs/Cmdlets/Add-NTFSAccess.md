@@ -14,27 +14,31 @@ Adds an access control entry (ACE) to an object.
 ## SYNTAX
 
 ### PathComplex (Default)
-```
+
+```PowerShell
 Add-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
  [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
  [-PropagationFlags <PropagationFlags>] [-PassThru] [<CommonParameters>]
 ```
 
 ### PathSimple
-```
+
+```PowerShell
 Add-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
  [-AccessType <AccessControlType>] [-AppliesTo <ApplyTo>] [-PassThru] [<CommonParameters>]
 ```
 
 ### SDSimple
-```
+
+```PowerShell
 Add-NTFSAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
  [-AccessRights] <FileSystemRights2> [-AccessType <AccessControlType>] [-AppliesTo <ApplyTo>] [-PassThru]
  [<CommonParameters>]
 ```
 
 ### SDComplex
-```
+
+```PowerShell
 Add-NTFSAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
  [-AccessRights] <FileSystemRights2> [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
  [-PropagationFlags <PropagationFlags>] [-PassThru] [<CommonParameters>]
@@ -229,6 +233,7 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
+
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS

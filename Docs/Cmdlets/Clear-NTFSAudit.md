@@ -8,27 +8,32 @@ schema: 2.0.0
 # Clear-NTFSAudit
 
 ## SYNOPSIS
+
 {{ Fill in the Synopsis }}
 
 ## SYNTAX
 
 ### Path (Default)
-```
+
+```PowerShell
 Clear-NTFSAudit [-Path] <String[]> [-DisableInheritance] [<CommonParameters>]
 ```
 
 ### SD
-```
+
+```PowerShell
 Clear-NTFSAudit [-SecurityDescriptor] <FileSystemSecurity2[]> [-DisableInheritance] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
+
 {{ Fill in the Description }}
 
 ## EXAMPLES
 
 ### Example 1
-```powershell
+
+```PowerShell
 PS C:\> {{ Add example code here }}
 ```
 
@@ -37,6 +42,7 @@ PS C:\> {{ Add example code here }}
 ## PARAMETERS
 
 ### -DisableInheritance
+
 {{ Fill DisableInheritance Description }}
 
 ```yaml
@@ -52,6 +58,7 @@ Accept wildcard characters: False
 ```
 
 ### -Path
+
 {{ Fill Path Description }}
 
 ```yaml
@@ -67,6 +74,7 @@ Accept wildcard characters: False
 ```
 
 ### -SecurityDescriptor
+
 {{ Fill SecurityDescriptor Description }}
 
 ```yaml
@@ -82,6 +90,7 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
+
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
@@ -93,6 +102,7 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 ## OUTPUTS
 
 ### System.Object
+
 ## NOTES
 
 ## RELATED LINKS

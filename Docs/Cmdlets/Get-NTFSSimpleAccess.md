@@ -8,29 +8,34 @@ schema: 2.0.0
 # Get-NTFSSimpleAccess
 
 ## SYNOPSIS
+
 {{ Fill in the Synopsis }}
 
 ## SYNTAX
 
 ### Path
-```
+
+```PowerShell
 Get-NTFSSimpleAccess [-IncludeRootFolder] [[-Path] <String[]>] [-Account <IdentityReference2>]
  [-ExcludeExplicit] [-ExcludeInherited] [<CommonParameters>]
 ```
 
 ### SD
-```
+
+```PowerShell
 Get-NTFSSimpleAccess [-IncludeRootFolder] [-SecurityDescriptor] <FileSystemSecurity2[]>
  [-Account <IdentityReference2>] [-ExcludeExplicit] [-ExcludeInherited] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
+
 {{ Fill in the Description }}
 
 ## EXAMPLES
 
 ### Example 1
-```powershell
+
+```PowerShell
 PS C:\> {{ Add example code here }}
 ```
 
@@ -39,6 +44,7 @@ PS C:\> {{ Add example code here }}
 ## PARAMETERS
 
 ### -Account
+
 {{ Fill Account Description }}
 
 ```yaml
@@ -54,6 +60,7 @@ Accept wildcard characters: False
 ```
 
 ### -ExcludeExplicit
+
 {{ Fill ExcludeExplicit Description }}
 
 ```yaml
@@ -69,6 +76,7 @@ Accept wildcard characters: False
 ```
 
 ### -ExcludeInherited
+
 {{ Fill ExcludeInherited Description }}
 
 ```yaml
@@ -84,6 +92,7 @@ Accept wildcard characters: False
 ```
 
 ### -IncludeRootFolder
+
 {{ Fill IncludeRootFolder Description }}
 
 ```yaml
@@ -99,6 +108,7 @@ Accept wildcard characters: False
 ```
 
 ### -Path
+
 {{ Fill Path Description }}
 
 ```yaml
@@ -114,6 +124,7 @@ Accept wildcard characters: False
 ```
 
 ### -SecurityDescriptor
+
 {{ Fill SecurityDescriptor Description }}
 
 ```yaml
@@ -129,6 +140,7 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
+
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS

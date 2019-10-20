@@ -8,44 +8,51 @@ schema: 2.0.0
 # Remove-NTFSAccess
 
 ## SYNOPSIS
+
 {{ Fill in the Synopsis }}
 
 ## SYNTAX
 
 ### PathComplex (Default)
-```
+
+```PowerShell
 Remove-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
  [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
  [-PropagationFlags <PropagationFlags>] [-PassThru] [<CommonParameters>]
 ```
 
 ### PathSimple
-```
+
+```PowerShell
 Remove-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
  [-AccessType <AccessControlType>] [-AppliesTo <ApplyTo>] [-PassThru] [<CommonParameters>]
 ```
 
 ### SDSimple
-```
+
+```PowerShell
 Remove-NTFSAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
  [-AccessRights] <FileSystemRights2> [-AccessType <AccessControlType>] [-AppliesTo <ApplyTo>] [-PassThru]
  [<CommonParameters>]
 ```
 
 ### SDComplex
-```
+
+```PowerShell
 Remove-NTFSAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
  [-AccessRights] <FileSystemRights2> [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
  [-PropagationFlags <PropagationFlags>] [-PassThru] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
+
 {{ Fill in the Description }}
 
 ## EXAMPLES
 
 ### Example 1
-```powershell
+
+```PowerShell
 PS C:\> {{ Add example code here }}
 ```
 
@@ -54,6 +61,7 @@ PS C:\> {{ Add example code here }}
 ## PARAMETERS
 
 ### -AccessRights
+
 {{ Fill AccessRights Description }}
 
 ```yaml
@@ -70,6 +78,7 @@ Accept wildcard characters: False
 ```
 
 ### -AccessType
+
 {{ Fill AccessType Description }}
 
 ```yaml
@@ -86,6 +95,7 @@ Accept wildcard characters: False
 ```
 
 ### -Account
+
 {{ Fill Account Description }}
 
 ```yaml
@@ -101,6 +111,7 @@ Accept wildcard characters: False
 ```
 
 ### -AppliesTo
+
 {{ Fill AppliesTo Description }}
 
 ```yaml
@@ -117,6 +128,7 @@ Accept wildcard characters: False
 ```
 
 ### -InheritanceFlags
+
 {{ Fill InheritanceFlags Description }}
 
 ```yaml
@@ -133,6 +145,7 @@ Accept wildcard characters: False
 ```
 
 ### -PassThru
+
 {{ Fill PassThru Description }}
 
 ```yaml
@@ -148,6 +161,7 @@ Accept wildcard characters: False
 ```
 
 ### -Path
+
 {{ Fill Path Description }}
 
 ```yaml
@@ -163,6 +177,7 @@ Accept wildcard characters: False
 ```
 
 ### -PropagationFlags
+
 {{ Fill PropagationFlags Description }}
 
 ```yaml
@@ -179,6 +194,7 @@ Accept wildcard characters: False
 ```
 
 ### -SecurityDescriptor
+
 {{ Fill SecurityDescriptor Description }}
 
 ```yaml
@@ -194,6 +210,7 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
+
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
