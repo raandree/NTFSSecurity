@@ -13,7 +13,7 @@ schema: 2.0.0
 
 ## SYNTAX
 
-```PowerShell
+```
 Get-ChildItem2 [[-Path] <String[]>] [[-Filter] <String>] [-Recurse] [-Directory] [-File]
  [-Attributes <FileAttributes>] [-Hidden] [-System] [-ReadOnly] [-Force] [-SkipMountPoints]
  [-SkipSymbolicLinks] [-Depth <Int32>] [<CommonParameters>]
@@ -245,7 +245,6 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
-
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS

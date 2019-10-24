@@ -14,31 +14,27 @@ schema: 2.0.0
 ## SYNTAX
 
 ### PathComplex (Default)
-
-```PowerShell
+```
 Add-NTFSAudit [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
  [-AuditFlags <AuditFlags>] [-InheritanceFlags <InheritanceFlags>] [-PropagationFlags <PropagationFlags>]
  [-PassThru] [<CommonParameters>]
 ```
 
 ### PathSimple
-
-```PowerShell
+```
 Add-NTFSAudit [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
  [-AuditFlags <AuditFlags>] [-AppliesTo <ApplyTo>] [-PassThru] [<CommonParameters>]
 ```
 
 ### SDSimple
-
-```PowerShell
+```
 Add-NTFSAudit [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
  [-AccessRights] <FileSystemRights2> [-AuditFlags <AuditFlags>] [-AppliesTo <ApplyTo>] [-PassThru]
  [<CommonParameters>]
 ```
 
 ### SDComplex
-
-```PowerShell
+```
 Add-NTFSAudit [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
  [-AccessRights] <FileSystemRights2> [-AuditFlags <AuditFlags>] [-InheritanceFlags <InheritanceFlags>]
  [-PropagationFlags <PropagationFlags>] [-PassThru] [<CommonParameters>]
@@ -210,7 +206,6 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
-
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS

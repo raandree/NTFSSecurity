@@ -14,15 +14,13 @@ schema: 2.0.0
 ## SYNTAX
 
 ### Path
-
-```PowerShell
+```
 Get-NTFSSimpleAccess [-IncludeRootFolder] [[-Path] <String[]>] [-Account <IdentityReference2>]
  [-ExcludeExplicit] [-ExcludeInherited] [<CommonParameters>]
 ```
 
 ### SD
-
-```PowerShell
+```
 Get-NTFSSimpleAccess [-IncludeRootFolder] [-SecurityDescriptor] <FileSystemSecurity2[]>
  [-Account <IdentityReference2>] [-ExcludeExplicit] [-ExcludeInherited] [<CommonParameters>]
 ```
@@ -140,7 +138,6 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
-
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS

@@ -14,14 +14,12 @@ schema: 2.0.0
 ## SYNTAX
 
 ### Path (Default)
-
-```PowerShell
+```
 Set-NTFSOwner [[-Path] <String[]>] [-Account] <IdentityReference2> [-PassThru] [<CommonParameters>]
 ```
 
 ### SecurityDescriptor
-
-```PowerShell
+```
 Set-NTFSOwner [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2> [-PassThru]
  [<CommonParameters>]
 ```
@@ -107,7 +105,6 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
-
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
