@@ -135,7 +135,7 @@ Accept wildcard characters: False
 
 ### -Account
 
-{{ Fill Account Description }}
+The Account parameter defines the account or group to apply the permissions to.
 
 ```yaml
 Type: IdentityReference2[]
@@ -151,7 +151,7 @@ Accept wildcard characters: False
 
 ### -AppliesTo
 
-{{ Fill AppliesTo Description }}
+The AppliesTo parameter defines where the permissions apply to and if there is any inheritance e.g this folder and subfolders.
 
 ```yaml
 Type: ApplyTo
@@ -201,7 +201,7 @@ Accept wildcard characters: False
 
 ### -Path
 
-{{ Fill Path Description }}
+The Path parameter defines where the file or container exists.
 
 ```yaml
 Type: String[]
