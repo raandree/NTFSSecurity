@@ -79,7 +79,23 @@ Adds an access control entry (ACE) to an object such as a file or folder. NTFSSe
 PS C:\> Add-NTFSAccess -Path C:\Data -Account 'NT AUTHORITY\Authenticated Users' -AccessRights Read
 ```
 
-The above command gives the read permissions to the built-in group of 'Authenticated users'
+The above command gives the read permissions to the built-in group of 'Authenticated users'.
+
+### Example 2
+
+```PowerShell
+PS C:\> Add-NTFSAccess -Path C:\Data -Account 'Contoso\Domain Admins' -AccessRights Full
+```
+
+The above command gives full permissions to the domain administrators group in the contoso active directory.
+
+### Example 3
+
+```PowerShell
+PS C:\> Add-NTFSAccess -Path C:\Data -Account 'NT AUTHORITY\Authenticated Users' -AccessRights CreateFiles -AccessType Deny -AppliesTo ThisFolderOnly
+```
+
+The above command denies the the built-in group of 'Authenticated users' from creating files in this folder only.
 
 ## PARAMETERS
 
