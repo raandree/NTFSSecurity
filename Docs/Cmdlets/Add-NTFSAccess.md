@@ -1,6 +1,6 @@
 ---
 external help file: NTFSSecurity.dll-Help.xml
-Module Name: ntfssecurity
+Module Name: NTFSSecurity
 online version:
 schema: 2.0.0
 ---
@@ -147,7 +147,7 @@ Accept wildcard characters: False
 
 ### -AppliesTo
 
-The AppliesTo parameter defines where the permissions apply to and if there is any inheritance e.g this folder and subfolders.
+The AppliesTo parameter defines where the permissions apply to and if there is any inheritance e.g "this folder only" or "this folder and subfolders".
 
 ```yaml
 Type: ApplyTo
@@ -164,7 +164,13 @@ Accept wildcard characters: False
 
 ### -InheritanceFlags
 
-{{ Fill InheritanceFlags Description }}
+The InheritanceFlags parameter defines the inheritance of the ACLs.
+
+ObjectInherit will apply the ACE to files and folders in the folder defined by the Path parameter.
+
+ContainerInherit will apply the ACE to subfolders but not files.
+
+There is more information on Microsoft Docs [here](https://docs.microsoft.com/en-us/previous-versions/dotnet/netframework-4.0/ms229747(v=vs.100)?redirectedfrom=MSDN)
 
 ```yaml
 Type: InheritanceFlags
@@ -181,7 +187,7 @@ Accept wildcard characters: False
 
 ### -PassThru
 
-{{ Fill PassThru Description }}
+The PassThru parameter will return the new permissions as a table. If the PassThru parameter is omitted, there is no information returned if the operation was successful.
 
 ```yaml
 Type: SwitchParameter
@@ -213,7 +219,13 @@ Accept wildcard characters: False
 
 ### -PropagationFlags
 
-{{ Fill PropagationFlags Description }}
+The PropagationFlags parameter defines how the ACE is propagated to child objects.
+
+Inherit specifies that the ACE is propagated only to child objects. This includes both folder and file child objects.
+
+NoPropagateInherit specifies that the ACE is not propagated to child objects.
+
+None specifies that no inheritance flags are set.
 
 ```yaml
 Type: PropagationFlags
@@ -230,7 +242,9 @@ Accept wildcard characters: False
 
 ### -SecurityDescriptor
 
-{{ Fill SecurityDescriptor Description }}
+The SecurityDescriptor parameter allows passing an security descriptor or an array or security descriptors.
+
+A security descriptor contains information about the owner of the object, and the primary group of an object. The security descriptor also contains two access control lists (ACL). The first list is called the discretionary access control lists (DACL), and describes who should have access to an object and what type of access to grant. The second list is called the system access control lists (SACL) and defines what type of auditing to record for an object.
 
 ```yaml
 Type: FileSystemSecurity2[]
