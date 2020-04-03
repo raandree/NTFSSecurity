@@ -40,7 +40,7 @@ namespace NTFSSecurity
         }
 
         [Parameter]
-        public SwitchParameter PassThur
+        public SwitchParameter PassThru
         {
             get { return passThru; }
             set { passThru = value; }
