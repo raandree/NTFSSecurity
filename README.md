@@ -14,5 +14,5 @@ Further help can be found in [How to install](https://github.com/raandree/NTFSSe
 The cmdlets are yet not documented completely so Get-Help will not show help for all the cmdlets. Providing documentation is planned though.
 
 Additional documentation is available:
-* [NTFSSecurity Tutorial 1 - Getting, adding and removing permissions](http://blogs.technet.com/b/fieldcoding/archive/2014/12/05/ntfssecurity-tutorial-1-getting-adding-and-removing-permissions.aspx)
-* [NTFSSecurity Tutorial 2 - Managing NTFS Inheritance and Using Privileges](http://blogs.technet.com/b/fieldcoding/archive/2014/12/05/ntfssecurity-tutorial-2-managing-ntfs-inheritance-and-using-privileges.aspx)
+* [NTFSSecurity Tutorial 1 - Getting, adding and removing permissions](https://docs.microsoft.com/en-us/archive/blogs/fieldcoding/ntfssecurity-tutorial-1-getting-adding-and-removing-permissions)
+* [NTFSSecurity Tutorial 2 - Managing NTFS Inheritance and Using Privileges](https://docs.microsoft.com/en-us/archive/blogs/fieldcoding/ntfssecurity-tutorial-2-managing-ntfs-inheritance-and-using-privileges)
