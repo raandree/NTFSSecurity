@@ -15,6 +15,8 @@
 
     PowerShellVersion = '2.0'
 
+    CompatiblePSEditions = 'Core', 'Desktop'
+
     DotNetFrameworkVersion = '3.5'
 
     ScriptsToProcess = @('NTFSSecurity.Init.ps1')
