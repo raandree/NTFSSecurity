@@ -1,0 +1,51 @@
+copyright: The NTFSSecurity module is licensed under the <a href='https://github.com/raandree/NTFSSecurity/blob/master/LICENSE'>MIT license
+repo_url: https://github.com/raandree/NTFSSecurity
+nav:
+- Home: ./index.md
+- Concepts: ./Concepts.md
+- Cmdlets:
+  - Add-NTFSAccess: Cmdlets/Add-NTFSAccess.md
+  - Add-NTFSAudit: Cmdlets/Add-NTFSAudit.md
+  - Clear-NTFSAccess: Cmdlets/Clear-NTFSAccess.md
+  - Clear-NTFSAudit: Cmdlets/Clear-NTFSAudit.md
+  - Copy-Item2: Cmdlets/Copy-Item2.md
+  - Disable-NTFSAccessInheritance: Cmdlets/Disable-NTFSAccessInheritance.md
+  - Disable-NTFSAuditInheritance: Cmdlets/Disable-NTFSAuditInheritance.md
+  - Disable-Privileges: Cmdlets/Disable-Privileges.md
+  - Enable-NTFSAccessInheritance: Cmdlets/Enable-NTFSAccessInheritance.md
+  - Enable-NTFSAuditInheritance: Cmdlets/Enable-NTFSAuditInheritance.md
+  - Enable-Privileges: Cmdlets/Enable-Privileges.md
+  - Get-ChildItem2: Cmdlets/Get-ChildItem2.md
+  - Get-DiskSpace: Cmdlets/Get-DiskSpace.md
+  - Get-FileHash2: Cmdlets/Get-FileHash2.md
+  - Get-Item2: Cmdlets/Get-Item2.md
+  - Get-NTFSAccess: Cmdlets/Get-NTFSAccess.md
+  - Get-NTFSAudit: Cmdlets/Get-NTFSAudit.md
+  - Get-NTFSEffectiveAccess: Cmdlets/Get-NTFSEffectiveAccess.md
+  - Get-NTFSHardLink: Cmdlets/Get-NTFSHardLink.md
+  - Get-NTFSInheritance: Cmdlets/Get-NTFSInheritance.md
+  - Get-NTFSOrphanedAccess: Cmdlets/Get-NTFSOrphanedAccess.md
+  - Get-NTFSOrphanedAudit: Cmdlets/Get-NTFSOrphanedAudit.md
+  - Get-NTFSOwner: Cmdlets/Get-NTFSOwner.md
+  - Get-NTFSSecurityDescriptor: Cmdlets/Get-NTFSSecurityDescriptor.md
+  - Get-NTFSSimpleAccess: Cmdlets/Get-NTFSSimpleAccess.md
+  - Get-Privileges: Cmdlets/Get-Privileges.md
+  - Move-Item2: Cmdlets/Move-Item2.md
+  - New-NTFSHardLink: Cmdlets/New-NTFSHardLink.md
+  - New-NTFSSymbolicLink: Cmdlets/New-NTFSSymbolicLink.md
+  - Remove-Item2: Cmdlets/Remove-Item2.md
+  - Remove-NTFSAccess: Cmdlets/Remove-NTFSAccess.md
+  - Remove-NTFSAudit: Cmdlets/Remove-NTFSAudit.md
+  - Set-NTFSInheritance: Cmdlets/Set-NTFSInheritance.md
+  - Set-NTFSOwner: Cmdlets/Set-NTFSOwner.md
+  - Set-NTFSSecurityDescriptor: Cmdlets/Set-NTFSSecurityDescriptor.md
+  - Test-Path2: Cmdlets/Test-Path2.md
+- Contributing:
+  - Getting Started: Contributing/01-Getting-Started.md
+  - Writing: Contributing/02-Writing.md
+  - Style Guide: Contributing/03-Style-Guide.md
+  - Markdown Specifics: Contributing:04-Markdown-Specifics.md
+site_name: NTFSSecurity
+theme: readthedocs
+site_author: Raimund Andrée, James Smith
+docs_dir: ./Docs

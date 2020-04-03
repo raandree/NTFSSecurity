@@ -1,0 +1,31 @@
+install:
+    - ps: |
+        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+        Install-Module platyPS -Force
+        Install-Module MarkdownLinkCheck -Force
+        Install-Module NTFSSecurity -Force 
+        Import-Module platyPS
+        Import-Module MarkdownLinkCheck
+
+init:
+    - ps: git config --global core.autocrlf true
+
+build_script:
+    - ps: Import-Module -Force NTFSSecurity
+
+test_script:
+    - ps: |
+        $ErrorActionPreference = 'Stop'
+        
+        # 01. Test that documentation is up-to-date
+        Update-MarkdownHelp -Path ./Docs/Cmdlets
+        $Diff = git diff
+        if ($Diff) {
+            throw "Help is not up-to-date, run Update-MarkdownHelp: $diff"
+        }
+
+        # 02. Verify hyperlinks
+        $BrokenLinks = Get-MarkdownLink -Path .\Docs\ -BrokenOnly
+        if ($brokenLinks) {
+            throw "Found broken hyperlinks $brokenLinks"
+        }
