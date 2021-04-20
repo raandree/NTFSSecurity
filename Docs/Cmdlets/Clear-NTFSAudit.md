@@ -73,7 +73,9 @@ Accept wildcard characters: False
 
 ### -SecurityDescriptor
 
-{{ Fill SecurityDescriptor Description }}
+The SecurityDescriptor parameter allows passing an security descriptor or an array or security descriptors.
+
+A security descriptor contains information about the owner of the object, and the primary group of an object. The security descriptor also contains two access control lists (ACL). The first list is called the discretionary access control lists (DACL), and describes who should have access to an object and what type of access to grant. The second list is called the system access control lists (SACL) and defines what type of auditing to record for an object.
 
 ```yaml
 Type: FileSystemSecurity2[]

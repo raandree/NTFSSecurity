@@ -26,10 +26,38 @@ Get-Privileges [<CommonParameters>]
 ### Example 1
 
 ```PowerShell
-PS C:\> {{ Add example code here }}
+PS C:\> Get-Privileges
+
+-------------------------------------------------------------------------
+| Privilege                     | PrivilegeAttributes | PriviliegeState |
+|-------------------------------|---------------------|-----------------|
+| IncreaseQuota                 | Disabled            | Disabled        |
+| Security                      | Enabled             | Enabled         |
+| TakeOwnership                 | Enabled             | Enabled         |
+| LoadDriver                    | Disabled            | Disabled        |
+| SystemProfile                 | Disabled            | Disabled        |
+| SystemTime                    | Disabled            | Disabled        |
+| ProfileSingleProcess          | Disabled            | Disabled        |
+| IncreaseBasePriority          | Disabled            | Disabled        |
+| CreatePageFile                | Disabled            | Disabled        |
+| Backup                        | Enabled             | Enabled         |
+| Restore                       | Enabled             | Enabled         |
+| Shutdown                      | Disabled            | Disabled        |
+| Debug                         | Enabled             | Enabled         |
+| SystemEnvironment             | Disabled            | Disabled        |
+| ChangeNotify EnabledByDefault | Enabled             | Enabled         |
+| RemoteShutdown                | Disabled            | Disabled        |
+| Undock                        | Disabled            | Disabled        |
+| ManageVolume                  | Disabled            | Disabled        |
+| Impersonate EnabledByDefault  | Enabled             | Enabled         |
+| CreateGlobal EnabledByDefault | Enabled             | Enabled         |
+| IncreaseWorkingSet            | Disabled            | Disabled        |
+| TimeZone                      | Disabled            | Disabled        |
+| CreateSymbolicLink            | Disabled            | Disabled        |
+-------------------------------------------------------------------------
 ```
 
-{{ Add example description here }}
+The above command gets the privliges.
 
 ## PARAMETERS
 

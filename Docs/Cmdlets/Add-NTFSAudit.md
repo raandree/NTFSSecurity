@@ -9,7 +9,7 @@ schema: 2.0.0
 
 ## SYNOPSIS
 
-{{ Fill in the Synopsis }}
+Add auditing to a folder or file.
 
 ## SYNTAX
 
@@ -42,23 +42,24 @@ Add-NTFSAudit [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <Identity
 
 ## DESCRIPTION
 
-{{ Fill in the Description }}
+You can apply audit policies to individual files and folders on your computer by setting the permission type to record successful access attempts or failed access attempts in the security log.
+
+To complete this procedure, you must be signed in as a member of the built-in Administrators group or have Manage auditing and security log rights.
 
 ## EXAMPLES
 
 ### Example 1
 
 ```PowerShell
-PS C:\> {{ Add example code here }}
+PS C:\> Add-NTFSAudit -Path C:\Data -Account 'NT AUTHORITY\Authenticated Users' -AcessRights generic All -AuditFlags Failure
 ```
 
-{{ Add example description here }}
-
+The above command adds auditing to the folder C:\Data on any failure.
 ## PARAMETERS
 
 ### -AccessRights
 
-{{ Fill AccessRights Description }}
+The AccessRights parameter designates the permissions to monitor or audit. There are individual permissions as well as 'basic' permissions. See the below table for how the basic permissions permissions map the the advanced permissions in the advanced security window.
 
 ```yaml
 Type: FileSystemRights2
@@ -75,7 +76,7 @@ Accept wildcard characters: False
 
 ### -Account
 
-{{ Fill Account Description }}
+The Account parameter defines the account or group to apply the auditing to.
 
 ```yaml
 Type: IdentityReference2[]
@@ -91,7 +92,7 @@ Accept wildcard characters: False
 
 ### -AppliesTo
 
-{{ Fill AppliesTo Description }}
+The AppliesTo parameter defines where the auditing will apply to and if there is any inheritance e.g "this folder only" or "this folder and subfolders".
 
 ```yaml
 Type: ApplyTo
@@ -108,7 +109,7 @@ Accept wildcard characters: False
 
 ### -AuditFlags
 
-{{ Fill AuditFlags Description }}
+The AuditFlags parameter defines what types of events will be audited. If you would only like to audit denied access you would choose failure.
 
 ```yaml
 Type: AuditFlags
@@ -125,7 +126,13 @@ Accept wildcard characters: False
 
 ### -InheritanceFlags
 
-{{ Fill InheritanceFlags Description }}
+The InheritanceFlags parameter defines the inheritance of the auditing.
+
+ObjectInherit will apply the auditing to files and folders in the folder defined by the Path parameter.
+
+ContainerInherit will apply the auditing to subfolders but not files.
+
+There is more information on Microsoft Docs [here](https://docs.microsoft.com/en-us/previous-versions/dotnet/netframework-4.0/ms229747(v=vs.100)?redirectedfrom=MSDN)
 
 ```yaml
 Type: InheritanceFlags
@@ -142,7 +149,7 @@ Accept wildcard characters: False
 
 ### -PassThru
 
-{{ Fill PassThru Description }}
+The PassThru parameter will return the new auditing as a table. If the PassThru parameter is omitted, there is no information returned if the operation was successful.
 
 ```yaml
 Type: SwitchParameter
@@ -158,7 +165,7 @@ Accept wildcard characters: False
 
 ### -Path
 
-{{ Fill Path Description }}
+The Path parameter defines where the file or container exists to apply the auditing to.
 
 ```yaml
 Type: String[]
@@ -174,7 +181,13 @@ Accept wildcard characters: False
 
 ### -PropagationFlags
 
-{{ Fill PropagationFlags Description }}
+The PropagationFlags parameter defines how the auditing is propagated to child objects.
+
+Inherit specifies that the auditing is propagated only to child objects. This includes both folder and file child objects.
+
+NoPropagateInherit specifies that the auditing is not propagated to child objects.
+
+None specifies that no inheritance flags are set.
 
 ```yaml
 Type: PropagationFlags
@@ -191,7 +204,9 @@ Accept wildcard characters: False
 
 ### -SecurityDescriptor
 
-{{ Fill SecurityDescriptor Description }}
+The SecurityDescriptor parameter allows passing an security descriptor or an array or security descriptors.
+
+A security descriptor contains information about the owner of the object, and the primary group of an object. The security descriptor also contains two access control lists (ACL). The first list is called the discretionary access control lists (DACL), and describes who should have access to an object and what type of access to grant. The second list is called the system access control lists (SACL) and defines what type of auditing to record for an object.
 
 ```yaml
 Type: FileSystemSecurity2[]

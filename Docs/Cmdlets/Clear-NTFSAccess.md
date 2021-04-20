@@ -9,7 +9,7 @@ schema: 2.0.0
 
 ## SYNOPSIS
 
-{{ Fill in the Synopsis }}
+Removes all access control entries from a file or folder.
 
 ## SYNTAX
 
@@ -32,16 +32,16 @@ Clear-NTFSAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-DisableInherita
 ### Example 1
 
 ```PowerShell
-PS C:\> {{ Add example code here }}
+PS C:\> Clear-NTFSAccess -Path C:\Data\ -DisableInheritance
 ```
 
-{{ Add example description here }}
+The above example would remove all access control entries from the folder C:\Data and disable inheritance on the folder as well.
 
 ## PARAMETERS
 
 ### -DisableInheritance
 
-{{ Fill DisableInheritance Description }}
+The DisableInheritance parameter defines if you would like to didable the inheritance on the file or folder when clearing permissions.
 
 ```yaml
 Type: SwitchParameter
@@ -57,7 +57,7 @@ Accept wildcard characters: False
 
 ### -Path
 
-{{ Fill Path Description }}
+The Path parameter defines where the file or container exists to remove the access control entries from.
 
 ```yaml
 Type: String[]
@@ -73,7 +73,9 @@ Accept wildcard characters: False
 
 ### -SecurityDescriptor
 
-{{ Fill SecurityDescriptor Description }}
+The SecurityDescriptor parameter allows passing an security descriptor or an array or security descriptors.
+
+A security descriptor contains information about the owner of the object, and the primary group of an object. The security descriptor also contains two access control lists (ACL). The first list is called the discretionary access control lists (DACL), and describes who should have access to an object and what type of access to grant. The second list is called the system access control lists (SACL) and defines what type of auditing to record for an object.
 
 ```yaml
 Type: FileSystemSecurity2[]
