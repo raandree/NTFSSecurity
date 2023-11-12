@@ -27,5 +27,6 @@ The cmdlets are yet not documented completely so Get-Help will not show help for
 
 There are a number of tutorials available on the web. The below two were written by the author of the NTFSSecurity module.
 
-[NTFSSecurity Tutorial 1 - Getting, adding and removing permissions](http://blogs.technet.com/b/fieldcoding/archive/2014/12/05/ntfssecurity-tutorial-1-getting-adding-and-removing-permissions.aspx)
-[NTFSSecurity Tutorial 2 - Managing NTFS Inheritance and Using Privileges](http://blogs.technet.com/b/fieldcoding/archive/2014/12/05/ntfssecurity-tutorial-2-managing-ntfs-inheritance-and-using-privileges.aspx)
+[NTFSSecurity Tutorial 1 - Getting, adding and removing permissions](https://learn.microsoft.com/en-us/archive/blogs/fieldcoding/ntfssecurity-tutorial-1-getting-adding-and-removing-permissions)
+
+[NTFSSecurity Tutorial 2 - Managing NTFS Inheritance and Using Privileges](https://learn.microsoft.com/en-us/archive/blogs/fieldcoding/ntfssecurity-tutorial-2-managing-ntfs-inheritance-and-using-privileges)
