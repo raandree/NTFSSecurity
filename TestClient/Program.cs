@@ -21,7 +21,7 @@ namespace TestClient
 
             //var v1 = values.Where(v => v == AccessControlSections.All).FirstOrDefault
 
-            var x = Enum.get
+            var x = Enum.
 
 
 
