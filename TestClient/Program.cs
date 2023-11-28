@@ -15,6 +15,17 @@ namespace TestClient
     {
         static void Main(string[] args)
         {
+            //List<AccessControlSections> fileSystemRights = new List<AccessControlSections>();
+
+            //var values = Enum.GetValues(typeof(AccessControlSections)).Cast <AccessControlSections>().ToList();
+
+            //var v1 = values.Where(v => v == AccessControlSections.All).FirstOrDefault
+
+            var x = Enum.get
+
+
+
+
             var item1 = new FileInfo("D:\\file1.txt");
             var item2 = new DirectoryInfo("D:\\test3");
             var account1 = new List<IdentityReference2>() { (IdentityReference2)@"raandree1\randr_000" };

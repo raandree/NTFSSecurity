@@ -23,7 +23,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\..\..\..\..\..\Program Files\WindowsPowerShell\Modules\NTFSSecurity\</OutputPath>
+    <OutputPath>..\..\..\..\Documents\WindowsPowerShell\Modules\NTFSSecurity\</OutputPath>
     <DefineConstants>TRACE;DEBUG</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>

@@ -1,5 +1,6 @@
 ﻿using Alphaleonis.Win32.Filesystem;
 using System;
+using System.Linq;
 using System.Security.AccessControl;
 
 namespace Security2
@@ -99,14 +100,26 @@ namespace Security2
 
         public void Write()
         {
-            if (isFile)
+            var values = Enum.GetValues(typeof(System.Security.AccessControl.AccessControlSections));
+            foreach (var value in values) //.Cast<string>().Where(v => v != "All" | v != "None"))
             {
-                ((FileInfo)item).SetAccessControl((FileSecurity)sd);
+                try
+                {
+                    if (isFile)
+                    {
+                        ((FileInfo)item).SetAccessControl((FileSecurity)sd, (AccessControlSections)value);
+                    }
+                    else
+                    {
+                        ((DirectoryInfo)item).SetAccessControl((DirectorySecurity)sd, (AccessControlSections)value);
+                    }
+                }
+                catch
+                {
+                    //Console.WriteLine("Exception {0} - {1}", item.FullName, value);
+                }
             }
-            else
-            {
-                ((DirectoryInfo)item).SetAccessControl((DirectorySecurity)sd);
-            }
+            
         }
 
         public void Write(FileSystemInfo item)

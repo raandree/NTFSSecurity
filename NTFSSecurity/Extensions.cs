@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Security.AccessControl;
 using Alphaleonis.Win32.Filesystem;
 
 namespace NTFSSecurity
@@ -52,5 +54,10 @@ namespace NTFSSecurity
                 throw new System.IO.FileNotFoundException();
             }
         }
-    }   
+
+        public static List<T> GetListOfNames<T>(this Enum source)
+        {
+            return Enum.GetValues(typeof(T)).Cast<T>().ToList();
+        }
+    }
 }
