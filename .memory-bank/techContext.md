@@ -28,8 +28,12 @@ source: repository evidence
 - Windows only (NTFS, Win32 security APIs).
 - The Debug build writes straight into
   `C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity\`.
-- No MSBuild or .NET Framework targeting pack on the 2026-10-02 workstation;
-  the released module 4.2.6 and platyPS 0.14.2 were installed.
+- No Visual Studio MSBuild or .NET Framework targeting pack on the
+  workstation. A local build works with the .NET Framework MSBuild
+  (`%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe`) plus
+  `/p:CscToolPath` to the Roslyn `csc.exe` of the `Microsoft.Net.Compilers`
+  package; the legacy C# 5 compiler fails with CS0136. `dotnet msbuild`
+  fails on the binary resources in `Resources.resx` (MSB3822, MSB3823).
 
 ## Constraints
 
@@ -41,22 +45,27 @@ source: repository evidence
   (WinForms code removed in `d3063de`), and repeats the inheritance cmdlets.
 - `NTFSSecurity/NTFSSecurity-Help.xml` is a stale pre-4.x MAML file for old
   command names; binary-module help must be named `NTFSSecurity.dll-Help.xml`.
-- Read the Docs (`ntfssecurity`) and AppVeyor are attached to the fork
-  `Sup3rlativ3/NTFSSecurity`, not to this repository.
+- CI: AppVeyor project `raandree/ntfssecurity` builds branches and pull
+  requests. Read the Docs (`ntfssecurity`) and a second AppVeyor project are
+  attached to the fork `Sup3rlativ3/NTFSSecurity`.
 - `Get-FileHash2` fails in PowerShell 7; all other cmdlets passed a smoke
   test in PowerShell 7.6.
 
 ## Validation
 
-- Docs drift check (mirrors `appveyor.yml`), run in Windows PowerShell 5.1
-  to avoid PowerShell 7.4+ `-ProgressAction` noise: copy `Docs/Cmdlets`, run
-  `Update-MarkdownHelp` on the copy against the module, and diff.
+- CI (`appveyor.yml`, image Visual Studio 2022): restore `packages.config`
+  per project plus `Microsoft.NETFramework.ReferenceAssemblies.net452`
+  1.0.3, build `NTFSSecurity.csproj` in Release with
+  `TargetFrameworkRootPath`/`FrameworkPathOverride`, import
+  `NTFSSecurity\bin\Release\NTFSSecurity.psd1`, run `Update-MarkdownHelp`,
+  and fail on `git diff -- Docs/Cmdlets`; then `Get-MarkdownLink -BrokenOnly`.
+- Run platyPS in Windows PowerShell 5.1 to avoid PowerShell 7.4+
+  `-ProgressAction` noise.
 - Placeholder check: no `{{` left in `Docs/Cmdlets/*.md`.
 - Help build check: `New-ExternalHelp -Path ./Docs/Cmdlets` to a temp folder.
 - Markdown lint: `npx markdownlint-cli2` with `MD013` limited to prose
   (tables, code, and headings excluded) on the conceptual pages.
-- YAML: `ConvertFrom-Yaml` (powershell-yaml) on `mkdocs.yml` and
-  `.readthedocs.yml`; every `nav` target must exist.
-- Link check in CI: `Get-MarkdownLink -Path .\Docs\ -BrokenOnly`.
+- YAML: `ConvertFrom-Yaml` (powershell-yaml) on `mkdocs.yml`,
+  `.readthedocs.yml`, and `appveyor.yml`; every `nav` target must exist.
 - MkDocs needs Python, which this workstation does not have; `mkdocs build
   --strict` was not run.

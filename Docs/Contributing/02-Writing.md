@@ -42,7 +42,8 @@ parameter descriptions, the examples, and the notes.
 
 When a cmdlet changes, build the module, import the build output, and update
 the pages in Windows PowerShell 5.1. A Release build writes the module to
-`NTFSSecurity\bin\Release`:
+`NTFSSecurity\bin\Release`; the `before_build` and `build_script` steps in
+`appveyor.yml` show the commands that the CI build uses:
 
 ```powershell
 Install-Module -Name platyPS -RequiredVersion 0.14.2

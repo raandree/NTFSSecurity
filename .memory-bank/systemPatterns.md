@@ -76,6 +76,15 @@ NTFSSecurity.dll ── cmdlets ──> Security2.dll (FileSystemAccessRule2,
 - Rationale: No build toolchain was available to verify code changes, and
   the docs must describe current behavior.
 
+### Decision 6: CI checks the docs against a build of the source
+
+- Choice: `appveyor.yml` builds `NTFSSecurity.csproj` and runs
+  `Update-MarkdownHelp` against `NTFSSecurity\bin\Release`, not against the
+  module from the PowerShell Gallery.
+- Rationale: Checking against the last release fails for every unreleased
+  parameter change (PR #91 failed on `Remove-Item2 -PassThru`) and never
+  compiled the code.
+
 ### Pattern: verifying documentation
 
 - Run platyPS in Windows PowerShell 5.1 against a module build; a copy of

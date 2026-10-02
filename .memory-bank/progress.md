@@ -21,6 +21,9 @@ since the 4.2.6 release except the `Remove-Item2 -PassThru` rename and
   home page, contributor guide, README rewritten; `mkdocs.yml` nav,
   `edit_uri`, and `.readthedocs.yml` (`build.os`) fixed; `CHANGELOG.md`
   created.
+- 2026-10-02: PR #91 build fixed: `appveyor.yml` builds the module from
+  source and checks the docs against that build instead of the Gallery
+  release (root cause of the `Remove-Item2 -PassThru` drift failure).
 
 ## Stable capabilities
 
@@ -34,9 +37,8 @@ since the 4.2.6 release except the `Remove-Item2 -PassThru` rename and
 
 - Ship help: add the generated `en-US\NTFSSecurity.dll-Help.xml` to the
   build and drop the stale `NTFSSecurity-Help.xml`.
-- Publishing: re-point Read the Docs and AppVeyor from the fork
-  `Sup3rlativ3/NTFSSecurity`; `appveyor.yml` checks docs against the Gallery
-  module instead of the source.
+- Publishing: re-point Read the Docs from the fork `Sup3rlativ3/NTFSSecurity`
+  to this repository (or create a new Read the Docs project).
 - Manifest: remove `Show-NTFSSimpleAccess` and duplicates from
   `CmdletsToExport`; bump `ModuleVersion` (4.2.5 in source, 4.2.6 released).
 - Code defects found while documenting (each documented on its page):
