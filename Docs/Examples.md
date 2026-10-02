@@ -1,93 +1,222 @@
-### Get-NTFSAccess
-Returns a list of all access control entries found on the given object(s).
+# Examples
 
-    #Get permissions from all files or folders in the current folder
-    dir | Get-NTFSAccess
+These examples show common tasks with the NTFSSecurity module. Replace the
+sample paths and accounts with your own. For background, see
+[Concepts](Concepts.md).
 
-    #to read the permissions of a specific file
-    Get-NTFSAccess -Path C:\Windows
+Changing permissions on items you don't own, changing owners, and every
+audit operation need an elevated PowerShell session. See
+[Privileges](Concepts.md#privileges).
 
-#### Get permissions from all files or folders in the current folder
+## Read permissions
 
-    dir | Get-NTFSAccess
+Get the access entries of a folder:
 
-#### To read and also remove only the explicitly assigned ones
+```powershell
+Get-NTFSAccess -Path C:\Data
+```
 
-    dir | Get-NTFSAccess -ExcludeInherited | Remove-NTFSAccess
+Get the access entries of every item in a folder:
 
-The pipeline support can also be used to backup and restore permissions of one or many items:
-PowerShell
+```powershell
+Get-ChildItem -Path C:\Data | Get-NTFSAccess
+```
 
-#### To backup permissions just pipe what Get-NTFSAccess returns to Export-Csv
+Get only the explicit entries in a folder tree, including items with paths
+longer than 260 characters:
 
-    dir | Get-NTFSAccess -ExcludeInherited | Export-Csv permissions.csv
+```powershell
+Get-ChildItem2 -Path C:\Data -Recurse | Get-NTFSAccess -ExcludeInherited
+```
 
-#### To retore the permissions pipe the imported data to Get-NTFSAccess
+Get the entries of one account, either with `-Account` or with
+`Where-Object`:
 
-As the imported data also contains the path you do not need to specify the item
+```powershell
+Get-NTFSAccess -Path C:\Data -Account 'CONTOSO\JohnDoe'
+Get-NTFSAccess -Path C:\Data | Where-Object { $_.Account -like '*JohnDoe*' }
+```
 
-    Import-Csv .\permissions.csv | Get-NTFSAccess
+## Grant permissions
 
-All cmdlets can handle SIDs and also SamAccountNames. The output contains always both unless a SID is not resolvable.
-The types.ps1xml file is extending the common objects with some useful information and the format.ps1xml file formats all the output in almost the same way like the Get-ChildItem output.
+Give an account the Modify permission on a folder, its subfolders, and its
+files:
 
-By implementing the [Process Privilege http://processprivileges.codeplex.com/] project the cmdlets can activate the required privileges for setting the ownership for example.
+```powershell
+Add-NTFSAccess -Path C:\Data -Account 'CONTOSO\JohnDoe' -AccessRights Modify
+```
 
+Give a group read access to a folder and its subfolders, but not to the
+files:
 
-# Add-NTFSAccess
-Adds a specific ace to the current object. This can be done in just one line:
+```powershell
+Add-NTFSAccess -Path C:\Data -Account 'CONTOSO\Domain Users' -AccessRights ReadAndExecute -AppliesTo ThisFolderAndSubfolders
+```
 
-     Get-Item .\VMWare | Add-NTFSAccess -Account Contoso\JohnD -AccessRights FullControl
+Deny a group the right to delete anything in a folder:
 
-# Get-NTFSAccess
+```powershell
+Add-NTFSAccess -Path C:\Data\Public -Account 'CONTOSO\Interns' -AccessRights Delete, DeleteSubdirectoriesAndFiles -AccessType Deny
+```
 
-Gives you a list of all permissions . normally you are interested not in the inherited permissions so the switch ExcludeInherited can be useful
+## Remove permissions
 
-    Get-Item F:\backup | Get-NTFSAccess –ExcludeInherited
+Remove an entry by account and rights:
 
+```powershell
+Remove-NTFSAccess -Path C:\Data -Account 'CONTOSO\JohnDoe' -AccessRights Modify
+```
 
-## Filtering works with Where-Object
+Remove all explicit entries of an account by piping them to
+`Remove-NTFSAccess`:
 
-    Get-Item F:\backup | Get-NTFSAccess | Where-Object { $_.ID -like "*users*" }
+```powershell
+Get-NTFSAccess -Path C:\Data -Account 'CONTOSO\JohnDoe' -ExcludeInherited | Remove-NTFSAccess
+```
 
-# Get-NTFS Orphaned  Access
+## Back up and restore permissions
 
-Lists all permissions that can no longer be resolved. This normally happens if the account is no longer available so the permissions show up as a SID and not as an account name.
+Save the explicit entries of a folder and everything below it to a CSV file:
 
-To remove all non-resolvable or orphaned permissions you can use the following line. But be very careful with that as maybe the account is not resolvable due to a network problem.
+```powershell
+$items = @(Get-Item2 -Path C:\Data) + @(Get-ChildItem2 -Path C:\Data -Recurse)
+$items | Get-NTFSAccess -ExcludeInherited | Export-Csv -Path C:\Backup\permissions.csv -NoTypeInformation
+```
 
-    dir -Recurse | Get-NTFSOrphanedAccess | Remove-NTFSAccess
+Restore the entries. Each row contains the path, account, rights, type, and
+inheritance settings of one entry, which `Add-NTFSAccess` binds by property
+name:
 
-# Remove- NTFSAccess
+```powershell
+Import-Csv -Path C:\Backup\permissions.csv | Add-NTFSAccess
+```
 
-Removes the permission for a certain account. As the pipeline is supported it takes also
-ACEs coming from Get-NTFSAccess or Get-NTFSOrphanedAccess
+Restoring adds the saved entries. It doesn't remove entries that were added
+after the backup.
 
+## Find and remove orphaned entries
 
-# Get-NTFSEffectiveAccess
+List entries whose account no longer exists:
 
-Shows the permissions an account actually has on a file or folder. If no parameter is specified it shows the effective permissions for the current user. However you can supply a user by using the SID or account name
-PowerShell
+```powershell
+Get-ChildItem2 -Path C:\Data -Recurse | Get-NTFSOrphanedAccess
+```
 
-    Get-Item F:\backup | Get-NTFSEffectiveAccess -Account S-1-5-32-545
+Remove them:
 
-# Get-NTFSInheritance
-Shows if inheritance is blocked
+```powershell
+Get-ChildItem2 -Path C:\Data -Recurse | Get-NTFSOrphanedAccess | Remove-NTFSAccess
+```
 
-# Enable-NTFSInheritance
-It can be a problem if certain files or folders on a volume have inheritance disabled. Making sure that inheritance is enabled can be done using this cmdlets:
+Review the list before you remove anything. An account also looks orphaned
+when Windows can't resolve it temporarily, for example because a domain
+controller is unreachable.
 
-    Get-Item .\Data -Recurse | Enable-NTFSAccessInheritance
+## Check effective access
 
-# Disable-NTFSInheritance
-See Enable-NTFSInheritance
+Show the access that the current user has on a folder:
 
-# Get-NTFSOwner
-Shows the owner of a file or folder
+```powershell
+Get-NTFSEffectiveAccess -Path C:\Data
+```
 
-    dir -Recurse | Get-NTFSOwner
+Show the access of another account, by name or by SID:
 
-# Set-NTFSOwner
-Sets the owner to a specific account like:
+```powershell
+Get-NTFSEffectiveAccess -Path C:\Data -Account 'CONTOSO\JohnDoe'
+Get-NTFSEffectiveAccess -Path C:\Data -Account S-1-5-32-545
+```
 
-    Get-Item .\Data | Set-NTFSOwner -Account builtin\administrators
+## Manage inheritance
+
+Find the folders that don't inherit permissions from their parent:
+
+```powershell
+Get-ChildItem2 -Path C:\Data -Recurse -Directory | Get-NTFSInheritance | Where-Object { -not $_.AccessInheritanceEnabled }
+```
+
+Turn inheritance back on for a whole folder tree. Explicit entries stay in
+place:
+
+```powershell
+Get-ChildItem2 -Path C:\Data -Recurse | Enable-NTFSAccessInheritance
+```
+
+Block inheritance on a folder. The inherited entries are copied as explicit
+entries:
+
+```powershell
+Disable-NTFSAccessInheritance -Path C:\Data\Finance
+```
+
+Reset a folder to inherited permissions only:
+
+```powershell
+Enable-NTFSAccessInheritance -Path C:\Data\Finance -RemoveExplicitAccessRules
+```
+
+## Manage ownership
+
+List the owners of all items in a folder tree:
+
+```powershell
+Get-ChildItem2 -Path C:\Data -Recurse | Get-NTFSOwner
+```
+
+Make the local Administrators group the owner of a folder. This needs an
+elevated session:
+
+```powershell
+Set-NTFSOwner -Path C:\Data -Account 'BUILTIN\Administrators'
+```
+
+## Make several changes in one write
+
+Get the security descriptor once, change it in memory, and write it back.
+With security descriptor input, specify `-AppliesTo` (or the inheritance and
+propagation flags) so that PowerShell can choose the parameter set:
+
+```powershell
+$sd = Get-NTFSSecurityDescriptor -Path C:\Data
+$sd | Add-NTFSAccess -Account 'CONTOSO\JohnDoe' -AccessRights Modify -AppliesTo ThisFolderSubfoldersAndFiles
+$sd | Remove-NTFSAccess -Account 'CONTOSO\Interns' -AccessRights ReadAndExecute -AppliesTo ThisFolderSubfoldersAndFiles
+$sd | Set-NTFSSecurityDescriptor
+```
+
+## Audit access
+
+Log every successful and failed attempt to delete items in a folder. This
+needs an elevated session, and Windows only writes the events when the
+**Audit File System** policy is enabled:
+
+```powershell
+Add-NTFSAudit -Path C:\Data\Finance -Account 'Everyone' -AccessRights Delete, DeleteSubdirectoriesAndFiles
+Get-NTFSAudit -Path C:\Data\Finance
+```
+
+## Work with long paths
+
+Find files whose full path is longer than 260 characters and show their
+permissions:
+
+```powershell
+Get-ChildItem2 -Path C:\Data -Recurse -File | Where-Object { $_.FullName.Length -gt 260 } | Get-NTFSAccess
+```
+
+## Use privileges
+
+List the privileges of the current PowerShell process:
+
+```powershell
+Get-Privileges
+```
+
+In an elevated session, enable the Backup, Restore, Take Ownership, and
+Security privileges for the rest of the session, and disable them again
+when you're done:
+
+```powershell
+Enable-Privileges
+Get-ChildItem2 -Path D:\Shares -Recurse | Get-NTFSAccess -ExcludeInherited
+Disable-Privileges
+```

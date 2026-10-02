@@ -1,7 +1,7 @@
 ---
 external help file: NTFSSecurity.dll-Help.xml
-Module Name: ntfssecurity
-online version:
+Module Name: NTFSSecurity
+online version: https://github.com/raandree/NTFSSecurity/blob/master/Docs/Cmdlets/Get-NTFSOrphanedAccess.md
 schema: 2.0.0
 ---
 
@@ -9,7 +9,7 @@ schema: 2.0.0
 
 ## SYNOPSIS
 
-{{ Fill in the Synopsis }}
+Gets the access control entries whose account cannot be resolved to a name.
 
 ## SYNTAX
 
@@ -27,23 +27,45 @@ Get-NTFSOrphanedAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account <
 
 ## DESCRIPTION
 
-{{ Fill in the Description }}
+Reads the discretionary access control list (DACL) of a file or a folder like `Get-NTFSAccess` and returns only the access control entries whose account name is empty. The account name of an entry is empty when Windows cannot translate the SID stored in the entry into an account name, which is what remains after the account the entry was created for has been deleted.
+
+An entry counts as orphaned only as long as the name resolution fails, and the cmdlet cannot tell a deleted account from an account that cannot be looked up right now. A domain controller that is unreachable, a broken trust, or a SID from a domain the computer does not know make intact entries look orphaned as well. Confirm that the accounts are really gone before you remove anything, and run the search from a computer that can resolve all domains involved.
+
+Relative paths are resolved against the current location, and the current location is searched when `-Path` is omitted. By default both explicit and inherited entries are returned, which means that the same orphaned entry appears on every item that inherits it; `-ExcludeInherited` reports it only on the item where it is defined. With `-Verbose`, the cmdlet reports the number of orphaned entries per item and the total at the end.
+
+The `-Account` and `-SecurityDescriptor` parameters are inherited from `Get-NTFSAccess` and have no effect on this cmdlet. Entries are never filtered by account, and a security descriptor passed to `-SecurityDescriptor` is ignored; the cmdlet reads the current location instead.
 
 ## EXAMPLES
 
-### Example 1
+### Example 1: Find orphaned entries in a folder
 
 ```PowerShell
-PS C:\> {{ Add example code here }}
+PS C:\> Get-NTFSOrphanedAccess -Path C:\Data
 ```
 
-{{ Add example description here }}
+This command returns the access control entries of `C:\Data` whose SID cannot be resolved, including the entries the folder inherits from its parent.
+
+### Example 2: Search a folder tree for orphaned entries
+
+```PowerShell
+PS C:\> Get-ChildItem2 -Path C:\Data -Recurse | Get-NTFSOrphanedAccess -ExcludeInherited
+```
+
+This command searches all files and folders below `C:\Data` and reports every orphaned entry on the item where it is defined. Without `-ExcludeInherited` the same entry would also be reported on every item that inherits it.
+
+### Example 3: Remove orphaned entries
+
+```PowerShell
+PS C:\> Get-ChildItem2 -Path C:\Data -Recurse | Get-NTFSOrphanedAccess -ExcludeInherited | Remove-NTFSAccess
+```
+
+This command deletes the orphaned entries from the items they are defined on. The piped objects supply the path, the SID, the rights, the access type, and the flags, so each entry is matched exactly as it exists.
 
 ## PARAMETERS
 
 ### -Account
 
-{{ Fill Account Description }}
+This parameter is inherited from `Get-NTFSAccess` and has no effect. The cmdlet always returns the entries of all accounts that cannot be resolved.
 
 ```yaml
 Type: IdentityReference2
@@ -59,7 +81,7 @@ Accept wildcard characters: False
 
 ### -ExcludeExplicit
 
-{{ Fill ExcludeExplicit Description }}
+Indicates that the access control entries defined on the item itself are omitted and only the inherited entries are searched.
 
 ```yaml
 Type: SwitchParameter
@@ -75,7 +97,7 @@ Accept wildcard characters: False
 
 ### -ExcludeInherited
 
-{{ Fill ExcludeInherited Description }}
+Indicates that the inherited access control entries are omitted and only the entries defined on the item itself are searched. Use this switch to report an orphaned entry once instead of on every item that inherits it.
 
 ```yaml
 Type: SwitchParameter
@@ -91,7 +113,7 @@ Accept wildcard characters: False
 
 ### -Path
 
-{{ Fill Path Description }}
+Specifies the path of one or more files or folders that are searched for orphaned access control entries. Relative paths are resolved against the current location, and the current location is used when the parameter is omitted. The parameter accepts pipeline input by value and by property name through its alias `FullName`.
 
 ```yaml
 Type: String[]
@@ -107,7 +129,7 @@ Accept wildcard characters: False
 
 ### -SecurityDescriptor
 
-The SecurityDescriptor parameter allows passing an security descriptor or an array or security descriptors.
+This parameter is inherited from `Get-NTFSAccess` and has no effect. A security descriptor passed here is ignored, and the cmdlet searches the path in `-Path` or the current location instead.
 
 A security descriptor contains information about the owner of the object, and the primary group of an object. The security descriptor also contains two access control lists (ACL). The first list is called the discretionary access control lists (DACL), and describes who should have access to an object and what type of access to grant. The second list is called the system access control lists (SACL) and defines what type of auditing to record for an object.
 
@@ -130,14 +152,36 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ### System.String[]
 
+One or more paths of files or folders, piped by value or by the property `FullName`.
+
 ### Security2.FileSystemSecurity2[]
 
+Security descriptors are accepted by the parameter binder but ignored by this cmdlet.
+
 ### Security2.IdentityReference2
+
+An account is accepted by the parameter binder but ignored by this cmdlet.
 
 ## OUTPUTS
 
 ### Security2.FileSystemAccessRule2
 
+One object per orphaned access control entry. The `Account` property holds the unresolved SID and reports an empty account name.
+
 ## NOTES
 
+When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.
+
+If the ACL of an item cannot be read because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.
+
 ## RELATED LINKS
+
+[Get-NTFSAccess](Get-NTFSAccess.md)
+
+[Remove-NTFSAccess](Remove-NTFSAccess.md)
+
+[Get-NTFSOrphanedAudit](Get-NTFSOrphanedAudit.md)
+
+[Get-NTFSSimpleAccess](Get-NTFSSimpleAccess.md)
+
+[Get-ChildItem2](Get-ChildItem2.md)

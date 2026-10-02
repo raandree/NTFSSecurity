@@ -1,7 +1,7 @@
 ---
 external help file: NTFSSecurity.dll-Help.xml
 Module Name: NTFSSecurity
-online version:
+online version: https://github.com/raandree/NTFSSecurity/blob/master/Docs/Cmdlets/Add-NTFSAccess.md
 schema: 2.0.0
 ---
 
@@ -9,7 +9,7 @@ schema: 2.0.0
 
 ## SYNOPSIS
 
-Adds an access control entry (ACE) to an object.
+Adds an access control entry (ACE) to a file, a folder, or a security descriptor.
 
 ## SYNTAX
 
@@ -42,62 +42,55 @@ Add-NTFSAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <Identit
 
 ## DESCRIPTION
 
-Adds an access control entry (ACE) to an object such as a file or folder. NTFSSecurity allows you to apply basic permission groups (read, read/write, full) or advanced permissions that allow you to get granular with the permissions. See the below table for how the basic permissions map to the advanced permissions, and how NTFSSecurity handles them.
+Adds an access control entry (ACE) to the discretionary access control list (DACL) of a file or a folder. Every account in `-Account` receives the rights in `-AccessRights`, either as an `Allow` or as a `Deny` entry.
 
-| NTFSSecurity         | AccessRight displayed        | Advanced Security Window                                                                                                  |
-|------------------------------|------------------------------|---------------------------------------------------------------------------------------------------------------------------|
-| ReadData                     | ListDirectory                | List Folder / Read Data                                                                                                   |
-| ListDirectory                | ListDirectory                | List Folder / Read Data                                                                                                   |
-| WriteData                    | CreateFile                   | Create Files / Write Data                                                                                                 |
-| CreateFiles                  | CreateFile                   | Create Files / Write Data                                                                                                 |
-| AppendData                   | CreateDirectories            | Create Folders / Append Data                                                                                              |
-| CreateDirectories            | CreateDirectories            | Create Folders / Append Data                                                                                              |
-| ReadExtendedAttributes       | ReadExtendedAttributes       | Read Extended Attributes                                                                                                  |
-| WriteExtendedAttributes      | WriteExtendedAttributes      | WriteExtendedAttributes                                                                                                   |
-| ExecuteFile                  | Traverse                     | Traverse Folder / Execute File                                                                                            |
-| Traverse                     | Traverse                     | Traverse Folder / Execute File                                                                                            |
-| DeleteSubdirectoriesAndFiles | DeleteSubdirectoriesAndFiles | Delete Sub-folders and Files                                                                                              |
-| ReadAttributes               | ReadAttributes               | Read Attributes                                                                                                           |
-| WriteAttributes              | WriteAttributes              | Write Attributes                                                                                                          |
-| Write                        | Write                        |  Create Files / Write Data,   Create Folders / Append Data,   Write-Attributes, Write Extended Attributes                 |
-| Delete                       | Delete                       | Delete                                                                                                                    |
-| ReadPermissions              | ReadPermissions              | Read Permissions                                                                                                          |
-| Read                         | Read                         |  List Folder / Read Data, Read Attributes,   Read Extended Attributes, Read Permissions                                   |
-| ReadAndExecute               | ReadAndExecute               |  Traverse Folder / Execute File,   List Folder / Read Data, Read Attributes,   Read Extended Attributes, Read Permissions |
-| Modify                       | Modify                       |  Everything except Full Control,   Delete SubFolders and Files,   Change Permissions, Take Ownership                      |
-| ChangePermissions            | ChangePermissions            | Change Permissions                                                                                                        |
+`-AccessRights` accepts the basic rights such as `Read`, `Modify`, and `FullControl` as well as the granular rights such as `CreateFiles` or `WriteAttributes`, and several values can be combined, for example `-AccessRights ReadData, WriteData, Delete`. For the mapping between the values of this module, the rights that Windows displays, and the entries of the advanced security dialog, see [Concepts](../Concepts.md).
+
+The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`; both describe the same ACE flags, and `PathComplex` is the default. A command that works on a security descriptor, whether it is passed to `-SecurityDescriptor` or piped in, must therefore name `-AppliesTo` or `-InheritanceFlags` and `-PropagationFlags`; without one of them PowerShell cannot choose between the two `SD` sets and reports that the parameter set cannot be resolved.
+
+When `-AccessType`, `-AppliesTo`, `-InheritanceFlags`, and `-PropagationFlags` are omitted, the cmdlet adds an `Allow` ACE that applies to this folder, subfolders, and files, which corresponds to the inheritance flags `ContainerInherit, ObjectInherit` and no propagation flags. An `Allow` ACE always receives the `Synchronize` right in addition to the requested rights, inheritance and propagation flags are ignored on files, and rights for an account that already has an ACE with the same access type and the same flags are merged into that ACE. The cmdlet writes no output unless `-PassThru` is used, and a failure on one item is reported as a non-terminating error while the remaining items are processed.
+
+`-Path` accepts pipeline input by value and by property name through its alias `FullName`, so output of `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` can be piped in. `-Account`, `-AccessRights`, `-AccessType`, `-InheritanceFlags`, and `-PropagationFlags` bind by property name as well, which lets you pipe `Security2.FileSystemAccessRule2` objects, or rows imported from a CSV file created from them, directly into the cmdlet.
 
 ## EXAMPLES
 
-### Example 1
+### Example 1: Grant read access to a folder
 
 ```PowerShell
 PS C:\> Add-NTFSAccess -Path C:\Data -Account 'NT AUTHORITY\Authenticated Users' -AccessRights Read
 ```
 
-The above command gives the read permissions to the built-in group of 'Authenticated users'.
+This command grants read access to the built-in group of authenticated users. The ACE applies to the folder, its subfolders, and its files, because `-AppliesTo` defaults to `ThisFolderSubfoldersAndFiles`.
 
-### Example 2
-
-```PowerShell
-PS C:\> Add-NTFSAccess -Path C:\Data -Account 'Contoso\Domain Admins' -AccessRights Full
-```
-
-The above command gives full permissions to the domain administrators group in the contoso active directory.
-
-### Example 3
+### Example 2: Grant full control and show the resulting ACL
 
 ```PowerShell
-PS C:\> Add-NTFSAccess -Path C:\Data -Account 'NT AUTHORITY\Authenticated Users' -AccessRights CreateFiles -AccessType Deny -AppliesTo ThisFolderOnly
+PS C:\> Add-NTFSAccess -Path C:\Data -Account 'CONTOSO\Domain Admins' -AccessRights FullControl -PassThru
 ```
 
-The above command denies the the built-in group of 'Authenticated users' from creating files in this folder only.
+This command grants full control to a domain group. `-PassThru` writes all access control entries of the folder, explicit and inherited, after the change.
+
+### Example 3: Deny a right on a single folder
+
+```PowerShell
+PS C:\> Add-NTFSAccess -Path C:\Data -Account 'CONTOSO\Domain Users' -AccessRights CreateFiles -AccessType Deny -AppliesTo ThisFolderOnly
+```
+
+This command denies the creation of files in `C:\Data` to the members of a domain group. The ACE is not inherited by subfolders or files, because `-AppliesTo` is set to `ThisFolderOnly`.
+
+### Example 4: Restore explicit permissions from a CSV backup
+
+```PowerShell
+PS C:\> Import-Csv -Path C:\Backup\acl.csv | Add-NTFSAccess
+```
+
+This command restores the access control entries that `Get-NTFSAccess` exported to a CSV file. The columns `FullName`, `Account`, `AccessRights`, `AccessControlType`, `InheritanceFlags`, and `PropagationFlags` bind to the matching parameters, so every row recreates the ACE it was exported from.
 
 ## PARAMETERS
 
 ### -AccessRights
 
-The AccessRights parameter designates the permissions to assign. There are individual permissions as well as 'basic' permissions. See the below table for how the basic permissions permissions map the the advanced permissions in the advanced security window.
+Specifies the rights the ACE grants or denies. The parameter accepts basic rights such as `Read`, `ReadAndExecute`, `Modify`, and `FullControl`, granular rights such as `CreateFiles`, `Traverse`, or `WriteAttributes`, and any combination of them. An `Allow` ACE always receives `Synchronize` in addition to the specified rights. See [Concepts](../Concepts.md) for how the values relate to the Windows security dialog.
 
 ```yaml
 Type: FileSystemRights2
@@ -114,7 +107,7 @@ Accept wildcard characters: False
 
 ### -AccessType
 
-The AccessType parameter determines if the ACE allows or denies the permissions assigned.
+Specifies whether the ACE allows or denies the rights in `-AccessRights`. The default is `Allow`. A `Deny` ACE takes precedence over `Allow` ACEs that grant the same rights.
 
 ```yaml
 Type: AccessControlType
@@ -124,14 +117,14 @@ Accepted values: Allow, Deny
 
 Required: False
 Position: Named
-Default value: None
+Default value: Allow
 Accept pipeline input: True (ByPropertyName)
 Accept wildcard characters: False
 ```
 
 ### -Account
 
-The Account parameter defines the account or group to apply the permissions to.
+Specifies one or more accounts or groups the ACE applies to. An account can be given as a name such as `CONTOSO\JohnDoe`, `BUILTIN\Users`, or `NT AUTHORITY\SYSTEM`, or as a SID string such as `S-1-5-32-544`. A name that cannot be translated into a SID raises an error, a SID that cannot be translated into a name is accepted.
 
 ```yaml
 Type: IdentityReference2[]
@@ -147,7 +140,7 @@ Accept wildcard characters: False
 
 ### -AppliesTo
 
-The AppliesTo parameter defines where the permissions apply to and if there is any inheritance e.g "this folder only" or "this folder and subfolders".
+Specifies the scope of the ACE in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. The default is `ThisFolderSubfoldersAndFiles`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same ACE. The values ending in `OneLevel` limit inheritance to the direct children of the folder.
 
 ```yaml
 Type: ApplyTo
@@ -157,20 +150,16 @@ Accepted values: ThisFolderOnly, ThisFolderSubfoldersAndFiles, ThisFolderAndSubf
 
 Required: False
 Position: Named
-Default value: None
+Default value: ThisFolderSubfoldersAndFiles
 Accept pipeline input: True (ByPropertyName)
 Accept wildcard characters: False
 ```
 
 ### -InheritanceFlags
 
-The InheritanceFlags parameter defines the inheritance of the ACLs.
+Specifies which kind of child objects inherit the ACE. `ContainerInherit` passes the ACE on to child folders, `ObjectInherit` passes it on to child files, and `None` keeps the ACE on the item itself. The default is `ContainerInherit, ObjectInherit`. Inheritance flags have no effect on files, where the ACE is always created with `None`.
 
-ObjectInherit will apply the ACE to files and folders in the folder defined by the Path parameter.
-
-ContainerInherit will apply the ACE to subfolders but not files.
-
-There is more information on Microsoft Docs [here](https://docs.microsoft.com/en-us/previous-versions/dotnet/netframework-4.0/ms229747(v=vs.100)?redirectedfrom=MSDN)
+For details about the flags, see [InheritanceFlags Enum](https://learn.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.inheritanceflags) in the .NET documentation.
 
 ```yaml
 Type: InheritanceFlags
@@ -180,14 +169,14 @@ Accepted values: None, ContainerInherit, ObjectInherit
 
 Required: False
 Position: Named
-Default value: None
+Default value: ContainerInherit, ObjectInherit
 Accept pipeline input: True (ByPropertyName)
 Accept wildcard characters: False
 ```
 
 ### -PassThru
 
-The PassThru parameter will return the new permissions as a table. If the PassThru parameter is omitted, there is no information returned if the operation was successful.
+Indicates that the cmdlet writes the access control entries of every processed item, explicit and inherited, after the change. Without this switch the cmdlet produces no output.
 
 ```yaml
 Type: SwitchParameter
@@ -203,7 +192,7 @@ Accept wildcard characters: False
 
 ### -Path
 
-The Path parameter defines where the file or container exists.
+Specifies the path of one or more files or folders the ACE is added to. Relative paths are resolved against the current location. The parameter accepts pipeline input by value and by property name through its alias `FullName`.
 
 ```yaml
 Type: String[]
@@ -219,13 +208,7 @@ Accept wildcard characters: False
 
 ### -PropagationFlags
 
-The PropagationFlags parameter defines how the ACE is propagated to child objects.
-
-Inherit specifies that the ACE is propagated only to child objects. This includes both folder and file child objects.
-
-NoPropagateInherit specifies that the ACE is not propagated to child objects.
-
-None specifies that no inheritance flags are set.
+Specifies how the ACE is propagated to child objects. `None` propagates the ACE to all levels that the inheritance flags allow, `InheritOnly` keeps the ACE from applying to the item it is defined on, and `NoPropagateInherit` limits inheritance to the direct children of the folder. The default is `None`, and propagation flags only have an effect in combination with `-InheritanceFlags`.
 
 ```yaml
 Type: PropagationFlags
@@ -242,7 +225,7 @@ Accept wildcard characters: False
 
 ### -SecurityDescriptor
 
-The SecurityDescriptor parameter allows passing an security descriptor or an array or security descriptors.
+Specifies one or more `Security2.FileSystemSecurity2` objects, as returned by `Get-NTFSSecurityDescriptor`, that the ACE is added to. The change is made in memory only; use `Set-NTFSSecurityDescriptor` to write it to the file system.
 
 A security descriptor contains information about the owner of the object, and the primary group of an object. The security descriptor also contains two access control lists (ACL). The first list is called the discretionary access control lists (DACL), and describes who should have access to an object and what type of access to grant. The second list is called the system access control lists (SACL) and defines what type of auditing to record for an object.
 
@@ -265,24 +248,58 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ### System.String[]
 
+One or more paths of files or folders, piped by value or by the property `FullName`.
+
 ### Security2.FileSystemSecurity2[]
+
+One or more security descriptors returned by `Get-NTFSSecurityDescriptor`.
 
 ### Security2.IdentityReference2[]
 
+The accounts the ACE is created for, bound from a property named `Account`, `IdentityReference`, or `ID`. The output of `Get-NTFSAccess` supplies `Account`.
+
 ### Security2.FileSystemRights2
+
+The rights of the ACE, piped by the property `AccessRights` or `FileSystemRights`.
 
 ### System.Security.AccessControl.AccessControlType
 
+The type of the ACE, piped by the property `AccessType` or `AccessControlType`.
+
 ### System.Security.AccessControl.InheritanceFlags
+
+The inheritance flags of the ACE, piped by the property `InheritanceFlags` in the `Complex` parameter sets.
 
 ### System.Security.AccessControl.PropagationFlags
 
+The propagation flags of the ACE, piped by the property `PropagationFlags` in the `Complex` parameter sets.
+
 ### Security2.ApplyTo
+
+The scope of the ACE, piped by the property `AppliesTo` in the `Simple` parameter sets.
 
 ## OUTPUTS
 
 ### Security2.FileSystemAccessRule2
 
+With `-PassThru`, the cmdlet writes all access control entries of every processed item, explicit and inherited. Without `-PassThru` it writes nothing.
+
 ## NOTES
 
+When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.
+
+If the ACL of an item cannot be written because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.
+
 ## RELATED LINKS
+
+[Get-NTFSAccess](Get-NTFSAccess.md)
+
+[Remove-NTFSAccess](Remove-NTFSAccess.md)
+
+[Clear-NTFSAccess](Clear-NTFSAccess.md)
+
+[Get-NTFSEffectiveAccess](Get-NTFSEffectiveAccess.md)
+
+[Get-NTFSSecurityDescriptor](Get-NTFSSecurityDescriptor.md)
+
+[Set-NTFSSecurityDescriptor](Set-NTFSSecurityDescriptor.md)

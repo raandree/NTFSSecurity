@@ -1,55 +1,121 @@
-# WRITING DOCUMENTATION
+# Write documentation
 
-One of the easiest ways to contribute to the NTFSAccess PowerShell module is by helping to write and edit documentation.
-All the documentation hosted on GitHub is written using *Markdown*. Markdown is a lightweight markup
-language with plain text formatting syntax. Markdown forms the basis of our documentation's
-conceptual authoring language. Creating new articles is as easy as writing a simple text file by
-using your favorite text editor.
+The NTFSSecurity documentation is written in Markdown and built into a
+website with [MkDocs][mkdocs]. This page explains how the documentation is
+organized and how to change it.
+
+## Documentation structure
+
+| Path | Content |
+| --- | --- |
+| `Docs/index.md` | Home page with features, requirements, and the cmdlet list |
+| `Docs/Concepts.md` | Background on security descriptors, rights, inheritance, and privileges |
+| `Docs/Examples.md` | Task-oriented examples |
+| `Docs/Cmdlets/*.md` | One reference page per cmdlet, in platyPS format |
+| `Docs/Contributing.md`, `Docs/Contributing/*.md` | This contributor guide |
+| `mkdocs.yml` | Site settings and navigation |
+| `.readthedocs.yml` | Build settings for Read the Docs |
+| `README.md` | Front page of the GitHub repository |
+
+When you add a page, add it to the `nav` section of `mkdocs.yml`.
 
 ## Markdown editors
 
-Here are some Markdown editors you can try out:
+Any text editor works. These editors have good Markdown support:
 
-- [Visual Studio Code](https://code.visualstudio.com)
-- [Atom](https://atom.io/)
-- [Sublime Text](http://www.sublimetext.com/)
+- [Visual Studio Code](https://code.visualstudio.com) with the
+  [markdownlint](https://marketplace.visualstudio.com/items?itemName=DavidAnson.vscode-markdownlint)
+  extension
+- [Sublime Text](https://www.sublimetext.com/)
 
-## Get started using Markdown
+To get started with Markdown, see
+[How to use Markdown for writing Docs](https://learn.microsoft.com/contribute/content/markdown-reference).
+Don't use hard tabs. For the rules that apply to this repository, see
+[Markdown and platyPS specifics](04-Markdown-Specifics.md).
 
-To get started using Markdown, see [How to use Markdown for writing Docs](https://docs.microsoft.com/contribute/how-to-write-use-markdown).
+## Update the cmdlet reference
 
-NTFSSecurity uses the [Mkdocs][mkdocs] builder on ReadTheDocs for documentation.
+The pages in `Docs/Cmdlets` are [platyPS][platyps] Markdown files. platyPS
+reads the parameter metadata from the module, so the syntax and the parameter
+details always match the code. You write the synopsis, the description, the
+parameter descriptions, the examples, and the notes.
 
-Don't use hard tabs in Markdown. For more detailed information about the Markdown specification, see the
-[Markdown Specifics](04-Markdown-Specifics.md) article.
+When a cmdlet changes, build the module, import the build output, and update
+the pages in Windows PowerShell 5.1. A Release build writes the module to
+`NTFSSecurity\bin\Release`:
 
-## Creating new topics
+```powershell
+Install-Module -Name platyPS -RequiredVersion 0.14.2
+Import-Module -Name .\NTFSSecurity\bin\Release\NTFSSecurity.psd1
+Update-MarkdownHelp -Path .\Docs\Cmdlets
+```
 
-To contribute new documentation, check for issues tagged as ["Help Wanted"][labels] to make sure
-you're not duplicating efforts. If no one seems to be working on what you have planned:
+`Update-MarkdownHelp` updates the syntax and the parameter metadata and keeps
+the text that you wrote. Fill in the description of every new parameter.
 
-- Open a new issue and label it as "in progress". If you don't have rights to assign labels, add "in
-  progress" as a comment to tell others what you're working on.
-- Follow the same workflow as described above for making major edits to existing topics.
-- Add your new article to the `TOC.yml` file (located in the top-level folder of each
-  documentation set).
+Use Windows PowerShell 5.1 for platyPS. In PowerShell 7.4 and later,
+platyPS 0.14.2 adds the `-ProgressAction` common parameter to every page.
 
-## Updating topics that exist in multiple versions
+For a new cmdlet, create the page, replace every placeholder in it, and add
+the page to `mkdocs.yml`. Replace `Get-NTFSExample` with the name of the new
+cmdlet:
 
-Most reference topics are duplicated across all versions of PowerShell. When reporting an issue
-about a cmdlet reference or an About_ article, you must specify which versions are affected by the
-issue. The default issue template in GitHub includes a [GFM task list][gfm-task]. Use the checkboxes
-in the task list to specify which versions of the content are affected. When you submit a change to
-a article for an issue that affects multiple versions of the content, you must apply the appropriate
-change to each version of the file.
+```powershell
+New-MarkdownHelp -Command Get-NTFSExample -OutputFolder .\Docs\Cmdlets
+```
 
-## Next Steps
+To check that the pages can be converted to the help file that `Get-Help`
+reads, run `New-ExternalHelp`:
 
-Read the [Style Guide](03-Style-Guide.md).
+```powershell
+New-ExternalHelp -Path .\Docs\Cmdlets -OutputPath $env:TEMP\NTFSSecurityHelp
+```
+
+## Preview the website
+
+MkDocs needs Python. Install the MkDocs version that the site is built with
+and start the preview server:
+
+```powershell
+pip install -r Docs/requirements.txt
+mkdocs serve
+```
+
+Open `http://127.0.0.1:8000` in a browser. The preview reloads when you save
+a file. Run `mkdocs build --strict` to find broken links and pages that are
+missing from the navigation.
+
+## Check your change
+
+Before you open a pull request, check the following:
+
+- No page in `Docs/Cmdlets` contains a `{{ ... }}` placeholder.
+- `Update-MarkdownHelp` doesn't change any page in `Docs/Cmdlets`. The build
+  defined in `appveyor.yml` runs the same check.
+- All links work. The build checks them with `Get-MarkdownLink` from the
+  MarkdownLinkCheck module:
+
+  ```powershell
+  Get-MarkdownLink -Path .\Docs -BrokenOnly
+  ```
+
+- Every example works. Test examples in a test folder, never on production
+  data.
+
+## Create new topics
+
+Before you write a new topic, check the issues labeled
+[Documentation][label-documentation] or [Help Wanted][label-help-wanted] to
+make sure nobody else is working on it. If nobody is, open an issue that
+describes the topic and say that you're working on it. Then follow the
+workflow for larger changes in [Get started](01-Getting-Started.md).
+
+## Next steps
+
+Read the [Style guide](03-Style-Guide.md).
 
 <!-- External URLs -->
-[markdig]: https://github.com/lunet-io/markdig
-[CommonMark]: https://spec.commonmark.org/
-[gfm-help]: https://help.github.com/categories/writing-on-github/
-[labels]: https://github.com/raandree/NTFSSecurity/labels/Help%20Wanted
 [mkdocs]: https://www.mkdocs.org/user-guide/writing-your-docs/
+[platyps]: https://github.com/PowerShell/platyPS
+[label-documentation]: https://github.com/raandree/NTFSSecurity/labels/Documentation
+[label-help-wanted]: https://github.com/raandree/NTFSSecurity/labels/Help%20Wanted
