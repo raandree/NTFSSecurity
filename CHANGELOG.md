@@ -23,6 +23,10 @@ in the wiki.
 
 ### Fixed
 
+- Fix `Get-Help`, which showed only the syntax: ship the help file
+  `en-US\NTFSSecurity.dll-Help.xml` generated from the cmdlet documentation,
+  including the links that `Get-Help -Online` opens, instead of the outdated
+  `NTFSSecurity-Help.xml`
 - Fix documentation examples that did not work, such as restoring
   permissions from a CSV file and filtering entries by account
 - Fix the documentation site navigation, the "Edit on GitHub" links, and the

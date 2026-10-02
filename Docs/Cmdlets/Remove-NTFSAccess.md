@@ -88,7 +88,7 @@ This command removes the access control entries of deleted accounts from all ite
 
 ### -AccessRights
 
-Specifies the rights to remove from the matching access control entry. The parameter accepts basic rights such as `Read`, `ReadAndExecute`, `Modify`, and `FullControl`, granular rights such as `CreateFiles`, `Traverse`, or `WriteAttributes`, and any combination of them. Rights that the entry grants but that are not listed here remain in place. See [Concepts](../Concepts.md) for how the values relate to the Windows security dialog.
+Specifies the rights to remove from the matching access control entry. The parameter accepts basic rights such as `Read`, `ReadAndExecute`, `Modify`, and `FullControl`, granular rights such as `CreateFiles`, `Traverse`, or `WriteAttributes`, and any combination of them. Rights that the entry grants but that are not listed here remain in place. For how the values relate to the Windows security dialog, see [Concepts](../Concepts.md).
 
 ```yaml
 Type: FileSystemRights2

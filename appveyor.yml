@@ -1,5 +1,6 @@
-# Builds the NTFSSecurity module from source and checks that the cmdlet
-# documentation in Docs/Cmdlets matches the cmdlets of that build.
+# Builds the NTFSSecurity module from source, checks that the cmdlet
+# documentation in Docs/Cmdlets and the help file generated from it match the
+# cmdlets of that build, and runs the Pester tests against the build.
 image: Visual Studio 2022
 
 init:
@@ -11,6 +12,8 @@ install:
       Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force | Out-Null
       Install-Module -Name platyPS -RequiredVersion 0.14.2 -Force
       Install-Module -Name MarkdownLinkCheck -RequiredVersion 0.2.0 -Force
+      # The image includes Pester 3.4.0, which is signed by a different publisher.
+      Install-Module -Name Pester -RequiredVersion 5.7.1 -Force -SkipPublisherCheck
 
 before_build:
   - nuget restore NTFSSecurity\packages.config -PackagesDirectory packages -NonInteractive
@@ -45,4 +48,29 @@ test_script:
       $brokenLinks = Get-MarkdownLink -Path .\Docs\ -BrokenOnly
       if ($brokenLinks) {
           throw "Found broken hyperlinks $brokenLinks"
+      }
+
+      # 03. Test that the help file of the module matches the documentation
+      New-ExternalHelp -Path ./Docs/Cmdlets -OutputPath ./NTFSSecurity/en-US -Force | Out-Null
+      $helpChanges = git status --porcelain -- NTFSSecurity/en-US
+      if ($helpChanges) {
+          throw "The help file is not up-to-date, run New-ExternalHelp -Path .\Docs\Cmdlets -OutputPath .\NTFSSecurity\en-US -Force: $helpChanges"
+      }
+
+      # 04. Run the Pester tests against the module build
+      Import-Module -Name Pester -RequiredVersion 5.7.1
+      $configuration = New-PesterConfiguration
+      $configuration.Run.Path = '.\Tests'
+      $configuration.Run.PassThru = $true
+      $configuration.Output.Verbosity = 'Detailed'
+      $configuration.TestResult.Enabled = $true
+      $configuration.TestResult.OutputFormat = 'NUnitXml'
+      $configuration.TestResult.OutputPath = "$env:TEMP\PesterResults.xml"
+      $result = Invoke-Pester -Configuration $configuration
+      if ($env:APPVEYOR_JOB_ID) {
+          $webClient = New-Object -TypeName System.Net.WebClient
+          $webClient.UploadFile("https://ci.appveyor.com/api/testresults/nunit/$env:APPVEYOR_JOB_ID", "$env:TEMP\PesterResults.xml")
+      }
+      if ($result.FailedCount -gt 0) {
+          throw "$($result.FailedCount) Pester tests failed."
       }

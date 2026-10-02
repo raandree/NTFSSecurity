@@ -92,7 +92,7 @@ This command adds an audit entry for `CONTOSO\JohnDoe` to the in-memory security
 
 ### -AccessRights
 
-Specifies the access rights to audit. The value accepts the basic rights such as `Read`, `Write`, `Modify`, and `FullControl` as well as the individual rights such as `Delete` or `WriteAttributes`, and it accepts a comma-separated list that combines them. See [Concepts](../Concepts.md) for the meaning of each right.
+Specifies the access rights to audit. The value accepts the basic rights such as `Read`, `Write`, `Modify`, and `FullControl` as well as the individual rights such as `Delete` or `WriteAttributes`, and it accepts a comma-separated list that combines them. For the meaning of each right, see [Concepts](../Concepts.md).
 
 ```yaml
 Type: FileSystemRights2

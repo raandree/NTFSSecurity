@@ -12,6 +12,7 @@ organized and how to change it.
 | `Docs/Concepts.md` | Background on security descriptors, rights, inheritance, and privileges |
 | `Docs/Examples.md` | Task-oriented examples |
 | `Docs/Cmdlets/*.md` | One reference page per cmdlet, in platyPS format |
+| `NTFSSecurity/en-US/NTFSSecurity.dll-Help.xml` | Help file that `Get-Help` shows, generated from `Docs/Cmdlets` |
 | `Docs/Contributing.md`, `Docs/Contributing/*.md` | This contributor guide |
 | `mkdocs.yml` | Site settings and navigation |
 | `.readthedocs.yml` | Build settings for Read the Docs |
@@ -65,11 +66,13 @@ cmdlet:
 New-MarkdownHelp -Command Get-NTFSExample -OutputFolder .\Docs\Cmdlets
 ```
 
-To check that the pages can be converted to the help file that `Get-Help`
-reads, run `New-ExternalHelp`:
+`Get-Help` shows the help file `NTFSSecurity\en-US\NTFSSecurity.dll-Help.xml`,
+which `New-ExternalHelp` generates from the pages and the build copies into
+the module. Whenever you change a page in `Docs/Cmdlets`, generate the file
+again and commit it together with the page:
 
 ```powershell
-New-ExternalHelp -Path .\Docs\Cmdlets -OutputPath $env:TEMP\NTFSSecurityHelp
+New-ExternalHelp -Path .\Docs\Cmdlets -OutputPath .\NTFSSecurity\en-US -Force
 ```
 
 ## Preview the website
@@ -93,6 +96,19 @@ Before you open a pull request, check the following:
 - No page in `Docs/Cmdlets` contains a `{{ ... }}` placeholder.
 - `Update-MarkdownHelp` doesn't change any page in `Docs/Cmdlets`. The build
   defined in `appveyor.yml` runs the same check.
+- `New-ExternalHelp` doesn't change
+  `NTFSSecurity\en-US\NTFSSecurity.dll-Help.xml`. The build runs the same
+  check.
+- The Pester tests in `Tests` pass. They test the module in
+  `NTFSSecurity\bin\Release`, for example that `Get-Help` shows every page.
+  The build runs them in Windows PowerShell 5.1 with Pester 5.7.1:
+
+  ```powershell
+  Install-Module -Name Pester -RequiredVersion 5.7.1 -SkipPublisherCheck
+  Import-Module -Name Pester -RequiredVersion 5.7.1
+  Invoke-Pester -Path .\Tests -Output Detailed
+  ```
+
 - All links work. The build checks them with `Get-MarkdownLink` from the
   MarkdownLinkCheck module:
 

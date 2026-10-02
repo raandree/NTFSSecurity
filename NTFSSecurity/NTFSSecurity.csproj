@@ -118,7 +118,6 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Help\NTFSSecurity.Help.pshproj" />
     <None Include="NTFSSecurity.format.ps1xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <SubType>Designer</SubType>
@@ -144,7 +143,7 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="NTFSSecurity-Help.xml">
+    <Content Include="en-US\NTFSSecurity.dll-Help.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Resources\container.jpg" />

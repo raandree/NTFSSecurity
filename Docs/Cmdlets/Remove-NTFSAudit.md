@@ -90,7 +90,7 @@ This command removes the entry from the in-memory security descriptor of `C:\Dat
 
 ### -AccessRights
 
-Specifies the audited access rights to remove. The value accepts the basic rights such as `Read`, `Write`, `Modify`, and `FullControl` as well as the individual rights such as `Delete` or `WriteAttributes`, and it accepts a comma-separated list that combines them. Rights that an existing entry audits beyond the ones you specify stay in place. See [Concepts](../Concepts.md) for the meaning of each right.
+Specifies the audited access rights to remove. The value accepts the basic rights such as `Read`, `Write`, `Modify`, and `FullControl` as well as the individual rights such as `Delete` or `WriteAttributes`, and it accepts a comma-separated list that combines them. Rights that an existing entry audits beyond the ones you specify stay in place. For the meaning of each right, see [Concepts](../Concepts.md).
 
 ```yaml
 Type: FileSystemRights2
