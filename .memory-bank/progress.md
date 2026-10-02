@@ -29,6 +29,11 @@ source is unchanged since the 4.2.6 release except the
 - 2026-10-02: Work package 1 (housekeeping, `ai/housekeeping`): local
   `promptHistory.md` ignored by git; changelog policy recorded as
   Decision 7; Decisions moved from `systemPatterns.md` to `decisions/`.
+- 2026-10-02: PR #83 (TechNet tutorial links) reviewed and found
+  superseded: #91 ships the same two `learn.microsoft.com` links in
+  `Docs/index.md` and `README.md`. The maintainer decided to close it;
+  the remote-mutation hook denied the agent's `gh pr close`, so the
+  maintainer closes it by hand.
 
 ## Stable capabilities
 
