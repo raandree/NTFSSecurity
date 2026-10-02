@@ -41,51 +41,21 @@ NTFSSecurity.dll ── cmdlets ──> Security2.dll (FileSystemAccessRule2,
 
 ## Decisions
 
-### Decision 1: Use the canonical Memory Bank base
+Each Decision record is a file in `decisions/`; read only the relevant ones.
 
-- Choice: Keep durable project context in .memory-bank.
-- Rationale: Preserve evidence-backed context across sessions.
+| # | Decision |
+| --- | --- |
+| 1 | [Use the canonical Memory Bank base](decisions/0001-canonical-memory-bank.md) |
+| 2 | [Cmdlet reference stays platyPS markdown](decisions/0002-platyps-cmdlet-reference.md) |
+| 3 | [Document the source at HEAD](decisions/0003-document-source-at-head.md) |
+| 4 | [Online help points to GitHub](decisions/0004-online-help-on-github.md) |
+| 5 | [Document defects, don't fix them in docs work](decisions/0005-document-defects-separately.md) |
+| 6 | [CI checks the docs against a build of the source](decisions/0006-ci-checks-docs-against-build.md) |
+| 7 | [CHANGELOG lists user-visible changes only](decisions/0007-changelog-user-visible-only.md) |
 
-### Decision 2: Cmdlet reference stays platyPS markdown
+## Patterns
 
-- Choice: `Docs/Cmdlets/*.md` keep the platyPS 0.14 schema 2.0.0 layout
-  (upper-case section headings, YAML parameter blocks, one paragraph per
-  line) so `Update-MarkdownHelp` and `New-ExternalHelp` round-trip.
-- Rationale: `appveyor.yml` checks the pages with `Update-MarkdownHelp`;
-  the same files can generate MAML help.
-
-### Decision 3: Document the source at HEAD
-
-- Choice: Docs describe the code on `master`. Where HEAD differs from the
-  latest Gallery release, the page says which version changed.
-- Rationale: The user asked to align docs with the actual code; the only
-  current difference is `Remove-Item2 -PassThru` (4.2.6 spells `-PassThur`).
-
-### Decision 4: Online help points to GitHub
-
-- Choice: `online version` of every cmdlet page is
-  `https://github.com/raandree/NTFSSecurity/blob/master/Docs/Cmdlets/<Name>.md`.
-- Rationale: The Read the Docs project builds a stale fork, so its URLs show
-  outdated pages; GitHub always shows `master`.
-
-### Decision 5: Document defects, don't fix them in docs work
-
-- Choice: Code defects found while documenting are described on the affected
-  page (workaround or limitation) and listed in `progress.md`; source code is
-  changed only in separate, tested work.
-- Rationale: No build toolchain was available to verify code changes, and
-  the docs must describe current behavior.
-
-### Decision 6: CI checks the docs against a build of the source
-
-- Choice: `appveyor.yml` builds `NTFSSecurity.csproj` and runs
-  `Update-MarkdownHelp` against `NTFSSecurity\bin\Release`, not against the
-  module from the PowerShell Gallery.
-- Rationale: Checking against the last release fails for every unreleased
-  parameter change (PR #91 failed on `Remove-Item2 -PassThru`) and never
-  compiled the code.
-
-### Pattern: verifying documentation
+### Verifying documentation
 
 - Run platyPS in Windows PowerShell 5.1 against a module build; a copy of
   `Docs/Cmdlets` must round-trip through `Update-MarkdownHelp` unchanged.

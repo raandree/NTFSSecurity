@@ -50,6 +50,9 @@ source: repository evidence
   attached to the fork `Sup3rlativ3/NTFSSecurity`.
 - `Get-FileHash2` fails in PowerShell 7; all other cmdlets passed a smoke
   test in PowerShell 7.6.
+- `CHANGELOG.md` lists user-visible changes only; CI and build-only changes
+  get no entry
+  ([Decision 7](decisions/0007-changelog-user-visible-only.md)).
 
 ## Validation
 
