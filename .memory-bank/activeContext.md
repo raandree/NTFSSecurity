@@ -26,5 +26,5 @@ in `appveyor.yml` and checking the docs against that build.
 
 ## Next step
 
-Push `ai/docs-alignment` (only on request) and confirm the AppVeyor build of
-PR #91 passes on the Visual Studio 2022 image.
+PR #91 is green (AppVeyor 54828078 branch and 54828080 pull request, both
+on `dbd8d16`). Await review and merge; open follow-ups are in `progress.md`.
