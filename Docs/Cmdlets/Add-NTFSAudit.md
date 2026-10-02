@@ -1,7 +1,7 @@
 ---
 external help file: NTFSSecurity.dll-Help.xml
-Module Name: ntfssecurity
-online version:
+Module Name: NTFSSecurity
+online version: https://github.com/raandree/NTFSSecurity/blob/master/Docs/Cmdlets/Add-NTFSAudit.md
 schema: 2.0.0
 ---
 
@@ -9,7 +9,7 @@ schema: 2.0.0
 
 ## SYNOPSIS
 
-Add auditing to a folder or file.
+Adds an audit entry to a file or folder.
 
 ## SYNTAX
 
@@ -42,24 +42,57 @@ Add-NTFSAudit [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <Identity
 
 ## DESCRIPTION
 
-You can apply audit policies to individual files and folders on your computer by setting the permission type to record successful access attempts or failed access attempts in the security log.
+The `Add-NTFSAudit` cmdlet adds an audit entry to the system access control list (SACL) of a file or folder. Windows then writes an event to the security log when the audited account uses one of the audited access rights on the item. `-AuditFlags Success` audits successful attempts, `-AuditFlags Failure` audits failed attempts, and the default audits both. For what the individual access rights permit, see [Concepts](../Concepts.md).
 
-To complete this procedure, you must be signed in as a member of the built-in Administrators group or have Manage auditing and security log rights.
+In the `PathSimple` and `PathComplex` parameter sets the cmdlet reads the security descriptor of every item in `-Path`, adds the entry, and writes the descriptor back right away. In the `SDSimple` and `SDComplex` parameter sets it adds the entry to an in-memory `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned; that change only reaches the file system when you pass the object to `Set-NTFSSecurityDescriptor`. The simple sets describe the scope of the entry with the single `-AppliesTo` parameter, the complex sets with `-InheritanceFlags` and `-PropagationFlags`.
+
+`PathComplex` is the default parameter set. Because that set requires `-Path`, a command that uses `-SecurityDescriptor` must also specify `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags`; otherwise PowerShell cannot decide between `SDSimple` and `SDComplex` and reports that the parameter set cannot be resolved.
+
+When you omit them, `-AuditFlags` is `Success, Failure`, `-InheritanceFlags` is `ContainerInherit, ObjectInherit`, `-PropagationFlags` is `None`, and `-AppliesTo` is `ThisFolderSubfoldersAndFiles`, so both the simple and the complex set audit the item, its subfolders, and its files by default. Inheritance applies to folders only: when the item is a file, the cmdlet stores the entry without inheritance and propagation flags.
+
+`-Path` accepts pipeline input by value and by property name through its `FullName` alias, so the output of `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` binds to it, and the remaining parameters bind by property name. The cmdlet writes no object unless you use `-PassThru`.
 
 ## EXAMPLES
 
-### Example 1
+### Example 1: Audit failed access to a folder
 
 ```PowerShell
-PS C:\> Add-NTFSAudit -Path C:\Data -Account 'NT AUTHORITY\Authenticated Users' -AcessRights generic All -AuditFlags Failure
+PS C:\> Add-NTFSAudit -Path C:\Data -Account 'CONTOSO\Domain Users' -AccessRights FullControl -AuditFlags Failure
 ```
 
-The above command adds auditing to the folder C:\Data on any failure.
+This command audits every failed attempt of the group `CONTOSO\Domain Users` to use one of the rights contained in `FullControl` on `C:\Data`. Because `-AppliesTo` and the inheritance parameters are omitted, the entry applies to the folder, its subfolders, and its files.
+
+### Example 2: Audit successful deletions in one folder
+
+```PowerShell
+PS C:\> Add-NTFSAudit -Path C:\Data -Account Everyone -AccessRights Delete, DeleteSubdirectoriesAndFiles -AuditFlags Success -AppliesTo ThisFolderOnly
+```
+
+This command audits successful deletions performed by any account in the folder `C:\Data`. `-AppliesTo ThisFolderOnly` keeps the entry from being inherited by subfolders and files.
+
+### Example 3: Audit several folders from the pipeline
+
+```PowerShell
+PS C:\> Get-ChildItem2 -Path C:\Data -Directory | Add-NTFSAudit -Account 'BUILTIN\Users' -AccessRights ReadData -AuditFlags Success -PassThru
+```
+
+This command adds the same audit entry to every subfolder of `C:\Data` and returns all audit entries of each folder afterwards, including the inherited ones, so that you can check the result.
+
+### Example 4: Add an audit entry to a security descriptor
+
+```PowerShell
+PS C:\> $sd = Get-NTFSSecurityDescriptor -Path C:\Data
+PS C:\> Add-NTFSAudit -SecurityDescriptor $sd -Account 'CONTOSO\JohnDoe' -AccessRights Modify -AuditFlags Success, Failure -AppliesTo SubfoldersAndFilesOnly
+PS C:\> Set-NTFSSecurityDescriptor -SecurityDescriptor $sd
+```
+
+This command adds an audit entry for `CONTOSO\JohnDoe` to the in-memory security descriptor of `C:\Data` and then writes the descriptor back. The entry applies to the subfolders and files of `C:\Data` but not to the folder itself.
+
 ## PARAMETERS
 
 ### -AccessRights
 
-The AccessRights parameter designates the permissions to monitor or audit. There are individual permissions as well as 'basic' permissions. See the below table for how the basic permissions permissions map the the advanced permissions in the advanced security window.
+Specifies the access rights to audit. The value accepts the basic rights such as `Read`, `Write`, `Modify`, and `FullControl` as well as the individual rights such as `Delete` or `WriteAttributes`, and it accepts a comma-separated list that combines them. See [Concepts](../Concepts.md) for the meaning of each right.
 
 ```yaml
 Type: FileSystemRights2
@@ -76,7 +109,7 @@ Accept wildcard characters: False
 
 ### -Account
 
-The Account parameter defines the account or group to apply the auditing to.
+Specifies the accounts whose access to the item is audited. The value is an account name such as `CONTOSO\JohnDoe`, `CONTOSO\Domain Users`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. When you pass several accounts, the cmdlet adds one audit entry per account.
 
 ```yaml
 Type: IdentityReference2[]
@@ -92,7 +125,7 @@ Accept wildcard characters: False
 
 ### -AppliesTo
 
-The AppliesTo parameter defines where the auditing will apply to and if there is any inheritance e.g "this folder only" or "this folder and subfolders".
+Specifies the scope of the audit entry with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. `ThisFolderOnly` audits the folder itself, `ThisFolderSubfoldersAndFiles` audits the folder and everything below it, `SubfoldersAndFilesOnly` audits the content but not the folder itself, and the values ending in `OneLevel` limit inheritance to the direct children. The default is `ThisFolderSubfoldersAndFiles`.
 
 ```yaml
 Type: ApplyTo
@@ -102,14 +135,14 @@ Accepted values: ThisFolderOnly, ThisFolderSubfoldersAndFiles, ThisFolderAndSubf
 
 Required: False
 Position: Named
-Default value: None
+Default value: ThisFolderSubfoldersAndFiles
 Accept pipeline input: True (ByPropertyName)
 Accept wildcard characters: False
 ```
 
 ### -AuditFlags
 
-The AuditFlags parameter defines what types of events will be audited. If you would only like to audit denied access you would choose failure.
+Specifies which access attempts are audited. `Success` audits attempts that succeeded, `Failure` audits attempts that were denied, and `Success, Failure` audits both. The default is `Success, Failure`.
 
 ```yaml
 Type: AuditFlags
@@ -119,20 +152,14 @@ Accepted values: None, Success, Failure
 
 Required: False
 Position: Named
-Default value: None
+Default value: Success, Failure
 Accept pipeline input: True (ByPropertyName)
 Accept wildcard characters: False
 ```
 
 ### -InheritanceFlags
 
-The InheritanceFlags parameter defines the inheritance of the auditing.
-
-ObjectInherit will apply the auditing to files and folders in the folder defined by the Path parameter.
-
-ContainerInherit will apply the auditing to subfolders but not files.
-
-There is more information on Microsoft Docs [here](https://docs.microsoft.com/en-us/previous-versions/dotnet/netframework-4.0/ms229747(v=vs.100)?redirectedfrom=MSDN)
+Specifies which child items inherit the audit entry. `ContainerInherit` passes the entry on to child folders, `ObjectInherit` passes it on to child files, and `None` keeps the entry on the item itself. The values can be combined, and the default is `ContainerInherit, ObjectInherit`. Use `-PropagationFlags` to control whether the entry also applies to the item itself and how far it propagates.
 
 ```yaml
 Type: InheritanceFlags
@@ -142,14 +169,14 @@ Accepted values: None, ContainerInherit, ObjectInherit
 
 Required: False
 Position: Named
-Default value: None
+Default value: ContainerInherit, ObjectInherit
 Accept pipeline input: True (ByPropertyName)
 Accept wildcard characters: False
 ```
 
 ### -PassThru
 
-The PassThru parameter will return the new auditing as a table. If the PassThru parameter is omitted, there is no information returned if the operation was successful.
+Indicates that the cmdlet writes the audit entries of the processed item to the pipeline after the change. All entries are returned, explicit and inherited ones, not only the entry that was added. Without this switch the cmdlet returns nothing when the operation succeeds. See the OUTPUTS section for which entries each parameter set returns.
 
 ```yaml
 Type: SwitchParameter
@@ -165,7 +192,7 @@ Accept wildcard characters: False
 
 ### -Path
 
-The Path parameter defines where the file or container exists to apply the auditing to.
+Specifies the files or folders the audit entry is added to. Relative paths are resolved against the current location. The parameter accepts pipeline input by value and by property name through its `FullName` alias.
 
 ```yaml
 Type: String[]
@@ -181,13 +208,7 @@ Accept wildcard characters: False
 
 ### -PropagationFlags
 
-The PropagationFlags parameter defines how the auditing is propagated to child objects.
-
-Inherit specifies that the auditing is propagated only to child objects. This includes both folder and file child objects.
-
-NoPropagateInherit specifies that the auditing is not propagated to child objects.
-
-None specifies that no inheritance flags are set.
+Specifies how the inheritance selected with `-InheritanceFlags` propagates. `None` applies the entry to the item itself and to all inheriting child items, `InheritOnly` applies it to the inheriting child items but not to the item itself, and `NoPropagateInherit` limits inheritance to the direct children. The values `InheritOnly` and `NoPropagateInherit` can be combined, and the default is `None`. The parameter has no effect when `-InheritanceFlags` is `None`.
 
 ```yaml
 Type: PropagationFlags
@@ -204,9 +225,7 @@ Accept wildcard characters: False
 
 ### -SecurityDescriptor
 
-The SecurityDescriptor parameter allows passing an security descriptor or an array or security descriptors.
-
-A security descriptor contains information about the owner of the object, and the primary group of an object. The security descriptor also contains two access control lists (ACL). The first list is called the discretionary access control lists (DACL), and describes who should have access to an object and what type of access to grant. The second list is called the system access control lists (SACL) and defines what type of auditing to record for an object.
+Specifies one or more security descriptors that `Get-NTFSSecurityDescriptor` returned. The cmdlet adds the audit entry to the system access control list (SACL) of the in-memory object; pass the object to `Set-NTFSSecurityDescriptor` to write the change to the file system.
 
 ```yaml
 Type: FileSystemSecurity2[]
@@ -227,24 +246,64 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ### System.String[]
 
+You can pipe paths to this cmdlet, or objects that have a `Path` or `FullName` property, such as the output of `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2`.
+
 ### Security2.FileSystemSecurity2[]
+
+You can pipe the security descriptors that `Get-NTFSSecurityDescriptor` returns to this cmdlet.
 
 ### Security2.IdentityReference2[]
 
+The accounts passed to `-Account` are converted to this type from an account name or a SID string. The parameter binds by property name through its own name and its aliases `IdentityReference` and `ID`, so the `Account` property of the entries this module returns supplies the value.
+
 ### Security2.FileSystemRights2
+
+The value passed to `-AccessRights` is converted to this type. The parameter binds by property name, so an object with an `AccessRights` or `FileSystemRights` property supplies the value.
 
 ### System.Security.AccessControl.AuditFlags
 
+The value passed to `-AuditFlags` is converted to this type and binds by property name.
+
 ### System.Security.AccessControl.InheritanceFlags
+
+The value passed to `-InheritanceFlags` is converted to this type and binds by property name in the `PathComplex` and `SDComplex` parameter sets.
 
 ### System.Security.AccessControl.PropagationFlags
 
+The value passed to `-PropagationFlags` is converted to this type and binds by property name in the `PathComplex` and `SDComplex` parameter sets.
+
 ### Security2.ApplyTo
+
+The value passed to `-AppliesTo` is converted to this type and binds by property name in the `PathSimple` and `SDSimple` parameter sets.
 
 ## OUTPUTS
 
 ### Security2.FileSystemAccessRule2
 
+Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the type depends on the parameter set: in the `Path` sets the cmdlet writes all audit entries of the item, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects, while in the `SecurityDescriptor` sets it writes the access entries of the descriptor as `Security2.FileSystemAccessRule2` objects. Use `Get-NTFSAudit` when you need the audit entries of a security descriptor.
+
 ## NOTES
 
+When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.
+
+Writing the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it, the cmdlet writes a non-terminating `AddAceError` whose message states that a required privilege is not held by the client, and the item is left unchanged.
+
+If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.
+
+The syntax shows `-Path`, `-Account`, and `-AccessRights` as positional parameters, but `-Account` and `-AccessRights` are both declared at position 2. A command that passes them positionally therefore fails with the error that positional parameters cannot be bound because no names were given, and `Get-Command Add-NTFSAudit -Syntax` leaves `-Account` out for the same reason. Pass `-Account` and `-AccessRights` by name, as the examples above do.
+
+An audit entry alone does not create events. Windows writes the events to the security log only while the "Audit object access" policy, or the corresponding "Audit File System" advanced audit policy, is enabled for success, failure, or both. That policy is a Windows setting and is not managed by this module.
+
 ## RELATED LINKS
+
+[Get-NTFSAudit](Get-NTFSAudit.md)
+
+[Remove-NTFSAudit](Remove-NTFSAudit.md)
+
+[Clear-NTFSAudit](Clear-NTFSAudit.md)
+
+[Get-NTFSOrphanedAudit](Get-NTFSOrphanedAudit.md)
+
+[Add-NTFSAccess](Add-NTFSAccess.md)
+
+[Set-NTFSSecurityDescriptor](Set-NTFSSecurityDescriptor.md)

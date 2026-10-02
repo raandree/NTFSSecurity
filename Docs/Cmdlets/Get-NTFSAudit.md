@@ -1,7 +1,7 @@
 ---
 external help file: NTFSSecurity.dll-Help.xml
-Module Name: ntfssecurity
-online version:
+Module Name: NTFSSecurity
+online version: https://github.com/raandree/NTFSSecurity/blob/master/Docs/Cmdlets/Get-NTFSAudit.md
 schema: 2.0.0
 ---
 
@@ -9,7 +9,7 @@ schema: 2.0.0
 
 ## SYNOPSIS
 
-{{ Fill in the Synopsis }}
+Gets the audit entries of a file or folder.
 
 ## SYNTAX
 
@@ -27,23 +27,54 @@ Get-NTFSAudit [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account <IdentityR
 
 ## DESCRIPTION
 
-{{ Fill in the Description }}
+The `Get-NTFSAudit` cmdlet returns the audit entries that are stored in the system access control list (SACL) of a file or folder. Each entry is a `Security2.FileSystemAuditRule2` object that reports the audited account, the audited access rights, the audit flags (`Success`, `Failure`, or both), the inheritance and propagation flags, whether the entry is inherited, and the item it is inherited from. The access rights are the same values that `Add-NTFSAccess` and `Add-NTFSAudit` use; see [Concepts](../Concepts.md) for what each right permits.
+
+In the `Path` parameter set the cmdlet reads the security descriptor of every item in `-Path`. Relative paths are resolved against the current location, and when you omit `-Path` the cmdlet uses the current location. The parameter accepts pipeline input by value and by property name through its `FullName` alias, so the output of `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` binds to it. In the `SD` parameter set the cmdlet reads the audit entries from an in-memory `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned instead of reading the item again.
+
+By default the cmdlet returns explicit and inherited entries. Use `-ExcludeInherited` to return only the entries that are set on the item itself, and `-ExcludeExplicit` to return only the entries that the item inherits from a parent folder. `-Account` filters the result to a single account; the comparison is made on the security identifier (SID), so an account name and its SID select the same entries.
+
+The `InheritedFrom` property is filled only when the module setting `GetInheritedFrom` is `$true`, which is the default in the `PrivateData` section of `NTFSSecurity.psd1`.
 
 ## EXAMPLES
 
-### Example 1
+### Example 1: Get the audit entries of a folder
 
 ```PowerShell
-PS C:\> {{ Add example code here }}
+PS C:\> Get-NTFSAudit -Path C:\Data
 ```
 
-{{ Add example description here }}
+This command returns every audit entry of the folder `C:\Data`, including the entries that the folder inherits from its parent.
+
+### Example 2: List the explicit audit entries of a folder tree
+
+```PowerShell
+PS C:\> Get-ChildItem2 -Path C:\Data -Recurse | Get-NTFSAudit -ExcludeInherited
+```
+
+This command pipes every item below `C:\Data` into `Get-NTFSAudit` and returns only the audit entries that are set on the items themselves.
+
+### Example 3: Filter the audit entries by account
+
+```PowerShell
+PS C:\> Get-NTFSAudit -Path C:\Data -Account 'CONTOSO\JohnDoe'
+```
+
+This command returns only the entries that audit the account `CONTOSO\JohnDoe`. Passing the SID of the account instead of its name returns the same entries.
+
+### Example 4: Read the audit entries from a security descriptor
+
+```PowerShell
+PS C:\> $sd = Get-NTFSSecurityDescriptor -Path C:\Data
+PS C:\> Get-NTFSAudit -SecurityDescriptor $sd
+```
+
+This command reads the security descriptor of `C:\Data` once and then lists its audit entries from the in-memory object.
 
 ## PARAMETERS
 
 ### -Account
 
-{{ Fill Account Description }}
+Specifies the account whose audit entries are returned. The value is an account name such as `CONTOSO\JohnDoe`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. Entries are matched by SID, and when you omit the parameter the entries of all accounts are returned.
 
 ```yaml
 Type: IdentityReference2
@@ -59,7 +90,7 @@ Accept wildcard characters: False
 
 ### -ExcludeExplicit
 
-{{ Fill ExcludeExplicit Description }}
+Indicates that the entries that are set on the item itself are left out, so that only the inherited entries are returned. By default the cmdlet returns explicit and inherited entries.
 
 ```yaml
 Type: SwitchParameter
@@ -75,7 +106,7 @@ Accept wildcard characters: False
 
 ### -ExcludeInherited
 
-{{ Fill ExcludeInherited Description }}
+Indicates that the entries the item inherits from a parent folder are left out, so that only the explicit entries are returned. By default the cmdlet returns explicit and inherited entries.
 
 ```yaml
 Type: SwitchParameter
@@ -91,7 +122,7 @@ Accept wildcard characters: False
 
 ### -Path
 
-{{ Fill Path Description }}
+Specifies the files or folders whose audit entries are returned. Relative paths are resolved against the current location, and when you omit the parameter the cmdlet uses the current location. The parameter accepts pipeline input by value and by property name through its `FullName` alias.
 
 ```yaml
 Type: String[]
@@ -107,9 +138,7 @@ Accept wildcard characters: False
 
 ### -SecurityDescriptor
 
-The SecurityDescriptor parameter allows passing an security descriptor or an array or security descriptors.
-
-A security descriptor contains information about the owner of the object, and the primary group of an object. The security descriptor also contains two access control lists (ACL). The first list is called the discretionary access control lists (DACL), and describes who should have access to an object and what type of access to grant. The second list is called the system access control lists (SACL) and defines what type of auditing to record for an object.
+Specifies one or more security descriptors that `Get-NTFSSecurityDescriptor` returned. The cmdlet reads the audit entries from the system access control list (SACL) of the in-memory object instead of reading the item from disk again.
 
 ```yaml
 Type: FileSystemSecurity2[]
@@ -130,14 +159,38 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ### System.String[]
 
+You can pipe paths to this cmdlet, or objects that have a `Path` or `FullName` property, such as the output of `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2`.
+
 ### Security2.FileSystemSecurity2[]
 
+You can pipe the security descriptors that `Get-NTFSSecurityDescriptor` returns to this cmdlet.
+
 ### Security2.IdentityReference2
+
+You can pass an account name or a SID string to `-Account`, which the cmdlet converts to this type. The parameter does not accept pipeline input.
 
 ## OUTPUTS
 
 ### Security2.FileSystemAuditRule2
 
+The cmdlet returns one object per audit entry, with the audited account, the audited access rights, the audit flags, the inheritance and propagation flags, the `IsInherited` flag, and the `InheritedFrom` path. When an item has no audit entries, or when the SACL cannot be read, the cmdlet returns nothing for that item.
+
 ## NOTES
 
+When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.
+
+Reading the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it the cmdlet falls back to reading the security descriptor without its SACL; it then returns no audit entries and reports no error, which looks the same as an item that is not audited at all.
+
+If the security descriptor cannot be read because access is denied, the cmdlet takes ownership of the item, reads the descriptor again, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.
+
 ## RELATED LINKS
+
+[Add-NTFSAudit](Add-NTFSAudit.md)
+
+[Remove-NTFSAudit](Remove-NTFSAudit.md)
+
+[Clear-NTFSAudit](Clear-NTFSAudit.md)
+
+[Get-NTFSOrphanedAudit](Get-NTFSOrphanedAudit.md)
+
+[Get-NTFSSecurityDescriptor](Get-NTFSSecurityDescriptor.md)

@@ -1,98 +1,268 @@
-# CORE CONCEPTS
+# Concepts
 
-## Overview
+This page explains the Windows security concepts that the NTFSSecurity
+cmdlets work with: security descriptors, accounts, access rights,
+inheritance, privileges, long paths, and the module settings. Read it before
+you change permissions on production data.
 
-Before starting with the NTFSSecurity module there are some core concepts that you will need to understand.
+## Security descriptors
 
-There are two ways you can handle permissions, basic and advanced. The basic set of permissions are goups of advanced permissions that allow you to assign common role such as 'Read', 'Read/Write', or 'Full'. Advanced permissions allow you granular control of what can and can't be access or used. The advanced permissions are commonly used to build custom Role-Based Access Control tooling.
+Every file and folder on an NTFS volume has a security descriptor. The module
+manages three of its parts:
 
-Below is an explaination taken from the fantastic site NTFS.com for each of the advanced file permissions.
+| Part | Purpose | Cmdlets |
+| --- | --- | --- |
+| Owner | The account that owns the item. The owner can always read and change the item's permissions. | `Get-NTFSOwner`, `Set-NTFSOwner` |
+| Discretionary access control list (DACL) | Access control entries (ACEs) that allow or deny access. | `Get-NTFSAccess`, `Add-NTFSAccess`, `Remove-NTFSAccess`, `Clear-NTFSAccess` |
+| System access control list (SACL) | Audit entries that tell Windows which access attempts to write to the Security event log. | `Get-NTFSAudit`, `Add-NTFSAudit`, `Remove-NTFSAudit`, `Clear-NTFSAudit` |
 
-### Traverse Folder/Execute File
+Each entry is either explicit, which means it is set on the item itself, or
+inherited from a parent folder. Inheritance is controlled separately for the
+DACL and the SACL; see [Inheritance](#inheritance).
 
-* **Traverse Folder**: Allows or denies moving through a restricted folder to reach files and folders beneath the restricted folder in the folder hierarchy. Traverse folder takes effect only when the group or user is not granted the "Bypass traverse checking user" right in the Group Policy snap-in. This permission does not automatically allow running program files.
+Most cmdlets accept either `-Path` or `-SecurityDescriptor`:
 
-* **Execute File**: Allows or denies running program (executable) files.
+- With `-Path`, the cmdlet reads or writes the item directly. `-Path`
+  accepts pipeline input, so you can pipe the output of `Get-ChildItem`,
+  `Get-ChildItem2`, or `Get-Item2` into the cmdlet.
+- With `-SecurityDescriptor`, the cmdlet changes a security descriptor object
+  that you got from `Get-NTFSSecurityDescriptor`. Nothing is written to disk
+  until you pass the object to `Set-NTFSSecurityDescriptor`, so you can make
+  several changes and write them in one step.
 
-### List Folder/Read Data
+When you pass a security descriptor to `Add-NTFSAccess`, `Remove-NTFSAccess`,
+`Add-NTFSAudit`, or `Remove-NTFSAudit`, also specify `-AppliesTo` or the
+`-InheritanceFlags` and `-PropagationFlags` parameters. Without them,
+PowerShell cannot choose between the two security descriptor parameter sets
+and reports that the parameter set cannot be resolved.
 
-* **List Folder**: Allows or denies viewing file names and subfolder names within the folder. List Folder only affects the contents of that folder and does not affect whether the folder you are setting the permission on will be listed.
+## Accounts
 
-* **Read Data**: Allows or denies viewing data in files.
+The `-Account` parameter accepts an account name, such as
+`CONTOSO\JohnDoe`, `BUILTIN\Users`, or `NT AUTHORITY\SYSTEM`, or a security
+identifier (SID) string, such as `S-1-5-32-545`. The output shows the account
+name when Windows can resolve the SID.
 
-### Read Attributes
+An entry whose SID no longer resolves to an account is called orphaned.
+This happens when an account was deleted. `Get-NTFSOrphanedAccess` and
+`Get-NTFSOrphanedAudit` list such entries. A SID can also fail to resolve
+temporarily, for example when a domain controller is unreachable, so check
+the results before you remove them.
 
-* Allows or denies viewing the attributes of a file or folder, for example, "read-only" and "hidden".
+## Access rights
 
-### Read Extended Attributes
+The `-AccessRights` parameter takes a `FileSystemRights2` value. You can
+combine values by passing a list, for example
+`-AccessRights Delete, DeleteSubdirectoriesAndFiles`.
 
-* Allows or denies viewing the extended attributes of a file or folder. Extended attributes are defined by programs and may vary by program.
+PowerShell also accepts any unambiguous prefix of a value name, so `Full`
+binds to `FullControl` and `Mod` binds to `Modify`. Use the full names in
+scripts.
 
-### Create Files/Write Data
+### Basic permissions
 
-* **Create Files**: Allows or denies creating files within the folder.
+The basic permissions on the **Security** tab of the file or folder
+properties are combinations of the advanced permissions:
 
-* **Write Data**: Allows or denies making changes to a file and overwriting existing content.
+| `-AccessRights` value | Includes | Basic permission |
+| --- | --- | --- |
+| `Read` | `ListDirectory`, `ReadAttributes`, `ReadExtendedAttributes`, `ReadPermissions` | Read |
+| `ReadAndExecute` | `Read` and `Traverse` | Read & execute |
+| `Write` | `CreateFiles`, `CreateDirectories`, `WriteAttributes`, `WriteExtendedAttributes` | Write |
+| `Modify` | `ReadAndExecute`, `Write`, and `Delete` | Modify |
+| `FullControl` | `Modify`, `DeleteSubdirectoriesAndFiles`, `ChangePermissions`, `TakeOwnership`, and `Synchronize` | Full control |
 
-### Create Folders/Append Data
+### Advanced permissions
 
-* **Create Folders**: Allows or denies creating subfolders within the folder.
+Several advanced permissions have two names because the same bit means
+something different for files and for folders. The output always shows the
+first name in the table.
 
-* **Append Data**: Allows or denies making changes to the end of the file but not changing, deleting, or overwriting existing data.
+| `-AccessRights` value | Shown as | Advanced permission | Effect |
+| --- | --- | --- | --- |
+| `ListDirectory`, `ReadData` | `ListDirectory` | List folder / read data | List the contents of a folder; read the data of a file. |
+| `CreateFiles`, `WriteData` | `CreateFiles` | Create files / write data | Create files in a folder; change or overwrite the data of a file. |
+| `CreateDirectories`, `AppendData` | `CreateDirectories` | Create folders / append data | Create subfolders; append data to the end of a file. |
+| `Traverse`, `ExecuteFile` | `Traverse` | Traverse folder / execute file | Move through a folder to reach items below it; run a program file. |
+| `ReadAttributes` | `ReadAttributes` | Read attributes | Read attributes such as read-only and hidden. |
+| `WriteAttributes` | `WriteAttributes` | Write attributes | Change attributes such as read-only and hidden. |
+| `ReadExtendedAttributes` | `ReadExtendedAttributes` | Read extended attributes | Read the extended attributes that programs define. |
+| `WriteExtendedAttributes` | `WriteExtendedAttributes` | Write extended attributes | Change the extended attributes that programs define. |
+| `DeleteSubdirectoriesAndFiles` | `DeleteSubdirectoriesAndFiles` | Delete subfolders and files | Delete items in a folder, even without `Delete` on those items. |
+| `Delete` | `Delete` | Delete | Delete the item. |
+| `ReadPermissions` | `ReadPermissions` | Read permissions | Read the owner and the permissions. |
+| `ChangePermissions` | `ChangePermissions` | Change permissions | Change the permissions. |
+| `TakeOwnership` | `TakeOwnership` | Take ownership | Make yourself the owner. |
+| `Synchronize` | `Synchronize` | Not shown | Wait on a file handle. |
 
-### Write Attributes
+Windows adds `Synchronize` to every allow entry except `FullControl`, which
+already contains it. Reading an entry back therefore shows, for example,
+`Modify, Synchronize`.
 
-* Allows or denies changing the attributes of a file or folder, for example, "read-only" or "hidden".
+Windows also merges entries that have the same account, type, and
+inheritance settings. Adding `Read` and then `Write` for the same account
+results in one entry with both rights.
 
-* The Write Attributes permission does not imply creating or deleting files or folders, it only includes the permission to make changes to the attributes of an existing file or folder.
+The generic rights `GenericRead`, `GenericWrite`, `GenericExecute`, and
+`GenericAll` are mapped by Windows to the file rights above. On a folder that
+passes the entry on to its children, Windows stores two entries: one with the
+mapped rights for the folder and one that keeps the generic right for the
+child items.
 
-### Write Extended Attributes
+`Get-NTFSSimpleAccess` works on folders only. It condenses the rights of each
+entry into the simple values `Read`, `Write`, and `Delete`. For every folder
+after the first one, it reports only the entries that differ from the parent
+folder, which shows where the permissions change in a folder tree.
 
-* Allows or denies changing the extended attributes of a file or folder. Extended attributes are defined by programs and may vary by program.
+## Inheritance
 
-* The Write Extended Attributes permission does not imply creating or deleting files or folders, it only includes the permission to make changes to the extended attributes of an existing file or folder.
+A folder passes its inheritable entries on to its child items. You can stop
+an item from inheriting entries, separately for access entries and for audit
+entries:
 
-### Delete Subfolders and Files
+- `Disable-NTFSAccessInheritance` blocks inheritance. By default, it copies
+  the inherited entries as explicit entries; `-RemoveInheritedAccessRules`
+  drops them instead.
+- `Enable-NTFSAccessInheritance` restores inheritance and keeps the explicit
+  entries unless you use `-RemoveExplicitAccessRules`.
+- `Get-NTFSInheritance` and `Set-NTFSInheritance` read and set both
+  settings at once. Unlike the dedicated cmdlets, `Set-NTFSInheritance`
+  removes the inherited access entries when it turns access inheritance off,
+  and removes the explicit audit entries when it turns audit inheritance on.
+  The audit equivalents of the dedicated cmdlets are
+  `Disable-NTFSAuditInheritance` and `Enable-NTFSAuditInheritance`.
 
-* Allows or denies deleting subfolders and files, even if the Delete permission has not been granted on the subfolder or file.
+### The AppliesTo parameter
 
-### Delete
+Whether and how an entry is passed on is defined by its inheritance flags
+and propagation flags. The `-AppliesTo` parameter of `Add-NTFSAccess`,
+`Remove-NTFSAccess`, `Add-NTFSAudit`, and `Remove-NTFSAudit` sets both with
+the names that the **Applies to** list in the **Advanced Security Settings**
+dialog uses:
 
-* Allows or denies deleting the file or folder. If you don't have Delete permission on a file or folder, you can still delete it if you have been granted Delete Subfolders and Files on the parent folder.
+| `-AppliesTo` value | `InheritanceFlags` | `PropagationFlags` | Applies to |
+| --- | --- | --- | --- |
+| `ThisFolderOnly` | `None` | `None` | This folder only |
+| `ThisFolderSubfoldersAndFiles` | `ContainerInherit, ObjectInherit` | `None` | This folder, subfolders and files |
+| `ThisFolderAndSubfolders` | `ContainerInherit` | `None` | This folder and subfolders |
+| `ThisFolderAndFiles` | `ObjectInherit` | `None` | This folder and files |
+| `SubfoldersAndFilesOnly` | `ContainerInherit, ObjectInherit` | `InheritOnly` | Subfolders and files only |
+| `SubfoldersOnly` | `ContainerInherit` | `InheritOnly` | Subfolders only |
+| `FilesOnly` | `ObjectInherit` | `InheritOnly` | Files only |
 
-### Read Permissions
+Each value also exists with the suffix `OneLevel`, for example
+`ThisFolderAndSubfoldersOneLevel`. These values add the `NoPropagateInherit`
+propagation flag, which passes the entry on to the direct children only. In
+the dialog, this is the check box **Only apply these permissions to objects
+and/or containers within this container**.
 
-* Allows or denies reading permissions of a file or folder.
+The flags mean:
 
-### Change Permissions
+- `ContainerInherit`: child folders inherit the entry.
+- `ObjectInherit`: child files inherit the entry.
+- `InheritOnly`: the entry applies only to the children, not to the item
+  that holds it.
+- `NoPropagateInherit`: the entry is passed on one level only.
 
-* Allows or denies changing permissions of the file or folder.
+`Add-NTFSAccess` and `Add-NTFSAudit` use `ThisFolderSubfoldersAndFiles` by
+default. Files have no children, so entries on files are stored without
+inheritance flags.
 
-### Take Ownership
+## Privileges
 
-* Allows or denies taking ownership of the file or folder. The owner of a file or folder can always change permissions on it, regardless of any existing permissions that protect the file or folder.
+Windows grants the following privileges to the local Administrators group.
+They bypass the permission checks that would otherwise stop you from reading
+or changing an item:
 
-You can see how the basic permissions, advanced permissions, and the NTFSSecurity module relate to one another in the below table.
+| Privilege | Windows name | What it allows |
+| --- | --- | --- |
+| Backup | `SeBackupPrivilege` | Read any file or folder, regardless of its permissions. |
+| Restore | `SeRestorePrivilege` | Write any file or folder and set any account as the owner. |
+| Take ownership | `SeTakeOwnershipPrivilege` | Make yourself the owner of any item. |
+| Security | `SeSecurityPrivilege` | Read and change audit entries (the SACL). |
 
-| NTFSSecurity         | AccessRight displayed        | Advanced Security Window                                                                                                  |
-|------------------------------|------------------------------|---------------------------------------------------------------------------------------------------------------------------|
-| ReadData                     | ListDirectory                | List Folder / Read Data                                                                                                   |
-| ListDirectory                | ListDirectory                | List Folder / Read Data                                                                                                   |
-| WriteData                    | CreateFile                   | Create Files / Write Data                                                                                                 |
-| CreateFiles                  | CreateFile                   | Create Files / Write Data                                                                                                 |
-| AppendData                   | CreateDirectories            | Create Folders / Append Data                                                                                              |
-| CreateDirectories            | CreateDirectories            | Create Folders / Append Data                                                                                              |
-| ReadExtendedAttributes       | ReadExtendedAttributes       | Read Extended Attributes                                                                                                  |
-| WriteExtendedAttributes      | WriteExtendedAttributes      | WriteExtendedAttributes                                                                                                   |
-| ExecuteFile                  | Traverse                     | Traverse Folder / Execute File                                                                                            |
-| Traverse                     | Traverse                     | Traverse Folder / Execute File                                                                                            |
-| DeleteSubdirectoriesAndFiles | DeleteSubdirectoriesAndFiles | Delete Sub-folders and Files                                                                                              |
-| ReadAttributes               | ReadAttributes               | Read Attributes                                                                                                           |
-| WriteAttributes              | WriteAttributes              | Write Attributes                                                                                                          |
-| Write                        | Write                        |  Create Files / Write Data,   Create Folders / Append Data,   Write-Attributes, Write Extended Attributes                 |
-| Delete                       | Delete                       | Delete                                                                                                                    |
-| ReadPermissions              | ReadPermissions              | Read Permissions                                                                                                          |
-| Read                         | Read                         |  List Folder / Read Data, Read Attributes,   Read Extended Attributes, Read Permissions                                   |
-| ReadAndExecute               | ReadAndExecute               |  Traverse Folder / Execute File,   List Folder / Read Data, Read Attributes,   Read Extended Attributes, Read Permissions |
-| Modify                       | Modify                       |  Everything except Full Control,   Delete SubFolders and Files,   Change Permissions, Take Ownership                      |
-| ChangePermissions            | ChangePermissions            | Change Permissions                                                                                                        |
+A privilege can only be enabled if the account holds it and the PowerShell
+session runs elevated (**Run as administrator**).
+
+The access, audit, inheritance, owner, and security descriptor cmdlets enable
+these privileges automatically while they run and disable the ones they
+enabled when they finish. If a privilege cannot be enabled, the cmdlet
+continues without it. You can turn this behavior off with the
+`EnablePrivileges` module setting. The inheritance cmdlets are an exception:
+they always try to enable the privileges, and when `EnablePrivileges` is
+`$false`, they leave them enabled.
+
+`Enable-Privileges` enables the four privileges for the current PowerShell
+process until you run `Disable-Privileges` or close the session.
+`Get-Privileges` lists the privileges of the current process and their
+state.
+
+When reading or changing an item fails with an access-denied error, most of
+these cmdlets make the current user the owner of the item, retry, and then
+restore the previous owner. This requires the privileges above.
+
+Reading or changing audit entries always requires the Security privilege.
+Without it, the audit cmdlets fail, and `Get-NTFSEffectiveAccess` warns that
+it might not be able to read the effective permissions.
+
+## Long paths
+
+Windows PowerShell 5.1 cannot handle paths longer than 260 characters;
+`Get-ChildItem` fails on them. The cmdlets `Get-ChildItem2`, `Get-Item2`,
+`Copy-Item2`, `Move-Item2`, `Remove-Item2`, and `Test-Path2` use the
+[AlphaFS](https://github.com/alphaleonis/AlphaFS) library and work with long
+paths. Their output binds to the `-Path` parameter of the NTFSSecurity
+cmdlets, which handle long paths as well:
+
+```powershell
+Get-ChildItem2 -Path C:\Data -Recurse | Get-NTFSAccess -ExcludeInherited
+```
+
+The module defines the aliases `dir2` for `Get-ChildItem2`, `gi2` for
+`Get-Item2`, and `rm2` and `del2` for `Remove-Item2`.
+
+## Extended file and folder objects
+
+The module extends the `FileInfo` and `DirectoryInfo` objects that
+`Get-Item` and `Get-ChildItem` return. These members are not available on
+the AlphaFS objects that the `*-Item2` cmdlets return.
+
+| Member | Type | Available on | Description |
+| --- | --- | --- | --- |
+| `Owner` | Property | Files and folders | The owner of the item. |
+| `IsInheritanceBlocked` | Property | Files and folders | `$true` if the item does not inherit access entries. |
+| `LengthOnDisk` | Property | Files | The file size rounded up to whole clusters of the volume. `Size` is an alias. |
+| `EnableInheritance()` | Method | Files and folders | Turns on access inheritance. |
+| `DisableInheritance()` | Method | Files and folders | Turns off access inheritance. Pass `$false` to drop the inherited entries instead of copying them. |
+| `GetHash()` | Method | Files | Returns the SHA1 hash of the file as a hexadecimal string. |
+
+Access entries returned by `Get-NTFSAccess` have an additional `AccountType`
+property. When the current user is a domain account, reading the property
+queries Active Directory and returns the object class of the account, such
+as `user` or `group`; otherwise, the property is empty.
+
+## Module settings
+
+The `PrivateData` section of `NTFSSecurity.psd1` contains switches that
+change the module's behavior:
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| `EnablePrivileges` | `$true` | The security cmdlets enable the Backup, Restore, Take Ownership, and Security privileges while they run. |
+| `GetInheritedFrom` | `$true` | `Get-NTFSAccess` and `Get-NTFSAudit` fill the `InheritedFrom` property with the path of the folder that an inherited entry comes from. |
+| `GetFileSystemModeProperty` | `$true` | `Get-ChildItem2` adds the `Mode` property to its output. |
+| `IdentifyHardLinks` | `$true` | `Get-ChildItem2` adds a `HardLinkCount` property to each file. |
+| `ShowAccountSid` | `$false` | The default table output of access and audit entries shows the SID next to the account name. |
+
+`GetInheritedFrom`, `GetFileSystemModeProperty`, and `IdentifyHardLinks`
+cost extra work for every item. Turn them off to speed up large folder
+trees when you don't need the information.
+
+To change a setting for the current session only, change the value after
+you import the module:
+
+```powershell
+(Get-Module -Name NTFSSecurity).PrivateData.ShowAccountSid = $true
+```
+
+To change the default, edit `NTFSSecurity.psd1` in the module folder.

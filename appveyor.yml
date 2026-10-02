@@ -1,31 +1,48 @@
-install:
-    - ps: |
-        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-        Install-Module platyPS -Force
-        Install-Module MarkdownLinkCheck -Force
-        Install-Module NTFSSecurity -Force 
-        Import-Module platyPS
-        Import-Module MarkdownLinkCheck
+# Builds the NTFSSecurity module from source and checks that the cmdlet
+# documentation in Docs/Cmdlets matches the cmdlets of that build.
+image: Visual Studio 2022
 
 init:
-    - ps: git config --global core.autocrlf true
+  - ps: git config --global core.autocrlf true
+
+install:
+  - ps: |
+      [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+      Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force | Out-Null
+      Install-Module -Name platyPS -RequiredVersion 0.14.2 -Force
+      Install-Module -Name MarkdownLinkCheck -RequiredVersion 0.2.0 -Force
+
+before_build:
+  - nuget restore NTFSSecurity\packages.config -PackagesDirectory packages -NonInteractive
+  - nuget restore Security2\packages.config -PackagesDirectory packages -NonInteractive
+  # Provides the .NET Framework 4.5.2 reference assemblies, so the build does
+  # not depend on a targeting pack installed on the build image.
+  - nuget install Microsoft.NETFramework.ReferenceAssemblies.net452 -Version 1.0.3 -OutputDirectory packages -NonInteractive
 
 build_script:
-    - ps: Import-Module -Force NTFSSecurity
+  - ps: |
+      $referenceAssemblies = "$env:APPVEYOR_BUILD_FOLDER\packages\Microsoft.NETFramework.ReferenceAssemblies.net452.1.0.3\build"
+      msbuild NTFSSecurity\NTFSSecurity.csproj /nologo /verbosity:minimal /p:Configuration=Release "/p:TargetFrameworkRootPath=$referenceAssemblies" "/p:FrameworkPathOverride=$referenceAssemblies\.NETFramework\v4.5.2"
+      if ($LASTEXITCODE -ne 0) {
+          throw "MSBuild failed with exit code $LASTEXITCODE."
+      }
 
 test_script:
-    - ps: |
-        $ErrorActionPreference = 'Stop'
-        
-        # 01. Test that documentation is up-to-date
-        Update-MarkdownHelp -Path ./Docs/Cmdlets
-        $Diff = git diff
-        if ($Diff) {
-            throw "Help is not up-to-date, run Update-MarkdownHelp: $diff"
-        }
+  - ps: |
+      $ErrorActionPreference = 'Stop'
+      Import-Module -Name platyPS
+      Import-Module -Name MarkdownLinkCheck
+      Import-Module -Name .\NTFSSecurity\bin\Release\NTFSSecurity.psd1 -Force
 
-        # 02. Verify hyperlinks
-        $BrokenLinks = Get-MarkdownLink -Path .\Docs\ -BrokenOnly
-        if ($brokenLinks) {
-            throw "Found broken hyperlinks $brokenLinks"
-        }
+      # 01. Test that the documentation matches the cmdlets built from source
+      Update-MarkdownHelp -Path ./Docs/Cmdlets | Out-Null
+      $diff = git diff -- Docs/Cmdlets
+      if ($diff) {
+          throw "Help is not up-to-date, run Update-MarkdownHelp: $diff"
+      }
+
+      # 02. Verify hyperlinks
+      $brokenLinks = Get-MarkdownLink -Path .\Docs\ -BrokenOnly
+      if ($brokenLinks) {
+          throw "Found broken hyperlinks $brokenLinks"
+      }

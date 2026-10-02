@@ -1,7 +1,7 @@
 ---
 external help file: NTFSSecurity.dll-Help.xml
-Module Name: ntfssecurity
-online version:
+Module Name: NTFSSecurity
+online version: https://github.com/raandree/NTFSSecurity/blob/master/Docs/Cmdlets/Remove-Item2.md
 schema: 2.0.0
 ---
 
@@ -9,27 +9,55 @@ schema: 2.0.0
 
 ## SYNOPSIS
 
-{{ Fill in the Synopsis }}
+Deletes a file or folder, including paths longer than 260 characters.
 
 ## SYNTAX
 
 ```
-Remove-Item2 [[-Path] <String[]>] [-Force] [-Recurse] [-PassThur] [-WhatIf] [-Confirm] [<CommonParameters>]
+Remove-Item2 [[-Path] <String[]>] [-Force] [-Recurse] [-PassThru] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 
-{{ Fill in the Description }}
+The `Remove-Item2` cmdlet deletes the files and folders in `-Path`. It is the long-path counterpart of the built-in `Remove-Item` cmdlet: it works through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), so it also deletes items whose path exceeds the 260-character `MAX_PATH` limit. The items are deleted permanently and are not moved to the Recycle Bin.
+
+Relative paths and the `.` and `..` notations are resolved against the current location, and wildcard characters are not supported. `-Path` has no default value: if you omit it, the cmdlet does nothing. Use `-Recurse` to delete a folder that is not empty and `-Force` to delete items that have the read-only attribute.
+
+The cmdlet supports `-WhatIf` and `-Confirm`, and it writes nothing to the pipeline unless you specify `-PassThru`.
 
 ## EXAMPLES
 
-### Example 1
+### Example 1: Delete a file
 
 ```PowerShell
-PS C:\> {{ Add example code here }}
+PS C:\> Remove-Item2 -Path C:\Data\report.docx
 ```
 
-{{ Add example description here }}
+Deletes a single file. If the file is read-only, the command fails with a `DeleteError` until you add `-Force`.
+
+### Example 2: Delete a folder tree with very long paths
+
+```PowerShell
+PS C:\> Remove-Item2 -Path C:\Data\Projects\Archive -Recurse -Force
+```
+
+Deletes the folder with everything it contains, including read-only files and files whose path is too long for the built-in `Remove-Item` cmdlet.
+
+### Example 3: Preview what would be deleted
+
+```PowerShell
+PS C:\> Get-ChildItem2 -Path C:\Data -Recurse -File -Filter '*.tmp' | Remove-Item2 -WhatIf
+```
+
+Lists every temporary file below `C:\Data` and shows which of them the cmdlet would delete. Remove `-WhatIf` to delete them.
+
+### Example 4: Delete items and keep a record of them
+
+```PowerShell
+PS C:\> rm2 -Path C:\Data\Logs\old.log -PassThru | Select-Object -ExpandProperty FullName
+```
+
+Uses the `rm2` alias and returns the object of the deleted file, from which the command takes the full path for a log. Since the item no longer exists, only its path information is still meaningful; properties such as `Length` are empty.
 
 ## PARAMETERS
 
@@ -51,7 +79,7 @@ Accept wildcard characters: False
 
 ### -Force
 
-{{ Fill Force Description }}
+Indicates that the cmdlet also deletes items that have the read-only attribute. Without `-Force`, a read-only item causes a `DeleteError`. Combine `-Force` with `-Recurse` to delete a folder that contains read-only files.
 
 ```yaml
 Type: SwitchParameter
@@ -65,9 +93,9 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -PassThur
+### -PassThru
 
-{{ Fill PassThur Description }}
+Indicates that the cmdlet returns an object for each item that it deleted. By default, the cmdlet produces no output. The object describes a path that no longer exists, so use it for logging rather than for further file operations. In NTFSSecurity 4.2.6 and earlier, this parameter is spelled `-PassThur`.
 
 ```yaml
 Type: SwitchParameter
@@ -83,7 +111,7 @@ Accept wildcard characters: False
 
 ### -Path
 
-{{ Fill Path Description }}
+Specifies the path of one or more items to delete. Relative paths are resolved against the current location, and wildcard characters are not supported. The parameter has no default value, so the cmdlet deletes nothing if you omit it. It accepts pipeline input by value and by the property name `FullName`, so you can pipe the output of `Get-ChildItem2` or `Get-Item2` into this cmdlet.
 
 ```yaml
 Type: String[]
@@ -99,7 +127,7 @@ Accept wildcard characters: False
 
 ### -Recurse
 
-{{ Fill Recurse Description }}
+Indicates that the cmdlet deletes a folder together with everything it contains. Without `-Recurse`, a folder that is not empty causes a `DeleteError`. The parameter has no effect on files.
 
 ```yaml
 Type: SwitchParameter
@@ -137,10 +165,30 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ### System.String[]
 
+You can pipe one or more paths to this cmdlet, either as strings or as objects that have a `FullName` property, such as the output of `Get-ChildItem2` or `Get-Item2`.
+
 ## OUTPUTS
 
 ### System.Object
 
+By default this cmdlet returns nothing. With `-PassThru` it returns an `Alphaleonis.Win32.Filesystem.FileInfo` or `Alphaleonis.Win32.Filesystem.DirectoryInfo` object for each item that it deleted.
+
 ## NOTES
 
+`Remove-Item2` deletes through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it reaches items whose path exceeds the 260-character `MAX_PATH` limit of the built-in `Remove-Item` cmdlet. Deletion is permanent; the cmdlet does not use the Recycle Bin.
+
+The module defines the aliases `rm2` and `del2` for this cmdlet.
+
+A path that does not exist causes the error `FileNotFound`, and a deletion that the file system rejects causes a `DeleteError`. In both cases the cmdlet skips the remaining paths that were passed in the same call. Items that arrive one by one through the pipeline are not affected, because each of them is processed separately.
+
 ## RELATED LINKS
+
+[Copy-Item2](Copy-Item2.md)
+
+[Move-Item2](Move-Item2.md)
+
+[Get-ChildItem2](Get-ChildItem2.md)
+
+[Get-Item2](Get-Item2.md)
+
+[Test-Path2](Test-Path2.md)

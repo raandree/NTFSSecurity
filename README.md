@@ -1,21 +1,67 @@
-### Summary
-Managing permissions with PowerShell is only a bit easier than in VBS or the command line as there are no cmdlets for most day-to-day tasks like getting a permission report or adding permission to an item. PowerShell only offers Get-Acl and Set-Acl but everything in between getting and setting the ACL is missing. This module closes the gap.
+# NTFSSecurity
 
-### [Version History](https://github.com/raandree/NTFSSecurity/wiki/Version-History)
+A PowerShell module for managing the permissions, audit settings,
+inheritance, and ownership of files and folders on NTFS volumes.
 
-### Installation
-You have two options:
-1. Download the latest release from [the releases section](https://github.com/raandree/NTFSSecurity/releases).
-2. Download the module from the [PowerShell Gallery](https://www.powershellgallery.com/packages/NTFSSecurity): Install-Module -Name NTFSSecurity
+PowerShell offers only `Get-Acl` and `Set-Acl`; everything between reading
+and writing an access control list is up to you. NTFSSecurity closes this gap
+with cmdlets for everyday tasks, such as permission reports, adding or
+removing a single permission, repairing inheritance, and taking ownership.
 
-Further help can be found in [How to install](https://github.com/raandree/NTFSSecurity/wiki/How-to-install) if you face difficulties getting this module installed.
+## Installation
 
-### Documentation
-The cmdlets are documented in Docs/.
-They are not documented completely so Get-Help will not show help for all the cmdlets. Providing documentation is planned though.
+Install the module from the
+[PowerShell Gallery](https://www.powershellgallery.com/packages/NTFSSecurity):
 
-See [Examples](Docs/Examples.md) for some usage examples.
+```powershell
+Install-Module -Name NTFSSecurity
+```
 
-Additional documentation is available:
-* [NTFSSecurity Tutorial 1 - Getting, adding and removing permissions](https://docs.microsoft.com/en-us/archive/blogs/fieldcoding/ntfssecurity-tutorial-1-getting-adding-and-removing-permissions)
-* [NTFSSecurity Tutorial 2 - Managing NTFS Inheritance and Using Privileges](https://docs.microsoft.com/en-us/archive/blogs/fieldcoding/ntfssecurity-tutorial-2-managing-ntfs-inheritance-and-using-privileges)
+You can also download a release from the
+[releases page](https://github.com/raandree/NTFSSecurity/releases). If you
+have trouble, see
+[How to install](https://github.com/raandree/NTFSSecurity/wiki/How-to-install).
+
+The module runs on Windows in Windows PowerShell 5.1 and PowerShell 7.
+
+## Quick start
+
+```powershell
+# Show the permissions of a folder
+Get-NTFSAccess -Path C:\Data
+
+# Give an account the Modify permission on a folder, its subfolders, and files
+Add-NTFSAccess -Path C:\Data -Account 'CONTOSO\JohnDoe' -AccessRights Modify
+
+# Remove the explicit permissions of that account again
+Get-NTFSAccess -Path C:\Data -Account 'CONTOSO\JohnDoe' -ExcludeInherited |
+    Remove-NTFSAccess
+
+# List the explicit permissions in a folder tree, including long paths
+Get-ChildItem2 -Path C:\Data -Recurse | Get-NTFSAccess -ExcludeInherited
+```
+
+## Documentation
+
+- [Overview](Docs/index.md): features, requirements, and the list of cmdlets
+- [Concepts](Docs/Concepts.md): security descriptors, access rights,
+  inheritance, privileges, long paths, and module settings
+- [Examples](Docs/Examples.md): common tasks
+- [Cmdlet reference](Docs/Cmdlets): one page per cmdlet
+- [Contributor guide](Docs/Contributing.md)
+
+The module author's tutorials from 2014 are still a good introduction,
+although some cmdlet names have changed since:
+
+- [NTFSSecurity Tutorial 1 - Getting, adding and removing permissions](https://learn.microsoft.com/en-us/archive/blogs/fieldcoding/ntfssecurity-tutorial-1-getting-adding-and-removing-permissions)
+- [NTFSSecurity Tutorial 2 - Managing NTFS Inheritance and Using Privileges](https://learn.microsoft.com/en-us/archive/blogs/fieldcoding/ntfssecurity-tutorial-2-managing-ntfs-inheritance-and-using-privileges)
+
+## Version history
+
+See [CHANGELOG.md](CHANGELOG.md) for changes since version 4.2.6 and the
+[version history](https://github.com/raandree/NTFSSecurity/wiki/Version-History)
+in the wiki for earlier releases.
+
+## License
+
+NTFSSecurity is licensed under the [MIT license](LICENSE).

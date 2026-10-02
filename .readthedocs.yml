@@ -5,9 +5,17 @@
 # Required
 version: 2
 
+# Required: the build image and the Python version
+build:
+  os: ubuntu-24.04
+  tools:
+    python: "3.12"
+
 # Build documentation with MkDocs
 mkdocs:
   configuration: mkdocs.yml
 
-# Optionally build your docs in additional formats such as PDF and ePub
-formats: all
+# Install the MkDocs version that the site is built with
+python:
+  install:
+    - requirements: Docs/requirements.txt

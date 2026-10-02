@@ -1,10 +1,14 @@
-# Contributor Guide
+# Contributor guide
 
-Thank you for your interest in contributing to quality documentations.
-As an open source project, we welcome input and updates from the community.
-The following topics explain how to contribute to the NTFSAccess documentation.
+Thank you for your interest in improving NTFSSecurity and its documentation.
+As an open source project, NTFSSecurity welcomes input and updates from the
+community. The following pages explain how to contribute to the
+documentation:
 
-1. [Get started](./Contributing/01-Getting-Started.md)
-2. [Writing PowerShell documentation](./Contributing/02-Writing.md)
+1. [Get started](Contributing/01-Getting-Started.md)
+2. [Write documentation](Contributing/02-Writing.md)
+3. [Style guide](Contributing/03-Style-Guide.md)
+4. [Markdown and platyPS specifics](Contributing/04-Markdown-Specifics.md)
 
-This contributor guide is a modified version of the one found on the [Powershell Docs](https://github.com/PowerShell/PowerShell-Docs) GitHub page.
+This guide is adapted from the contributor guide of the
+[PowerShell documentation](https://github.com/MicrosoftDocs/PowerShell-Docs).
