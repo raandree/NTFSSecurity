@@ -86,6 +86,10 @@ function Remove-TestSandbox {
         return
     }
 
+    # icacls reports items it cannot reset on stderr, which Windows PowerShell turns into a terminating error when
+    # the caller uses ErrorAction Stop. Such items can still be deleted through the rights on their folder.
+    $ErrorActionPreference = 'Continue'
+
     # Windows PowerShell 5.1 follows directory links when it removes a folder recursively, so the links go first.
     & icacls.exe $Sandbox /reset /T /C /Q *> $null
     $pending = New-Object -TypeName 'System.Collections.Generic.Stack[string]'
@@ -118,6 +122,70 @@ function Remove-TestSandbox {
     catch {
         Write-Verbose -Message "Keeping '$script:sandboxRoot': $($_.Exception.Message)"
     }
+}
+
+function New-TestSandboxItem {
+    <#
+    .SYNOPSIS
+        Creates a file or folder with a unique name in the sandbox and returns its full path.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+        'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only writes to sandboxes.'
+    )]
+    [CmdletBinding()]
+    [OutputType([string])]
+    param (
+        [Parameter(Mandatory)]
+        [string]
+        $Sandbox,
+
+        [ValidatePattern('^[\w-]+$')]
+        [string]
+        $Name = 'Item',
+
+        [switch]
+        $Directory
+    )
+
+    $path = Join-Path -Path $Sandbox -ChildPath ('{0}-{1}' -f $Name, [guid]::NewGuid().ToString('N').Substring(0, 8))
+    Assert-TestSandboxPath -Sandbox $Sandbox -Path $path
+    if ($Directory) {
+        New-Item -ItemType Directory -Path $path | Out-Null
+    }
+    else {
+        Set-Content -LiteralPath $path -Value $Name
+    }
+    $path
+}
+
+function Block-TestReadPermission {
+    <#
+    .SYNOPSIS
+        Denies the owner of an item in the sandbox to read its security descriptor, so that reading it fails.
+    .DESCRIPTION
+        Adds a deny entry for OWNER RIGHTS (S-1-3-4) with ReadPermissions, which replaces the implicit right of the
+        owner to read the security descriptor. Remove-TestSandbox resets it.
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [string]
+        $Sandbox,
+
+        [Parameter(Mandatory)]
+        [string]
+        $Path
+    )
+
+    Assert-TestSandboxPath -Sandbox $Sandbox -Path $Path
+    $acl = Get-Acl -LiteralPath $Path
+    $ownerRights = New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList 'S-1-3-4'
+    $rule = New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
+        $ownerRights, [System.Security.AccessControl.FileSystemRights]::ReadPermissions,
+        [System.Security.AccessControl.AccessControlType]::Deny
+    )
+    $acl.AddAccessRule($rule)
+    Set-Acl -LiteralPath $Path -AclObject $acl
 }
 
 function Test-IsElevated {
@@ -160,4 +228,5 @@ function Test-PrivilegeHeld {
             Where-Object -Property Name -EQ -Value $Name)
 }
 
-Export-ModuleMember -Function New-TestSandbox, Assert-TestSandboxPath, Remove-TestSandbox, Test-IsElevated, Test-PrivilegeHeld
+Export-ModuleMember -Function New-TestSandbox, Assert-TestSandboxPath, Remove-TestSandbox, New-TestSandboxItem,
+    Block-TestReadPermission, Test-IsElevated, Test-PrivilegeHeld

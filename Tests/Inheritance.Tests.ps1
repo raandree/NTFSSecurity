@@ -18,13 +18,6 @@ BeforeAll {
     Import-Module -Name $modulePath -Force -ErrorAction Stop
     $sandbox = New-TestSandbox -Name 'Inheritance'
     Push-Location -LiteralPath $sandbox
-
-    function New-SandboxFile {
-        $path = Join-Path -Path $sandbox -ChildPath ('File-{0}.txt' -f [guid]::NewGuid().ToString('N').Substring(0, 8))
-        Assert-TestSandboxPath -Sandbox $sandbox -Path $path
-        Set-Content -LiteralPath $path -Value 'Inheritance test'
-        $path
-    }
 }
 
 AfterAll {
@@ -36,7 +29,7 @@ AfterAll {
 Describe 'Set-NTFSInheritance' {
     Context 'When -AccessInheritanceEnabled or -AuditInheritanceEnabled is omitted' {
         BeforeEach {
-            $file = New-SandboxFile
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'File'
             Assert-TestSandboxPath -Sandbox $sandbox -Path $file
         }
 

@@ -19,37 +19,6 @@ BeforeAll {
     Import-Module -Name $modulePath -Force -ErrorAction Stop
     $sandbox = New-TestSandbox -Name 'Audit'
     Push-Location -LiteralPath $sandbox
-
-    function New-SandboxItem {
-        param (
-            [string] $Name,
-            [switch] $Directory
-        )
-
-        $path = Join-Path -Path $sandbox -ChildPath ('{0}-{1}' -f $Name, [guid]::NewGuid().ToString('N').Substring(0, 8))
-        Assert-TestSandboxPath -Sandbox $sandbox -Path $path
-        if ($Directory) {
-            New-Item -ItemType Directory -Path $path | Out-Null
-        }
-        else {
-            Set-Content -LiteralPath $path -Value 'Audit test'
-        }
-        $path
-    }
-
-    # Denies the owner, the current account, to read the security descriptor of the item.
-    function Deny-ReadPermission {
-        param ([string] $Path)
-
-        Assert-TestSandboxPath -Sandbox $sandbox -Path $Path
-        $acl = Get-Acl -LiteralPath $Path
-        $ownerRights = New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList 'S-1-3-4'
-        $rule = New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
-            $ownerRights, [System.Security.AccessControl.FileSystemRights]::ReadPermissions, [System.Security.AccessControl.AccessControlType]::Deny
-        )
-        $acl.AddAccessRule($rule)
-        Set-Acl -LiteralPath $Path -AclObject $acl
-    }
 }
 
 AfterAll {
@@ -61,7 +30,7 @@ AfterAll {
 Describe 'Get-NTFSAudit' {
     Context 'When the audit entries cannot be read' {
         It 'Should write an error without the Security privilege instead of returning nothing' -Skip:$canReadAudit {
-            $file = New-SandboxItem -Name 'NoPrivilege'
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'NoPrivilege'
 
             $entries = @(Get-NTFSAudit -Path $file -ErrorVariable auditErrors -ErrorAction SilentlyContinue)
 
@@ -71,7 +40,7 @@ Describe 'Get-NTFSAudit' {
         }
 
         It 'Should write an error for a security descriptor that was read without the audit entries' {
-            $file = New-SandboxItem -Name 'AccessOnly'
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'AccessOnly'
             $sd = New-Object -TypeName 'Security2.FileSystemSecurity2' -ArgumentList (
                 (Get-Item2 -Path $file), [System.Security.AccessControl.AccessControlSections]::Access
             )
@@ -87,10 +56,10 @@ Describe 'Get-NTFSAudit' {
     Context 'When a path fails after a path with audit entries' {
         # Before 5.0.0, the cmdlet wrote the entries of the previous item again for the failing path.
         It 'Should return the entries of the first item once' -Skip:(-not $canReadAudit) {
-            $folder = New-SandboxItem -Name 'Audited' -Directory
-            $denied = New-SandboxItem -Name 'Denied'
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'Audited' -Directory
+            $denied = New-TestSandboxItem -Sandbox $sandbox -Name 'Denied'
             Add-NTFSAudit -Path $folder -Account 'Everyone' -AccessRights Delete -AuditFlags Success
-            Deny-ReadPermission -Path $denied
+            Block-TestReadPermission -Sandbox $sandbox -Path $denied
 
             $entries = @(Get-NTFSAudit -Path $folder, $denied -ExcludeInherited -ErrorAction SilentlyContinue)
 
