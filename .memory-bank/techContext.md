@@ -66,9 +66,11 @@ source: repository evidence
 ## Constraints
 
 - `ModuleVersion` on `master` is `5.0.0` (not released); the latest tag and
-  Gallery release is `4.2.6`. The manifest requires PowerShell 5.1 and .NET
-  Framework 4.5.2, uses `RootModule`, and lists exactly 36 cmdlets;
-  `Test-ModuleManifest` passes in Windows PowerShell 5.1 and PowerShell 7.6.
+  Gallery release is `4.2.6`. On `ai/release-5.0.0`, the manifest adds the
+  prerelease label `rc1`, so the next tag is `5.0.0-rc1`. The manifest
+  requires PowerShell 5.1 and .NET Framework 4.5.2, uses `RootModule`, and
+  lists exactly 36 cmdlets; `Test-ModuleManifest` passes in Windows
+  PowerShell 5.1 and PowerShell 7.6.
 - Besides the shipped help file and its tests (#93), the module source at
   `master` differs from tag `4.2.6` by the `Remove-Item2 -PassThur` to
   `-PassThru` rename (with a `-PassThur` alias), the manifest changes of
@@ -78,12 +80,12 @@ source: repository evidence
   4.2.6 (2019-07-12); none has release notes. Older versions were released
   on CodePlex only, and their dates are lost. The git history starts on
   2016-10-10, when the project moved from CodePlex.
-- Releases have no script and no CI deployment. Evidence from 4.2.6: the
-  Gallery DLLs are Debug builds (`DebuggableAttribute` 263), the nuspec
-  comes from `Publish-Module`, the package holds the whole output folder
-  (`.pdb`, `AlphaFS.xml`, 7 MB `System.Management.Automation.dll`), and the
-  published manifest differs from the tag only by `ModuleVersion` (tags
-  carry the previous version). GitHub releases attach `NTFSSecurity.zip`.
+- Releases up to 4.2.6 had no script and no CI deployment: the Gallery
+  DLLs are Debug builds (`DebuggableAttribute` 263), the nuspec comes from
+  `Publish-Module`, the package holds the whole output folder (`.pdb`,
+  `AlphaFS.xml`, 7 MB `System.Management.Automation.dll`), and tags carry
+  the previous version. From 5.0.0 on, CI publishes on a version tag
+  (Decision 12). GitHub releases attach `NTFSSecurity.zip`.
 - CI: GitHub Actions on pull requests and pushes to `master` (Decision 11).
   AppVeyor no longer reports on `master` (checked on `4f9f7cc`). The Read
   the Docs project `ntfssecurity` (maintainer `Sup3rlativ3`) and a second
@@ -118,8 +120,17 @@ source: repository evidence
   Windows PowerShell 5.1 and in PowerShell 7. Job `wiki` on `ubuntu-latest`
   clones the wiki (`gh auth setup-git` with the built-in token), runs
   `Export-WikiContent.ps1`, lists the changed pages in the job summary, and
-  publishes from `master` only. Actions are pinned by commit SHA:
-  `actions/checkout` v7.0.1, `actions/upload-artifact` v7.0.1.
+  publishes from `master` only. After the tests, `build` runs
+  `New-ModulePackage.ps1` and uploads the artifact `packages` (nupkg and
+  `NTFSSecurity.zip`). Job `release` runs only for tags matching
+  `[0-9]+.[0-9]+.[0-9]+` or `[0-9]+.[0-9]+.[0-9]+-*`, in the environment
+  `powershell-gallery` (secret `PSGALLERY_API_KEY`); see Decision 12.
+  Actions are pinned by commit SHA: `actions/checkout` v7.0.1,
+  `actions/upload-artifact` v7.0.1, `actions/download-artifact` v8.0.1.
+- Packaging needs PSResourceGet (`Compress-PSResource`, PowerShell 7.4 or
+  later); its tests skip in Windows PowerShell. Dry run locally: run
+  `New-ModulePackage.ps1` against `NTFSSecurity\bin\Release` into
+  `$env:TEMP`, then extract the nupkg into a folder and import it there.
 - Read CI runs with `gh run list --repo raandree/NTFSSecurity --workflow
   ci.yml`, `gh pr checks <number>`, and `gh run view <id> --log-failed`
   (read-only).

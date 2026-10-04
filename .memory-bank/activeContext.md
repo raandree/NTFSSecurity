@@ -9,30 +9,36 @@ source: current task evidence
 
 ## Current focus
 
-PRs #94, #95, and #96 are merged; CI and the wiki run on GitHub Actions.
-The version history completed from the PowerShell Gallery packages is
-PR-ready on the local branch `ai/version-history`; the maintainer pushes it
-and opens the PR. Work package 5 (code defects) waits for the maintainer's
-go-ahead.
+Release 5.0.0 through CI, with the prerelease `5.0.0-rc1` first
+(Decision 12). The release workflow, scripts, tests, and docs are PR-ready
+on the local branch `ai/release-5.0.0`; the maintainer pushes it, opens the
+PR, sets up the Gallery key and the environment `powershell-gallery`, and
+tags `5.0.0-rc1` after the merge. Work package 5 (code defects) and the
+open issues come after the release.
 
 ## Evidence
 
-- Six Gallery packages compared (4.0.0, 4.2.2 to 4.2.6), each imported in
-  its own Windows PowerShell process: exported cmdlets 30, 35, 36, 36, 36,
-  36. `Show-SimpleAccess` was exported only by 4.0.0 (the manifest of 4.2.2
-  to 4.2.4 lists it as `Show-NTFSSimpleAccess`) and deleted in 4.2.5. All
-  versions export the aliases `dir2`, `gi2`, `rm2`, and `del2` only.
-- 4.2.4 already carried the MIT license (`LicenseUri`), the setting
-  `IdentifyHardLinks`, and AlphaFS 2.2.1; 4.2.5 fixed the `-Account`
-  aliases (#18, #36) and #48 but broke the `Applies to` column, which 4.2.6
-  fixed (#57). 4.2.5 and 4.2.6 still ship AlphaFS 2.2.1: `d8f67af` updated
-  only `packages.config`, not the `HintPath`.
-- `Wiki.Tests.ps1` passes with the changed page; markdownlint (with `MD024`
-  siblings only for `CHANGELOG.md`) and the link check found nothing.
+- Test first: `Tests\Release.Tests.ps1` failed 15 of 15 (Windows
+  PowerShell: 9 failed, 6 skipped) before the scripts existed; the command
+  tag test failed before the tags were added. Final: full suite 268 tests,
+  PowerShell 7 232 passed and 36 skipped, Windows PowerShell 261 passed and
+  7 skipped (packaging needs PowerShell 7).
+- Package dry run: `NTFSSecurity.5.0.0-rc1.nupkg` (about 275 KB) with the 11
+  `FileList` files, version `5.0.0-rc1`, release notes link, and 83 tags
+  (36 `PSCmdlet_`, 36 `PSCommand_`, `PSIncludes_Cmdlet`); the extracted
+  package imports in Windows PowerShell 5.1 and PowerShell 7.6.1 with 36
+  cmdlets and working help. 4.2.6 on the Gallery has 37 + 37 command tags;
+  PSResourceGet 1.2.0 `Compress-PSResource` adds none.
+- actionlint, PSScriptAnalyzer, and markdownlint: no findings.
+- `master` has 37 open issues; several overlap the work package 5 defects
+  (for example #4) or are already fixed (#19 in 4.2.4; #15, #47, #66 by the
+  documentation).
 - The local branch `ai/read-the-docs` keeps the dropped strict-build work
   (`886c874`, `325ec76`); delete it once it is no longer wanted.
 
 ## Next step
 
-After the maintainer opens the PR: read its GitHub Actions run with
-`gh pr checks`. Then wait for the go-ahead for work package 5.
+After the maintainer opens the PR: read its CI run, and download the
+`packages` artifact (`gh run download`) to compare it with the local dry
+run. After the `5.0.0-rc1` tag: check the release job, the Gallery entry
+(version, tags, `Find-Command Get-NTFSAccess`), and the GitHub prerelease.
