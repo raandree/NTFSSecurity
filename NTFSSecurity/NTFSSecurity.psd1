@@ -1,7 +1,7 @@
 ﻿@{
-    ModuleToProcess        = 'NTFSSecurity.psm1'
+    RootModule             = 'NTFSSecurity.psm1'
 
-    ModuleVersion          = '4.2.5'
+    ModuleVersion          = '5.0.0'
 
     GUID                   = 'cd303a6c-f405-4dcb-b1ce-fbc2c52264e9'
 
@@ -13,11 +13,11 @@
 
     Description            = 'Windows PowerShell Module for managing file and folder security on NTFS volumes'
 
-    PowerShellVersion      = '2.0'
+    PowerShellVersion      = '5.1'
 
     CompatiblePSEditions   = 'Core', 'Desktop'
 
-    DotNetFrameworkVersion = '3.5'
+    DotNetFrameworkVersion = '4.5.2'
 
     ScriptsToProcess       = @('NTFSSecurity.Init.ps1')
 
@@ -31,19 +31,14 @@
 
     CmdletsToExport        = 'Add-NTFSAccess',
     'Clear-NTFSAccess',
-    'Disable-NTFSAccessInheritance',
-    'Enable-NTFSAccessInheritance',
     'Get-NTFSAccess',
     'Get-NTFSEffectiveAccess',
     'Get-NTFSOrphanedAccess',
     'Get-NTFSSimpleAccess',
     'Remove-NTFSAccess',
-    'Show-NTFSSimpleAccess',
     #----------------------------------------------
     'Add-NTFSAudit',
     'Clear-NTFSAudit',
-    'Disable-NTFSAuditInheritance',
-    'Enable-NTFSAuditInheritance',
     'Get-NTFSAudit',
     'Get-NTFSOrphanedAudit',
     'Remove-NTFSAudit',

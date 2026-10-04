@@ -8,18 +8,28 @@ The format is based on
 
 ## [Unreleased]
 
+## [5.0.0] - 2026-10-04
+
 ### Changed
 
-- **Breaking:** rename the `-PassThur` parameter of `Remove-Item2` to
-  `-PassThru` ([#64](https://github.com/raandree/NTFSSecurity/pull/64))
-- Declare support for Windows PowerShell and PowerShell 7 in the module
-  manifest ([#61](https://github.com/raandree/NTFSSecurity/issues/61))
+- **Breaking:** require Windows PowerShell 5.1 or PowerShell 7, and declare
+  support for both editions in the module manifest
+  ([#61](https://github.com/raandree/NTFSSecurity/issues/61)); the manifest
+  declared PowerShell 2.0 and .NET Framework 3.5, although the module needs
+  .NET Framework 4.5.2
+- Rename the `-PassThur` parameter of `Remove-Item2` to `-PassThru`;
+  `-PassThur` still works as an alias
+  ([#64](https://github.com/raandree/NTFSSecurity/pull/64))
 - Document every cmdlet with synopsis, description, parameters, examples,
   inputs, outputs, and notes, checked against the source code
 - Rewrite the home, concepts, examples, and contributor pages to match the
   current cmdlets, including module settings, privileges, and long paths
 - Move the version history and the installation instructions from the wiki
   into the documentation, and add the missing notes for 4.2.5 and 4.2.6
+
+### Deprecated
+
+- Deprecate the `-PassThur` alias of `Remove-Item2`; use `-PassThru`
 
 ### Fixed
 
@@ -29,5 +39,9 @@ The format is based on
   `NTFSSecurity-Help.xml`
 - Fix documentation examples that did not work, such as restoring
   permissions from a CSV file and filtering entries by account
+- Remove `Show-NTFSSimpleAccess`, which no longer exists, and duplicate
+  entries from the cmdlets that the module manifest exports and the
+  PowerShell Gallery lists
 
-[Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD
+[Unreleased]: https://github.com/raandree/NTFSSecurity/compare/5.0.0...HEAD
+[5.0.0]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...5.0.0

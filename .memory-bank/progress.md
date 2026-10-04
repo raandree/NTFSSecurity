@@ -13,7 +13,8 @@ PRs #91, #92, and #93 are merged. The documentation matches the cmdlets at
 `master`, and the module ships the help file generated from it
 (`en-US\NTFSSecurity.dll-Help.xml`). Otherwise the module source differs
 from the 4.2.6 release only by the `Remove-Item2 -PassThru` rename and
-`CompatiblePSEditions`.
+`CompatiblePSEditions`. Work packages 3 (`ai/docs-on-github`) and 4
+(`ai/manifest-version`, stacked on 3) are PR-ready locally.
 
 ## Recent milestones
 
@@ -38,6 +39,13 @@ from the 4.2.6 release only by the `Remove-Item2 -PassThru` rename and
   and the wiki is retired (Decision 9). Work package 3 committed locally on
   `ai/docs-on-github` (`84328dc`). The strict Read the Docs build prepared
   before stays unmerged on the local branch `ai/read-the-docs`.
+- 2026-10-04: Work package 4 committed locally on `ai/manifest-version`
+  (`678ff90`), stacked on `ai/docs-on-github`: valid manifest (requires
+  PowerShell 5.1), 36 cmdlets, version 5.0.0 everywhere (Decision 10),
+  `-PassThur` alias. The AppVeyor test script, run locally in Windows
+  PowerShell 5.1, passed: no docs drift, 0 broken links, current help file,
+  228 of 228 Pester tests. `Test-ModuleManifest` passes in Windows
+  PowerShell 5.1 and PowerShell 7.6.1.
 
 ## Stable capabilities
 
@@ -63,28 +71,19 @@ next package starts only after the maintainer's go-ahead.
    guide updated. After the merge, the maintainer turns the wiki off, points
    the notes of releases 4.2.4 and 4.2.6 to `Docs/Version-History.md`, and
    may ask `Sup3rlativ3` to delete the Read the Docs project.
-4. Manifest and version, in progress, stacked on `ai/docs-on-github`.
+4. Manifest and version, PR-ready on `ai/manifest-version`, stacked on
+   `ai/docs-on-github` (merge that PR first with a merge commit).
    Maintainer decisions: `PowerShellVersion` 5.1, `DotNetFrameworkVersion`
-   4.5.2, `RootModule` instead of `ModuleToProcess`; version 5.0.0 with
-   `[Alias('PassThur')]` on `Remove-Item2 -PassThru` (the changelog lists
-   `-PassThur` under Deprecated); the changelog entry about the
-   documentation site is gone (work package 3). Open: which assemblies
-   follow the module version. Remove `Show-NTFSSimpleAccess` and the
-   duplicate inheritance entries from `CmdletsToExport` (exactly 36
-   cmdlets exported), move the `[Unreleased]` entries into the 5.0.0
-   section, and align `AssemblyInfo`. No tag or publish. Done when
-   `Test-ModuleManifest` passes in Windows PowerShell 5.1 and PowerShell 7,
-   36 cmdlets are exported, the versions agree, and CI is green.
-   Baseline: `Test-ModuleManifest` fails in both editions
-   (`CompatiblePSEditions` needs `PowerShellVersion` 5.1) and warns about
-   `ModuleToProcess`; 41 `CmdletsToExport` entries, 37 unique; versions:
-   manifest 4.2.5, `NTFSSecurity` 4.2.1.0, `Security2` 3.2.3.0,
-   `PrivilegeControl` 1.0.0.0, `ProcessPrivileges` 1.5.7.0 (vendored);
-   `Log` isn't shipped. Releases are Debug builds published with the whole
-   output folder (`.pdb`, `.xml`, `System.Management.Automation.dll`), which
-   `FileList` doesn't list. Before the next build and `Publish-Module`,
-   clean `C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity`, or the
-   removed `NTFSSecurity-Help.xml` ships again.
+   4.5.2, `RootModule`; version 5.0.0; `[Alias('PassThur')]` on
+   `Remove-Item2 -PassThru`, listed under Deprecated; `NTFSSecurity`,
+   `Security2`, and `PrivilegeControl` carry the module version (Decision
+   10). Before the release, not part of the PR: set the date of the 5.0.0
+   section to the release date, tag `5.0.0` (no `v` prefix), build in
+   Release, and clean `C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity`
+   before `Publish-Module`; releases so far were Debug builds published with
+   the whole output folder (`.pdb`, `.xml`,
+   `System.Management.Automation.dll`), and the removed
+   `NTFSSecurity-Help.xml` would ship again.
 5. Code defects, listed below: `review: on`, one PR per group, regression
    test first. Pester 5 tests import `NTFSSecurity\bin\Release`, run in a
    `$env:TEMP` sandbox and in `appveyor.yml` (pattern:
