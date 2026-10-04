@@ -126,5 +126,7 @@ The format is based on
   ([#74](https://github.com/raandree/NTFSSecurity/issues/74))
 - Fix the error of `New-NTFSHardLink` for a missing `-Target`, which said
   that the target path existed
+- Fix `Get-FileHash2`, which wrote a result for a file that it couldn't
+  read, with the hash of the previous file
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

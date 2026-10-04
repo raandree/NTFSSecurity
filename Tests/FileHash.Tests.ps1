@@ -42,4 +42,24 @@ Describe 'Get-FileHash2' {
             $results[1].Hash | Should -BeExactly (Get-FileHash -LiteralPath $second -Algorithm SHA256).Hash
         }
     }
+
+    Context 'When a file cannot be read' {
+        # Before 5.0.0, the cmdlet wrote a result for the file anyway, with the hash of the previous file.
+        It 'Should write an error and no result for the file' {
+            if ($PSVersionTable.PSEdition -eq 'Core') {
+                Set-ItResult -Skipped -Because 'Get-FileHash2 fails in PowerShell 7 until it no longer references RIPEMD160'
+            }
+            $locked = New-TestSandboxItem -Sandbox $sandbox -Name 'Locked'
+            $stream = [IO.File]::Open($locked, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::None)
+            try {
+                $results = @(Get-FileHash2 -Path $first, $locked -ErrorVariable hashErrors -ErrorAction SilentlyContinue)
+            }
+            finally {
+                $stream.Dispose()
+            }
+
+            $hashErrors | Should -HaveCount 1
+            $results.Name | Should -Be @('One.txt')
+        }
+    }
 }
