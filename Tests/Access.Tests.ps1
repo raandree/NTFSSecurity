@@ -36,6 +36,48 @@ Describe 'Get-NTFSAccess' {
     }
 }
 
+Describe 'Get-NTFSEffectiveAccess' {
+    BeforeAll {
+        $effectiveFile = New-TestSandboxItem -Sandbox $sandbox -Name 'Effective'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $effectiveFile
+        $acl = Get-Acl -LiteralPath $effectiveFile
+        $guests = New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList 'S-1-5-32-546'
+        $acl.AddAccessRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
+                    $guests, [System.Security.AccessControl.FileSystemRights]::FullControl,
+                    [System.Security.AccessControl.AccessControlType]::Deny
+                )))
+        Set-Acl -LiteralPath $effectiveFile -AclObject $acl
+    }
+
+    It 'Should leave out an account without access when -ExcludeNoneAccessEntries is used' {
+        $result = @(Get-NTFSEffectiveAccess -Path $effectiveFile -Account 'S-1-5-32-546' -ExcludeNoneAccessEntries -WarningAction SilentlyContinue -ErrorAction Stop)
+
+        $result | Should -BeNullOrEmpty
+    }
+
+    It 'Should return an account with access when -ExcludeNoneAccessEntries is used' {
+        $result = @(Get-NTFSEffectiveAccess -Path $effectiveFile -ExcludeNoneAccessEntries -WarningAction SilentlyContinue -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+    }
+
+    It 'Should use the current location when -Path is omitted' {
+        $result = @(Get-NTFSEffectiveAccess -WarningAction SilentlyContinue -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+        $result[0].FullName | Should -BeLike ('*\{0}' -f (Split-Path -Path $sandbox -Leaf))
+    }
+
+    It 'Should compute the effective access of a security descriptor' {
+        $sd = Get-NTFSSecurityDescriptor -Path $effectiveFile
+
+        $result = @(Get-NTFSEffectiveAccess -SecurityDescriptor $sd -WarningAction SilentlyContinue -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+        $result[0].FullName | Should -Be $effectiveFile
+    }
+}
+
 Describe 'Security descriptor parameter sets' {
     BeforeAll {
         $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ParameterSets' -Directory

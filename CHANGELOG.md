@@ -98,5 +98,10 @@ The format is based on
   `-PropagationFlags`; `-AppliesTo` is now mandatory in the `Simple`
   parameter sets, so such a command uses the flag parameters and their
   defaults, as for a path
+- Fix `Get-NTFSEffectiveAccess`: `-ExcludeNoneAccessEntries` now leaves out
+  items without access, the cmdlet uses the current location when `-Path`
+  is omitted, and `-SecurityDescriptor` returns the effective access of the
+  security descriptor; before, all three returned nothing or ignored the
+  parameter
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

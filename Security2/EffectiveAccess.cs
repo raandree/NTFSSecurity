@@ -9,19 +9,22 @@ namespace Security2
     {
         public static EffectiveAccessInfo GetEffectiveAccess(FileSystemInfo item, IdentityReference2 id, string serverName)
         {
+            return GetEffectiveAccess(new FileSystemSecurity2(item), id, serverName);
+        }
+
+        public static EffectiveAccessInfo GetEffectiveAccess(FileSystemSecurity2 sd, IdentityReference2 id, string serverName)
+        {
             bool remoteServerAvailable = false;
             Exception authzAccessCheckException = null;
 
             var win32 = new Win32();
 
-            var fss = new FileSystemSecurity2(item);
-
-            var effectiveAccessMask = win32.GetEffectiveAccess(fss.SecurityDescriptor, id, serverName, out remoteServerAvailable, out authzAccessCheckException);
+            var effectiveAccessMask = win32.GetEffectiveAccess(sd.SecurityDescriptor, id, serverName, out remoteServerAvailable, out authzAccessCheckException);
 
             var ace = new FileSystemAccessRule((SecurityIdentifier)id, (FileSystemRights)effectiveAccessMask, AccessControlType.Allow);
 
             return new EffectiveAccessInfo(
-                new FileSystemAccessRule2(ace, item),
+                new FileSystemAccessRule2(ace, sd.Item),
                 remoteServerAvailable,
                 authzAccessCheckException);
         }
