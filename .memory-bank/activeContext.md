@@ -48,8 +48,10 @@ the PRs, and tags `5.0.0-rc2` after the merges.
 - `ai/defects-b` fixes defects 14 to 17 (`-AppliesTo` is mandatory in the
   `Simple` sets; `-RemoveSpecific` is back): Windows PowerShell 331 passed,
   19 skipped; PowerShell 7 301 passed, 49 skipped (350 tests).
+- `ai/defects-c` fixes defects 18 to 21, the same missing `continue` in
+  `Remove-NTFSAudit`, and a stale hash in `Get-FileHash2`.
 
 ## Next step
 
-Group C (18 to 21) on `ai/defects-c`, then D, the E decisions, and the
-bugs from the issue triage (`ai/issue-fixes`).
+Group D (22 to 24) on `ai/defects-d`, then the E decisions and the bugs
+from the issue triage (`ai/issue-fixes`).

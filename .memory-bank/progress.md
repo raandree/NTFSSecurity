@@ -141,7 +141,7 @@ Numbered as agreed with the maintainer; each is documented on its page.
 - Review of group B: no Blocker or Major; three Minor findings fixed, the
   rest are listed in the PR description.
 
-#### C: Error handling
+#### C: Error handling (fixed on `ai/defects-c`, not merged)
 
 - (18) `Copy-Item2`, `Move-Item2`, `Remove-Item2`: one failing path skips
   the rest of `-Path` (`return` instead of `continue`).
