@@ -19,8 +19,9 @@ Source: `README.md`, `NTFSSecurity/NTFSSecurity.psd1`.
 ## Scope
 
 - In scope: module source (`NTFSSecurity`, `Security2`, `PrivilegeControl`,
-  `ProcessPrivileges`), module manifest and type/format data, the MkDocs
-  documentation site in `Docs/`, and `README.md`.
+  `ProcessPrivileges`), module manifest and type/format data, the
+  documentation in `Docs/` (rendered by GitHub, Decision 9), and
+  `README.md`.
 - Out of scope: registry security. `Security2/Registry/RegistrySecurity.cs`
   exists, but no registry cmdlet is exported.
 - Distribution: PowerShell Gallery package `NTFSSecurity` and GitHub releases.
@@ -28,8 +29,9 @@ Source: `README.md`, `NTFSSecurity/NTFSSecurity.psd1`.
 ## Stakeholders
 
 - Maintainer and author: Raimund Andree (`raandree`), per the manifest.
-- Documentation contributors: James Smith (`mkdocs.yml` `site_author`);
-  the AppVeyor documentation build runs under the `Sup3rlativ3` account.
+- Documentation contributors: James Smith (`site_author` in the former
+  `mkdocs.yml`) and `Sup3rlativ3` (#62), who owns the Read the Docs project
+  `ntfssecurity` and a second AppVeyor project.
 - End users: To confirm beyond the README summary.
 
 ## Acceptance criteria

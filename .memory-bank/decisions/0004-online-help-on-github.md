@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-10-02
-last-verified: 2026-10-02
+last-verified: 2026-10-04
 owner: shared
 source: PR #91 (moved from systemPatterns.md)
 ---
@@ -10,5 +10,6 @@ source: PR #91 (moved from systemPatterns.md)
 
 - Choice: `online version` of every cmdlet page is
   `https://github.com/raandree/NTFSSecurity/blob/master/Docs/Cmdlets/<Name>.md`.
-- Rationale: The Read the Docs project builds a stale fork, so its URLs show
-  outdated pages; GitHub always shows `master`.
+- Rationale: GitHub renders the docs of `master`, and there is no other
+  documentation site (Decision 9). Originally chosen because the Read the
+  Docs project built a stale fork.

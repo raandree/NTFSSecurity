@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-02
+last-verified: 2026-10-04
 owner: active-agent
 source: current task evidence
 ---
@@ -9,26 +9,29 @@ source: current task evidence
 
 ## Current focus
 
-Work packages 1 (#92) and 2 (#93) are merged. Next is work package 3 (Read
-the Docs), after the maintainer's go-ahead, on the local branch
-`ai/read-the-docs`, which so far carries Memory Bank notes only. The
-remaining packages and their details are in `progress.md`.
+Work package 3 was redefined by the maintainer: no Read the Docs, the docs
+stay on GitHub, and the wiki is retired (Decision 9). It is PR-ready on the
+local branch `ai/docs-on-github` (`84328dc` plus Memory Bank notes). Work
+package 4 (manifest and version) continues next, stacked on it, with the
+maintainer's decisions recorded in `progress.md`.
 
 ## Evidence
 
-- #92 was merged with a merge commit (`d917832`) and #93 squash-merged
-  (`14799fb`); the tree of `master` equals the tested `c9fbaf5`.
-- AppVeyor: the PR build of #93 (54834295) and the `master` build of
-  `14799fb` (54834350) each passed 218 of 218 Pester tests, listed once
-  each on the Tests tab; the `master` build of `d917832` passed too.
-- The remote branches `ai/housekeeping` and `ai/ship-help` are deleted, and
-  so are the local ones. The only unmerged commit, the remote-mutation note
-  (`9dc2022`), is now `023506c` on `ai/read-the-docs`.
-- The agent can't push or open PRs (`techContext.md`, Constraints): it
-  prepares the commands and PR descriptions, and the maintainer runs them.
+- All 256 relative links in `Docs`, `README.md`, and `CHANGELOG.md` resolve,
+  including 5 anchors checked against GitHub's slug rules; MarkdownLinkCheck
+  0.2.0 (CI step 02) finds 0 broken links in `Docs` in Windows PowerShell
+  5.1; markdownlint reports 0 issues in the changed pages.
+- The documented manual install (`Unblock-File`, `Expand-Archive` into
+  `$env:ProgramFiles\WindowsPowerShell\Modules`) was tested with the 4.2.6
+  zip in a `$env:TEMP` sandbox: the module imports under `RemoteSigned`.
+  `Expand-Archive` doesn't pass the download mark on; File Explorer's zip
+  handler does, and the import then fails.
+- The wiki stopped at 4.2.4; the Gallery has 4.2.5 (2019-07-11) and 4.2.6
+  (2019-07-12), whose notes were reconstructed from `4.2.4..4.2.6`.
+- The local branch `ai/read-the-docs` keeps the dropped strict-build work
+  (`886c874`, `325ec76`); delete it once it is no longer wanted.
 
 ## Next step
 
-Wait for the maintainer's go-ahead for work package 3. Nothing on
-`ai/read-the-docs` needs pushing before then; its Memory Bank commits go
-into the work package 3 PR.
+Ask which assemblies follow the module version, then implement work
+package 4 test-first on a branch stacked on `ai/docs-on-github`.

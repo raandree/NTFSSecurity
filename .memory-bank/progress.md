@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-02
+last-verified: 2026-10-04
 owner: active-agent
 source: repository evidence
 ---
@@ -34,6 +34,10 @@ from the 4.2.6 release only by the `Remove-Item2 -PassThru` rename and
   upload had listed 870), six cmdlet-page links reworded for the help
   text. AppVeyor passed 218 of 218 on the PR (54834295) and on `master`
   (54834350).
+- 2026-10-04: The maintainer dropped Read the Docs: the docs stay on GitHub
+  and the wiki is retired (Decision 9). Work package 3 committed locally on
+  `ai/docs-on-github` (`84328dc`). The strict Read the Docs build prepared
+  before stays unmerged on the local branch `ai/read-the-docs`.
 
 ## Stable capabilities
 
@@ -52,39 +56,35 @@ next package starts only after the maintainer's go-ahead.
 
 1. Housekeeping: done (#92).
 2. Ship help: done (#93).
-3. Read the Docs, next. The local branch `ai/read-the-docs` exists and so
-   far carries Memory Bank notes only. The project `ntfssecurity`
-   (`https://app.readthedocs.org/projects/ntfssecurity/`) is maintained by
-   GitHub user `Sup3rlativ3` and builds the fork `Sup3rlativ3/NTFSSecurity`
-   (last build about 2021); the repository side is ready
-   (`.readthedocs.yml`, `Docs/requirements.txt`). The switch happens in the
-   Read the Docs dashboard. Give the maintainer exact steps for both
-   options: (a) `Sup3rlativ3` adds him as maintainer and changes the
-   repository URL, or (b) he imports `raandree/NTFSSecurity` as a new
-   project (the slug `ntfssecurity` is taken). Ask before installing Python
-   for `mkdocs build --strict`. After the switch, confirm a build of
-   `master`, propose whether the `online version` links move to Read the
-   Docs (Decision 4), and add a documentation link to `README.md`. Done
-   when Read the Docs builds `master` of this repository and shows the
-   current pages.
-4. Manifest and version: remove `Show-NTFSSimpleAccess` and the duplicate
-   inheritance entries from `CmdletsToExport` (exactly 36 cmdlets
-   exported). Versions disagree: manifest 4.2.5, tag and Gallery 4.2.6,
-   `AssemblyVersion` 4.2.1.0. Propose the next SemVer version with and
-   without `[Alias('PassThur')]` on `Remove-Item2 -PassThru` (the rename in
-   #64 is breaking), plus `PowerShellVersion` and `DotNetFrameworkVersion`
-   (manifest 2.0 and 3.5; the assemblies target .NET Framework 4.5.2), and
-   ask. Move the `[Unreleased]` entries into the new version section (ask
-   whether the build-only "Read the Docs build configuration" entry stays,
-   Decision 7) and align `AssemblyInfo`. No tag or publish. Done when
-   `Test-ModuleManifest` passes, 36 cmdlets are exported, and CI is green.
-   Inputs: `Test-ModuleManifest` already fails on
-   `PowerShellVersion = '2.0'` with `CompatiblePSEditions`; releases are
-   Debug builds published with the whole output folder (`.pdb`, `.xml`,
-   `System.Management.Automation.dll`), which `FileList` doesn't list.
-   Before the next build and `Publish-Module`, clean
-   `C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity`, or the removed
-   `NTFSSecurity-Help.xml` ships again.
+3. Docs on GitHub (was: Read the Docs), PR-ready on `ai/docs-on-github`:
+   Read the Docs and MkDocs configuration removed, `Docs/index.md` renamed
+   to `Docs/README.md`, the wiki's version history and install steps moved
+   into `Docs` (with reconstructed notes for 4.2.5 and 4.2.6), contributor
+   guide updated. After the merge, the maintainer turns the wiki off, points
+   the notes of releases 4.2.4 and 4.2.6 to `Docs/Version-History.md`, and
+   may ask `Sup3rlativ3` to delete the Read the Docs project.
+4. Manifest and version, in progress, stacked on `ai/docs-on-github`.
+   Maintainer decisions: `PowerShellVersion` 5.1, `DotNetFrameworkVersion`
+   4.5.2, `RootModule` instead of `ModuleToProcess`; version 5.0.0 with
+   `[Alias('PassThur')]` on `Remove-Item2 -PassThru` (the changelog lists
+   `-PassThur` under Deprecated); the changelog entry about the
+   documentation site is gone (work package 3). Open: which assemblies
+   follow the module version. Remove `Show-NTFSSimpleAccess` and the
+   duplicate inheritance entries from `CmdletsToExport` (exactly 36
+   cmdlets exported), move the `[Unreleased]` entries into the 5.0.0
+   section, and align `AssemblyInfo`. No tag or publish. Done when
+   `Test-ModuleManifest` passes in Windows PowerShell 5.1 and PowerShell 7,
+   36 cmdlets are exported, the versions agree, and CI is green.
+   Baseline: `Test-ModuleManifest` fails in both editions
+   (`CompatiblePSEditions` needs `PowerShellVersion` 5.1) and warns about
+   `ModuleToProcess`; 41 `CmdletsToExport` entries, 37 unique; versions:
+   manifest 4.2.5, `NTFSSecurity` 4.2.1.0, `Security2` 3.2.3.0,
+   `PrivilegeControl` 1.0.0.0, `ProcessPrivileges` 1.5.7.0 (vendored);
+   `Log` isn't shipped. Releases are Debug builds published with the whole
+   output folder (`.pdb`, `.xml`, `System.Management.Automation.dll`), which
+   `FileList` doesn't list. Before the next build and `Publish-Module`,
+   clean `C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity`, or the
+   removed `NTFSSecurity-Help.xml` ships again.
 5. Code defects, listed below: `review: on`, one PR per group, regression
    test first. Pester 5 tests import `NTFSSecurity\bin\Release`, run in a
    `$env:TEMP` sandbox and in `appveyor.yml` (pattern:
