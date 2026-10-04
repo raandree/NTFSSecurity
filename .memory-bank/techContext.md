@@ -70,6 +70,15 @@ source: repository evidence
 - `CHANGELOG.md` lists user-visible changes only; CI and build-only changes
   get no entry
   ([Decision 7](decisions/0007-changelog-user-visible-only.md)).
+- Remote mutations are the maintainer's: the user-level preToolUse hook
+  `Block-RemoteMutation.ps1` denies `git push` and mutating `gh` commands
+  (`pr create`, `pr close`, and others) from the agent session, even after
+  an explicit request. Its override, `COPILOT_ATELIER_ALLOW_REMOTE=1`, is
+  read from the environment that VS Code starts the hook with; setting it
+  inside an agent command has no effect (verified 2026-10-04). The hook
+  matches the whole command text, so a commit message that quotes such a
+  command is blocked too. Prepare the commands and descriptions; the
+  maintainer runs them.
 
 ## Validation
 
