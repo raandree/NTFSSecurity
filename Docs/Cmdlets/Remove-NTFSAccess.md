@@ -306,6 +306,8 @@ Removing rights from an entry that does not exist is not an error; the cmdlet le
 
 Before 5.0.0, the `-RemoveSpecific` switch was missing, although version 4.1 had introduced it.
 
+A path that does not exist produces the non-terminating error `ReadFileError`, and the cmdlet continues with the next path. Before 5.0.0, the cmdlet also wrote a misleading `RemoveAceError` for that path, and with `-PassThru` it stopped with a `NullReferenceException`.
+
 ## RELATED LINKS
 
 [Get-NTFSAccess](Get-NTFSAccess.md)

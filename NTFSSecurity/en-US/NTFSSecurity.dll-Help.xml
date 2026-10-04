@@ -8385,6 +8385,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <maml:para>If the ACL of an item cannot be written because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.</maml:para>
         <maml:para>Removing rights from an entry that does not exist is not an error; the cmdlet leaves the ACL unchanged.</maml:para>
         <maml:para>Before 5.0.0, the `-RemoveSpecific` switch was missing, although version 4.1 had introduced it.</maml:para>
+        <maml:para>A path that does not exist produces the non-terminating error `ReadFileError`, and the cmdlet continues with the next path. Before 5.0.0, the cmdlet also wrote a misleading `RemoveAceError` for that path, and with `-PassThru` it stopped with a `NullReferenceException`.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -9224,6 +9225,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <maml:para>If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.</maml:para>
         <maml:para>The cmdlet reports no error when no entry matches the supplied values. Compare the result with `Get-NTFSAudit` to confirm that the entry is gone.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet had no `-RemoveSpecific` switch.</maml:para>
+        <maml:para>A path that does not exist produces the non-terminating error `ReadFileError`, and the cmdlet continues with the next path. Before 5.0.0, the cmdlet also wrote a misleading `RemoveAceError` for that path, and with `-PassThru` it stopped with a `NullReferenceException`.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>

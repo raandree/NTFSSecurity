@@ -137,6 +137,7 @@ namespace NTFSSecurity
                     catch (Exception ex)
                     {
                         WriteError(new ErrorRecord(ex, "ReadFileError", ErrorCategory.OpenError, path));
+                        continue;
                     }
 
                     if (ParameterSetName == "PathSimple")

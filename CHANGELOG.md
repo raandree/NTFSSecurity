@@ -115,5 +115,8 @@ The format is based on
 - Fix `Copy-Item2`, `Move-Item2`, and `Remove-Item2`, which skipped the
   remaining paths of `-Path` after a path that didn't exist or, for copy and
   move, a file that already existed at the destination
+- Fix `Remove-NTFSAccess` and `Remove-NTFSAudit`, which went on with a path
+  that didn't exist, wrote a second, misleading `RemoveAceError`, and with
+  `-PassThru` stopped with a `NullReferenceException`
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

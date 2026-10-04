@@ -308,6 +308,8 @@ The cmdlet reports no error when no entry matches the supplied values. Compare t
 
 Before 5.0.0, the cmdlet had no `-RemoveSpecific` switch.
 
+A path that does not exist produces the non-terminating error `ReadFileError`, and the cmdlet continues with the next path. Before 5.0.0, the cmdlet also wrote a misleading `RemoveAceError` for that path, and with `-PassThru` it stopped with a `NullReferenceException`.
+
 ## RELATED LINKS
 
 [Get-NTFSAudit](Get-NTFSAudit.md)

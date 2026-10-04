@@ -148,6 +148,25 @@ Describe 'Get-NTFSOrphanedAudit' {
 }
 
 Describe 'Remove-NTFSAudit' {
+    Context 'When a path does not exist' {
+        BeforeAll {
+            $missing = Join-Path -Path $sandbox -ChildPath 'Missing.txt'
+        }
+
+        # Before 5.0.0, the cmdlet went on with the missing item and wrote a second, misleading RemoveAceError.
+        It 'Should write only the read error' {
+            Remove-NTFSAudit -Path $missing -Account 'Everyone' -AccessRights ReadData -ErrorVariable removeErrors -ErrorAction SilentlyContinue
+
+            $removeErrors | Should -HaveCount 1
+            $removeErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadFileError,*'
+        }
+
+        It 'Should not stop with -PassThru' {
+            { Remove-NTFSAudit -Path $missing -Account 'Everyone' -AccessRights ReadData -PassThru -ErrorAction SilentlyContinue } |
+                Should -Not -Throw
+        }
+    }
+
     Context 'With -RemoveSpecific' {
         BeforeEach {
             $removeFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSpecific' -Directory
