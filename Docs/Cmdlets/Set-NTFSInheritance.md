@@ -31,7 +31,7 @@ The `Set-NTFSInheritance` cmdlet turns the inheritance of access rules and audit
 
 The cmdlet performs the same operations as `Enable-NTFSAccessInheritance`, `Disable-NTFSAccessInheritance`, `Enable-NTFSAuditInheritance`, and `Disable-NTFSAuditInheritance`, but it does not expose their switches and it does not use their defaults. `-AccessInheritanceEnabled $false` discards the inherited access rules instead of copying them into the item's own DACL, `-AccessInheritanceEnabled $true` keeps the explicit access rules, `-AuditInheritanceEnabled $false` copies the inherited audit rules into the item's own SACL, and `-AuditInheritanceEnabled $true` removes the explicit audit rules. Use the individual Enable and Disable cmdlets when you need the opposite behavior.
 
-Specify both `-AccessInheritanceEnabled` and `-AuditInheritanceEnabled`. The cmdlet compares the current state against the parameter value even when the parameter was not supplied, and when such a comparison reports a difference it fails with the non-terminating error "Nullable object must have a value". Omitting `-AccessInheritanceEnabled` always triggers that error, and omitting `-AuditInheritanceEnabled` triggers it in a session that can read the audit section. Changing the audit section requires the Security privilege and therefore an elevated session.
+Omit `-AccessInheritanceEnabled` or `-AuditInheritanceEnabled` to leave that section unchanged. Changing the audit section requires the Security privilege and therefore an elevated session.
 
 In the `Path` parameter set the cmdlet writes each changed section back to disk immediately. In the `SecurityDescriptor` parameter set it changes the `Security2.FileSystemSecurity2` object in memory only; nothing reaches the file system until you pass that object to `Set-NTFSSecurityDescriptor`. `-Path`, `-AccessInheritanceEnabled`, and `-AuditInheritanceEnabled` all accept pipeline input by property name, so a `Security2.FileSystemInheritanceInfo` object from `Get-NTFSInheritance` binds to all three at once.
 
@@ -191,6 +191,8 @@ The audit section of a security descriptor can only be read and written with the
 If the descriptor cannot be opened because the account has no permission to the item, the cmdlet takes ownership of the item, applies the changes, and sets the previous owner back. That fallback only succeeds when the account can take ownership of the item and restore the original owner; otherwise the cmdlet writes an error and continues with the next item.
 
 A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.
+
+Before 5.0.0, omitting `-AccessInheritanceEnabled` or `-AuditInheritanceEnabled` could fail with the error "Nullable object must have a value".
 
 ## RELATED LINKS
 

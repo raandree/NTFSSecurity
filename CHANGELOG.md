@@ -52,5 +52,8 @@ The format is based on
 - Remove `Show-NTFSSimpleAccess`, which no longer exists, and duplicate
   entries from the cmdlets that the module manifest exports and the
   PowerShell Gallery lists
+- Fix `Set-NTFSInheritance`, which failed with "Nullable object must have a
+  value" when `-AccessInheritanceEnabled` or `-AuditInheritanceEnabled` was
+  omitted; an omitted parameter now leaves its section unchanged
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD
