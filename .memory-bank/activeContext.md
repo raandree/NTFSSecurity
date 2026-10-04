@@ -31,14 +31,21 @@ then work package 5 (code defects) and the open issues. The local branch
 - Installed with `Save-PSResource` and copied to `bin\Release`, the module
   passes the full suite: Windows PowerShell 261 passed, 7 skipped;
   PowerShell 7 232 passed, 36 skipped.
-- The command search (`Find-PSResource -CommandName`) still returned 4.2.6
-  at 20:16 UTC, four minutes after publishing; the search index was stale,
-  because it treated 4.2.6 as the absolute latest version.
+- `Find-PSResource -CommandName Get-NTFSAccess -Prerelease` lists
+  5.0.0-rc1 since 20:22 UTC; at 20:16 UTC the search index still lagged.
+- Repository settings (2026-10-04): no protection or ruleset on `master`;
+  the `powershell-gallery` environment has no protection rules and no
+  deployment policy; head branches aren't deleted on merge; no
+  `dependabot.yml`. Collaborators: `raandree` (admin), `nyanhp` (write).
+  No AppVeyor webhook or commit status remains; no new issues since May
+  2025.
 - The wiki was republished from `e0f5366`; Home mentions
   `-AllowPrerelease`.
 
 ## Next step
 
-Recheck the command search for 5.0.0-rc1. When the maintainer reports test
-results: prepare the final 5.0.0 release PR, or fix what the tests found
-and publish `5.0.0-rc2`.
+The maintainer tests 5.0.0-rc1. On "final", prepare the final 5.0.0
+release PR on release day; on failures, fix them and publish `5.0.0-rc2`.
+Proposed meanwhile, awaiting the maintainer: the repository settings in
+`progress.md` item 4e, a Dependabot PR for the pinned actions, and
+deleting the merged local branches. Work package 5 starts after 5.0.0.
