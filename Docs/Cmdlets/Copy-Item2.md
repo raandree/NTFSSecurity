@@ -184,7 +184,7 @@ By default this cmdlet returns nothing. With `-PassThru $true` it returns an `Al
 
 `Copy-Item2` copies through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it handles source and destination paths that exceed the 260-character `MAX_PATH` limit of the built-in `Copy-Item` cmdlet.
 
-Copying a folder that contains files currently fails with a `CopyError` that reports a `DirectoryNotFoundException` for the first file in the folder. Copy files individually, for example by piping `Get-ChildItem2 -Recurse -File` into this cmdlet, and create the target folders beforehand.
+Before 5.0.0, copying a folder that contained files failed with a `CopyError` that reported a `DirectoryNotFoundException` for the first file in the folder.
 
 If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and skips the remaining paths that were passed in the same call. Items that arrive one by one through the pipeline are not affected, because each of them is processed separately.
 

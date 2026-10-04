@@ -105,6 +105,9 @@ namespace NTFSSecurity
                     {
                         if (ShouldProcess(resolvedPath, "Copy Directory"))
                         {
+                            // AlphaFS 2.2 copies into an existing folder only and otherwise fails with a
+                            // DirectoryNotFoundException for the first file.
+                            Directory.CreateDirectory(actualDestination);
                             ((DirectoryInfo)item).CopyTo(actualDestination, force ? CopyOptions.None : CopyOptions.FailIfExists, PathFormat.RelativePath);
                             WriteVerbose(string.Format("Directory '{0}' copied to '{0}'", resolvedPath, destination));
                         }

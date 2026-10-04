@@ -81,5 +81,7 @@ The format is based on
   for every path when a command such as `Select-Object -First 1` stopped the
   pipeline, and which repeated a failed read instead of reporting the
   denied access
+- Fix `Copy-Item2`, which failed with a `DirectoryNotFoundException` when it
+  copied a folder that contained files
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

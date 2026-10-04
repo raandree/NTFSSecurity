@@ -55,3 +55,28 @@ Describe 'Get-ChildItem2' {
         }
     }
 }
+
+Describe 'Copy-Item2' {
+    Context 'When -Path is a folder with files and subfolders' {
+        BeforeAll {
+            $source = New-TestSandboxItem -Sandbox $sandbox -Name 'Source' -Directory
+            $sourceFile = Join-Path -Path $source -ChildPath 'File.txt'
+            $sourceSubfolderFile = Join-Path -Path $source -ChildPath 'Subfolder\Other.txt'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $sourceFile, $sourceSubfolderFile
+            New-Item -ItemType Directory -Path (Split-Path -Path $sourceSubfolderFile -Parent) | Out-Null
+            Set-Content -LiteralPath $sourceFile -Value 'File'
+            Set-Content -LiteralPath $sourceSubfolderFile -Value 'Other'
+        }
+
+        It 'Should copy the folder with its files and subfolders' {
+            $destination = Join-Path -Path $sandbox -ChildPath ('Copy-{0}' -f [guid]::NewGuid().ToString('N').Substring(0, 8))
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $destination
+
+            Copy-Item2 -Path $source -Destination $destination -ErrorVariable copyErrors -ErrorAction SilentlyContinue
+
+            $copyErrors | Should -BeNullOrEmpty
+            Join-Path -Path $destination -ChildPath 'File.txt' | Should -Exist
+            Join-Path -Path $destination -ChildPath 'Subfolder\Other.txt' | Should -Exist
+        }
+    }
+}
