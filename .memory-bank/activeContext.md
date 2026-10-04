@@ -9,31 +9,30 @@ source: current task evidence
 
 ## Current focus
 
-PRs #94 (docs on GitHub) and #95 (manifest and version 5.0.0, stacked on
-PR #94) are open and build on AppVeyor. The move to GitHub Actions (CI and
-a wiki generated from `Docs`, Decision 11) is PR-ready on the local branch
-`ai/github-actions`, stacked on #95; the maintainer pushes it and opens the
-PR. Merge order: #94, #95 (merge commits), then the GitHub Actions PR.
+PRs #94, #95, and #96 are merged; CI and the wiki run on GitHub Actions.
+The version history completed from the PowerShell Gallery packages is
+PR-ready on the local branch `ai/version-history`; the maintainer pushes it
+and opens the PR. Work package 5 (code defects) waits for the maintainer's
+go-ahead.
 
 ## Evidence
 
-- `Wiki.Tests.ps1` failed 25 of 25 before the exporter existed and passes
-  25 of 25 in Windows PowerShell 5.1 and PowerShell 7.6.1. A negative
-  control (broken anchor, missing page, missing file) reports all three.
-- A dry run against a clone of the live wiki adds 41 pages, changes Home
-  and How-to-install, and deletes the stale `Cmdlets.md` and
-  `Version-History.textile`; nothing was pushed.
-- `Invoke-Tests.ps1`, as CI calls it, passed locally against a Release
-  build: Windows PowerShell 5.1 253 of 253; PowerShell 7 217 passed and 36
-  skipped (`Get-Help -Online` runs only in Windows PowerShell).
-- actionlint 1.7.12 reports nothing for `.github/workflows/ci.yml`. The
-  runner image `windows-2025` has Visual Studio 2022 MSBuild 17.14, NuGet,
-  the GitHub CLI, and PowerShell 7.6; `master` has no branch protection.
+- Six Gallery packages compared (4.0.0, 4.2.2 to 4.2.6), each imported in
+  its own Windows PowerShell process: exported cmdlets 30, 35, 36, 36, 36,
+  36. `Show-SimpleAccess` was exported only by 4.0.0 (the manifest of 4.2.2
+  to 4.2.4 lists it as `Show-NTFSSimpleAccess`) and deleted in 4.2.5. All
+  versions export the aliases `dir2`, `gi2`, `rm2`, and `del2` only.
+- 4.2.4 already carried the MIT license (`LicenseUri`), the setting
+  `IdentifyHardLinks`, and AlphaFS 2.2.1; 4.2.5 fixed the `-Account`
+  aliases (#18, #36) and #48 but broke the `Applies to` column, which 4.2.6
+  fixed (#57). 4.2.5 and 4.2.6 still ship AlphaFS 2.2.1: `d8f67af` updated
+  only `packages.config`, not the `HintPath`.
+- `Wiki.Tests.ps1` passes with the changed page; markdownlint (with `MD024`
+  siblings only for `CHANGELOG.md`) and the link check found nothing.
 - The local branch `ai/read-the-docs` keeps the dropped strict-build work
   (`886c874`, `325ec76`); delete it once it is no longer wanted.
 
 ## Next step
 
-After the maintainer pushes: read the AppVeyor results of #94 and #95 and
-the first GitHub Actions run with `gh run view`. Work package 5 (code
-defects) starts only after the maintainer's go-ahead.
+After the maintainer opens the PR: read its GitHub Actions run with
+`gh pr checks`. Then wait for the go-ahead for work package 5.

@@ -14,6 +14,12 @@ The format is based on
   [wiki](https://github.com/raandree/NTFSSecurity/wiki), generated from the
   `Docs` folder after every change, with a sidebar that lists all cmdlets
 
+### Changed
+
+- Complete the version history with the release dates from the PowerShell
+  Gallery, notes for 4.2.2, detailed notes for 4.2.4, and separate notes for
+  4.2.5 and 4.2.6
+
 ## [5.0.0] - 2026-10-04
 
 ### Changed
