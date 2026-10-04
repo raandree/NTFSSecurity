@@ -13,7 +13,10 @@ the additional rules for the cmdlet reference pages, which platyPS processes.
 - Don't use hard tabs or trailing spaces.
 - Link to other pages with relative links to the `.md` file, for example
   `[Concepts](Concepts.md)` or `[Get-NTFSAccess](Cmdlets/Get-NTFSAccess.md)`.
-  MkDocs converts them to links to the generated pages.
+  GitHub renders them as links to the pages.
+- Link to a section with the anchor that GitHub generates from its heading:
+  lowercase, with spaces replaced by hyphens and punctuation removed, for
+  example `[Privileges](Concepts.md#privileges)`.
 - End every file with a single newline.
 
 ## Cmdlet reference pages
@@ -42,10 +45,3 @@ expects:
   add a sentence below each one.
 - In RELATED LINKS, write each link on its own line and separate the links
   with blank lines.
-
-## MkDocs
-
-- The site uses the built-in `readthedocs` theme.
-- Every page must be listed in the `nav` section of `mkdocs.yml`.
-- Files in `Docs` that aren't Markdown are copied to the website. Exclude
-  files that don't belong there with `exclude_docs` in `mkdocs.yml`.

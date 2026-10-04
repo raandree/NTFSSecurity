@@ -18,9 +18,9 @@ Install-Module -Name NTFSSecurity
 ```
 
 You can also download a release from the
-[releases page](https://github.com/raandree/NTFSSecurity/releases). If you
-have trouble, see
-[How to install](https://github.com/raandree/NTFSSecurity/wiki/How-to-install).
+[releases page](https://github.com/raandree/NTFSSecurity/releases) and
+install it without the PowerShell Gallery; see
+[Installation](Docs/README.md#installation).
 
 The module runs on Windows in Windows PowerShell 5.1 and PowerShell 7.
 
@@ -43,7 +43,7 @@ Get-ChildItem2 -Path C:\Data -Recurse | Get-NTFSAccess -ExcludeInherited
 
 ## Documentation
 
-- [Overview](Docs/index.md): features, requirements, and the list of cmdlets
+- [Overview](Docs/README.md): features, requirements, and the list of cmdlets
 - [Concepts](Docs/Concepts.md): security descriptors, access rights,
   inheritance, privileges, long paths, and module settings
 - [Examples](Docs/Examples.md): common tasks
@@ -59,8 +59,7 @@ although some cmdlet names have changed since:
 ## Version history
 
 See [CHANGELOG.md](CHANGELOG.md) for changes since version 4.2.6 and the
-[version history](https://github.com/raandree/NTFSSecurity/wiki/Version-History)
-in the wiki for earlier releases.
+[version history](Docs/Version-History.md) for 4.2.6 and earlier releases.
 
 ## License
 
