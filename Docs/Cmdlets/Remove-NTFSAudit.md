@@ -17,32 +17,32 @@ Removes an audit entry from a file or folder.
 ```
 Remove-NTFSAudit [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
  [-AuditFlags <AuditFlags>] [-InheritanceFlags <InheritanceFlags>] [-PropagationFlags <PropagationFlags>]
- [-PassThru] [<CommonParameters>]
+ [-RemoveSpecific] [-PassThru] [<CommonParameters>]
 ```
 
 ### PathSimple
 ```
 Remove-NTFSAudit [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
- [-AuditFlags <AuditFlags>] -AppliesTo <ApplyTo> [-PassThru] [<CommonParameters>]
+ [-AuditFlags <AuditFlags>] -AppliesTo <ApplyTo> [-RemoveSpecific] [-PassThru] [<CommonParameters>]
 ```
 
 ### SDSimple
 ```
 Remove-NTFSAudit [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
- [-AccessRights] <FileSystemRights2> [-AuditFlags <AuditFlags>] -AppliesTo <ApplyTo> [-PassThru]
- [<CommonParameters>]
+ [-AccessRights] <FileSystemRights2> [-AuditFlags <AuditFlags>] -AppliesTo <ApplyTo> [-RemoveSpecific]
+ [-PassThru] [<CommonParameters>]
 ```
 
 ### SDComplex
 ```
 Remove-NTFSAudit [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
  [-AccessRights] <FileSystemRights2> [-AuditFlags <AuditFlags>] [-InheritanceFlags <InheritanceFlags>]
- [-PropagationFlags <PropagationFlags>] [-PassThru] [<CommonParameters>]
+ [-PropagationFlags <PropagationFlags>] [-RemoveSpecific] [-PassThru] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 
-The `Remove-NTFSAudit` cmdlet removes an audit entry from the system access control list (SACL) of a file or folder. The cmdlet builds an audit entry from `-Account`, `-AccessRights`, `-AuditFlags`, and the inheritance and propagation flags, and removes that entry from the SACL. The audit entries of the account are matched by their inheritance and propagation flags, and the requested access rights and audit flags are then taken away from them: an entry that audits further rights keeps those rights and disappears only when nothing is left. To remove an entry completely, pass the same values that `Get-NTFSAudit` reports for it.
+The `Remove-NTFSAudit` cmdlet removes an audit entry from the system access control list (SACL) of a file or folder. The cmdlet builds an audit entry from `-Account`, `-AccessRights`, `-AuditFlags`, and the inheritance and propagation flags, and removes that entry from the SACL. The audit entries of the account are matched by their inheritance and propagation flags, and the requested access rights and audit flags are then taken away from them: an entry that audits further rights keeps those rights and disappears only when nothing is left. To remove an entry completely, pass the same values that `Get-NTFSAudit` reports for it. With `-RemoveSpecific`, the cmdlet removes only an entry that matches exactly.
 
 Because the inheritance and propagation flags take part in the match, they must describe the entry you want to remove. `-AppliesTo ThisFolderOnly` removes an entry that is not inherited by child items, which is also the shape of every audit entry on a file, while the default of the complex parameter sets removes an entry that applies to the folder, its subfolders, and its files. An entry that an item inherits from a parent folder is stored on that parent, so remove it there, or use `Clear-NTFSAudit` with `-DisableInheritance` to drop the inherited entries on the item.
 
@@ -237,6 +237,22 @@ Accept pipeline input: True (ByPropertyName, ByValue)
 Accept wildcard characters: False
 ```
 
+### -RemoveSpecific
+
+Indicates that the cmdlet removes only an audit entry that matches the account, the access rights, the audit flags, and the inheritance and propagation flags exactly, and leaves all other entries unchanged. Without this switch, the cmdlet takes the specified rights and audit flags away from the matching entries.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### CommonParameters
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
@@ -289,6 +305,8 @@ Reading and writing the SACL requires the Security privilege (`SeSecurityPrivile
 If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.
 
 The cmdlet reports no error when no entry matches the supplied values. Compare the result with `Get-NTFSAudit` to confirm that the entry is gone.
+
+Before 5.0.0, the cmdlet had no `-RemoveSpecific` switch.
 
 ## RELATED LINKS
 

@@ -109,5 +109,8 @@ The format is based on
   collection per item, `Get-NTFSOrphanedAccess` no longer repeats the entries
   of the previous item after a failed read, and the output of
   `Get-NTFSSimpleAccess` has a table view
+- Restore the `-RemoveSpecific` switch of `Remove-NTFSAccess`, which version
+  4.1 introduced but later versions lacked, and add it to `Remove-NTFSAudit`:
+  with it, the cmdlets remove only an entry that matches exactly
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

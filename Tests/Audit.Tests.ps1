@@ -148,6 +148,31 @@ Describe 'Get-NTFSOrphanedAudit' {
 }
 
 Describe 'Remove-NTFSAudit' {
+    Context 'With -RemoveSpecific' {
+        BeforeEach {
+            $removeFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSpecific' -Directory
+            $sd = Get-NTFSSecurityDescriptor -Path $removeFolder
+            Add-NTFSAudit -SecurityDescriptor $sd -Account 'Everyone' -AccessRights Modify
+
+            function Get-EveryoneAuditRule {
+                $sd.SecurityDescriptor.GetAuditRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }
+            }
+        }
+
+        It 'Should keep an audit entry that does not match exactly' {
+            Remove-NTFSAudit -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData -RemoveSpecific
+
+            (Get-EveryoneAuditRule).FileSystemRights.HasFlag([System.Security.AccessControl.FileSystemRights]::Modify) | Should -BeTrue
+        }
+
+        It 'Should remove an audit entry that matches exactly' {
+            Remove-NTFSAudit -SecurityDescriptor $sd -Account 'Everyone' -AccessRights Modify -RemoveSpecific
+
+            Get-EveryoneAuditRule | Should -BeNullOrEmpty
+        }
+    }
+
     Context 'With -PassThru' {
         It 'Should return the audit entries of the item, not its access entries' -Skip:(-not $canReadAudit) {
             $file = New-TestSandboxItem -Sandbox $sandbox -Name 'PassThru'

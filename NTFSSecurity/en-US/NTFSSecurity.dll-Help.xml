@@ -7622,7 +7622,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
     </command:details>
     <maml:description>
       <maml:para>Removes the rights in `-AccessRights` from the access control entries (ACEs) of a file or a folder. An entry is addressed by the account in `-Account`, the access type in `-AccessType`, and the inheritance and propagation flags, which are given either as `-AppliesTo` or as `-InheritanceFlags` and `-PropagationFlags`.</maml:para>
-      <maml:para>Only the specified rights are taken away: when an entry grants more than `-AccessRights` names, the remaining rights stay in place, and the entry disappears only when all of its rights are removed. An `Allow` entry is always matched with the `Synchronize` right added to the specified rights. The flags must describe the entry as it exists on the item; when they do not, Windows splits the entry instead of removing the rights, so use the values that `Get-NTFSAccess` reports for the entry you want to change.</maml:para>
+      <maml:para>Only the specified rights are taken away: when an entry grants more than `-AccessRights` names, the remaining rights stay in place, and the entry disappears only when all of its rights are removed. An `Allow` entry is always matched with the `Synchronize` right added to the specified rights. The flags must describe the entry as it exists on the item; when they do not, Windows splits the entry instead of removing the rights, so use the values that `Get-NTFSAccess` reports for the entry you want to change. With `-RemoveSpecific`, the cmdlet removes only an entry that matches exactly.</maml:para>
       <maml:para>Inherited entries cannot be removed from the item that inherits them. Remove them from the folder named in the `InheritedFrom` property, or run `Disable-NTFSAccessInheritance` on the item first, which copies the inherited entries into it as explicit ones that this cmdlet can then remove.</maml:para>
       <maml:para>The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`, and `PathComplex` is the default. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets. All relevant parameters bind by property name, so the output of `Get-NTFSAccess` and `Get-NTFSOrphanedAccess` can be piped directly into this cmdlet. The cmdlet writes no output unless `-PassThru` is used.</maml:para>
     </maml:description>
@@ -7749,6 +7749,17 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           </dev:type>
           <dev:defaultValue>False</dev:defaultValue>
         </command:parameter>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+          <maml:name>RemoveSpecific</maml:name>
+          <maml:description>
+            <maml:para>Indicates that the cmdlet removes only an entry that matches the account, the access rights, the access type, and the inheritance and propagation flags exactly, and leaves all other entries unchanged. Without this switch, the cmdlet takes the specified rights away from the matching entries.</maml:para>
+          </maml:description>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>False</dev:defaultValue>
+        </command:parameter>
       </command:syntaxItem>
       <command:syntaxItem>
         <maml:name>Remove-NTFSAccess</maml:name>
@@ -7866,6 +7877,17 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           <maml:name>PassThru</maml:name>
           <maml:description>
             <maml:para>Indicates that the cmdlet writes the access control entries of every processed item, explicit and inherited, after the change. Without this switch the cmdlet produces no output.</maml:para>
+          </maml:description>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>False</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+          <maml:name>RemoveSpecific</maml:name>
+          <maml:description>
+            <maml:para>Indicates that the cmdlet removes only an entry that matches the account, the access rights, the access type, and the inheritance and propagation flags exactly, and leaves all other entries unchanged. Without this switch, the cmdlet takes the specified rights away from the matching entries.</maml:para>
           </maml:description>
           <dev:type>
             <maml:name>SwitchParameter</maml:name>
@@ -8003,6 +8025,17 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+          <maml:name>RemoveSpecific</maml:name>
+          <maml:description>
+            <maml:para>Indicates that the cmdlet removes only an entry that matches the account, the access rights, the access type, and the inheritance and propagation flags exactly, and leaves all other entries unchanged. Without this switch, the cmdlet takes the specified rights away from the matching entries.</maml:para>
+          </maml:description>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>False</dev:defaultValue>
+        </command:parameter>
       </command:syntaxItem>
       <command:syntaxItem>
         <maml:name>Remove-NTFSAccess</maml:name>
@@ -8134,6 +8167,17 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+          <maml:name>RemoveSpecific</maml:name>
+          <maml:description>
+            <maml:para>Indicates that the cmdlet removes only an entry that matches the account, the access rights, the access type, and the inheritance and propagation flags exactly, and leaves all other entries unchanged. Without this switch, the cmdlet takes the specified rights away from the matching entries.</maml:para>
+          </maml:description>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>False</dev:defaultValue>
+        </command:parameter>
       </command:syntaxItem>
     </command:syntax>
     <command:parameters>
@@ -8246,6 +8290,18 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
+      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+        <maml:name>RemoveSpecific</maml:name>
+        <maml:description>
+          <maml:para>Indicates that the cmdlet removes only an entry that matches the account, the access rights, the access type, and the inheritance and propagation flags exactly, and leaves all other entries unchanged. Without this switch, the cmdlet takes the specified rights away from the matching entries.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+        <dev:type>
+          <maml:name>SwitchParameter</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>False</dev:defaultValue>
+      </command:parameter>
     </command:parameters>
     <command:inputTypes>
       <command:inputType>
@@ -8328,6 +8384,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>If the ACL of an item cannot be written because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.</maml:para>
         <maml:para>Removing rights from an entry that does not exist is not an error; the cmdlet leaves the ACL unchanged.</maml:para>
+        <maml:para>Before 5.0.0, the `-RemoveSpecific` switch was missing, although version 4.1 had introduced it.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -8401,7 +8458,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       </maml:description>
     </command:details>
     <maml:description>
-      <maml:para>The `Remove-NTFSAudit` cmdlet removes an audit entry from the system access control list (SACL) of a file or folder. The cmdlet builds an audit entry from `-Account`, `-AccessRights`, `-AuditFlags`, and the inheritance and propagation flags, and removes that entry from the SACL. The audit entries of the account are matched by their inheritance and propagation flags, and the requested access rights and audit flags are then taken away from them: an entry that audits further rights keeps those rights and disappears only when nothing is left. To remove an entry completely, pass the same values that `Get-NTFSAudit` reports for it.</maml:para>
+      <maml:para>The `Remove-NTFSAudit` cmdlet removes an audit entry from the system access control list (SACL) of a file or folder. The cmdlet builds an audit entry from `-Account`, `-AccessRights`, `-AuditFlags`, and the inheritance and propagation flags, and removes that entry from the SACL. The audit entries of the account are matched by their inheritance and propagation flags, and the requested access rights and audit flags are then taken away from them: an entry that audits further rights keeps those rights and disappears only when nothing is left. To remove an entry completely, pass the same values that `Get-NTFSAudit` reports for it. With `-RemoveSpecific`, the cmdlet removes only an entry that matches exactly.</maml:para>
       <maml:para>Because the inheritance and propagation flags take part in the match, they must describe the entry you want to remove. `-AppliesTo ThisFolderOnly` removes an entry that is not inherited by child items, which is also the shape of every audit entry on a file, while the default of the complex parameter sets removes an entry that applies to the folder, its subfolders, and its files. An entry that an item inherits from a parent folder is stored on that parent, so remove it there, or use `Clear-NTFSAudit` with `-DisableInheritance` to drop the inherited entries on the item.</maml:para>
       <maml:para>In the `PathSimple` and `PathComplex` parameter sets the cmdlet reads the security descriptor of every item in `-Path` and writes it back right away. In the `SDSimple` and `SDComplex` parameter sets it changes an in-memory `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, and the change reaches the file system only when you pass the object to `Set-NTFSSecurityDescriptor`. `PathComplex` is the default parameter set. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.</maml:para>
       <maml:para>When you omit them, `-AuditFlags` is `Success, Failure`, `-InheritanceFlags` is `ContainerInherit, ObjectInherit`, `-PropagationFlags` is `None`. All parameters bind by property name, and `-Path` also binds by value and through its `FullName` alias, so you can pipe the output of `Get-NTFSAudit`, `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` into the cmdlet. The cmdlet writes no object unless you use `-PassThru`.</maml:para>
@@ -8530,6 +8587,17 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           </dev:type>
           <dev:defaultValue>False</dev:defaultValue>
         </command:parameter>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+          <maml:name>RemoveSpecific</maml:name>
+          <maml:description>
+            <maml:para>Indicates that the cmdlet removes only an audit entry that matches the account, the access rights, the audit flags, and the inheritance and propagation flags exactly, and leaves all other entries unchanged. Without this switch, the cmdlet takes the specified rights and audit flags away from the matching entries.</maml:para>
+          </maml:description>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>False</dev:defaultValue>
+        </command:parameter>
       </command:syntaxItem>
       <command:syntaxItem>
         <maml:name>Remove-NTFSAudit</maml:name>
@@ -8647,6 +8715,17 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           <maml:name>PassThru</maml:name>
           <maml:description>
             <maml:para>Indicates that the cmdlet writes the access control entries of the processed item or descriptor to the pipeline after the change. All entries are returned, explicit and inherited ones, not only the entry that was removed. Without this switch the cmdlet returns nothing when the operation succeeds. See the OUTPUTS section for which entries each parameter set returns.</maml:para>
+          </maml:description>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>False</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+          <maml:name>RemoveSpecific</maml:name>
+          <maml:description>
+            <maml:para>Indicates that the cmdlet removes only an audit entry that matches the account, the access rights, the audit flags, and the inheritance and propagation flags exactly, and leaves all other entries unchanged. Without this switch, the cmdlet takes the specified rights and audit flags away from the matching entries.</maml:para>
           </maml:description>
           <dev:type>
             <maml:name>SwitchParameter</maml:name>
@@ -8785,6 +8864,17 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+          <maml:name>RemoveSpecific</maml:name>
+          <maml:description>
+            <maml:para>Indicates that the cmdlet removes only an audit entry that matches the account, the access rights, the audit flags, and the inheritance and propagation flags exactly, and leaves all other entries unchanged. Without this switch, the cmdlet takes the specified rights and audit flags away from the matching entries.</maml:para>
+          </maml:description>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>False</dev:defaultValue>
+        </command:parameter>
       </command:syntaxItem>
       <command:syntaxItem>
         <maml:name>Remove-NTFSAudit</maml:name>
@@ -8916,6 +9006,17 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+          <maml:name>RemoveSpecific</maml:name>
+          <maml:description>
+            <maml:para>Indicates that the cmdlet removes only an audit entry that matches the account, the access rights, the audit flags, and the inheritance and propagation flags exactly, and leaves all other entries unchanged. Without this switch, the cmdlet takes the specified rights and audit flags away from the matching entries.</maml:para>
+          </maml:description>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>False</dev:defaultValue>
+        </command:parameter>
       </command:syntaxItem>
     </command:syntax>
     <command:parameters>
@@ -9027,6 +9128,18 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
+      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+        <maml:name>RemoveSpecific</maml:name>
+        <maml:description>
+          <maml:para>Indicates that the cmdlet removes only an audit entry that matches the account, the access rights, the audit flags, and the inheritance and propagation flags exactly, and leaves all other entries unchanged. Without this switch, the cmdlet takes the specified rights and audit flags away from the matching entries.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+        <dev:type>
+          <maml:name>SwitchParameter</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>False</dev:defaultValue>
+      </command:parameter>
     </command:parameters>
     <command:inputTypes>
       <command:inputType>
@@ -9110,6 +9223,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <maml:para>Reading and writing the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it, the cmdlet writes a non-terminating `RemoveAceError` whose message states that a required privilege is not held by the client, and the item is left unchanged.</maml:para>
         <maml:para>If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.</maml:para>
         <maml:para>The cmdlet reports no error when no entry matches the supplied values. Compare the result with `Get-NTFSAudit` to confirm that the entry is gone.</maml:para>
+        <maml:para>Before 5.0.0, the cmdlet had no `-RemoveSpecific` switch.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>

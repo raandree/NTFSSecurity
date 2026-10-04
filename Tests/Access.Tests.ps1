@@ -148,6 +148,41 @@ Describe 'Get-NTFSSimpleAccess' {
     }
 }
 
+Describe 'Remove-NTFSAccess' {
+    Context 'With -RemoveSpecific' {
+        BeforeEach {
+            $removeFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSpecific' -Directory
+            $sd = Get-NTFSSecurityDescriptor -Path $removeFolder
+            Add-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights Modify
+
+            function Get-EveryoneRule {
+                $sd.SecurityDescriptor.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }
+            }
+        }
+
+        It 'Should keep an entry that does not match exactly' {
+            Remove-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData -RemoveSpecific
+
+            (Get-EveryoneRule).FileSystemRights.HasFlag([System.Security.AccessControl.FileSystemRights]::Modify) | Should -BeTrue
+        }
+
+        It 'Should remove an entry that matches exactly' {
+            Remove-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights Modify -RemoveSpecific
+
+            Get-EveryoneRule | Should -BeNullOrEmpty
+        }
+
+        It 'Should take the rights away from a matching entry without -RemoveSpecific' {
+            Remove-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData
+
+            $rule = Get-EveryoneRule
+            $rule | Should -Not -BeNullOrEmpty
+            $rule.FileSystemRights.HasFlag([System.Security.AccessControl.FileSystemRights]::ReadData) | Should -BeFalse
+        }
+    }
+}
+
 Describe 'Security descriptor parameter sets' {
     BeforeAll {
         $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ParameterSets' -Directory

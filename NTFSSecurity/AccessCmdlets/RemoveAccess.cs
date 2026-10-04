@@ -16,7 +16,7 @@ namespace NTFSSecurity
         private AccessControlType accessType = AccessControlType.Allow;
         private InheritanceFlags inheritanceFlags = InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit;
         private PropagationFlags propagationFlags = PropagationFlags.None;
-        private ApplyTo appliesTo;
+        private ApplyTo appliesTo = ApplyTo.ThisFolderSubfoldersAndFiles;
         private bool removeSpecific;
         private bool passThru;
 
@@ -96,6 +96,16 @@ namespace NTFSSecurity
             set { appliesTo = value; }
         }
 
+        /// <summary>
+        /// Removes only an entry that matches exactly, instead of taking the rights away from matching entries.
+        /// </summary>
+        [Parameter]
+        public SwitchParameter RemoveSpecific
+        {
+            get { return removeSpecific; }
+            set { removeSpecific = value; }
+        }
+
         [Parameter]
         public SwitchParameter PassThru
         {
@@ -137,7 +147,7 @@ namespace NTFSSecurity
 
                     try
                     {
-                        FileSystemAccessRule2.RemoveFileSystemAccessRule(item, account.ToList(), accessRights, accessType, inheritanceFlags, propagationFlags);
+                        FileSystemAccessRule2.RemoveFileSystemAccessRule(item, account.ToList(), accessRights, accessType, inheritanceFlags, propagationFlags, removeSpecific);
                     }
                     catch (UnauthorizedAccessException)
                     {
@@ -148,7 +158,7 @@ namespace NTFSSecurity
 
                             FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
 
-                            FileSystemAccessRule2.RemoveFileSystemAccessRule(item, account.ToList(), accessRights, accessType, inheritanceFlags, propagationFlags);
+                            FileSystemAccessRule2.RemoveFileSystemAccessRule(item, account.ToList(), accessRights, accessType, inheritanceFlags, propagationFlags, removeSpecific);
 
                             FileSystemOwner.SetOwner(item, previousOwner);
                         }
@@ -172,7 +182,7 @@ namespace NTFSSecurity
             {
                 foreach (var sd in securityDescriptors)
                 {
-                    FileSystemAccessRule2.RemoveFileSystemAccessRule(sd, account.ToList(), accessRights, accessType, inheritanceFlags, propagationFlags);
+                    FileSystemAccessRule2.RemoveFileSystemAccessRule(sd, account.ToList(), accessRights, accessType, inheritanceFlags, propagationFlags, removeSpecific);
 
                     if (passThru == true)
                     {
