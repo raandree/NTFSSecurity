@@ -77,5 +77,9 @@ The format is based on
 - Fix `Get-NTFSInheritance -SecurityDescriptor`, which reported
   `AuditInheritanceEnabled` as `$true` for a security descriptor that was
   read without its audit section; it now reports `$null`, like `-Path`
+- Fix `Get-NTFSOwner`, which wrote a "The pipeline has been stopped" error
+  for every path when a command such as `Select-Object -First 1` stopped the
+  pipeline, and which repeated a failed read instead of reporting the
+  denied access
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

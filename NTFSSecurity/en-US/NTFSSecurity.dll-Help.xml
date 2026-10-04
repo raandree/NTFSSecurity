@@ -6146,6 +6146,8 @@ PS C:\&gt; $orphaned | Select-Object FullName, Account, AccessRights, AuditFlags
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>The module also adds an `Owner` script property to `System.IO.FileInfo` and `System.IO.DirectoryInfo`, so `(Get-Item C:\Data).Owner` returns the owning account as a `Security2.IdentityReference2` object as well.</maml:para>
+        <maml:para>If the owner of an item cannot be read because access is denied, the cmdlet writes the non-terminating error `ReadSecurityError` with the category `PermissionDenied` and continues with the next path. It does not take ownership of the item, which would replace the owner that it reports.</maml:para>
+        <maml:para>Before 5.0.0, a command that stopped the pipeline early, such as `Select-Object -First 1`, made the cmdlet write a `ReadSecurityError` with the message "The pipeline has been stopped" for every path.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
