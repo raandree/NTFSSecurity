@@ -172,6 +172,8 @@ A path that does not exist produces a non-terminating error and the cmdlet conti
 
 Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.
 
+Before 5.0.0, `-PassThru` returned the unchanged state of an item also when the change failed, and stopped the command when the item could not be read.
+
 ## RELATED LINKS
 
 [Enable-NTFSAuditInheritance](Enable-NTFSAuditInheritance.md)

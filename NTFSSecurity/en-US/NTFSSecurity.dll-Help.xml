@@ -2413,6 +2413,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <maml:para>Blocking access inheritance requires permission to change the DACL of the item, which the owner of an item always has. If the descriptor cannot be opened, the cmdlet takes ownership of the item, applies the change, and sets the previous owner back. That fallback only succeeds when the account can take ownership of the item and restore the original owner; otherwise the cmdlet writes an error and continues with the next item.</maml:para>
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
+        <maml:para>Before 5.0.0, `-PassThru` returned the unchanged state of an item also when the change failed, and stopped the command when the item could not be read.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -2658,6 +2659,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <maml:para>If the descriptor cannot be opened because the account has no permission to the item, the cmdlet takes ownership of the item, applies the change, and sets the previous owner back. That fallback only succeeds when the account can take ownership of the item and restore the original owner; a missing Security privilege is not an access problem and is not repaired by it.</maml:para>
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
+        <maml:para>Before 5.0.0, `-PassThru` returned the unchanged state of an item also when the change failed, and stopped the command when the item could not be read.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -3028,6 +3030,7 @@ PS C:\&gt; Get-Privileges | Where-Object { $_.Privilege -in 'Backup', 'Restore',
         <maml:para>Restoring access inheritance requires permission to change the DACL of the item, which the owner of an item always has. If the descriptor cannot be opened, the cmdlet takes ownership of the item, applies the change, and sets the previous owner back. That fallback only succeeds when the account can take ownership of the item and restore the original owner; otherwise the cmdlet writes an error and continues with the next item.</maml:para>
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
+        <maml:para>Before 5.0.0, `-PassThru` returned the unchanged state of an item also when the change failed, and stopped the command when the item could not be read.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -3273,6 +3276,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <maml:para>If the descriptor cannot be opened because the account has no permission to the item, the cmdlet takes ownership of the item, applies the change, and sets the previous owner back. That fallback only succeeds when the account can take ownership of the item and restore the original owner; a missing Security privilege is not an access problem and is not repaired by it.</maml:para>
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
+        <maml:para>Before 5.0.0, `-PassThru` returned the unchanged state of an item also when the change failed, and stopped the command when the item could not be read.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -9518,6 +9522,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
         <maml:para>Before 5.0.0, omitting `-AccessInheritanceEnabled` or `-AuditInheritanceEnabled` could fail with the error "Nullable object must have a value".</maml:para>
         <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
+        <maml:para>Before 5.0.0, `-PassThru` returned the unchanged state of an item also when the change failed, and stopped the command when the item could not be read.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>

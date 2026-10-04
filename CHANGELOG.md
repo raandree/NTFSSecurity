@@ -118,5 +118,11 @@ The format is based on
 - Fix `Remove-NTFSAccess` and `Remove-NTFSAudit`, which went on with a path
   that didn't exist, wrote a second, misleading `RemoveAceError`, and with
   `-PassThru` stopped with a `NullReferenceException`
+- Fix `-PassThru` of `Enable-NTFSAccessInheritance`,
+  `Disable-NTFSAccessInheritance`, `Enable-NTFSAuditInheritance`,
+  `Disable-NTFSAuditInheritance`, and `Set-NTFSInheritance`, which returned
+  the unchanged state of an item also when the change failed, so that the
+  inheritance looked disabled
+  ([#74](https://github.com/raandree/NTFSSecurity/issues/74))
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

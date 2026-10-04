@@ -101,12 +101,11 @@ namespace NTFSSecurity
                         WriteError(new ErrorRecord(ex, "ModifySdError", ErrorCategory.WriteError, path));
                         continue;
                     }
-                    finally
+
+                    // Only after a successful change, so that a failure doesn't report the unchanged state
+                    if (passThru)
                     {
-                        if (passThru)
-                        {
-                            WriteObject(FileSystemInheritanceInfo.GetFileSystemInheritanceInfo(item));
-                        }
+                        WriteObject(FileSystemInheritanceInfo.GetFileSystemInheritanceInfo(item));
                     }
                 }
             }
