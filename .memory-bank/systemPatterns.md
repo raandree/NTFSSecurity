@@ -57,6 +57,7 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 | 8 | [Commit the generated help file and check it in CI](decisions/0008-commit-generated-help.md) |
 | 9 | [Keep the documentation on GitHub](decisions/0009-docs-on-github.md) |
 | 10 | [One version for the manifest, assemblies, and changelog](decisions/0010-one-version.md) |
+| 11 | [CI and the wiki run on GitHub Actions](decisions/0011-github-actions.md) |
 
 ## Patterns
 
@@ -64,10 +65,16 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 
 - Run platyPS in Windows PowerShell 5.1 against a module build; a copy of
   `Docs/Cmdlets` must round-trip through `Update-MarkdownHelp` unchanged.
-- GitHub renders the docs (Decision 9). AppVeyor's link check covers only
-  relative links in `Docs` and ignores anchors, so check anchors against
-  GitHub's slug rules (lowercase, punctuation removed, spaces to hyphens)
-  and the links in `README.md` and `CHANGELOG.md` separately.
+- GitHub renders the docs (Decision 9), and CI publishes them to the wiki
+  (Decision 11). The MarkdownLinkCheck step covers only relative links in
+  `Docs` and ignores anchors; `Tests\Wiki.Tests.ps1` checks every link of
+  the generated wiki, including anchors (GitHub's slug rules: lowercase,
+  punctuation removed, spaces to hyphens). Check the links in `README.md`
+  and `CHANGELOG.md` separately.
+- The wiki is generated: edit `Docs`, never the wiki.
+  `Export-WikiContent.ps1` names a page after its file (`Docs/README.md`
+  becomes Home), rewrites links, and builds the sidebar from the cmdlet
+  groups of `Docs/README.md`; a cmdlet missing there fails `Wiki.Tests.ps1`.
 - platyPS rewrites non-ASCII punctuation such as em dashes; keep cmdlet pages
   ASCII-only.
 - In cmdlet pages, end a sentence with a link: platyPS renders a link as
@@ -78,15 +85,16 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 ### Testing the module
 
 - Pester 5 tests in `Tests/*.Tests.ps1` import
-  `NTFSSecurity\bin\Release\NTFSSecurity.psd1` and run in Windows
-  PowerShell 5.1 (as in AppVeyor); PowerShell 7 runs are a secondary check.
+  `NTFSSecurity\bin\Release\NTFSSecurity.psd1`; CI runs them in Windows
+  PowerShell 5.1 and in PowerShell 7 (Decision 11).
 - `Get-Help -Online` is tested with the internal test hook
   `BypassOnlineHelpRetrieval`, which returns the URI instead of opening a
   browser. In PowerShell 7 the hook also skips the help file, so that test
-  runs only in Windows PowerShell; PowerShell 7 resolves the same URI.
-- Report Pester 5 results to AppVeyor through the build worker API, not as
-  an uploaded NUnit file: the NUnit import files each test under every
-  enclosing block (870 entries for 218 tests in build 54834154).
+  runs only in Windows PowerShell (36 skipped tests in PowerShell 7);
+  PowerShell 7 resolves the same URI.
+- `.github/scripts/Invoke-Tests.ps1` runs Pester for CI: the counts and the
+  failed tests go to the job summary, the NUnit file to the `test-results`
+  artifact, and it fails on failed test files too (`Result -ne 'Passed'`).
 - `Tests\Manifest.Tests.ps1` checks the built manifest: `Test-ModuleManifest`
   without errors or warnings, exactly 36 cmdlets, and one version
   (Decision 10). Add a new cmdlet to `CmdletsToExport` and to the expected

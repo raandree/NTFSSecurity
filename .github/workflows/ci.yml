@@ -1,0 +1,181 @@
+# Builds the NTFSSecurity module from source, checks that the cmdlet
+# documentation in Docs/Cmdlets and the help file generated from it match the
+# cmdlets of that build, runs the Pester tests in Windows PowerShell 5.1 and
+# PowerShell 7, and publishes Docs to the GitHub wiki from master.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - name: Keep Windows line endings in the working tree
+        run: git config --global core.autocrlf true
+
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install platyPS, MarkdownLinkCheck, and Pester
+        shell: powershell
+        run: |
+          [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force | Out-Null
+          # Installed for all users, so that PowerShell 7 finds the modules, too
+          Install-Module -Name platyPS -RequiredVersion 0.14.2 -Scope AllUsers -Force
+          Install-Module -Name MarkdownLinkCheck -RequiredVersion 0.2.0 -Scope AllUsers -Force
+          # The image includes Pester 3.4.0, which is signed by a different publisher.
+          Install-Module -Name Pester -RequiredVersion 5.7.1 -Scope AllUsers -Force -SkipPublisherCheck
+
+      - name: Restore the NuGet packages
+        shell: powershell
+        run: |
+          nuget restore NTFSSecurity\packages.config -PackagesDirectory packages -NonInteractive
+          if ($LASTEXITCODE -ne 0) {
+              throw "NuGet failed with exit code $LASTEXITCODE."
+          }
+          nuget restore Security2\packages.config -PackagesDirectory packages -NonInteractive
+          if ($LASTEXITCODE -ne 0) {
+              throw "NuGet failed with exit code $LASTEXITCODE."
+          }
+          # Provides the .NET Framework 4.5.2 reference assemblies, so the build does
+          # not depend on a targeting pack installed on the runner.
+          nuget install Microsoft.NETFramework.ReferenceAssemblies.net452 -Version 1.0.3 -OutputDirectory packages -NonInteractive
+          if ($LASTEXITCODE -ne 0) {
+              throw "NuGet failed with exit code $LASTEXITCODE."
+          }
+
+      - name: Build the module
+        id: build
+        shell: powershell
+        run: |
+          # MSBuild isn't on the path of the runner; vswhere finds the one of Visual Studio.
+          $vswhere = Join-Path -Path ${env:ProgramFiles(x86)} -ChildPath 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $msbuild = & $vswhere -latest -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
+          if (-not $msbuild) {
+              throw 'MSBuild was not found.'
+          }
+          $referenceAssemblies = "$env:GITHUB_WORKSPACE\packages\Microsoft.NETFramework.ReferenceAssemblies.net452.1.0.3\build"
+          & $msbuild NTFSSecurity\NTFSSecurity.csproj /nologo /verbosity:minimal /p:Configuration=Release "/p:TargetFrameworkRootPath=$referenceAssemblies" "/p:FrameworkPathOverride=$referenceAssemblies\.NETFramework\v4.5.2"
+          if ($LASTEXITCODE -ne 0) {
+              throw "MSBuild failed with exit code $LASTEXITCODE."
+          }
+
+      - name: Check the documentation against the build
+        shell: powershell
+        run: |
+          Import-Module -Name platyPS -RequiredVersion 0.14.2
+          Import-Module -Name MarkdownLinkCheck -RequiredVersion 0.2.0
+          Import-Module -Name .\NTFSSecurity\bin\Release\NTFSSecurity.psd1 -Force
+
+          # 01. Test that the documentation matches the cmdlets built from source
+          Update-MarkdownHelp -Path ./Docs/Cmdlets | Out-Null
+          $diff = git diff -- Docs/Cmdlets
+          if ($diff) {
+              throw "Help is not up-to-date, run Update-MarkdownHelp: $diff"
+          }
+
+          # 02. Verify hyperlinks
+          $brokenLinks = Get-MarkdownLink -Path .\Docs\ -BrokenOnly
+          if ($brokenLinks) {
+              throw "Found broken hyperlinks $brokenLinks"
+          }
+
+          # 03. Test that the help file of the module matches the documentation
+          New-ExternalHelp -Path ./Docs/Cmdlets -OutputPath ./NTFSSecurity/en-US -Force | Out-Null
+          $helpChanges = git status --porcelain -- NTFSSecurity/en-US
+          if ($helpChanges) {
+              throw "The help file is not up-to-date, run New-ExternalHelp -Path .\Docs\Cmdlets -OutputPath .\NTFSSecurity\en-US -Force: $helpChanges"
+          }
+
+      # 04. Run the Pester tests against the build, also when the documentation check failed
+      - name: Run the tests in Windows PowerShell 5.1
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: powershell
+        run: .\.github\scripts\Invoke-Tests.ps1 -ResultPath TestResults\WindowsPowerShell.xml -Title 'Windows PowerShell 5.1'
+
+      - name: Run the tests in PowerShell 7
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: pwsh
+        run: ./.github/scripts/Invoke-Tests.ps1 -ResultPath TestResults/PowerShell7.xml -Title 'PowerShell 7'
+
+      - name: Upload the test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-results
+          path: TestResults/
+          if-no-files-found: ignore
+
+  wiki:
+    name: Wiki
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Only this job can write: it publishes the wiki from master. On pull
+    # requests, it shows the pages that would change.
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Generate the wiki pages
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh auth setup-git
+          $wiki = Join-Path -Path $env:RUNNER_TEMP -ChildPath 'wiki'
+          git clone --quiet --depth 1 "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY.wiki.git" $wiki
+          if ($LASTEXITCODE -ne 0) {
+              throw "Cloning the wiki failed with exit code $LASTEXITCODE."
+          }
+          ./.github/scripts/Export-WikiContent.ps1 -Path ./Docs -DestinationPath $wiki -RepositoryUrl "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY"
+          git -C $wiki add --all
+          $changes = @(git -C $wiki diff --cached --name-status)
+          $summary = if ($changes) {
+              @('### Wiki', '', 'Changed pages (A added, M modified, D deleted):', '', '```text') + $changes + @('```')
+          } else {
+              @('### Wiki', '', 'The wiki is up to date.')
+          }
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value $summary
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "WIKI_PATH=$wiki"
+
+      - name: Publish the wiki
+        if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git -C $env:WIKI_PATH diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+              'The wiki is up to date.'
+              exit 0
+          }
+          git -C $env:WIKI_PATH -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit --quiet --message "Update from $env:GITHUB_SHA"
+          if ($LASTEXITCODE -ne 0) {
+              throw "Committing the wiki failed with exit code $LASTEXITCODE."
+          }
+          git -C $env:WIKI_PATH push --quiet
+          if ($LASTEXITCODE -ne 0) {
+              throw "Publishing the wiki failed with exit code $LASTEXITCODE."
+          }

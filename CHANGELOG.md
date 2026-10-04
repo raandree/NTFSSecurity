@@ -8,6 +8,12 @@ The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- Publish the documentation in the
+  [wiki](https://github.com/raandree/NTFSSecurity/wiki), generated from the
+  `Docs` folder after every change, with a sidebar that lists all cmdlets
+
 ## [5.0.0] - 2026-10-04
 
 ### Changed

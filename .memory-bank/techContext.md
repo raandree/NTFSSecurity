@@ -19,15 +19,17 @@ source: repository evidence
 - Module: `NTFSSecurity.psd1` loads `NTFSSecurity.psm1` (aliases `dir2`,
   `gi2`, `rm2`, `del2`), `NTFSSecurity.Init.ps1` (Add-Type of the helper
   assemblies, prepends `NTFSSecurity.format.ps1xml`), and `NTFSSecurity.dll`.
-- Documentation: Markdown in `Docs` and `README.md`, rendered by GitHub; no
-  documentation site and no wiki (Decision 9). Cmdlet pages are platyPS
-  0.14 markdown (schema 2.0.0) in `Docs/Cmdlets`.
+- Documentation: Markdown in `Docs` and `README.md`, rendered by GitHub and
+  published to the wiki by CI; no documentation site (Decisions 9 and 11).
+  Cmdlet pages are platyPS 0.14 markdown (schema 2.0.0) in `Docs/Cmdlets`.
 - Help: `NTFSSecurity\en-US\NTFSSecurity.dll-Help.xml`, generated from
   `Docs/Cmdlets` and committed (Decision 8).
-- Tests: Pester 5 tests in `Tests` against the Release build:
-  `Help.Tests.ps1` (help of every cmdlet), `Manifest.Tests.ps1` (manifest
-  and versions, Decision 10), and `Remove-Item2.Tests.ps1` (`-PassThur`
-  alias).
+- Tests: Pester 5 tests in `Tests`: `Help.Tests.ps1` (help of every
+  cmdlet), `Manifest.Tests.ps1` (manifest and versions, Decision 10), and
+  `Remove-Item2.Tests.ps1` (`-PassThur` alias) against the Release build;
+  `Wiki.Tests.ps1` (wiki conversion) without a build.
+- CI: GitHub Actions, `.github/workflows/ci.yml` with the scripts in
+  `.github/scripts` (Decision 11).
 
 ## Environment
 
@@ -79,12 +81,13 @@ source: repository evidence
   (`.pdb`, `AlphaFS.xml`, 7 MB `System.Management.Automation.dll`), and the
   published manifest differs from the tag only by `ModuleVersion` (tags
   carry the previous version). GitHub releases attach `NTFSSecurity.zip`.
-- CI: AppVeyor project `raandree/ntfssecurity` builds branches and pull
-  requests. The Read the Docs project `ntfssecurity` (maintainer
-  `Sup3rlativ3`) and a second AppVeyor project are attached to the fork
-  `Sup3rlativ3/NTFSSecurity`, which no longer exists (GitHub 404,
-  2026-10-04). That site still serves pages from 2020 and isn't used
-  (Decision 9).
+- CI: GitHub Actions on pull requests and pushes to `master` (Decision 11).
+  The AppVeyor project `raandree/ntfssecurity` builds until the maintainer
+  deletes it after the GitHub Actions PR is merged. The Read the Docs
+  project `ntfssecurity` (maintainer `Sup3rlativ3`) and a second AppVeyor
+  project are attached to the fork `Sup3rlativ3/NTFSSecurity`, which no
+  longer exists (GitHub 404, 2026-10-04). That site still serves pages from
+  2020 and isn't used (Decision 9).
 - `Get-FileHash2` fails in PowerShell 7; all other cmdlets passed a smoke
   test in PowerShell 7.6.
 - `CHANGELOG.md` lists user-visible changes only; CI and build-only changes
@@ -102,20 +105,28 @@ source: repository evidence
 
 ## Validation
 
-- CI (`appveyor.yml`, image Visual Studio 2022): restore `packages.config`
-  per project plus `Microsoft.NETFramework.ReferenceAssemblies.net452`
-  1.0.3, build `NTFSSecurity.csproj` in Release with
-  `TargetFrameworkRootPath`/`FrameworkPathOverride`, import
-  `NTFSSecurity\bin\Release\NTFSSecurity.psd1`, then: 01 run
-  `Update-MarkdownHelp` and fail on `git diff -- Docs/Cmdlets`; 02
+- CI (`.github/workflows/ci.yml`): job `build` on `windows-2025` installs
+  platyPS 0.14.2, MarkdownLinkCheck 0.2.0, and Pester 5.7.1 for all users,
+  restores `packages.config` per project plus
+  `Microsoft.NETFramework.ReferenceAssemblies.net452` 1.0.3, builds
+  `NTFSSecurity.csproj` in Release with the MSBuild that `vswhere` finds,
+  then: 01 `Update-MarkdownHelp` and fail on `git diff -- Docs/Cmdlets`; 02
   `Get-MarkdownLink -BrokenOnly`; 03 regenerate the help file and fail on
-  `git status --porcelain -- NTFSSecurity/en-US`; 04 Pester 5.7.1 on
-  `Tests`, each result reported once through the build worker API
-  (`POST $env:APPVEYOR_API_URL/api/tests/batch`).
-- AppVeyor REST API (public, no token): build
+  `git status --porcelain -- NTFSSecurity/en-US`; 04 `Invoke-Tests.ps1` in
+  Windows PowerShell 5.1 and in PowerShell 7. Job `wiki` on `ubuntu-latest`
+  clones the wiki (`gh auth setup-git` with the built-in token), runs
+  `Export-WikiContent.ps1`, lists the changed pages in the job summary, and
+  publishes from `master` only. Actions are pinned by commit SHA:
+  `actions/checkout` v7.0.1, `actions/upload-artifact` v7.0.1.
+- Read CI runs with `gh run list --repo raandree/NTFSSecurity --workflow
+  ci.yml` and `gh run view <id> --log-failed` (read-only). While AppVeyor
+  still builds: `api/projects/raandree/ntfssecurity/history`, build
   `api/projects/raandree/ntfssecurity/builds/<buildId>`, job log
-  `api/buildjobs/<jobId>/log` (bytes; decode as UTF-8), and test list
-  `api/buildjobs/<jobId>/tests`.
+  `api/buildjobs/<jobId>/log` (public, no token).
+- Workflow lint: actionlint (download the release zip into `$env:TEMP` and
+  check its SHA-256 against the checksum file); PowerShell steps check
+  `$LASTEXITCODE` after every native command, because GitHub checks only
+  the last one.
 - Run platyPS in Windows PowerShell 5.1 to avoid PowerShell 7.4+
   `-ProgressAction` noise.
 - Placeholder check: no `{{` left in `Docs/Cmdlets/*.md`.
@@ -127,8 +138,8 @@ source: repository evidence
   path. A run without `bin\Release\en-US` must fail.
 - Markdown lint: `npx markdownlint-cli2` with `MD013` limited to prose
   (tables, code, and headings excluded) on the conceptual pages.
-- YAML: `ConvertFrom-Yaml` (powershell-yaml) on `appveyor.yml`.
-- Links: AppVeyor step 02 (MarkdownLinkCheck 0.2.0) checks only relative
-  links in `Docs`; it strips anchors and skips absolute URLs. Check anchors
-  against GitHub's heading slugs, and the links in `README.md` and
-  `CHANGELOG.md`, with a script.
+- YAML: `ConvertFrom-Yaml` (powershell-yaml) on `.github/workflows/ci.yml`.
+- Links: the CI step 02 (MarkdownLinkCheck 0.2.0) checks only relative
+  links in `Docs`; it strips anchors and skips absolute URLs.
+  `Wiki.Tests.ps1` checks the wiki links with their anchors; check the
+  links in `README.md` and `CHANGELOG.md` with a script.

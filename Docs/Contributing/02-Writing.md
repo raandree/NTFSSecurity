@@ -1,8 +1,9 @@
 # Write documentation
 
 The NTFSSecurity documentation is written in Markdown and lives in the
-`Docs` folder of the repository, where GitHub renders it. This page explains
-how the documentation is organized and how to change it.
+`Docs` folder of the repository, where GitHub renders it. GitHub Actions also
+publishes it to the [wiki](https://github.com/raandree/NTFSSecurity/wiki).
+This page explains how the documentation is organized and how to change it.
 
 ## Documentation structure
 
@@ -17,6 +18,8 @@ how the documentation is organized and how to change it.
 | `Docs/Contributing.md`, `Docs/Contributing/*.md` | This contributor guide |
 | `README.md` | Front page of the GitHub repository |
 | `CHANGELOG.md` | Changes since 4.2.6 |
+| `.github/workflows/ci.yml` | CI build: documentation checks, tests, and wiki publishing |
+| `.github/scripts/Export-WikiContent.ps1` | Converts `Docs` into the pages of the wiki |
 
 When you add a page, link to it from `Docs/README.md` or from a related page,
 so that readers can find it.
@@ -44,8 +47,9 @@ parameter descriptions, the examples, and the notes.
 
 When a cmdlet changes, build the module, import the build output, and update
 the pages in Windows PowerShell 5.1. A Release build writes the module to
-`NTFSSecurity\bin\Release`; the `before_build` and `build_script` steps in
-`appveyor.yml` show the commands that the CI build uses:
+`NTFSSecurity\bin\Release`; the steps "Restore the NuGet packages" and "Build
+the module" in `.github/workflows/ci.yml` show the commands that the CI build
+uses:
 
 ```powershell
 Install-Module -Name platyPS -RequiredVersion 0.14.2
@@ -83,19 +87,39 @@ before you push it, open it in Visual Studio Code and press **Ctrl+Shift+V**.
 In a pull request, the **Files changed** tab shows a changed page rendered
 when you open its menu (**...**) and select **View file**.
 
+## Publish to the wiki
+
+After every push to `master`, the CI workflow converts the pages in `Docs`,
+except this contributor guide, into the pages of the
+[wiki](https://github.com/raandree/NTFSSecurity/wiki) and publishes them.
+`Docs/README.md` becomes the home page, every cmdlet page becomes a page with
+the name of the cmdlet, and the sidebar lists the cmdlets in the groups of the
+cmdlet list in `Docs/README.md`. Don't edit the wiki itself; the next push
+overwrites it.
+
+For a pull request, the summary of the CI run lists the wiki pages that would
+change. To look at the pages before you push, write them into a clone of the
+wiki:
+
+```powershell
+git clone https://github.com/raandree/NTFSSecurity.wiki.git $env:TEMP\wiki
+.\.github\scripts\Export-WikiContent.ps1 -Path .\Docs -DestinationPath $env:TEMP\wiki
+```
+
 ## Check your change
 
 Before you open a pull request, check the following:
 
 - No page in `Docs/Cmdlets` contains a `{{ ... }}` placeholder.
-- `Update-MarkdownHelp` doesn't change any page in `Docs/Cmdlets`. The build
-  defined in `appveyor.yml` runs the same check.
+- `Update-MarkdownHelp` doesn't change any page in `Docs/Cmdlets`. The CI
+  workflow runs the same check.
 - `New-ExternalHelp` doesn't change
-  `NTFSSecurity\en-US\NTFSSecurity.dll-Help.xml`. The build runs the same
-  check.
+  `NTFSSecurity\en-US\NTFSSecurity.dll-Help.xml`. The CI workflow runs the
+  same check.
 - The Pester tests in `Tests` pass. They test the module in
-  `NTFSSecurity\bin\Release`, for example that `Get-Help` shows every page.
-  The build runs them in Windows PowerShell 5.1 with Pester 5.7.1:
+  `NTFSSecurity\bin\Release`, for example that `Get-Help` shows every page,
+  and the conversion to the wiki. The CI workflow runs them in Windows
+  PowerShell 5.1 and in PowerShell 7 with Pester 5.7.1:
 
   ```powershell
   Install-Module -Name Pester -RequiredVersion 5.7.1 -SkipPublisherCheck
@@ -103,8 +127,8 @@ Before you open a pull request, check the following:
   Invoke-Pester -Path .\Tests -Output Detailed
   ```
 
-- All links work. The build checks them with `Get-MarkdownLink` from the
-  MarkdownLinkCheck module:
+- All links work. The CI workflow checks them with `Get-MarkdownLink` from
+  the MarkdownLinkCheck module:
 
   ```powershell
   Get-MarkdownLink -Path .\Docs -BrokenOnly
