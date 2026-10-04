@@ -169,9 +169,13 @@ You can pipe one or more paths to this cmdlet, either as strings or as objects t
 
 ## OUTPUTS
 
-### System.Object
+### Alphaleonis.Win32.Filesystem.FileInfo
 
-By default this cmdlet returns nothing. With `-PassThru` it returns an `Alphaleonis.Win32.Filesystem.FileInfo` or `Alphaleonis.Win32.Filesystem.DirectoryInfo` object for each item that it deleted.
+By default this cmdlet returns nothing. With `-PassThru` it returns a file object for each file that it deleted.
+
+### Alphaleonis.Win32.Filesystem.DirectoryInfo
+
+With `-PassThru` the cmdlet returns a folder object for each folder that it deleted.
 
 ## NOTES
 

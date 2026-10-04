@@ -124,11 +124,11 @@ You can pass the path of the new link and the path of the target as strings.
 
 ### Alphaleonis.Win32.Filesystem.FileInfo
 
-With `-PassThru`, the cmdlet writes a file object for the new link. The cmdlet writes that object type for a link to a folder as well. Without `-PassThru`, the cmdlet writes nothing.
+With `-PassThru`, the cmdlet writes a file object for a new link to a file. Without `-PassThru`, the cmdlet writes nothing.
 
 ### Alphaleonis.Win32.Filesystem.DirectoryInfo
 
-The cmdlet does not write folder objects. A directory symbolic link is also returned as a file object.
+With `-PassThru`, the cmdlet writes a folder object for a new link to a folder. Before 5.0.0, it wrote a file object for those links as well.
 
 ## NOTES
 

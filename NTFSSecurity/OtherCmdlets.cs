@@ -54,7 +54,7 @@ namespace NTFSSecurity
 
             if (passThru)
             {
-                this.WriteObject(this.privControl.GetPrivileges());
+                this.WriteObject(this.privControl.GetPrivileges(), true);
             }
         }
 
@@ -104,7 +104,7 @@ namespace NTFSSecurity
 
             if (passThru)
             {
-                this.WriteObject(this.privControl.GetPrivileges());
+                this.WriteObject(this.privControl.GetPrivileges(), true);
             }
         }
 

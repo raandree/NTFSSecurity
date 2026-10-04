@@ -70,7 +70,10 @@ namespace NTFSSecurity
 
                 if (passThru)
                 {
-                    WriteObject(new FileInfo(path));
+                    if (targetItem is FileInfo)
+                        WriteObject(new FileInfo(path));
+                    else
+                        WriteObject(new DirectoryInfo(path));
                 }
             }
             catch (System.IO.FileNotFoundException ex)

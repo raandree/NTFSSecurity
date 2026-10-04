@@ -6,6 +6,7 @@ using System.Management.Automation;
 namespace NTFSSecurity
 {
     [Cmdlet(VerbsLifecycle.Enable, "NTFSAccessInheritance", DefaultParameterSetName = "Path")]
+    [OutputType(typeof(FileSystemInheritanceInfo))]
     public class EnableAccessInheritance : BaseCmdletWithPrivControl
     {
         private bool removeExplicitAccessRules;

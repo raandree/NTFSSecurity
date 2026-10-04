@@ -111,9 +111,9 @@ You can supply the `-Algorithm` value through a pipeline object that has an `Alg
 
 ## OUTPUTS
 
-### Security2.FileSystemAccessRule2
+### Alphaleonis.Win32.Filesystem.FileInfo
 
-The cmdlet does not return access rules. For every hashed file it writes the file object of that file, decorated with the type name `Alphaleonis.Win32.Filesystem.FileInfo+Hash` and extended with the `Hash` and `Algorithm` note properties, so all regular file properties such as `FullName`, `Name`, and `Length` remain available.
+For every hashed file, the cmdlet writes the file object of that file, decorated with the type name `Alphaleonis.Win32.Filesystem.FileInfo+Hash` and extended with the `Hash` and `Algorithm` note properties, so all regular file properties such as `FullName`, `Name`, and `Length` remain available.
 
 ## NOTES
 

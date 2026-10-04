@@ -5,7 +5,7 @@ using System.Management.Automation;
 namespace NTFSSecurity
 {
     [Cmdlet(VerbsDiagnostic.Test, "Path2")]
-    [OutputType(typeof(FileInfo), typeof(DirectoryInfo))]
+    [OutputType(typeof(bool))]
     public class TestPath2 : BaseCmdlet
     {
         private TestPathType pathType = TestPathType.Any;

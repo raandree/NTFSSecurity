@@ -2163,10 +2163,18 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     <command:returnValues>
       <command:returnValue>
         <dev:type>
-          <maml:name>System.Object</maml:name>
+          <maml:name>Alphaleonis.Win32.Filesystem.FileInfo</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>By default this cmdlet returns nothing. With `-PassThru $true` it returns an `Alphaleonis.Win32.Filesystem.FileInfo` or `Alphaleonis.Win32.Filesystem.DirectoryInfo` object for each item that it copied.</maml:para>
+          <maml:para>By default this cmdlet returns nothing. With `-PassThru $true` it returns a file object for each file that it copied.</maml:para>
+        </maml:description>
+      </command:returnValue>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>Alphaleonis.Win32.Filesystem.DirectoryInfo</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>With `-PassThru $true` the cmdlet returns a folder object for each folder that it copied.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -2400,7 +2408,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     <command:returnValues>
       <command:returnValue>
         <dev:type>
-          <maml:name>System.Object</maml:name>
+          <maml:name>Security2.FileSystemInheritanceInfo</maml:name>
         </dev:type>
         <maml:description>
           <maml:para>By default this cmdlet returns no output. With `-PassThru` it writes one `Security2.FileSystemInheritanceInfo` object per item, which reports the `AccessInheritanceEnabled` and `AuditInheritanceEnabled` state after the change.</maml:para>
@@ -2645,7 +2653,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     <command:returnValues>
       <command:returnValue>
         <dev:type>
-          <maml:name>System.Object</maml:name>
+          <maml:name>Security2.FileSystemInheritanceInfo</maml:name>
         </dev:type>
         <maml:description>
           <maml:para>By default this cmdlet returns no output. With `-PassThru` it writes one `Security2.FileSystemInheritanceInfo` object per item, which reports the `AccessInheritanceEnabled` and `AuditInheritanceEnabled` state after the change.</maml:para>
@@ -2785,7 +2793,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
           <maml:name>ProcessPrivileges.PrivilegeAndAttributes</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>With `-PassThru`, the cmdlet writes the privilege collection of the current process. The pipeline enumerates it into one `ProcessPrivileges.PrivilegeAndAttributes` object per privilege, each with a `Privilege`, a `PrivilegeAttributes`, and a `PrivilegeState` property. Without `-PassThru`, the cmdlet writes nothing.</maml:para>
+          <maml:para>With `-PassThru`, the cmdlet writes one `ProcessPrivileges.PrivilegeAndAttributes` object per privilege of the current process, each with a `Privilege`, a `PrivilegeAttributes`, and a `PrivilegeState` property. Without `-PassThru`, the cmdlet writes nothing. Before 5.0.0, it wrote the privileges as one collection.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -3017,7 +3025,7 @@ PS C:\&gt; Get-Privileges | Where-Object { $_.Privilege -in 'Backup', 'Restore',
     <command:returnValues>
       <command:returnValue>
         <dev:type>
-          <maml:name>System.Object</maml:name>
+          <maml:name>Security2.FileSystemInheritanceInfo</maml:name>
         </dev:type>
         <maml:description>
           <maml:para>By default this cmdlet returns no output. With `-PassThru` it writes one `Security2.FileSystemInheritanceInfo` object per item, which reports the `AccessInheritanceEnabled` and `AuditInheritanceEnabled` state after the change.</maml:para>
@@ -3262,7 +3270,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     <command:returnValues>
       <command:returnValue>
         <dev:type>
-          <maml:name>System.Object</maml:name>
+          <maml:name>Security2.FileSystemInheritanceInfo</maml:name>
         </dev:type>
         <maml:description>
           <maml:para>By default this cmdlet returns no output. With `-PassThru` it writes one `Security2.FileSystemInheritanceInfo` object per item, which reports the `AccessInheritanceEnabled` and `AuditInheritanceEnabled` state after the change.</maml:para>
@@ -3403,7 +3411,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
           <maml:name>ProcessPrivileges.PrivilegeAndAttributes</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>With `-PassThru`, the cmdlet writes the privilege collection of the current process. The pipeline enumerates it into one `ProcessPrivileges.PrivilegeAndAttributes` object per privilege, each with a `Privilege`, a `PrivilegeAttributes`, and a `PrivilegeState` property. Without `-PassThru`, the cmdlet writes nothing.</maml:para>
+          <maml:para>With `-PassThru`, the cmdlet writes one `ProcessPrivileges.PrivilegeAndAttributes` object per privilege of the current process, each with a `Privilege`, a `PrivilegeAttributes`, and a `PrivilegeState` property. Without `-PassThru`, the cmdlet writes nothing. Before 5.0.0, it wrote the privileges as one collection.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -4140,10 +4148,10 @@ PS C:\&gt; Disable-Privileges</dev:code>
     <command:returnValues>
       <command:returnValue>
         <dev:type>
-          <maml:name>Security2.FileSystemAccessRule2</maml:name>
+          <maml:name>Alphaleonis.Win32.Filesystem.FileInfo</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>The cmdlet does not return access rules. For every hashed file it writes the file object of that file, decorated with the type name `Alphaleonis.Win32.Filesystem.FileInfo+Hash` and extended with the `Hash` and `Algorithm` note properties, so all regular file properties such as `FullName`, `Name`, and `Length` remain available.</maml:para>
+          <maml:para>For every hashed file, the cmdlet writes the file object of that file, decorated with the type name `Alphaleonis.Win32.Filesystem.FileInfo+Hash` and extended with the `Hash` and `Algorithm` note properties, so all regular file properties such as `FullName`, `Name`, and `Length` remain available.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -6938,10 +6946,18 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
     <command:returnValues>
       <command:returnValue>
         <dev:type>
-          <maml:name>System.Object</maml:name>
+          <maml:name>Alphaleonis.Win32.Filesystem.FileInfo</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>By default this cmdlet returns nothing. With `-PassThru $true` it returns an `Alphaleonis.Win32.Filesystem.FileInfo` or `Alphaleonis.Win32.Filesystem.DirectoryInfo` object for each item that it moved, pointing at the new location.</maml:para>
+          <maml:para>By default this cmdlet returns nothing. With `-PassThru $true` it returns a file object for each file that it moved, pointing at the new location.</maml:para>
+        </maml:description>
+      </command:returnValue>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>Alphaleonis.Win32.Filesystem.DirectoryInfo</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>With `-PassThru $true` the cmdlet returns a folder object for each folder that it moved, pointing at the new location.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -7300,7 +7316,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           <maml:name>Alphaleonis.Win32.Filesystem.FileInfo</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>With `-PassThru`, the cmdlet writes a file object for the new link. The cmdlet writes that object type for a link to a folder as well. Without `-PassThru`, the cmdlet writes nothing.</maml:para>
+          <maml:para>With `-PassThru`, the cmdlet writes a file object for a new link to a file. Without `-PassThru`, the cmdlet writes nothing.</maml:para>
         </maml:description>
       </command:returnValue>
       <command:returnValue>
@@ -7308,7 +7324,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           <maml:name>Alphaleonis.Win32.Filesystem.DirectoryInfo</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>The cmdlet does not write folder objects. A directory symbolic link is also returned as a file object.</maml:para>
+          <maml:para>With `-PassThru`, the cmdlet writes a folder object for a new link to a folder. Before 5.0.0, it wrote a file object for those links as well.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -7545,10 +7561,18 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
     <command:returnValues>
       <command:returnValue>
         <dev:type>
-          <maml:name>System.Object</maml:name>
+          <maml:name>Alphaleonis.Win32.Filesystem.FileInfo</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>By default this cmdlet returns nothing. With `-PassThru` it returns an `Alphaleonis.Win32.Filesystem.FileInfo` or `Alphaleonis.Win32.Filesystem.DirectoryInfo` object for each item that it deleted.</maml:para>
+          <maml:para>By default this cmdlet returns nothing. With `-PassThru` it returns a file object for each file that it deleted.</maml:para>
+        </maml:description>
+      </command:returnValue>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>Alphaleonis.Win32.Filesystem.DirectoryInfo</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>With `-PassThru` the cmdlet returns a folder object for each folder that it deleted.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -9508,7 +9532,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     <command:returnValues>
       <command:returnValue>
         <dev:type>
-          <maml:name>System.Object</maml:name>
+          <maml:name>Security2.FileSystemInheritanceInfo</maml:name>
         </dev:type>
         <maml:description>
           <maml:para>By default this cmdlet returns no output. With `-PassThru` it writes one `Security2.FileSystemInheritanceInfo` object per item, which reports the `AccessInheritanceEnabled` and `AuditInheritanceEnabled` state after the change.</maml:para>
@@ -10085,18 +10109,10 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     <command:returnValues>
       <command:returnValue>
         <dev:type>
-          <maml:name>Alphaleonis.Win32.Filesystem.FileInfo</maml:name>
+          <maml:name>System.Boolean</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>`Test-Path2` does not write file objects. For each path it writes a single `System.Boolean` value that is `$true` when the item exists and matches `-PathType`, and `$false` otherwise.</maml:para>
-        </maml:description>
-      </command:returnValue>
-      <command:returnValue>
-        <dev:type>
-          <maml:name>Alphaleonis.Win32.Filesystem.DirectoryInfo</maml:name>
-        </dev:type>
-        <maml:description>
-          <maml:para>`Test-Path2` does not write folder objects either. A folder is reported through the same `System.Boolean` result as a file.</maml:para>
+          <maml:para>For each path, the cmdlet writes `$true` when the item exists and matches `-PathType`, and `$false` otherwise.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>

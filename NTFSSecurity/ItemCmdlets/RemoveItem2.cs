@@ -5,6 +5,7 @@ using System.Management.Automation;
 namespace NTFSSecurity
 {
     [Cmdlet(VerbsCommon.Remove, "Item2", SupportsShouldProcess = true)]
+    [OutputType(typeof(FileInfo), typeof(DirectoryInfo))]
     public class RemoveItem2 : BaseCmdlet
     {
         private SwitchParameter force;

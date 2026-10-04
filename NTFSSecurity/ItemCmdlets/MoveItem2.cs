@@ -5,6 +5,7 @@ using System.Management.Automation;
 namespace NTFSSecurity
 {
     [Cmdlet(VerbsCommon.Move, "Item2", SupportsShouldProcess = true)]
+    [OutputType(typeof(FileInfo), typeof(DirectoryInfo))]
     public class MoveItem2 : BaseCmdlet
     {
         private string destination;

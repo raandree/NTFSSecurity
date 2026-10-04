@@ -8,7 +8,7 @@ using System.Security.AccessControl;
 namespace NTFSSecurity
 {
     [Cmdlet(VerbsCommon.Remove, "NTFSAudit", DefaultParameterSetName = "PathComplex")]
-    [OutputType(typeof(FileSystemAccessRule2))]
+    [OutputType(typeof(FileSystemAuditRule2))]
     public class RemoveAudit : BaseCmdletWithPrivControl
     {
         private IdentityReference2[] account;

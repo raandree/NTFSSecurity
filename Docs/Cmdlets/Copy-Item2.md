@@ -176,9 +176,13 @@ You can pipe an object that has a `Destination` property to supply the target of
 
 ## OUTPUTS
 
-### System.Object
+### Alphaleonis.Win32.Filesystem.FileInfo
 
-By default this cmdlet returns nothing. With `-PassThru $true` it returns an `Alphaleonis.Win32.Filesystem.FileInfo` or `Alphaleonis.Win32.Filesystem.DirectoryInfo` object for each item that it copied.
+By default this cmdlet returns nothing. With `-PassThru $true` it returns a file object for each file that it copied.
+
+### Alphaleonis.Win32.Filesystem.DirectoryInfo
+
+With `-PassThru $true` the cmdlet returns a folder object for each folder that it copied.
 
 ## NOTES
 
