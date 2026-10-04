@@ -59,5 +59,8 @@ The format is based on
   `-Path` pointed to a file; it now returns the file, like `Get-ChildItem`
 - Fix `Get-FileHash2`, which stopped at a folder in `-Path` and didn't hash
   the files that followed it; folders are now skipped
+- Fix `Get-NTFSAudit`, which returned nothing without the Security privilege
+  instead of an error, and which returned the entries of the previous item
+  again after a path whose security descriptor it couldn't read
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

@@ -19,6 +19,9 @@ using System.Runtime.InteropServices;
 // COM, set the ComVisible attribute to true on that type.
 [assembly: ComVisible(false)]
 
+// Lets the cmdlets tell whether a security descriptor was read with its SACL.
+[assembly: InternalsVisibleTo("NTFSSecurity")]
+
 // The following GUID is for the ID of the typelib if this project is exposed to COM
 [assembly: Guid("d89dc40a-9b43-4bce-972d-b995df8d2820")]
 

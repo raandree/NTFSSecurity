@@ -173,15 +173,17 @@ You can pass an account name or a SID string to `-Account`, which the cmdlet con
 
 ### Security2.FileSystemAuditRule2
 
-The cmdlet returns one object per audit entry, with the audited account, the audited access rights, the audit flags, the inheritance and propagation flags, the `IsInherited` flag, and the `InheritedFrom` path. When an item has no audit entries, or when the SACL cannot be read, the cmdlet returns nothing for that item.
+The cmdlet returns one object per audit entry, with the audited account, the audited access rights, the audit flags, the inheritance and propagation flags, the `IsInherited` flag, and the `InheritedFrom` path. When an item has no audit entries, the cmdlet returns nothing for that item; when its SACL cannot be read, the cmdlet writes an error.
 
 ## NOTES
 
 When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.
 
-Reading the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it the cmdlet falls back to reading the security descriptor without its SACL; it then returns no audit entries and reports no error, which looks the same as an item that is not audited at all.
+Reading the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it, the cmdlet writes the non-terminating error `ReadSecurityError` for each item, which reports "A required privilege is not held by the client". `Get-NTFSSecurityDescriptor` reads a security descriptor without its SACL when the privilege is missing; for such a descriptor, the cmdlet writes a `ReadSecurityError` as well.
 
 If the security descriptor cannot be read because access is denied, the cmdlet takes ownership of the item, reads the descriptor again, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.
+
+Before 5.0.0, the cmdlet returned no entries and no error without the Security privilege, and after a path whose security descriptor could not be read, it returned the entries of the previous item again.
 
 ## RELATED LINKS
 
