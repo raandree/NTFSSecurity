@@ -9,43 +9,37 @@ source: current task evidence
 
 ## Current focus
 
-5.0.0-rc1 is published (Gallery and GitHub prerelease, #98, tag
-`5.0.0-rc1`) and verified. The maintainer tests it; after that comes the
-final 5.0.0 release (remove the label, date the changelog, tag `5.0.0`),
-then work package 5 (code defects) and the open issues. The local branch
-`ai/memory-bank-rc1` holds this note and rides along with the next PR.
+Overnight run 2026-10-04/05 (autopilot, maintainer asleep): fix the code
+defects A to D of `progress.md`, implement the maintainer's E decisions,
+triage the 37 open issues, and prepare 5.0.0-rc2. Eight stacked local
+branches, each a PR against `master`, to be merged in this order with merge
+commits: `ai/maintenance`, `ai/defects-a`, `ai/defects-b`, `ai/defects-c`,
+`ai/defects-d`, `ai/decisions-e`, `ai/issue-fixes`,
+`ai/release-5.0.0-rc2`. Nothing is pushed; the maintainer pushes, opens
+the PRs, and tags `5.0.0-rc2` after the merges.
+
+## Maintainer decisions for the run (2026-10-04)
+
+- D1: the fixes ship in 5.0.0; entries go under `[Unreleased]` (`Fixed`;
+  intended behavior changes under `Changed` with the way back). The last
+  PR sets `Prerelease = 'rc2'`.
+- D2: `Clear-NTFSAccess -DisableInheritance` keeps leaving an empty DACL;
+  the page states the result and the risk.
+- D3: `Set-NTFSInheritance` keeps entries like the dedicated cmdlets.
+- D4: `-RemoveInheritedAuditRules` and `-RemoveExplicitAuditRules`, with
+  the `*AccessRules` names as aliases.
+- D5: `Get-FileHash2` works in PowerShell 7 for every algorithm .NET has;
+  a missing one fails only when requested.
+- D7: Dependabot for `github-actions` only; AlphaFS 2.2.1 in
+  `NTFSSecurity\packages.config` (no upgrade, no changelog entry).
 
 ## Evidence
 
-- Release run 37230802387: build, tests in both editions, packages,
-  release checks, Gallery publish, and GitHub release all passed; the wiki
-  job skipped the tag as designed.
-- The Gallery nupkg (275,437 bytes) is byte-identical to the CI artifact,
-  and the GitHub `NTFSSecurity.zip` to the CI zip; all 11 module files
-  match. The DLLs are optimized Release builds (JIT optimizer enabled).
-- Gallery: `IsPrerelease` true, `IsAbsoluteLatestVersion` true,
-  `IsLatestVersion` false; stable `Find-PSResource` returns 4.2.6, with
-  `-Prerelease` 5.0.0-rc1. 85 tags with all 36 `PSCmdlet_` and 36
-  `PSCommand_`; the Gallery itself adds `PSEdition_Core` and
-  `PSEdition_Desktop`.
-- Installed with `Save-PSResource` and copied to `bin\Release`, the module
-  passes the full suite: Windows PowerShell 261 passed, 7 skipped;
-  PowerShell 7 232 passed, 36 skipped.
-- `Find-PSResource -CommandName Get-NTFSAccess -Prerelease` lists
-  5.0.0-rc1 since 20:22 UTC; at 20:16 UTC the search index still lagged.
-- Repository settings (2026-10-04): no protection or ruleset on `master`;
-  the `powershell-gallery` environment has no protection rules and no
-  deployment policy; head branches aren't deleted on merge; no
-  `dependabot.yml`. Collaborators: `raandree` (admin), `nyanhp` (write).
-  No AppVeyor webhook or commit status remains; no new issues since May
-  2025.
-- The wiki was republished from `e0f5366`; Home mentions
-  `-AllowPrerelease`.
+- Baseline at `e0f5366` (Release build, workstation): Windows PowerShell
+  261 passed, 7 skipped; PowerShell 7 232 passed, 36 skipped (268 tests).
+- `ai/maintenance` adds `Tests\Repository.Tests.ps1` (8 tests): Windows
+  PowerShell 269 passed, 7 skipped; PowerShell 7 240 passed, 36 skipped.
 
 ## Next step
 
-The maintainer tests 5.0.0-rc1. On "final", prepare the final 5.0.0
-release PR on release day; on failures, fix them and publish `5.0.0-rc2`.
-Proposed meanwhile, awaiting the maintainer: the repository settings in
-`progress.md` item 4e, a Dependabot PR for the pinned actions, and
-deleting the merged local branches. Work package 5 starts after 5.0.0.
+Group A on `ai/defects-a`, starting with the shared test helpers.

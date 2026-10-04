@@ -70,10 +70,10 @@ authorization, restrict wiki editing to collaborators, and ask
    agreed): the `powershell-gallery` environment has no protection rules
    and no deployment policy, so a workflow on any branch can use
    `PSGALLERY_API_KEY` (`nyanhp` also has write access); `master` has no
-   protection or ruleset; head branches aren't deleted on merge; no
-   `dependabot.yml` updates the SHA-pinned actions; the remote branches
-   `fix/#34` and `test/transfer` (2023-11-28, two commits each) aren't
-   merged.
+   protection or ruleset; head branches aren't deleted on merge; the
+   remote branches `fix/#34` and `test/transfer` (2023-11-28, two commits
+   each) aren't merged. Dependabot for the SHA-pinned actions comes with
+   `ai/maintenance` (maintainer decision D7, 2026-10-04).
 5. Code defects, listed below: `review: on`, one PR per group, regression
    test first. Pester 5 tests import `NTFSSecurity\bin\Release`, run in a
    `$env:TEMP` sandbox and in the CI workflow (pattern:
