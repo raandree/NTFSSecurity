@@ -100,22 +100,11 @@ namespace NTFSSecurity
                     {
                         acl = GetAuditRules(item);
                     }
-                    catch (UnauthorizedAccessException)
+                    catch (UnauthorizedAccessException ex)
                     {
-                        try
-                        {
-                            var ownerInfo = FileSystemOwner.GetOwner(item);
-                            var previousOwner = ownerInfo.Owner;
-
-                            FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
-                            acl = GetAuditRules(item);
-                            FileSystemOwner.SetOwner(item, previousOwner);
-                        }
-                        catch (Exception ex2)
-                        {
-                            WriteError(new ErrorRecord(ex2, "ReadSecurityError", ErrorCategory.WriteError, path));
-                            continue;
-                        }
+                        // Taking ownership grants no access to the SACL, so it wouldn't help, and it would change the owner.
+                        WriteError(new ErrorRecord(ex, "ReadSecurityError", ErrorCategory.PermissionDenied, path));
+                        continue;
                     }
                     catch (Exception ex)
                     {

@@ -54,7 +54,10 @@ Describe 'Get-NTFSAudit' {
     }
 
     Context 'When a path fails after a path with audit entries' {
-        # Before 5.0.0, the cmdlet wrote the entries of the previous item again for the failing path.
+        # Before 5.0.0, the cmdlet wrote the entries of the previous item again for the failing path. In CI, the deny
+        # entry made the original implementation, which also read the DACL, fail for the second path. The current one
+        # reads only the SACL, which the deny entry doesn't block; Access.Tests.ps1 guards the same loop fix in
+        # Get-NTFSAccess with a read that fails without elevation.
         It 'Should return the entries of the first item once' -Skip:(-not $canReadAudit) {
             $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'Audited' -Directory
             $denied = New-TestSandboxItem -Sandbox $sandbox -Name 'Denied'

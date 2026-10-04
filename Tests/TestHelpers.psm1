@@ -61,6 +61,16 @@ function Assert-TestSandboxPath {
             if (-not ($fullName + '\').StartsWith($sandboxPrefix, [StringComparison]::OrdinalIgnoreCase)) {
                 throw "Refusing to change '$fullName', which is outside the test sandbox '$sandboxFullName'."
             }
+
+            # A link inside the sandbox can point outside of it, so no folder of the path may be a link.
+            $parent = [IO.Path]::GetDirectoryName($fullName)
+            while ($parent -and $parent.Length -gt $sandboxFullName.Length) {
+                if ([IO.Directory]::Exists($parent) -and
+                    ([IO.File]::GetAttributes($parent) -band [IO.FileAttributes]::ReparsePoint)) {
+                    throw "Refusing to change '$fullName', because its folder '$parent' is a link."
+                }
+                $parent = [IO.Path]::GetDirectoryName($parent)
+            }
         }
     }
 }
@@ -90,12 +100,20 @@ function Remove-TestSandbox {
     # the caller uses ErrorAction Stop. Such items can still be deleted through the rights on their folder.
     $ErrorActionPreference = 'Continue'
 
-    # Windows PowerShell 5.1 follows directory links when it removes a folder recursively, so the links go first.
-    & icacls.exe $Sandbox /reset /T /C /Q *> $null
+    # Windows PowerShell 5.1 and icacls /T follow directory links, so the links go first. A folder that denies
+    # listing its content gets its own ACL reset, without /T, before it is listed.
     $pending = New-Object -TypeName 'System.Collections.Generic.Stack[string]'
     $pending.Push($Sandbox)
     while ($pending.Count -gt 0) {
-        foreach ($entry in [IO.Directory]::GetFileSystemEntries($pending.Pop())) {
+        $folder = $pending.Pop()
+        try {
+            $entries = [IO.Directory]::GetFileSystemEntries($folder)
+        }
+        catch {
+            & icacls.exe $folder /reset /C /Q *> $null
+            $entries = [IO.Directory]::GetFileSystemEntries($folder)
+        }
+        foreach ($entry in $entries) {
             $attributes = [IO.File]::GetAttributes($entry)
             if ($attributes -band [IO.FileAttributes]::ReparsePoint) {
                 if ($attributes -band [IO.FileAttributes]::Directory) {

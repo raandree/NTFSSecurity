@@ -122,6 +122,8 @@ Numbered as agreed with the maintainer; each is documented on its page.
   `BeginProcessing` and leave them enabled.
 - (13) Format view `Children2`: the `Inherits` column uses
   `IsInheritanceBlocked`, so it always shows `True` for `Get-ChildItem2`.
+- Review of group A: five Major findings fixed in the last commit; the
+  Minor ones are listed in the PR description.
 
 #### B: Ignored parameters and parameter sets
 

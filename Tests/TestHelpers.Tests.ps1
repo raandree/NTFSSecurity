@@ -67,6 +67,21 @@ Describe 'Test helpers' {
             { Assert-TestSandboxPath -Sandbox $env:TEMP -Path (Join-Path -Path $env:TEMP -ChildPath 'File.txt') } |
                 Should -Throw -ExpectedMessage '*is not a test sandbox*'
         }
+
+        It 'Should reject a path below a link, which can point outside the sandbox' {
+            $otherSandbox = New-TestSandbox -Name 'Helpers'
+            try {
+                $link = Join-Path -Path $sandbox -ChildPath 'Link'
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $link
+                New-Item -ItemType Junction -Path $link -Value $otherSandbox | Out-Null
+
+                { Assert-TestSandboxPath -Sandbox $sandbox -Path (Join-Path -Path $link -ChildPath 'File.txt') } |
+                    Should -Throw -ExpectedMessage '*is a link*'
+            }
+            finally {
+                Remove-TestSandbox -Sandbox $otherSandbox
+            }
+        }
     }
 
     Context 'Remove-TestSandbox' {
@@ -80,6 +95,14 @@ Describe 'Test helpers' {
             Assert-TestSandboxPath -Sandbox $otherSandbox -Path $target
             New-Item -ItemType Directory -Path $target | Out-Null
             Set-Content -LiteralPath (Join-Path -Path $target -ChildPath 'Keep.txt') -Value 'Keep'
+            # An explicit entry that a reset through the link would remove
+            $targetAcl = Get-Acl -LiteralPath $target
+            $targetAcl.AddAccessRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
+                        (New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList 'S-1-1-0'),
+                        [System.Security.AccessControl.FileSystemRights]::ReadData, [System.Security.AccessControl.AccessControlType]::Allow
+                    )))
+            Set-Acl -LiteralPath $target -AclObject $targetAcl
+            $targetSddl = (Get-Acl -LiteralPath $target).Sddl
             Assert-TestSandboxPath -Sandbox $sandbox -Path $link, $locked
             New-Item -ItemType Junction -Path $link -Value $target | Out-Null
             New-Item -ItemType Directory -Path $locked | Out-Null
@@ -100,6 +123,10 @@ Describe 'Test helpers' {
 
         It 'Should remove a junction without removing the files of its target' {
             Join-Path -Path $target -ChildPath 'Keep.txt' | Should -Exist
+        }
+
+        It 'Should not change the ACL of the target of a junction' {
+            (Get-Acl -LiteralPath $target).Sddl | Should -BeExactly $targetSddl
         }
     }
 

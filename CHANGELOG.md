@@ -61,7 +61,9 @@ The format is based on
   the files that followed it; folders are now skipped
 - Fix `Get-NTFSAudit`, which returned nothing without the Security privilege
   instead of an error, and which returned the entries of the previous item
-  again after a path whose security descriptor it couldn't read
+  again after a path whose security descriptor it couldn't read; it also no
+  longer takes ownership of an item whose audit entries it can't read, which
+  didn't help and could leave the owner changed
 - Fix `Get-NTFSAccess`, which returned the entries of the previous item again
   after a path whose ACL it couldn't read
 - Fix `Add-NTFSAudit`, whose `-Account` and `-AccessRights` parameters were
