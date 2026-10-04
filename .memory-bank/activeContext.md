@@ -39,7 +39,14 @@ the PRs, and tags `5.0.0-rc2` after the merges.
   261 passed, 7 skipped; PowerShell 7 232 passed, 36 skipped (268 tests).
 - `ai/maintenance` adds `Tests\Repository.Tests.ps1` (8 tests): Windows
   PowerShell 269 passed, 7 skipped; PowerShell 7 240 passed, 36 skipped.
+  Review: Dependabot PRs ran unreviewed actions in a job with
+  `contents: write`; the wiki preview is now read-only (`publish-wiki`).
+- `ai/defects-a` fixes defects 1 to 13 and the same repeat bug in
+  `Get-NTFSAccess` (found with 4): Windows PowerShell 310 passed, 17
+  skipped; PowerShell 7 280 passed, 47 skipped (327 tests). 10 tests need
+  privileges and run only in CI.
 
 ## Next step
 
-Group A on `ai/defects-a`, starting with the shared test helpers.
+Group B (14 to 17) on `ai/defects-b`, then C, D, the E decisions, and the
+bugs from the issue triage (`ai/issue-fixes`).

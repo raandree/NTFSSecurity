@@ -66,32 +66,33 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 - Run platyPS in Windows PowerShell 5.1 against a module build; a copy of
   `Docs/Cmdlets` must round-trip through `Update-MarkdownHelp` unchanged.
   platyPS rewrites non-ASCII punctuation, so keep cmdlet pages ASCII-only.
-- GitHub renders the docs (Decision 9); CI publishes them to the wiki
-  (Decision 11). MarkdownLinkCheck: relative `Docs` links, no anchors;
-  `Tests\Wiki.Tests.ps1`: every wiki link and anchor (GitHub slug rules).
-  Neither covers the links in `README.md` and `CHANGELOG.md`.
-- The wiki is generated from `Docs`; never edit the wiki. Pages are named
-  after their files, `Docs/README.md` becomes Home, and its cmdlet groups
-  form the sidebar; a cmdlet missing there fails `Wiki.Tests.ps1`.
-- In cmdlet pages, end a sentence with a link: platyPS renders a link as
-  `text (url)` in the help file and drops the space after it.
-- Verify examples in a `$env:TEMP` sandbox, never on real data; parse every
-  example and check its parameters against `Get-Command` metadata.
+  It takes a parameter's `Position` from `Get-Help`, that is from the shipped
+  help file: after a position change, edit the page YAML, run
+  `New-ExternalHelp`, rebuild, and check the round trip.
+- Links: MarkdownLinkCheck checks relative `Docs` links (no anchors),
+  `Tests\Wiki.Tests.ps1` the wiki links and anchors; neither covers
+  `README.md` and `CHANGELOG.md`. The wiki is generated from `Docs` (never
+  edit it); `Docs/README.md` becomes Home, its cmdlet groups the sidebar.
+- In cmdlet pages, end a sentence with a link (platyPS drops the space after
+  it). Verify examples in a `$env:TEMP` sandbox, never on real data.
 
 ### Testing the module
 
 - Pester 5 tests in `Tests/*.Tests.ps1` import
-  `NTFSSecurity\bin\Release\NTFSSecurity.psd1`; CI runs them in Windows
-  PowerShell 5.1 and in PowerShell 7 (Decision 11).
-- `Get-Help -Online` tests use the internal hook `BypassOnlineHelpRetrieval`
-  (URI instead of a browser); it skips the help file in PowerShell 7, so
-  those 36 tests run only in Windows PowerShell.
-- `.github/scripts/Invoke-Tests.ps1` runs Pester in CI: counts and failures
-  to the job summary, NUnit to `test-results`; failed test files fail too.
-- `Tests\Manifest.Tests.ps1`: `Test-ModuleManifest` without errors or
-  warnings, exactly 36 cmdlets, one version in manifest and assemblies
-  (Decision 10). A new cmdlet updates `CmdletsToExport` and that count.
-- `Tests\Release.Tests.ps1` checks that `CHANGELOG.md` has release notes
-  for the manifest version (dated section, or `[Unreleased]` for a
-  prerelease) and the packages: only `FileList` files, version with label,
-  command tags, and `NTFSSecurity.zip` with the module folder.
+  `NTFSSecurity\bin\Release\NTFSSecurity.psd1`; CI runs every file of
+  `Tests` in Windows PowerShell 5.1 and in PowerShell 7 (Decision 11) with
+  `.github/scripts/Invoke-Tests.ps1` (job summary, NUnit `test-results`).
+- A test that changes files, links, or security descriptors uses
+  `Tests\TestHelpers.psm1`: its own sandbox below
+  `$env:TEMP\NTFSSecurity.Tests`, `Assert-TestSandboxPath` before each
+  change, `Remove-TestSandbox` (links first, then ACL reset). Cases that need
+  a privilege skip with `Test-PrivilegeHeld` and run in CI (elevated);
+  `Block-TestReadPermission` (OWNER RIGHTS deny) makes a read fail without
+  elevation.
+- `Get-Help -Online` tests use the internal hook `BypassOnlineHelpRetrieval`,
+  which PowerShell 7 ignores for the help file: 36 tests run only in Windows
+  PowerShell.
+- `Manifest.Tests.ps1`: `Test-ModuleManifest` clean, exactly 36 cmdlets, one
+  version in manifest and assemblies (Decision 10). `Release.Tests.ps1`:
+  release notes for the manifest version, and the packages (`FileList`
+  files, version with label, command tags, zip layout).

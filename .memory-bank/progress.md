@@ -93,7 +93,7 @@ authorization, restrict wiki editing to collaborators, and ask
 
 Numbered as agreed with the maintainer; each is documented on its page.
 
-#### A: Crashes and wrong results
+#### A: Crashes and wrong results (fixed on `ai/defects-a`, not merged)
 
 - (1) `Set-NTFSInheritance` reads an unset `Nullable<bool>` when
   `-AccessInheritanceEnabled` is omitted; omitted should mean unchanged.
