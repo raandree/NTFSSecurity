@@ -13,14 +13,7 @@ The format is based on
 - Publish the documentation in the
   [wiki](https://github.com/raandree/NTFSSecurity/wiki), generated from the
   `Docs` folder after every change, with a sidebar that lists all cmdlets
-
-### Changed
-
-- Complete the version history with the release dates from the PowerShell
-  Gallery, notes for 4.2.2, detailed notes for 4.2.4, and separate notes for
-  4.2.5 and 4.2.6
-
-## [5.0.0] - 2026-10-04
+- Link the release notes in the PowerShell Gallery to this changelog
 
 ### Changed
 
@@ -32,12 +25,17 @@ The format is based on
 - Rename the `-PassThur` parameter of `Remove-Item2` to `-PassThru`;
   `-PassThur` still works as an alias
   ([#64](https://github.com/raandree/NTFSSecurity/pull/64))
+- Publish the module as a Release build that contains only the module
+  files; 4.2.6 was a Debug build with debug symbols and a copy of
+  `System.Management.Automation.dll`
 - Document every cmdlet with synopsis, description, parameters, examples,
   inputs, outputs, and notes, checked against the source code
 - Rewrite the home, concepts, examples, and contributor pages to match the
   current cmdlets, including module settings, privileges, and long paths
 - Move the version history and the installation instructions from the wiki
-  into the documentation, and add the missing notes for 4.2.5 and 4.2.6
+  into the documentation, and complete the version history with the release
+  dates from the PowerShell Gallery, the missing notes for 4.2.2, 4.2.5, and
+  4.2.6, and detailed notes for 4.2.4
 
 ### Deprecated
 
@@ -55,5 +53,4 @@ The format is based on
   entries from the cmdlets that the module manifest exports and the
   PowerShell Gallery lists
 
-[Unreleased]: https://github.com/raandree/NTFSSecurity/compare/5.0.0...HEAD
-[5.0.0]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...5.0.0
+[Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD
