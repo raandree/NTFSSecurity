@@ -63,7 +63,7 @@ namespace NTFSSecurity
                     throw new ArgumentException(string.Format("The file '{0}' does already exist, cannot create the link", path));
 
                 if (!TryGetFileSystemInfo2(target, out temp))
-                    throw new ArgumentException("The target path exist, cannot create the link");
+                    throw new ArgumentException(string.Format("The target '{0}' does not exist, cannot create the link", target));
                 else
                     if (temp is DirectoryInfo)
                     throw new ArgumentException("The target is not a file, cannot create the link");

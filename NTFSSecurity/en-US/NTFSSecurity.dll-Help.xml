@@ -7135,6 +7135,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <maml:para>Windows supports hard links only for files on the same NTFS volume. A link that points to a file on another volume, or a target on a file system that does not implement hard links, cannot be created.</maml:para>
         <maml:para>The cmdlet does not overwrite anything. If `-Path` already exists, or if `-Target` is missing or is a folder, the cmdlet reports an error and leaves the file system unchanged.</maml:para>
         <maml:para>Because all names of a file share the same data, the number of hard links is a property of the file, not of an individual name. Use `Get-NTFSHardLink` to list them, and delete a link with `Remove-Item2` or `Remove-Item`, which removes only that name as long as other names remain.</maml:para>
+        <maml:para>Before 5.0.0, the error for a missing `-Target` said "The target path exist", the opposite of the cause.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>

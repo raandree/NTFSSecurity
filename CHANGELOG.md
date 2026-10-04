@@ -124,5 +124,7 @@ The format is based on
   the unchanged state of an item also when the change failed, so that the
   inheritance looked disabled
   ([#74](https://github.com/raandree/NTFSSecurity/issues/74))
+- Fix the error of `New-NTFSHardLink` for a missing `-Target`, which said
+  that the target path existed
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD
