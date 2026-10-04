@@ -13,8 +13,9 @@ PRs #91, #92, and #93 are merged. The documentation matches the cmdlets at
 `master`, and the module ships the help file generated from it
 (`en-US\NTFSSecurity.dll-Help.xml`). Otherwise the module source differs
 from the 4.2.6 release only by the `Remove-Item2 -PassThru` rename and
-`CompatiblePSEditions`. Work packages 3 (`ai/docs-on-github`) and 4
-(`ai/manifest-version`, stacked on 3) are PR-ready locally.
+`CompatiblePSEditions`. Open PRs: #94 (work package 3) and #95 (work package
+4, stacked on #94); the move to GitHub Actions is PR-ready locally on
+`ai/github-actions`, stacked on #95.
 
 ## Recent milestones
 
@@ -46,6 +47,13 @@ from the 4.2.6 release only by the `Remove-Item2 -PassThru` rename and
   PowerShell 5.1, passed: no docs drift, 0 broken links, current help file,
   228 of 228 Pester tests. `Test-ModuleManifest` passes in Windows
   PowerShell 5.1 and PowerShell 7.6.1.
+- 2026-10-04: The maintainer opened #94 and #95, then chose to keep the wiki,
+  generated from `Docs`, and to move CI from AppVeyor to GitHub Actions in
+  one PR (Decision 11): committed locally on `ai/github-actions`, stacked on
+  #95. `Wiki.Tests.ps1` failed 25 of 25 before the exporter existed and
+  passes in both editions; `Invoke-Tests.ps1` passed locally in Windows
+  PowerShell 5.1 (253 of 253) and PowerShell 7 (217 passed, 36 skipped);
+  actionlint found nothing.
 
 ## Stable capabilities
 
@@ -64,15 +72,15 @@ next package starts only after the maintainer's go-ahead.
 
 1. Housekeeping: done (#92).
 2. Ship help: done (#93).
-3. Docs on GitHub (was: Read the Docs), PR-ready on `ai/docs-on-github`:
-   Read the Docs and MkDocs configuration removed, `Docs/index.md` renamed
-   to `Docs/README.md`, the wiki's version history and install steps moved
-   into `Docs` (with reconstructed notes for 4.2.5 and 4.2.6), contributor
-   guide updated. After the merge, the maintainer turns the wiki off, points
-   the notes of releases 4.2.4 and 4.2.6 to `Docs/Version-History.md`, and
-   may ask `Sup3rlativ3` to delete the Read the Docs project.
-4. Manifest and version, PR-ready on `ai/manifest-version`, stacked on
-   `ai/docs-on-github` (merge that PR first with a merge commit).
+3. Docs on GitHub (was: Read the Docs), PR #94: Read the Docs and MkDocs
+   configuration removed, `Docs/index.md` renamed to `Docs/README.md`, the
+   wiki's version history and install steps moved into `Docs` (with
+   reconstructed notes for 4.2.5 and 4.2.6), contributor guide updated. Keep
+   the wiki on: the GitHub Actions PR generates it from `Docs`, which also
+   keeps the release-note links to `wiki/Version-History` working.
+   `Sup3rlativ3` may be asked to delete the Read the Docs project.
+4. Manifest and version, PR #95, stacked on #94 (merge #94 first with a
+   merge commit).
    Maintainer decisions: `PowerShellVersion` 5.1, `DotNetFrameworkVersion`
    4.5.2, `RootModule`; version 5.0.0; `[Alias('PassThur')]` on
    `Remove-Item2 -PassThru`, listed under Deprecated; `NTFSSecurity`,
@@ -84,12 +92,19 @@ next package starts only after the maintainer's go-ahead.
    the whole output folder (`.pdb`, `.xml`,
    `System.Management.Automation.dll`), and the removed
    `NTFSSecurity-Help.xml` would ship again.
+4b. GitHub Actions for CI and the wiki (Decision 11), PR-ready on
+   `ai/github-actions`, stacked on #95 (merge #94 and #95 first with merge
+   commits). AppVeyor reports a failure on this PR because it removes
+   `appveyor.yml`; that's expected. After the merge: delete the AppVeyor
+   project `raandree/ntfssecurity` and revoke AppVeyor's GitHub access,
+   check the first wiki publication, and consider **Restrict editing to
+   collaborators only** for the wiki.
 5. Code defects, listed below: `review: on`, one PR per group, regression
    test first. Pester 5 tests import `NTFSSecurity\bin\Release`, run in a
-   `$env:TEMP` sandbox and in `appveyor.yml` (pattern:
+   `$env:TEMP` sandbox and in the CI workflow (pattern:
    `Tests\Help.Tests.ps1`), and skip elevated cases when not elevated;
-   check whether AppVeyor runs elevated. Each fix updates its cmdlet page
-   and `CHANGELOG.md`.
+   check whether the GitHub Actions Windows runner runs elevated. Each fix
+   updates its cmdlet page and `CHANGELOG.md`.
 
 ### Code defects (work package 5)
 

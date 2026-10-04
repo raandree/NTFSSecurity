@@ -38,7 +38,7 @@ Source: `README.md`, `NTFSSecurity/NTFSSecurity.psd1`.
 
 1. Every exported cmdlet has an accurate platyPS page in `Docs/Cmdlets`.
 2. `Update-MarkdownHelp` against the module produces no parameter drift
-   (the check in `appveyor.yml`).
+   (the check in `.github/workflows/ci.yml`).
 3. The module imports in Windows PowerShell 5.1 and PowerShell 7
    (`CompatiblePSEditions = 'Core', 'Desktop'`).
 4. Further release criteria: To confirm.
