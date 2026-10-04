@@ -62,5 +62,7 @@ The format is based on
 - Fix `Get-NTFSAudit`, which returned nothing without the Security privilege
   instead of an error, and which returned the entries of the previous item
   again after a path whose security descriptor it couldn't read
+- Fix `Get-NTFSAccess`, which returned the entries of the previous item again
+  after a path whose ACL it couldn't read
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

@@ -79,13 +79,13 @@ namespace NTFSSecurity
 
         protected override void ProcessRecord()
         {
-            IEnumerable<FileSystemAccessRule2> acl = null;
-            FileSystemInfo item = null;
-
             if (ParameterSetName == "Path")
             {
                 foreach (var path in paths)
                 {
+                    FileSystemInfo item = null;
+                    IEnumerable<FileSystemAccessRule2> acl = null;
+
                     try
                     {
                         item = GetFileSystemInfo2(path);
@@ -122,34 +122,27 @@ namespace NTFSSecurity
                         WriteError(new ErrorRecord(ex, "ReadSecurityError", ErrorCategory.OpenError, path));
                         continue;
                     }
-                    finally
-                    {
-                        if (acl != null)
-                        {
-                            if (account != null)
-                            {
-                                acl = acl.Where(ace => ace.Account == account);
-                            }
 
-                            acl.ForEach(ace => WriteObject(ace));
-                        }
-                    }
+                    WriteAccessRules(acl);
                 }
             }
             else
             {
                 foreach (var sd in securityDescriptors)
                 {
-                    acl = FileSystemAccessRule2.GetFileSystemAccessRules(sd, !excludeExplicit, !excludeInherited, getInheritedFrom);
-
-                    if (account != null)
-                    {
-                        acl = acl.Where(ace => ace.Account == account);
-                    }
-
-                    acl.ForEach(ace => WriteObject(ace));
+                    WriteAccessRules(FileSystemAccessRule2.GetFileSystemAccessRules(sd, !excludeExplicit, !excludeInherited, getInheritedFrom));
                 }
             }
+        }
+
+        private void WriteAccessRules(IEnumerable<FileSystemAccessRule2> acl)
+        {
+            if (account != null)
+            {
+                acl = acl.Where(ace => ace.Account == account);
+            }
+
+            acl.ForEach(ace => WriteObject(ace));
         }
     }
 }
