@@ -81,7 +81,12 @@ source: repository evidence
   `Update-MarkdownHelp` and fail on `git diff -- Docs/Cmdlets`; 02
   `Get-MarkdownLink -BrokenOnly`; 03 regenerate the help file and fail on
   `git status --porcelain -- NTFSSecurity/en-US`; 04 Pester 5.7.1 on
-  `Tests` with results uploaded to AppVeyor.
+  `Tests`, each result reported once through the build worker API
+  (`POST $env:APPVEYOR_API_URL/api/tests/batch`).
+- AppVeyor REST API (public, no token): build
+  `api/projects/raandree/ntfssecurity/builds/<buildId>`, job log
+  `api/buildjobs/<jobId>/log` (bytes; decode as UTF-8), and test list
+  `api/buildjobs/<jobId>/tests`.
 - Run platyPS in Windows PowerShell 5.1 to avoid PowerShell 7.4+
   `-ProgressAction` noise.
 - Placeholder check: no `{{` left in `Docs/Cmdlets/*.md`.

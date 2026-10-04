@@ -9,31 +9,32 @@ source: current task evidence
 
 ## Current focus
 
-Work package 2 (ship the generated help) on branch `ai/ship-help`, stacked
-on `ai/housekeeping`; the work packages and their order are in
-`progress.md`.
+Work packages 1 and 2 are pushed; the maintainer opens their PRs:
+`ai/housekeeping` into `master`, and `ai/ship-help` into
+`ai/housekeeping`. The work packages and their order are in `progress.md`.
 
 ## Evidence
 
-- `Get-Help` showed only the syntax: the module shipped a pre-4.x MAML file
-  named `NTFSSecurity-Help.xml`; PowerShell looks for
-  `en-US\NTFSSecurity.dll-Help.xml` (`(Get-Command).HelpFile`).
-- `New-ExternalHelp` output is byte-identical between runs (756,107 bytes,
-  36 commands, UTF-8 with BOM, CRLF).
-- `Tests\Help.Tests.ps1`: 218 of 218 pass in Windows PowerShell 5.1; 182
-  pass and 36 skip in PowerShell 7.6.1. Without `bin\Release\en-US`, 180 of
-  182 failed; against the baseline build, 144 of 146 failed; with the old
-  help file, the link-spacing test failed for exactly the five reworded
-  pages.
-- PowerShell 7 resolves the same online URI (`GetUriForOnlineHelp` through
-  the help system), but its `BypassOnlineHelpRetrieval` hook skips help
-  files, so the `-Online` test is Windows PowerShell only.
-- A parallel session committed `74abb0b` (PR #83 note) on `ai/ship-help`
-  33 seconds after the branch was created and reset `ai/housekeeping` to
-  it; `origin/ai/ship-help` exists at `74abb0b`.
+- AppVeyor 54834155 (`ai/housekeeping`, `74abb0b`) passed. AppVeyor
+  54834154 (`ai/ship-help`, `fba3a7d`) passed all four `test_script`
+  steps; Pester passed 218 of 218 tests in Windows PowerShell 5.1,
+  including the `Get-Help -Online` tests.
+- The same build listed 870 tests on the Tests tab: the NUnit import files
+  each Pester 5 test under every enclosing block (Pester, file, Describe,
+  Context), so 216 tests appear four times and 2 three times. The
+  follow-up commit on `ai/ship-help` reports the results through the build
+  worker API instead (`POST api/tests/batch`), one entry per test; a local
+  run of step 04 against a sample test file sent 11 entries for 11 tests.
+- The AppVeyor job log API returns `application/octet-stream`; decode the
+  bytes as UTF-8 before searching it.
+- Merging work package 1 with a merge commit keeps `ai/ship-help` valid;
+  after a squash merge it needs
+  `git rebase --onto origin/master ai/housekeeping ai/ship-help`.
+- PR descriptions for both work packages are in the session folder
+  (`files/pr`), outside the repository.
 
 ## Next step
 
-The maintainer pushes `ai/housekeeping` (`74abb0b`) and `ai/ship-help`,
-opens the PR (base `ai/housekeeping` until WP1 merges), and confirms a
-green AppVeyor run; then work package 3 (Read the Docs).
+The maintainer pushes the follow-up commit on `ai/ship-help`, opens both
+PRs, and checks that AppVeyor lists 218 tests; then work package 3 (Read
+the Docs).

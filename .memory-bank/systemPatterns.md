@@ -78,3 +78,6 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
   `BypassOnlineHelpRetrieval`, which returns the URI instead of opening a
   browser. In PowerShell 7 the hook also skips the help file, so that test
   runs only in Windows PowerShell; PowerShell 7 resolves the same URI.
+- Report Pester 5 results to AppVeyor through the build worker API, not as
+  an uploaded NUnit file: the NUnit import files each test under every
+  enclosing block (870 entries for 218 tests in build 54834154).
