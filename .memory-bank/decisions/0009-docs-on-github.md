@@ -23,4 +23,8 @@ source: maintainer decision in work package 3
   that GitHub shows it when you open the `Docs` folder.
 - Rejected: taking over or re-importing the Read the Docs project with a
   strict MkDocs build (prepared on the local branch `ai/read-the-docs`, not
-  merged).
+  merged). Also rejected (maintainer, 2026-10-04): merging
+  `Docs/Version-History.md` into `CHANGELOG.md`. Only 5 of the 22 old
+  versions have a recoverable release date (PowerShell Gallery) and only 3
+  have tags, so they can't follow the changelog format; the page instead
+  carries the Gallery dates and notes completed from the Gallery packages.

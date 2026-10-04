@@ -65,16 +65,19 @@ source: repository evidence
 
 ## Constraints
 
-- `ModuleVersion` is `5.0.0` on `ai/manifest-version` (work package 4,
-  unreleased; `master` still says `4.2.5`); the latest tag and Gallery
-  release is `4.2.6`. The manifest requires PowerShell 5.1 and .NET
+- `ModuleVersion` on `master` is `5.0.0` (not released); the latest tag and
+  Gallery release is `4.2.6`. The manifest requires PowerShell 5.1 and .NET
   Framework 4.5.2, uses `RootModule`, and lists exactly 36 cmdlets;
   `Test-ModuleManifest` passes in Windows PowerShell 5.1 and PowerShell 7.6.
 - Besides the shipped help file and its tests (#93), the module source at
-  `master` differs from tag `4.2.6` only by the `Remove-Item2 -PassThur`
-  to `-PassThru` rename and `CompatiblePSEditions` in the manifest; work
-  package 4 adds the manifest and version changes and the `-PassThur`
-  alias.
+  `master` differs from tag `4.2.6` by the `Remove-Item2 -PassThur` to
+  `-PassThru` rename (with a `-PassThur` alias), the manifest changes of
+  #95, and the assembly versions.
+- PowerShell Gallery versions (publish dates): 4.0.0 (2015-08-19), 4.2.2
+  (2016-05-18), 4.2.3 (2016-05-19), 4.2.4 (2018-08-13), 4.2.5 (2019-07-11),
+  4.2.6 (2019-07-12); none has release notes. Older versions were released
+  on CodePlex only, and their dates are lost. The git history starts on
+  2016-10-10, when the project moved from CodePlex.
 - Releases have no script and no CI deployment. Evidence from 4.2.6: the
   Gallery DLLs are Debug builds (`DebuggableAttribute` 263), the nuspec
   comes from `Publish-Module`, the package holds the whole output folder
@@ -82,12 +85,11 @@ source: repository evidence
   published manifest differs from the tag only by `ModuleVersion` (tags
   carry the previous version). GitHub releases attach `NTFSSecurity.zip`.
 - CI: GitHub Actions on pull requests and pushes to `master` (Decision 11).
-  The AppVeyor project `raandree/ntfssecurity` builds until the maintainer
-  deletes it after the GitHub Actions PR is merged. The Read the Docs
-  project `ntfssecurity` (maintainer `Sup3rlativ3`) and a second AppVeyor
-  project are attached to the fork `Sup3rlativ3/NTFSSecurity`, which no
-  longer exists (GitHub 404, 2026-10-04). That site still serves pages from
-  2020 and isn't used (Decision 9).
+  AppVeyor no longer reports on `master` (checked on `4f9f7cc`). The Read
+  the Docs project `ntfssecurity` (maintainer `Sup3rlativ3`) and a second
+  AppVeyor project are attached to the fork `Sup3rlativ3/NTFSSecurity`,
+  which no longer exists (GitHub 404, 2026-10-04). That site still serves
+  pages from 2020 and isn't used (Decision 9).
 - `Get-FileHash2` fails in PowerShell 7; all other cmdlets passed a smoke
   test in PowerShell 7.6.
 - `CHANGELOG.md` lists user-visible changes only; CI and build-only changes
@@ -119,10 +121,8 @@ source: repository evidence
   publishes from `master` only. Actions are pinned by commit SHA:
   `actions/checkout` v7.0.1, `actions/upload-artifact` v7.0.1.
 - Read CI runs with `gh run list --repo raandree/NTFSSecurity --workflow
-  ci.yml` and `gh run view <id> --log-failed` (read-only). While AppVeyor
-  still builds: `api/projects/raandree/ntfssecurity/history`, build
-  `api/projects/raandree/ntfssecurity/builds/<buildId>`, job log
-  `api/buildjobs/<jobId>/log` (public, no token).
+  ci.yml`, `gh pr checks <number>`, and `gh run view <id> --log-failed`
+  (read-only).
 - Workflow lint: actionlint (download the release zip into `$env:TEMP` and
   check its SHA-256 against the checksum file); PowerShell steps check
   `$LASTEXITCODE` after every native command, because GitHub checks only
@@ -137,7 +137,15 @@ source: repository evidence
   `powershell.exe -NoProfile -EncodedCommand` with Pester imported by full
   path. A run without `bin\Release\en-US` must fail.
 - Markdown lint: `npx markdownlint-cli2` with `MD013` limited to prose
-  (tables, code, and headings excluded) on the conceptual pages.
+  (tables, code, and headings excluded) on the conceptual pages; for
+  `CHANGELOG.md` also `MD024` with `siblings_only: true`, because every
+  version repeats the category headings.
+- Gallery packages: download
+  `https://www.powershellgallery.com/api/v2/package/NTFSSecurity/<version>`
+  into `$env:TEMP` and extract it; dates come from the OData endpoint
+  `api/v2/FindPackagesById()?id='NTFSSecurity'`. Import each version in its
+  own process: every version's `NTFSSecurity.dll` has assembly version
+  4.2.1.0, so a second version in the same process reuses the first DLL.
 - YAML: `ConvertFrom-Yaml` (powershell-yaml) on `.github/workflows/ci.yml`.
 - Links: the CI step 02 (MarkdownLinkCheck 0.2.0) checks only relative
   links in `Docs`; it strips anchors and skips absolute URLs.
