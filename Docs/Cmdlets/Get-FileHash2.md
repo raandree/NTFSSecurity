@@ -23,7 +23,7 @@ The `Get-FileHash2` cmdlet calculates the hash value of each file that `-Path` p
 
 `-Algorithm` selects the hash algorithm and accepts `SHA1`, `SHA256`, `SHA384`, `SHA512`, `MACTripleDES`, `MD5`, and `RIPEMD160`. The default is `SHA256`.
 
-The cmdlet hashes files only. A path that points to a folder is skipped, and because the cmdlet stops processing the current input when it meets one, a folder in the middle of a `-Path` array suppresses the results of the paths that follow it in the same array. Pass only file paths, or filter folders out before you pipe items into the cmdlet. A path that does not exist produces a non-terminating `ReadFileError`.
+The cmdlet hashes files only and skips paths that point to folders. A path that does not exist produces a non-terminating `ReadFileError`.
 
 `-Path` accepts pipeline input by value and by property name through its `FullName` alias, so you can pipe the output of `Get-ChildItem2`, `Get-Item2`, or `Get-ChildItem` into the cmdlet; folders that arrive through the pipeline are skipped individually. Because the cmdlet reads files through the AlphaFS library, it also hashes files whose path exceeds the 260-character `MAX_PATH` limit. Relative paths are resolved against the current location.
 
@@ -124,6 +124,8 @@ If the file cannot be opened because access is denied, the cmdlet takes ownershi
 The hash is returned as an uppercase hexadecimal string without separators, which differs from the lowercase output of some other hashing tools. Compare hash values case-insensitively.
 
 `MACTripleDES` is a keyed message authentication code that is created with a key that is generated for each call, so its result is not reproducible across invocations and is not suitable for comparing files.
+
+Before 5.0.0, a folder in a `-Path` array stopped the processing of that array, so the files that followed the folder were not hashed.
 
 ## RELATED LINKS
 

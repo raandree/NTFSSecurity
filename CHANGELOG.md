@@ -57,5 +57,7 @@ The format is based on
   omitted; an omitted parameter now leaves its section unchanged
 - Fix `Get-ChildItem2`, which stopped with an `InvalidCastException` when
   `-Path` pointed to a file; it now returns the file, like `Get-ChildItem`
+- Fix `Get-FileHash2`, which stopped at a folder in `-Path` and didn't hash
+  the files that followed it; folders are now skipped
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

@@ -48,7 +48,11 @@ namespace NTFSSecurity
                 {
                     item = GetFileSystemInfo2(path) as FileInfo;
                     if (item == null)
-                        return;
+                    {
+                        // Like Get-FileHash, skip folders and continue with the next path.
+                        WriteVerbose(string.Format("Skipping '{0}', which is a folder", path));
+                        continue;
+                    }
                 }
                 catch (Exception ex)
                 {
