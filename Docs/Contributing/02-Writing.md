@@ -18,7 +18,7 @@ This page explains how the documentation is organized and how to change it.
 | `Docs/Contributing.md`, `Docs/Contributing/*.md` | This contributor guide |
 | `README.md` | Front page of the GitHub repository |
 | `CHANGELOG.md` | Changes since 4.2.6 |
-| `.github/workflows/ci.yml` | CI build: documentation checks, tests, and wiki publishing |
+| `.github/workflows/ci.yml` | CI build: documentation checks, tests, packages, wiki publishing, and releases |
 | `.github/scripts/Export-WikiContent.ps1` | Converts `Docs` into the pages of the wiki |
 
 When you add a page, link to it from `Docs/README.md` or from a related page,

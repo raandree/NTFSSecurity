@@ -9,12 +9,12 @@ source: repository evidence
 
 ## Current status
 
-PRs #91 to #96 are merged; `master` (`4f9f7cc`) carries version 5.0.0,
+PRs #91 to #97 are merged; `master` (`59663c9`) carries version 5.0.0,
 which is not released yet. CI runs on GitHub Actions: build, docs checks,
 and tests in Windows PowerShell 5.1 and PowerShell 7, plus the wiki, which
-is generated from `Docs` (43 pages). AppVeyor no longer reports on `master`.
-PR-ready locally: `ai/version-history`, the version history completed from
-the PowerShell Gallery packages.
+is generated from `Docs` (43 pages). PR-ready locally: `ai/release-5.0.0`,
+releases by CI on a version tag (Decision 12), starting with the
+prerelease `5.0.0-rc1`.
 
 ## Recent milestones
 
@@ -43,9 +43,15 @@ the PowerShell Gallery packages.
   the wiki (`62ec94a`, 43 pages).
 - 2026-10-04: The maintainer kept the version history separate from
   `CHANGELOG.md` and had it completed from the six PowerShell Gallery
-  packages and the commit history: release dates, notes for 4.2.2, detailed
-  notes for 4.2.4, and separate notes for 4.2.5 and 4.2.6
-  (`ai/version-history`).
+  packages and the commit history (#97, `59663c9`): release dates, notes
+  for 4.2.2, detailed notes for 4.2.4, and separate notes for 4.2.5 and
+  4.2.6. The wiki republished it.
+- 2026-10-04: The maintainer chose to release 5.0.0 next, through CI and a
+  prerelease first (Decision 12): `ai/release-5.0.0` adds the `release` job,
+  `Get-ReleaseInfo.ps1`, `New-ModulePackage.ps1`, `Tests\Release.Tests.ps1`,
+  the label `rc1`, and `Docs/Contributing/05-Releasing.md`. The package
+  dry run found that PSResourceGet drops the command tags that 4.2.6 had;
+  the script adds them back.
 
 ## Stable capabilities
 
@@ -65,19 +71,22 @@ next package starts only after the maintainer's go-ahead.
 1. Housekeeping: done (#92).
 2. Ship help: done (#93).
 3. Docs on GitHub: done (#94).
-4. Manifest and version 5.0.0: done (#95). Before the release: set the date
-   of the 5.0.0 section to the release date (fold the `[Unreleased]` entries
-   into it), tag `5.0.0` (no `v` prefix), build in Release, and clean
-   `C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity` before
-   `Publish-Module`; releases so far were Debug builds published with the
-   whole output folder (`.pdb`, `.xml`, `System.Management.Automation.dll`),
-   and the removed `NTFSSecurity-Help.xml` would ship again.
+4. Manifest and version 5.0.0: done (#95).
 4b. CI and the wiki on GitHub Actions: done (#96). Left to the maintainer:
    revoke AppVeyor's GitHub access if it is still granted, consider
    **Restrict editing to collaborators only** for the wiki, and optionally
    ask `Sup3rlativ3` to delete the Read the Docs project.
-4c. Version history from the PowerShell Gallery: PR-ready on
-   `ai/version-history`.
+4c. Version history from the PowerShell Gallery: done (#97).
+4d. Release 5.0.0 through CI (Decision 12): PR-ready on `ai/release-5.0.0`.
+   Before the first tag, the maintainer creates the Gallery API key, the
+   environment `powershell-gallery`, and its secret `PSGALLERY_API_KEY`
+   (steps in `Docs/Contributing/05-Releasing.md`). Then: merge, tag
+   `5.0.0-rc1`, test the prerelease, check its Gallery tags and
+   `Find-Command`, and for the final release remove the label and date the
+   changelog section. Releases no longer come from a local build, so the
+   old manual steps (cleaning
+   `C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity`, Debug
+   builds) no longer apply.
 5. Code defects, listed below: `review: on`, one PR per group, regression
    test first. Pester 5 tests import `NTFSSecurity\bin\Release`, run in a
    `$env:TEMP` sandbox and in the CI workflow (pattern:

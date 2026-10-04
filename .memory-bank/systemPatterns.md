@@ -58,6 +58,7 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 | 9 | [Keep the documentation on GitHub](decisions/0009-docs-on-github.md) |
 | 10 | [One version for the manifest, assemblies, and changelog](decisions/0010-one-version.md) |
 | 11 | [CI and the wiki run on GitHub Actions](decisions/0011-github-actions.md) |
+| 12 | [Releases are built and published by CI on a version tag](decisions/0012-ci-releases.md) |
 
 ## Patterns
 
@@ -96,6 +97,10 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
   failed tests go to the job summary, the NUnit file to the `test-results`
   artifact, and it fails on failed test files too (`Result -ne 'Passed'`).
 - `Tests\Manifest.Tests.ps1` checks the built manifest: `Test-ModuleManifest`
-  without errors or warnings, exactly 36 cmdlets, and one version
-  (Decision 10). Add a new cmdlet to `CmdletsToExport` and to the expected
-  count in the same change.
+  without errors or warnings, exactly 36 cmdlets, and the same version in
+  the manifest and the assemblies (Decision 10). Add a new cmdlet to
+  `CmdletsToExport` and to the expected count in the same change.
+- `Tests\Release.Tests.ps1` checks that `CHANGELOG.md` has release notes
+  for the manifest version (dated section, or `[Unreleased]` for a
+  prerelease) and the packages: only `FileList` files, version with label,
+  command tags, and `NTFSSecurity.zip` with the module folder.

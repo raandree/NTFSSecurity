@@ -1,7 +1,10 @@
 # Builds the NTFSSecurity module from source, checks that the cmdlet
 # documentation in Docs/Cmdlets and the help file generated from it match the
 # cmdlets of that build, runs the Pester tests in Windows PowerShell 5.1 and
-# PowerShell 7, and publishes Docs to the GitHub wiki from master.
+# PowerShell 7, and builds the packages. From master, it publishes Docs to the
+# GitHub wiki. For a version tag, such as 5.0.0 or 5.0.0-rc1, it publishes the
+# package to the PowerShell Gallery and creates the GitHub release; see
+# Docs/Contributing/05-Releasing.md.
 name: CI
 
 on:
@@ -9,6 +12,9 @@ on:
   push:
     branches:
       - master
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+-*'
   workflow_dispatch:
 
 permissions:
@@ -123,13 +129,28 @@ jobs:
           path: TestResults/
           if-no-files-found: ignore
 
+      # Only the files of the FileList, without debug symbols or other build output
+      - name: Build the packages
+        shell: pwsh
+        run: ./.github/scripts/New-ModulePackage.ps1 -BuildPath ./NTFSSecurity/bin/Release -DestinationPath ./out | Format-List
+
+      - name: Upload the packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: packages
+          path: |
+            out/*.nupkg
+            out/NTFSSecurity.zip
+          if-no-files-found: error
+
   wiki:
     name: Wiki
     needs: build
+    if: github.ref_type != 'tag'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Only this job can write: it publishes the wiki from master. On pull
-    # requests, it shows the pages that would change.
+    # This job can write: it publishes the wiki from master. On pull requests,
+    # it shows the pages that would change.
     permissions:
       contents: write
     steps:
@@ -178,4 +199,101 @@ jobs:
           git -C $env:WIKI_PATH push --quiet
           if ($LASTEXITCODE -ne 0) {
               throw "Publishing the wiki failed with exit code $LASTEXITCODE."
+          }
+
+  release:
+    name: Release
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: windows-2025
+    timeout-minutes: 15
+    # The API key of the PowerShell Gallery is a secret of this environment, so
+    # only this job can read it. The job can write to create the GitHub release.
+    environment: powershell-gallery
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download the packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: packages
+          path: out
+
+      - name: Check the release
+        id: release
+        shell: pwsh
+        run: |
+          $release = ./.github/scripts/Get-ReleaseInfo.ps1 -ManifestPath ./NTFSSecurity/NTFSSecurity.psd1 -ChangelogPath ./CHANGELOG.md
+          if ($env:GITHUB_REF_NAME -cne $release.Version) {
+              throw "The tag $env:GITHUB_REF_NAME doesn't match the version $($release.Version) in the module manifest."
+          }
+          git merge-base --is-ancestor $env:GITHUB_SHA origin/master
+          if ($LASTEXITCODE -ne 0) {
+              throw "The tag $env:GITHUB_REF_NAME doesn't point to a commit on master."
+          }
+          $package = "out/NTFSSecurity.$($release.Version).nupkg"
+          if (-not (Test-Path -LiteralPath $package) -or -not (Test-Path -LiteralPath 'out/NTFSSecurity.zip')) {
+              throw "The packages of $($release.Version) are missing."
+          }
+          $today = (Get-Date).ToUniversalTime().Date
+          if (-not $release.IsPrerelease -and $release.Date -ne $today) {
+              "::warning::CHANGELOG.md dates $($release.Version) $($release.Date.ToString('yyyy-MM-dd')), but it is released on $($today.ToString('yyyy-MM-dd'))."
+          }
+          $notes = Join-Path -Path $env:RUNNER_TEMP -ChildPath 'release-notes.md'
+          Set-Content -LiteralPath $notes -Value $release.Notes -Encoding utf8NoBOM
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value @(
+              "version=$($release.Version)"
+              "prerelease=$($release.IsPrerelease.ToString().ToLowerInvariant())"
+              "package=$package"
+              "notes=$notes"
+          )
+
+      # Publishes the package that the build job built and tested. A rerun skips
+      # a version that the PowerShell Gallery already has.
+      - name: Publish to the PowerShell Gallery
+        shell: pwsh
+        env:
+          PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_PACKAGE: ${{ steps.release.outputs.package }}
+        run: |
+          if (-not $env:PSGALLERY_API_KEY) {
+              throw 'The secret PSGALLERY_API_KEY of the environment powershell-gallery is not set.'
+          }
+          $published = Find-PSResource -Name NTFSSecurity -Version $env:RELEASE_VERSION -Prerelease -Repository PSGallery -ErrorAction SilentlyContinue
+          if ($published) {
+              "NTFSSecurity $env:RELEASE_VERSION is already in the PowerShell Gallery."
+              exit 0
+          }
+          Publish-PSResource -NupkgPath $env:RELEASE_PACKAGE -Repository PSGallery -ApiKey $env:PSGALLERY_API_KEY
+
+      - name: Create the GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_PRERELEASE: ${{ steps.release.outputs.prerelease }}
+          RELEASE_NOTES: ${{ steps.release.outputs.notes }}
+        run: |
+          gh release view $env:RELEASE_VERSION --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+              "The GitHub release $env:RELEASE_VERSION exists."
+              exit 0
+          }
+          $arguments = @(
+              'release', 'create', $env:RELEASE_VERSION, 'out/NTFSSecurity.zip', '--repo', $env:GITHUB_REPOSITORY,
+              '--title', $env:RELEASE_VERSION, '--notes-file', $env:RELEASE_NOTES, '--verify-tag'
+          )
+          if ($env:RELEASE_PRERELEASE -eq 'true') {
+              $arguments += '--prerelease'
+          }
+          gh @arguments
+          if ($LASTEXITCODE -ne 0) {
+              throw "Creating the GitHub release failed with exit code $LASTEXITCODE."
           }

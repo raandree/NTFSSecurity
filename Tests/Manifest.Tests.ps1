@@ -1,6 +1,7 @@
 ﻿<#
     Tests the module manifest of the module built in NTFSSecurity\bin\Release: it passes Test-ModuleManifest,
-    exports exactly the cmdlets of the module, and carries the same version as the assemblies and CHANGELOG.md.
+    exports exactly the cmdlets of the module, and carries the same version as the assemblies. Release.Tests.ps1
+    checks that CHANGELOG.md describes that version.
 #>
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
     'PSUseDeclaredVarsMoreThanAssignments', '', Justification = 'Pester shares variables between blocks.'
@@ -61,13 +62,6 @@ Describe 'Module manifest of NTFSSecurity' {
 
             $assemblyVersion.ToString(3) | Should -BeExactly $manifest.ModuleVersion
             $fileVersion.ToString(3) | Should -BeExactly $manifest.ModuleVersion
-        }
-
-        It 'Should describe the module version in the latest section of CHANGELOG.md' {
-            $changelog = Get-Content -LiteralPath (Join-Path -Path $PSScriptRoot -ChildPath '..\CHANGELOG.md') -Raw
-            $latestVersion = [regex]::Match($changelog, '(?m)^## \[(?<Version>\d+\.\d+\.\d+)\]').Groups['Version'].Value
-
-            $latestVersion | Should -BeExactly $manifest.ModuleVersion
         }
     }
 }
