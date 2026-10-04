@@ -52,27 +52,20 @@ Work packages in the order agreed with the maintainer. Each gets one
 opens the PR (the agent can't; see `techContext.md`, Constraints), and the
 next package starts only after the maintainer's go-ahead.
 
-1. Housekeeping: done (#92).
-2. Ship help: done (#93).
-3. Docs on GitHub: done (#94).
-4. Manifest and version 5.0.0: done (#95).
-4b. CI and the wiki on GitHub Actions: done (#96). No AppVeyor webhook or
-   commit status remains. Optional for the maintainer: delete the AppVeyor
-   project and revoke its GitHub authorization, check **Restrict editing to
-   collaborators only** for the wiki, and ask `Sup3rlativ3` to delete the
-   Read the Docs project.
-4c. Version history from the PowerShell Gallery: done (#97).
+Items 1 to 4c are done: housekeeping (#92), shipped help (#93), docs on
+GitHub (#94), manifest and version 5.0.0 (#95), CI and the wiki on GitHub
+Actions (#96), version history from the Gallery (#97). Optional for the
+maintainer: delete the AppVeyor project and revoke its GitHub
+authorization, restrict wiki editing to collaborators, and ask
+`Sup3rlativ3` to delete the Read the Docs project.
+
 4d. Release 5.0.0 through CI (Decision 12): 5.0.0-rc1 published and
-   verified (#98); the command search lists it since 20:22 UTC. Next: the
-   maintainer tests the prerelease. The final release PR comes on release
-   day, because the changelog date should be that day (CI warns
-   otherwise): remove the label, rename `[Unreleased]` to `[5.0.0]` with
-   the date, and tag `5.0.0` (steps in `Docs/Contributing/05-Releasing.md`).
-   Also consider the manifest `Description`, which says "Windows
-   PowerShell Module", and the `5.0.0-rc1` example in `Docs/README.md`.
-   Releases no longer come from a local build, so the old manual steps
-   (cleaning `C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity`,
-   Debug builds) no longer apply.
+   verified (#98); the maintainer tests it. The final release PR comes on
+   release day (CI warns when the changelog date isn't that day): remove
+   the label, date `[Unreleased]` as `[5.0.0]`, tag `5.0.0` (steps in
+   `Docs/Contributing/05-Releasing.md`). Also consider the manifest
+   `Description` ("Windows PowerShell Module") and the `5.0.0-rc1` example
+   in `Docs/README.md`. Releases no longer come from a local Debug build.
 4e. Repository settings, proposed to the maintainer on 2026-10-04 (not yet
    agreed): the `powershell-gallery` environment has no protection rules
    and no deployment policy, so a workflow on any branch can use
@@ -84,13 +77,17 @@ next package starts only after the maintainer's go-ahead.
 5. Code defects, listed below: `review: on`, one PR per group, regression
    test first. Pester 5 tests import `NTFSSecurity\bin\Release`, run in a
    `$env:TEMP` sandbox and in the CI workflow (pattern:
-   `Tests\Help.Tests.ps1`), and skip elevated cases when not elevated;
-   check whether the GitHub Actions Windows runner runs elevated. Each fix
-   updates its cmdlet page and `CHANGELOG.md`. Start by triaging the 37
-   open issues (none newer than May 2025): #15, #47, and #66
-   (documentation) and #19 (fixed in 4.2.4) can be closed; #4 is defect
-   (5); #34 has the WIP branch `fix/#34`. The E decisions set the next
-   version: fixes only 5.0.1, additions 5.1.0, changed defaults 6.0.0.
+   `Tests\Help.Tests.ps1`), and skip elevated cases when not elevated.
+   GitHub-hosted Windows runners run as administrators with UAC disabled
+   (GitHub docs, checked 2026-10-04), so elevated cases run in CI; the
+   workstation session isn't elevated. Each fix updates its cmdlet page
+   and `CHANGELOG.md`. Start by triaging the 37 open issues (none newer
+   than May 2025): #15, #47, and #66 (documentation) and #19 (fixed in
+   4.2.4) can be closed; #4 is defect (5); #34 has the WIP branch
+   `fix/#34` (`Extensions.cs`, `FileSystemSecurity2.cs`, `TestClient`);
+   `test/transfer` only adds a 3 MB `New.zip`. The E decisions set the
+   next version: fixes only 5.0.1, additions 5.1.0, changed defaults
+   6.0.0, unless they ship in 5.0.0 (rc2).
 
 ### Code defects (work package 5)
 
@@ -162,11 +159,17 @@ Numbered as agreed with the maintainer; each is documented on its page.
 
 #### E: Maintainer decisions before changing behavior
 
-- `Clear-NTFSAccess -DisableInheritance` discards inherited entries: keep
-  that, or copy them?
-- `Set-NTFSInheritance` defaults are the opposite of the dedicated
-  inheritance cmdlets: align?
+- `Clear-NTFSAccess -DisableInheritance` removes the explicit entries and
+  then disables inheritance without copying the inherited ones, which
+  leaves an empty DACL: keep that, or copy them?
+- `Set-NTFSInheritance` differs from the dedicated cmdlets in two of four
+  directions: `-AccessInheritanceEnabled $false` removes the inherited
+  access entries, and `-AuditInheritanceEnabled $true` removes the
+  explicit audit entries; the dedicated cmdlets keep them unless a switch
+  is given. Align?
 - The audit inheritance switches are named `*AccessRules`: add
   `*AuditRules` aliases?
 - `Get-FileHash2` fails in PowerShell 7 (`RIPEMD160`): drop the algorithm
-  there, load it lazily, or deprecate the cmdlet?
+  there, load it lazily, or deprecate the cmdlet? To verify:
+  `MACTripleDES.Create()` may use a random key, so its result would differ
+  on every call.
