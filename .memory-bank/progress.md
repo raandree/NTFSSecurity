@@ -125,7 +125,7 @@ Numbered as agreed with the maintainer; each is documented on its page.
 - Review of group A: five Major findings fixed in the last commit; the
   Minor ones are listed in the PR description.
 
-#### B: Ignored parameters and parameter sets
+#### B: Ignored parameters and parameter sets (fixed on `ai/defects-b`, not merged)
 
 - (14) SD sets of `Add-/Remove-NTFSAccess` and `Add-/Remove-NTFSAudit`
   cannot resolve without `-AppliesTo` or the flag parameters.
