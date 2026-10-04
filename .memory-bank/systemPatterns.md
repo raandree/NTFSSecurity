@@ -17,7 +17,7 @@ NTFSSecurity.psd1 ─┬─ ScriptsToProcess: NTFSSecurity.Init.ps1
                    ├─ TypesToProcess: NTFSSecurity.types.ps1xml
                    │    (Owner, IsInheritanceBlocked, LengthOnDisk on
                    │    FileInfo/DirectoryInfo; AccountType on ACEs)
-                   ├─ ModuleToProcess: NTFSSecurity.psm1 (aliases)
+                   ├─ RootModule: NTFSSecurity.psm1 (aliases)
                    ├─ NestedModules: NTFSSecurity.dll (36 cmdlets)
                    └─ en-US\NTFSSecurity.dll-Help.xml (Get-Help; generated
                         from Docs/Cmdlets, Decision 8)
@@ -56,6 +56,7 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 | 7 | [CHANGELOG lists user-visible changes only](decisions/0007-changelog-user-visible-only.md) |
 | 8 | [Commit the generated help file and check it in CI](decisions/0008-commit-generated-help.md) |
 | 9 | [Keep the documentation on GitHub](decisions/0009-docs-on-github.md) |
+| 10 | [One version for the manifest, assemblies, and changelog](decisions/0010-one-version.md) |
 
 ## Patterns
 
@@ -86,3 +87,7 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 - Report Pester 5 results to AppVeyor through the build worker API, not as
   an uploaded NUnit file: the NUnit import files each test under every
   enclosing block (870 entries for 218 tests in build 54834154).
+- `Tests\Manifest.Tests.ps1` checks the built manifest: `Test-ModuleManifest`
+  without errors or warnings, exactly 36 cmdlets, and one version
+  (Decision 10). Add a new cmdlet to `CmdletsToExport` and to the expected
+  count in the same change.

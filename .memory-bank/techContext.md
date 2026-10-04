@@ -24,8 +24,10 @@ source: repository evidence
   0.14 markdown (schema 2.0.0) in `Docs/Cmdlets`.
 - Help: `NTFSSecurity\en-US\NTFSSecurity.dll-Help.xml`, generated from
   `Docs/Cmdlets` and committed (Decision 8).
-- Tests: Pester 5 tests in `Tests` (`Help.Tests.ps1`) against the Release
-  build.
+- Tests: Pester 5 tests in `Tests` against the Release build:
+  `Help.Tests.ps1` (help of every cmdlet), `Manifest.Tests.ps1` (manifest
+  and versions, Decision 10), and `Remove-Item2.Tests.ps1` (`-PassThur`
+  alias).
 
 ## Environment
 
@@ -61,16 +63,16 @@ source: repository evidence
 
 ## Constraints
 
-- `ModuleVersion` in the source manifest is `4.2.5`; the latest tag and
-  Gallery release is `4.2.6`.
+- `ModuleVersion` is `5.0.0` on `ai/manifest-version` (work package 4,
+  unreleased; `master` still says `4.2.5`); the latest tag and Gallery
+  release is `4.2.6`. The manifest requires PowerShell 5.1 and .NET
+  Framework 4.5.2, uses `RootModule`, and lists exactly 36 cmdlets;
+  `Test-ModuleManifest` passes in Windows PowerShell 5.1 and PowerShell 7.6.
 - Besides the shipped help file and its tests (#93), the module source at
   `master` differs from tag `4.2.6` only by the `Remove-Item2 -PassThur`
-  to `-PassThru` rename and `CompatiblePSEditions` in the manifest.
-- `CmdletsToExport` lists `Show-NTFSSimpleAccess`, which no longer exists
-  (WinForms code removed in `d3063de`), and repeats the inheritance cmdlets.
-- `Test-ModuleManifest` fails in Windows PowerShell 5.1:
-  `CompatiblePSEditions` requires `PowerShellVersion` 5.1 or higher, and the
-  manifest says `2.0` (work package 4).
+  to `-PassThru` rename and `CompatiblePSEditions` in the manifest; work
+  package 4 adds the manifest and version changes and the `-PassThur`
+  alias.
 - Releases have no script and no CI deployment. Evidence from 4.2.6: the
   Gallery DLLs are Debug builds (`DebuggableAttribute` 263), the nuspec
   comes from `Publish-Module`, the package holds the whole output folder
