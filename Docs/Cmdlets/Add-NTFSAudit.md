@@ -23,13 +23,13 @@ Add-NTFSAudit [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRight
 ### PathSimple
 ```
 Add-NTFSAudit [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
- [-AuditFlags <AuditFlags>] [-AppliesTo <ApplyTo>] [-PassThru] [<CommonParameters>]
+ [-AuditFlags <AuditFlags>] -AppliesTo <ApplyTo> [-PassThru] [<CommonParameters>]
 ```
 
 ### SDSimple
 ```
 Add-NTFSAudit [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
- [-AccessRights] <FileSystemRights2> [-AuditFlags <AuditFlags>] [-AppliesTo <ApplyTo>] [-PassThru]
+ [-AccessRights] <FileSystemRights2> [-AuditFlags <AuditFlags>] -AppliesTo <ApplyTo> [-PassThru]
  [<CommonParameters>]
 ```
 
@@ -46,7 +46,7 @@ The `Add-NTFSAudit` cmdlet adds an audit entry to the system access control list
 
 In the `PathSimple` and `PathComplex` parameter sets the cmdlet reads the security descriptor of every item in `-Path`, adds the entry, and writes the descriptor back right away. In the `SDSimple` and `SDComplex` parameter sets it adds the entry to an in-memory `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned; that change only reaches the file system when you pass the object to `Set-NTFSSecurityDescriptor`. The simple sets describe the scope of the entry with the single `-AppliesTo` parameter, the complex sets with `-InheritanceFlags` and `-PropagationFlags`.
 
-`PathComplex` is the default parameter set. Because that set requires `-Path`, a command that uses `-SecurityDescriptor` must also specify `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags`; otherwise PowerShell cannot decide between `SDSimple` and `SDComplex` and reports that the parameter set cannot be resolved.
+`PathComplex` is the default parameter set. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.
 
 When you omit them, `-AuditFlags` is `Success, Failure`, `-InheritanceFlags` is `ContainerInherit, ObjectInherit`, `-PropagationFlags` is `None`, and `-AppliesTo` is `ThisFolderSubfoldersAndFiles`, so both the simple and the complex set audit the item, its subfolders, and its files by default. Inheritance applies to folders only: when the item is a file, the cmdlet stores the entry without inheritance and propagation flags.
 
@@ -125,7 +125,7 @@ Accept wildcard characters: False
 
 ### -AppliesTo
 
-Specifies the scope of the audit entry with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. `ThisFolderOnly` audits the folder itself, `ThisFolderSubfoldersAndFiles` audits the folder and everything below it, `SubfoldersAndFilesOnly` audits the content but not the folder itself, and the values ending in `OneLevel` limit inheritance to the direct children. The default is `ThisFolderSubfoldersAndFiles`.
+Specifies the scope of the audit entry with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. `ThisFolderOnly` audits the folder itself, `ThisFolderSubfoldersAndFiles` audits the folder and everything below it, `SubfoldersAndFilesOnly` audits the content but not the folder itself, and the values ending in `OneLevel` limit inheritance to the direct children. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`.
 
 ```yaml
 Type: ApplyTo
@@ -133,9 +133,9 @@ Parameter Sets: PathSimple, SDSimple
 Aliases:
 Accepted values: ThisFolderOnly, ThisFolderSubfoldersAndFiles, ThisFolderAndSubfolders, ThisFolderAndFiles, SubfoldersAndFilesOnly, SubfoldersOnly, FilesOnly, ThisFolderSubfoldersAndFilesOneLevel, ThisFolderAndSubfoldersOneLevel, ThisFolderAndFilesOneLevel, SubfoldersAndFilesOnlyOneLevel, SubfoldersOnlyOneLevel, FilesOnlyOneLevel
 
-Required: False
+Required: True
 Position: Named
-Default value: ThisFolderSubfoldersAndFiles
+Default value: None
 Accept pipeline input: True (ByPropertyName)
 Accept wildcard characters: False
 ```

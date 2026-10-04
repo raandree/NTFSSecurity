@@ -86,8 +86,9 @@ namespace NTFSSecurity
             set { propagationFlags = value; }
         }
 
-        [Parameter(ValueFromPipelineByPropertyName = true, ParameterSetName = "PathSimple")]
-        [Parameter(ValueFromPipelineByPropertyName = true, ParameterSetName = "SDSimple")]
+        // Mandatory, so that a command without it resolves to the Complex parameter set, also for -SecurityDescriptor.
+        [Parameter(Mandatory = true, ValueFromPipelineByPropertyName = true, ParameterSetName = "PathSimple")]
+        [Parameter(Mandatory = true, ValueFromPipelineByPropertyName = true, ParameterSetName = "SDSimple")]
         public ApplyTo AppliesTo
         {
             get { return appliesTo; }

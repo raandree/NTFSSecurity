@@ -12,7 +12,7 @@
     <maml:description>
       <maml:para>Adds an access control entry (ACE) to the discretionary access control list (DACL) of a file or a folder. Every account in `-Account` receives the rights in `-AccessRights`, either as an `Allow` or as a `Deny` entry.</maml:para>
       <maml:para>`-AccessRights` accepts the basic rights such as `Read`, `Modify`, and `FullControl` as well as the granular rights such as `CreateFiles` or `WriteAttributes`, and several values can be combined, for example `-AccessRights ReadData, WriteData, Delete`. For the mapping between the values of this module, the rights that Windows displays, and the entries of the advanced security dialog, see Concepts (../Concepts.md).</maml:para>
-      <maml:para>The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`; both describe the same ACE flags, and `PathComplex` is the default. A command that works on a security descriptor, whether it is passed to `-SecurityDescriptor` or piped in, must therefore name `-AppliesTo` or `-InheritanceFlags` and `-PropagationFlags`; without one of them PowerShell cannot choose between the two `SD` sets and reports that the parameter set cannot be resolved.</maml:para>
+      <maml:para>The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`; both describe the same ACE flags, and `PathComplex` is the default. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.</maml:para>
       <maml:para>When `-AccessType`, `-AppliesTo`, `-InheritanceFlags`, and `-PropagationFlags` are omitted, the cmdlet adds an `Allow` ACE that applies to this folder, subfolders, and files, which corresponds to the inheritance flags `ContainerInherit, ObjectInherit` and no propagation flags. An `Allow` ACE always receives the `Synchronize` right in addition to the requested rights, inheritance and propagation flags are ignored on files, and rights for an account that already has an ACE with the same access type and the same flags are merged into that ACE. The cmdlet writes no output unless `-PassThru` is used, and a failure on one item is reported as a non-terminating error while the remaining items are processed.</maml:para>
       <maml:para>`-Path` accepts pipeline input by value and by property name through its alias `FullName`, so output of `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` can be piped in. `-Account`, `-AccessRights`, `-AccessType`, `-InheritanceFlags`, and `-PropagationFlags` bind by property name as well, which lets you pipe `Security2.FileSystemAccessRule2` objects, or rows imported from a CSV file created from them, directly into the cmdlet.</maml:para>
     </maml:description>
@@ -101,10 +101,10 @@
           </dev:type>
           <dev:defaultValue>Allow</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AppliesTo</maml:name>
           <maml:description>
-            <maml:para>Specifies the scope of the ACE in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. The default is `ThisFolderSubfoldersAndFiles`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same ACE. The values ending in `OneLevel` limit inheritance to the direct children of the folder.</maml:para>
+            <maml:para>Specifies the scope of the ACE in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same ACE. The values ending in `OneLevel` limit inheritance to the direct children of the folder.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">ThisFolderOnly</command:parameterValue>
@@ -126,7 +126,7 @@
             <maml:name>ApplyTo</maml:name>
             <maml:uri />
           </dev:type>
-          <dev:defaultValue>ThisFolderSubfoldersAndFiles</dev:defaultValue>
+          <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
           <maml:name>PassThru</maml:name>
@@ -225,10 +225,10 @@
           </dev:type>
           <dev:defaultValue>Allow</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AppliesTo</maml:name>
           <maml:description>
-            <maml:para>Specifies the scope of the ACE in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. The default is `ThisFolderSubfoldersAndFiles`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same ACE. The values ending in `OneLevel` limit inheritance to the direct children of the folder.</maml:para>
+            <maml:para>Specifies the scope of the ACE in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same ACE. The values ending in `OneLevel` limit inheritance to the direct children of the folder.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">ThisFolderOnly</command:parameterValue>
@@ -250,7 +250,7 @@
             <maml:name>ApplyTo</maml:name>
             <maml:uri />
           </dev:type>
-          <dev:defaultValue>ThisFolderSubfoldersAndFiles</dev:defaultValue>
+          <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
           <maml:name>PassThru</maml:name>
@@ -565,17 +565,17 @@
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
-      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
+      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>AppliesTo</maml:name>
         <maml:description>
-          <maml:para>Specifies the scope of the ACE in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. The default is `ThisFolderSubfoldersAndFiles`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same ACE. The values ending in `OneLevel` limit inheritance to the direct children of the folder.</maml:para>
+          <maml:para>Specifies the scope of the ACE in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same ACE. The values ending in `OneLevel` limit inheritance to the direct children of the folder.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="false">ApplyTo</command:parameterValue>
         <dev:type>
           <maml:name>ApplyTo</maml:name>
           <maml:uri />
         </dev:type>
-        <dev:defaultValue>ThisFolderSubfoldersAndFiles</dev:defaultValue>
+        <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>InheritanceFlags</maml:name>
@@ -795,7 +795,7 @@
     <maml:description>
       <maml:para>The `Add-NTFSAudit` cmdlet adds an audit entry to the system access control list (SACL) of a file or folder. Windows then writes an event to the security log when the audited account uses one of the audited access rights on the item. `-AuditFlags Success` audits successful attempts, `-AuditFlags Failure` audits failed attempts, and the default audits both. For what the individual access rights permit, see Concepts (../Concepts.md).</maml:para>
       <maml:para>In the `PathSimple` and `PathComplex` parameter sets the cmdlet reads the security descriptor of every item in `-Path`, adds the entry, and writes the descriptor back right away. In the `SDSimple` and `SDComplex` parameter sets it adds the entry to an in-memory `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned; that change only reaches the file system when you pass the object to `Set-NTFSSecurityDescriptor`. The simple sets describe the scope of the entry with the single `-AppliesTo` parameter, the complex sets with `-InheritanceFlags` and `-PropagationFlags`.</maml:para>
-      <maml:para>`PathComplex` is the default parameter set. Because that set requires `-Path`, a command that uses `-SecurityDescriptor` must also specify `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags`; otherwise PowerShell cannot decide between `SDSimple` and `SDComplex` and reports that the parameter set cannot be resolved.</maml:para>
+      <maml:para>`PathComplex` is the default parameter set. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.</maml:para>
       <maml:para>When you omit them, `-AuditFlags` is `Success, Failure`, `-InheritanceFlags` is `ContainerInherit, ObjectInherit`, `-PropagationFlags` is `None`, and `-AppliesTo` is `ThisFolderSubfoldersAndFiles`, so both the simple and the complex set audit the item, its subfolders, and its files by default. Inheritance applies to folders only: when the item is a file, the cmdlet stores the entry without inheritance and propagation flags.</maml:para>
       <maml:para>`-Path` accepts pipeline input by value and by property name through its `FullName` alias, so the output of `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` binds to it, and the remaining parameters bind by property name. The cmdlet writes no object unless you use `-PassThru`.</maml:para>
     </maml:description>
@@ -868,10 +868,10 @@
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AppliesTo</maml:name>
           <maml:description>
-            <maml:para>Specifies the scope of the audit entry with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. `ThisFolderOnly` audits the folder itself, `ThisFolderSubfoldersAndFiles` audits the folder and everything below it, `SubfoldersAndFilesOnly` audits the content but not the folder itself, and the values ending in `OneLevel` limit inheritance to the direct children. The default is `ThisFolderSubfoldersAndFiles`.</maml:para>
+            <maml:para>Specifies the scope of the audit entry with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. `ThisFolderOnly` audits the folder itself, `ThisFolderSubfoldersAndFiles` audits the folder and everything below it, `SubfoldersAndFilesOnly` audits the content but not the folder itself, and the values ending in `OneLevel` limit inheritance to the direct children. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">ThisFolderOnly</command:parameterValue>
@@ -893,7 +893,7 @@
             <maml:name>ApplyTo</maml:name>
             <maml:uri />
           </dev:type>
-          <dev:defaultValue>ThisFolderSubfoldersAndFiles</dev:defaultValue>
+          <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AuditFlags</maml:name>
@@ -992,10 +992,10 @@
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AppliesTo</maml:name>
           <maml:description>
-            <maml:para>Specifies the scope of the audit entry with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. `ThisFolderOnly` audits the folder itself, `ThisFolderSubfoldersAndFiles` audits the folder and everything below it, `SubfoldersAndFilesOnly` audits the content but not the folder itself, and the values ending in `OneLevel` limit inheritance to the direct children. The default is `ThisFolderSubfoldersAndFiles`.</maml:para>
+            <maml:para>Specifies the scope of the audit entry with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. `ThisFolderOnly` audits the folder itself, `ThisFolderSubfoldersAndFiles` audits the folder and everything below it, `SubfoldersAndFilesOnly` audits the content but not the folder itself, and the values ending in `OneLevel` limit inheritance to the direct children. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">ThisFolderOnly</command:parameterValue>
@@ -1017,7 +1017,7 @@
             <maml:name>ApplyTo</maml:name>
             <maml:uri />
           </dev:type>
-          <dev:defaultValue>ThisFolderSubfoldersAndFiles</dev:defaultValue>
+          <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AuditFlags</maml:name>
@@ -1336,17 +1336,17 @@
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
-      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
+      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>AppliesTo</maml:name>
         <maml:description>
-          <maml:para>Specifies the scope of the audit entry with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. `ThisFolderOnly` audits the folder itself, `ThisFolderSubfoldersAndFiles` audits the folder and everything below it, `SubfoldersAndFilesOnly` audits the content but not the folder itself, and the values ending in `OneLevel` limit inheritance to the direct children. The default is `ThisFolderSubfoldersAndFiles`.</maml:para>
+          <maml:para>Specifies the scope of the audit entry with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. `ThisFolderOnly` audits the folder itself, `ThisFolderSubfoldersAndFiles` audits the folder and everything below it, `SubfoldersAndFilesOnly` audits the content but not the folder itself, and the values ending in `OneLevel` limit inheritance to the direct children. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="false">ApplyTo</command:parameterValue>
         <dev:type>
           <maml:name>ApplyTo</maml:name>
           <maml:uri />
         </dev:type>
-        <dev:defaultValue>ThisFolderSubfoldersAndFiles</dev:defaultValue>
+        <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>AuditFlags</maml:name>
@@ -7620,7 +7620,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <maml:para>Removes the rights in `-AccessRights` from the access control entries (ACEs) of a file or a folder. An entry is addressed by the account in `-Account`, the access type in `-AccessType`, and the inheritance and propagation flags, which are given either as `-AppliesTo` or as `-InheritanceFlags` and `-PropagationFlags`.</maml:para>
       <maml:para>Only the specified rights are taken away: when an entry grants more than `-AccessRights` names, the remaining rights stay in place, and the entry disappears only when all of its rights are removed. An `Allow` entry is always matched with the `Synchronize` right added to the specified rights. The flags must describe the entry as it exists on the item; when they do not, Windows splits the entry instead of removing the rights, so use the values that `Get-NTFSAccess` reports for the entry you want to change.</maml:para>
       <maml:para>Inherited entries cannot be removed from the item that inherits them. Remove them from the folder named in the `InheritedFrom` property, or run `Disable-NTFSAccessInheritance` on the item first, which copies the inherited entries into it as explicit ones that this cmdlet can then remove.</maml:para>
-      <maml:para>The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`, and `PathComplex` is the default. A command that works on a security descriptor, whether it is passed to `-SecurityDescriptor` or piped in, must therefore name `-AppliesTo` or `-InheritanceFlags` and `-PropagationFlags`; without one of them PowerShell cannot choose between the two `SD` sets and reports that the parameter set cannot be resolved. All relevant parameters bind by property name, so the output of `Get-NTFSAccess` and `Get-NTFSOrphanedAccess` can be piped directly into this cmdlet. The cmdlet writes no output unless `-PassThru` is used.</maml:para>
+      <maml:para>The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`, and `PathComplex` is the default. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets. All relevant parameters bind by property name, so the output of `Get-NTFSAccess` and `Get-NTFSOrphanedAccess` can be piped directly into this cmdlet. The cmdlet writes no output unless `-PassThru` is used.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
@@ -7707,7 +7707,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           </dev:type>
           <dev:defaultValue>Allow</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AppliesTo</maml:name>
           <maml:description>
             <maml:para>Specifies the scope of the entry that is addressed, in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same entry. Use the scope that `Get-NTFSAccess` shows in the "Applies to" column of the entry.</maml:para>
@@ -7831,7 +7831,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           </dev:type>
           <dev:defaultValue>Allow</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AppliesTo</maml:name>
           <maml:description>
             <maml:para>Specifies the scope of the entry that is addressed, in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same entry. Use the scope that `Get-NTFSAccess` shows in the "Applies to" column of the entry.</maml:para>
@@ -8169,7 +8169,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
-      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
+      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>AppliesTo</maml:name>
         <maml:description>
           <maml:para>Specifies the scope of the entry that is addressed, in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same entry. Use the scope that `Get-NTFSAccess` shows in the "Applies to" column of the entry.</maml:para>
@@ -8399,8 +8399,8 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
     <maml:description>
       <maml:para>The `Remove-NTFSAudit` cmdlet removes an audit entry from the system access control list (SACL) of a file or folder. The cmdlet builds an audit entry from `-Account`, `-AccessRights`, `-AuditFlags`, and the inheritance and propagation flags, and removes that entry from the SACL. The audit entries of the account are matched by their inheritance and propagation flags, and the requested access rights and audit flags are then taken away from them: an entry that audits further rights keeps those rights and disappears only when nothing is left. To remove an entry completely, pass the same values that `Get-NTFSAudit` reports for it.</maml:para>
       <maml:para>Because the inheritance and propagation flags take part in the match, they must describe the entry you want to remove. `-AppliesTo ThisFolderOnly` removes an entry that is not inherited by child items, which is also the shape of every audit entry on a file, while the default of the complex parameter sets removes an entry that applies to the folder, its subfolders, and its files. An entry that an item inherits from a parent folder is stored on that parent, so remove it there, or use `Clear-NTFSAudit` with `-DisableInheritance` to drop the inherited entries on the item.</maml:para>
-      <maml:para>In the `PathSimple` and `PathComplex` parameter sets the cmdlet reads the security descriptor of every item in `-Path` and writes it back right away. In the `SDSimple` and `SDComplex` parameter sets it changes an in-memory `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, and the change reaches the file system only when you pass the object to `Set-NTFSSecurityDescriptor`. `PathComplex` is the default parameter set; because it requires `-Path`, a command that uses `-SecurityDescriptor` must also specify `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` so that PowerShell can choose between `SDSimple` and `SDComplex`.</maml:para>
-      <maml:para>When you omit them, `-AuditFlags` is `Success, Failure`, `-InheritanceFlags` is `ContainerInherit, ObjectInherit`, `-PropagationFlags` is `None`, and `-AppliesTo` is `ThisFolderOnly`. All parameters bind by property name, and `-Path` also binds by value and through its `FullName` alias, so you can pipe the output of `Get-NTFSAudit`, `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` into the cmdlet. The cmdlet writes no object unless you use `-PassThru`.</maml:para>
+      <maml:para>In the `PathSimple` and `PathComplex` parameter sets the cmdlet reads the security descriptor of every item in `-Path` and writes it back right away. In the `SDSimple` and `SDComplex` parameter sets it changes an in-memory `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, and the change reaches the file system only when you pass the object to `Set-NTFSSecurityDescriptor`. `PathComplex` is the default parameter set. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.</maml:para>
+      <maml:para>When you omit them, `-AuditFlags` is `Success, Failure`, `-InheritanceFlags` is `ContainerInherit, ObjectInherit`, `-PropagationFlags` is `None`. All parameters bind by property name, and `-Path` also binds by value and through its `FullName` alias, so you can pipe the output of `Get-NTFSAudit`, `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` into the cmdlet. The cmdlet writes no object unless you use `-PassThru`.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
@@ -8471,10 +8471,10 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AppliesTo</maml:name>
           <maml:description>
-            <maml:para>Specifies the scope of the audit entry to remove with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. The value must describe the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. The default is `ThisFolderOnly`.</maml:para>
+            <maml:para>Specifies the scope of the audit entry to remove with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. The value must describe the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">ThisFolderOnly</command:parameterValue>
@@ -8496,7 +8496,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
             <maml:name>ApplyTo</maml:name>
             <maml:uri />
           </dev:type>
-          <dev:defaultValue>ThisFolderOnly</dev:defaultValue>
+          <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AuditFlags</maml:name>
@@ -8595,10 +8595,10 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AppliesTo</maml:name>
           <maml:description>
-            <maml:para>Specifies the scope of the audit entry to remove with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. The value must describe the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. The default is `ThisFolderOnly`.</maml:para>
+            <maml:para>Specifies the scope of the audit entry to remove with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. The value must describe the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">ThisFolderOnly</command:parameterValue>
@@ -8620,7 +8620,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
             <maml:name>ApplyTo</maml:name>
             <maml:uri />
           </dev:type>
-          <dev:defaultValue>ThisFolderOnly</dev:defaultValue>
+          <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AuditFlags</maml:name>
@@ -8939,17 +8939,17 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
-      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
+      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>AppliesTo</maml:name>
         <maml:description>
-          <maml:para>Specifies the scope of the audit entry to remove with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. The value must describe the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. The default is `ThisFolderOnly`.</maml:para>
+          <maml:para>Specifies the scope of the audit entry to remove with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. The value must describe the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="false">ApplyTo</command:parameterValue>
         <dev:type>
           <maml:name>ApplyTo</maml:name>
           <maml:uri />
         </dev:type>
-        <dev:defaultValue>ThisFolderOnly</dev:defaultValue>
+        <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>AuditFlags</maml:name>

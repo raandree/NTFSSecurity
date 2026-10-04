@@ -35,3 +35,39 @@ Describe 'Get-NTFSAccess' {
         }
     }
 }
+
+Describe 'Security descriptor parameter sets' {
+    BeforeAll {
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ParameterSets' -Directory
+    }
+
+    # Before 5.0.0, PowerShell could not choose between the SDSimple and SDComplex parameter sets.
+    It '<_> should accept -SecurityDescriptor without -AppliesTo or the flag parameters' -ForEach @(
+        'Add-NTFSAccess', 'Remove-NTFSAccess', 'Add-NTFSAudit', 'Remove-NTFSAudit'
+    ) {
+        $sd = Get-NTFSSecurityDescriptor -Path $folder
+
+        { & $_ -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData -ErrorAction Stop } | Should -Not -Throw
+    }
+
+    It 'Add-NTFSAccess should apply the entry to the folder, its subfolders, and files by default' {
+        $sd = Get-NTFSSecurityDescriptor -Path $folder
+
+        Add-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData
+
+        $rule = $sd.SecurityDescriptor.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+            Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }
+        $rule.InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags] 'ContainerInherit, ObjectInherit')
+        $rule.PropagationFlags | Should -Be ([System.Security.AccessControl.PropagationFlags]::None)
+    }
+
+    It 'Add-NTFSAccess should still take -AppliesTo for a security descriptor' {
+        $sd = Get-NTFSSecurityDescriptor -Path $folder
+
+        Add-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData -AppliesTo ThisFolderOnly
+
+        $rule = $sd.SecurityDescriptor.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+            Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }
+        $rule.InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags]::None)
+    }
+}

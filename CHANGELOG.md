@@ -92,5 +92,11 @@ The format is based on
   `EnablePrivileges` was `$false`, and left them enabled
 - Fix the `Inherits` column of the `Get-ChildItem2` output, which showed
   `True` for every item, also for items whose inheritance is disabled
+- Fix `Add-NTFSAccess`, `Remove-NTFSAccess`, `Add-NTFSAudit`, and
+  `Remove-NTFSAudit`, which failed with "Parameter set cannot be resolved"
+  for `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or
+  `-PropagationFlags`; `-AppliesTo` is now mandatory in the `Simple`
+  parameter sets, so such a command uses the flag parameters and their
+  defaults, as for a path
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD
