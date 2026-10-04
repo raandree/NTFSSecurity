@@ -38,10 +38,26 @@ Install the module from the
 Install-Module -Name NTFSSecurity
 ```
 
-You can also download a release from the
-[releases page](https://github.com/raandree/NTFSSecurity/releases) on GitHub.
-If you have trouble, see
-[How to install](https://github.com/raandree/NTFSSecurity/wiki/How-to-install).
+You can also install a release without the PowerShell Gallery. Download
+`NTFSSecurity.zip` from the
+[releases page](https://github.com/raandree/NTFSSecurity/releases) on GitHub
+and extract it into a module folder. In an elevated session, these commands
+install the module for all users of Windows PowerShell 5.1 and PowerShell 7:
+
+```powershell
+Unblock-File -Path .\NTFSSecurity.zip
+Expand-Archive -Path .\NTFSSecurity.zip -DestinationPath "$env:ProgramFiles\WindowsPowerShell\Modules"
+```
+
+`Unblock-File` removes the mark that Windows adds to downloaded files. If you
+extract a marked zip file with File Explorer, the extracted files keep the
+mark, and the execution policy `RemoteSigned` stops the module from loading.
+
+The zip file contains the folder `NTFSSecurity`. Remove an older copy of that
+folder first. To install the module only for yourself, extract it into a
+folder of `$env:PSModulePath` in your profile instead, for example
+`Documents\WindowsPowerShell\Modules` for Windows PowerShell 5.1 or
+`Documents\PowerShell\Modules` for PowerShell 7.
 
 ## Getting started
 
@@ -138,10 +154,8 @@ them have changed since; use the cmdlet reference for the current names.
 
 ## Version history
 
-See the [changelog](https://github.com/raandree/NTFSSecurity/blob/master/CHANGELOG.md)
-and the
-[version history](https://github.com/raandree/NTFSSecurity/wiki/Version-History)
-in the wiki.
+See the [changelog](../CHANGELOG.md) for the changes since 4.2.6 and the
+[version history](Version-History.md) for 4.2.6 and earlier.
 
 ## Contributing
 
@@ -149,5 +163,4 @@ Contributions are welcome. See the [contributor guide](Contributing.md).
 
 ## License
 
-NTFSSecurity is licensed under the
-[MIT license](https://github.com/raandree/NTFSSecurity/blob/master/LICENSE).
+NTFSSecurity is licensed under the [MIT license](../LICENSE).

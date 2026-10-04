@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-02
+last-verified: 2026-10-04
 owner: active-agent
 source: current task evidence
 ---
@@ -9,32 +9,29 @@ source: current task evidence
 
 ## Current focus
 
-Work packages 1 and 2 are pushed; the maintainer opens their PRs:
-`ai/housekeeping` into `master`, and `ai/ship-help` into
-`ai/housekeeping`. The work packages and their order are in `progress.md`.
+Work package 3 was redefined by the maintainer: no Read the Docs, the docs
+stay on GitHub, and the wiki is retired (Decision 9). It is PR-ready on the
+local branch `ai/docs-on-github` (`84328dc` plus Memory Bank notes). Work
+package 4 (manifest and version) continues next, stacked on it, with the
+maintainer's decisions recorded in `progress.md`.
 
 ## Evidence
 
-- AppVeyor 54834155 (`ai/housekeeping`, `74abb0b`) passed. AppVeyor
-  54834154 (`ai/ship-help`, `fba3a7d`) passed all four `test_script`
-  steps; Pester passed 218 of 218 tests in Windows PowerShell 5.1,
-  including the `Get-Help -Online` tests.
-- The same build listed 870 tests on the Tests tab: the NUnit import files
-  each Pester 5 test under every enclosing block (Pester, file, Describe,
-  Context), so 216 tests appear four times and 2 three times. The
-  follow-up commit on `ai/ship-help` reports the results through the build
-  worker API instead (`POST api/tests/batch`), one entry per test; a local
-  run of step 04 against a sample test file sent 11 entries for 11 tests.
-- The AppVeyor job log API returns `application/octet-stream`; decode the
-  bytes as UTF-8 before searching it.
-- Merging work package 1 with a merge commit keeps `ai/ship-help` valid;
-  after a squash merge it needs
-  `git rebase --onto origin/master ai/housekeeping ai/ship-help`.
-- PR descriptions for both work packages are in the session folder
-  (`files/pr`), outside the repository.
+- All 256 relative links in `Docs`, `README.md`, and `CHANGELOG.md` resolve,
+  including 5 anchors checked against GitHub's slug rules; MarkdownLinkCheck
+  0.2.0 (CI step 02) finds 0 broken links in `Docs` in Windows PowerShell
+  5.1; markdownlint reports 0 issues in the changed pages.
+- The documented manual install (`Unblock-File`, `Expand-Archive` into
+  `$env:ProgramFiles\WindowsPowerShell\Modules`) was tested with the 4.2.6
+  zip in a `$env:TEMP` sandbox: the module imports under `RemoteSigned`.
+  `Expand-Archive` doesn't pass the download mark on; File Explorer's zip
+  handler does, and the import then fails.
+- The wiki stopped at 4.2.4; the Gallery has 4.2.5 (2019-07-11) and 4.2.6
+  (2019-07-12), whose notes were reconstructed from `4.2.4..4.2.6`.
+- The local branch `ai/read-the-docs` keeps the dropped strict-build work
+  (`886c874`, `325ec76`); delete it once it is no longer wanted.
 
 ## Next step
 
-The maintainer pushes the follow-up commit on `ai/ship-help`, opens both
-PRs, and checks that AppVeyor lists 218 tests; then work package 3 (Read
-the Docs).
+Ask which assemblies follow the module version, then implement work
+package 4 test-first on a branch stacked on `ai/docs-on-github`.

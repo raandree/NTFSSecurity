@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-02
+last-verified: 2026-10-04
 owner: active-agent
 source: repository evidence
 ---
@@ -9,44 +9,35 @@ source: repository evidence
 
 ## Current status
 
-PR #91 is merged: documentation matches the cmdlets at HEAD. The module
-source is unchanged since the 4.2.6 release except the
-`Remove-Item2 -PassThru` rename and `CompatiblePSEditions`.
+PRs #91, #92, and #93 are merged. The documentation matches the cmdlets at
+`master`, and the module ships the help file generated from it
+(`en-US\NTFSSecurity.dll-Help.xml`). Otherwise the module source differs
+from the 4.2.6 release only by the `Remove-Item2 -PassThru` rename and
+`CompatiblePSEditions`.
 
 ## Recent milestones
 
-- 2026-10-02: Memory Bank initialized.
-- 2026-10-02: Documentation aligned with the code: 36 cmdlet pages filled
-  from the C# source and checked at runtime in a sandbox; Concepts, Examples,
-  home page, contributor guide, README rewritten; `mkdocs.yml` nav,
-  `edit_uri`, and `.readthedocs.yml` (`build.os`) fixed; `CHANGELOG.md`
-  created.
-- 2026-10-02: PR #91 build fixed: `appveyor.yml` builds the module from
-  source and checks the docs against that build instead of the Gallery
-  release (root cause of the `Remove-Item2 -PassThru` drift failure).
-- 2026-10-02: PR #91 merged into `master` as `690d8dd` (squash merge);
-  branch `ai/docs-alignment` deleted locally and on GitHub.
-- 2026-10-02: Work package 1 (housekeeping, `ai/housekeeping`): local
-  `promptHistory.md` ignored by git; changelog policy recorded as
-  Decision 7; Decisions moved from `systemPatterns.md` to `decisions/`.
-- 2026-10-02: PR #83 (TechNet tutorial links) reviewed and found
-  superseded: #91 ships the same two `learn.microsoft.com` links in
-  `Docs/index.md` and `README.md`. The maintainer decided to close it;
-  the remote-mutation hook denied the agent's `gh pr close`, so the
-  maintainer closed it by hand (2026-10-02 21:18 UTC).
-- 2026-10-02: Work package 2 (ship help, `ai/ship-help`, stacked on
-  `ai/housekeeping`): `en-US\NTFSSecurity.dll-Help.xml` generated from
-  `Docs/Cmdlets`, committed, copied by the csproj, and listed in a complete
-  `FileList` (Decision 8); stale `NTFSSecurity-Help.xml` and the unused
-  `NTFSSecurity.Help.pshproj` removed; `Tests\Help.Tests.ps1` (Pester 5)
-  and two CI steps added; six inline links in five cmdlet pages reworded
-  because platyPS drops the space after a link in the help text. Tests: 218
-  of 218 pass in Windows PowerShell 5.1; without the help file 180 of 182
-  failed.
-- 2026-10-04: Work packages 1 and 2 pushed; AppVeyor 54834155
-  (`74abb0b`) and 54834154 (`fba3a7d`, 218 of 218 Pester tests) passed. A
-  follow-up commit reports each test once on the AppVeyor Tests tab
-  (the NUnit upload listed 870 entries).
+- 2026-10-02: Memory Bank initialized. PR #91 aligned the documentation
+  with the code (36 cmdlet pages, conceptual pages, README, `mkdocs.yml`,
+  `.readthedocs.yml`, `CHANGELOG.md`) and made `appveyor.yml` build the
+  module and check the docs against that build (Decision 6); squash-merged
+  as `690d8dd`.
+- 2026-10-02: PR #83 (TechNet links) closed by the maintainer as superseded
+  by #91.
+- 2026-10-04: Work package 1 merged as PR #92 with a merge commit
+  (`d917832`): `promptHistory.md` ignored, Decision 7, Decisions moved to
+  `decisions/`.
+- 2026-10-04: Work package 2 squash-merged as PR #93 (`14799fb`): generated
+  help file shipped (Decision 8), stale help files removed, `FileList`
+  complete, `Tests\Help.Tests.ps1` (218 Pester tests), CI steps 03 (help
+  file current) and 04 (Pester, one Tests-tab entry per test; the NUnit
+  upload had listed 870), six cmdlet-page links reworded for the help
+  text. AppVeyor passed 218 of 218 on the PR (54834295) and on `master`
+  (54834350).
+- 2026-10-04: The maintainer dropped Read the Docs: the docs stay on GitHub
+  and the wiki is retired (Decision 9). Work package 3 committed locally on
+  `ai/docs-on-github` (`84328dc`). The strict Read the Docs build prepared
+  before stays unmerged on the local branch `ai/read-the-docs`.
 
 ## Stable capabilities
 
@@ -59,30 +50,47 @@ source is unchanged since the 4.2.6 release except the
 ## Open work
 
 Work packages in the order agreed with the maintainer. Each gets one
-`ai/<slug>` branch and PR, committed locally; the maintainer pushes, and
-the next package starts only after the maintainer's go-ahead.
+`ai/<slug>` branch and PR, committed locally. The maintainer pushes and
+opens the PR (the agent can't; see `techContext.md`, Constraints), and the
+next package starts only after the maintainer's go-ahead.
 
-1. Housekeeping: `ai/housekeeping` pushed at `74abb0b`, AppVeyor green;
-   PR into `master` to open.
-2. Ship help: `ai/ship-help` pushed at `fba3a7d`, AppVeyor green; the
-   follow-up commit for the Tests tab awaits push. PR into
-   `ai/housekeeping` to open.
-3. Read the Docs: project `ntfssecurity` (maintainer `Sup3rlativ3`) builds
-   the fork; switch it to this repository or import a new project. Ask
-   before installing Python for `mkdocs build --strict`.
-4. Manifest and version: remove `Show-NTFSSimpleAccess` and the duplicate
-   inheritance entries from `CmdletsToExport` (36 cmdlets remain); ask
-   about the next version (with or without a `PassThur` alias),
-   `PowerShellVersion`, and `DotNetFrameworkVersion`; align `AssemblyInfo`.
-   No tag or publish. Inputs found in work package 2: `Test-ModuleManifest`
-   already fails on `PowerShellVersion = '2.0'` with `CompatiblePSEditions`;
-   releases ship Debug builds plus `.pdb`, `.xml`, and
-   `System.Management.Automation.dll` (`Private=True` reference), which
-   `FileList` doesn't list.
+1. Housekeeping: done (#92).
+2. Ship help: done (#93).
+3. Docs on GitHub (was: Read the Docs), PR-ready on `ai/docs-on-github`:
+   Read the Docs and MkDocs configuration removed, `Docs/index.md` renamed
+   to `Docs/README.md`, the wiki's version history and install steps moved
+   into `Docs` (with reconstructed notes for 4.2.5 and 4.2.6), contributor
+   guide updated. After the merge, the maintainer turns the wiki off, points
+   the notes of releases 4.2.4 and 4.2.6 to `Docs/Version-History.md`, and
+   may ask `Sup3rlativ3` to delete the Read the Docs project.
+4. Manifest and version, in progress, stacked on `ai/docs-on-github`.
+   Maintainer decisions: `PowerShellVersion` 5.1, `DotNetFrameworkVersion`
+   4.5.2, `RootModule` instead of `ModuleToProcess`; version 5.0.0 with
+   `[Alias('PassThur')]` on `Remove-Item2 -PassThru` (the changelog lists
+   `-PassThur` under Deprecated); the changelog entry about the
+   documentation site is gone (work package 3). Open: which assemblies
+   follow the module version. Remove `Show-NTFSSimpleAccess` and the
+   duplicate inheritance entries from `CmdletsToExport` (exactly 36
+   cmdlets exported), move the `[Unreleased]` entries into the 5.0.0
+   section, and align `AssemblyInfo`. No tag or publish. Done when
+   `Test-ModuleManifest` passes in Windows PowerShell 5.1 and PowerShell 7,
+   36 cmdlets are exported, the versions agree, and CI is green.
+   Baseline: `Test-ModuleManifest` fails in both editions
+   (`CompatiblePSEditions` needs `PowerShellVersion` 5.1) and warns about
+   `ModuleToProcess`; 41 `CmdletsToExport` entries, 37 unique; versions:
+   manifest 4.2.5, `NTFSSecurity` 4.2.1.0, `Security2` 3.2.3.0,
+   `PrivilegeControl` 1.0.0.0, `ProcessPrivileges` 1.5.7.0 (vendored);
+   `Log` isn't shipped. Releases are Debug builds published with the whole
+   output folder (`.pdb`, `.xml`, `System.Management.Automation.dll`), which
+   `FileList` doesn't list. Before the next build and `Publish-Module`,
+   clean `C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity`, or the
+   removed `NTFSSecurity-Help.xml` ships again.
 5. Code defects, listed below: `review: on`, one PR per group, regression
    test first. Pester 5 tests import `NTFSSecurity\bin\Release`, run in a
-   `$env:TEMP` sandbox and in `appveyor.yml`, and skip elevated cases when
-   not elevated. Each fix updates its cmdlet page and `CHANGELOG.md`.
+   `$env:TEMP` sandbox and in `appveyor.yml` (pattern:
+   `Tests\Help.Tests.ps1`), and skip elevated cases when not elevated;
+   check whether AppVeyor runs elevated. Each fix updates its cmdlet page
+   and `CHANGELOG.md`.
 
 ### Code defects (work package 5)
 

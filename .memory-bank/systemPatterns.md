@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-02
+last-verified: 2026-10-04
 owner: active-agent
 source: repository evidence
 ---
@@ -55,6 +55,7 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 | 6 | [CI checks the docs against a build of the source](decisions/0006-ci-checks-docs-against-build.md) |
 | 7 | [CHANGELOG lists user-visible changes only](decisions/0007-changelog-user-visible-only.md) |
 | 8 | [Commit the generated help file and check it in CI](decisions/0008-commit-generated-help.md) |
+| 9 | [Keep the documentation on GitHub](decisions/0009-docs-on-github.md) |
 
 ## Patterns
 
@@ -62,6 +63,10 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 
 - Run platyPS in Windows PowerShell 5.1 against a module build; a copy of
   `Docs/Cmdlets` must round-trip through `Update-MarkdownHelp` unchanged.
+- GitHub renders the docs (Decision 9). AppVeyor's link check covers only
+  relative links in `Docs` and ignores anchors, so check anchors against
+  GitHub's slug rules (lowercase, punctuation removed, spaces to hyphens)
+  and the links in `README.md` and `CHANGELOG.md` separately.
 - platyPS rewrites non-ASCII punctuation such as em dashes; keep cmdlet pages
   ASCII-only.
 - In cmdlet pages, end a sentence with a link: platyPS renders a link as

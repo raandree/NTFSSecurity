@@ -1,24 +1,25 @@
 # Write documentation
 
-The NTFSSecurity documentation is written in Markdown and built into a
-website with [MkDocs][mkdocs]. This page explains how the documentation is
-organized and how to change it.
+The NTFSSecurity documentation is written in Markdown and lives in the
+`Docs` folder of the repository, where GitHub renders it. This page explains
+how the documentation is organized and how to change it.
 
 ## Documentation structure
 
 | Path | Content |
 | --- | --- |
-| `Docs/index.md` | Home page with features, requirements, and the cmdlet list |
+| `Docs/README.md` | Home page with features, requirements, installation, and the cmdlet list; GitHub shows it when you open the `Docs` folder |
 | `Docs/Concepts.md` | Background on security descriptors, rights, inheritance, and privileges |
 | `Docs/Examples.md` | Task-oriented examples |
+| `Docs/Version-History.md` | Changes in 4.2.6 and earlier |
 | `Docs/Cmdlets/*.md` | One reference page per cmdlet, in platyPS format |
 | `NTFSSecurity/en-US/NTFSSecurity.dll-Help.xml` | Help file that `Get-Help` shows, generated from `Docs/Cmdlets` |
 | `Docs/Contributing.md`, `Docs/Contributing/*.md` | This contributor guide |
-| `mkdocs.yml` | Site settings and navigation |
-| `.readthedocs.yml` | Build settings for Read the Docs |
 | `README.md` | Front page of the GitHub repository |
+| `CHANGELOG.md` | Changes since 4.2.6 |
 
-When you add a page, add it to the `nav` section of `mkdocs.yml`.
+When you add a page, link to it from `Docs/README.md` or from a related page,
+so that readers can find it.
 
 ## Markdown editors
 
@@ -59,8 +60,8 @@ Use Windows PowerShell 5.1 for platyPS. In PowerShell 7.4 and later,
 platyPS 0.14.2 adds the `-ProgressAction` common parameter to every page.
 
 For a new cmdlet, create the page, replace every placeholder in it, and add
-the page to `mkdocs.yml`. Replace `Get-NTFSExample` with the name of the new
-cmdlet:
+the cmdlet to the cmdlet list in `Docs/README.md`. Replace `Get-NTFSExample`
+with the name of the new cmdlet:
 
 ```powershell
 New-MarkdownHelp -Command Get-NTFSExample -OutputFolder .\Docs\Cmdlets
@@ -75,19 +76,12 @@ again and commit it together with the page:
 New-ExternalHelp -Path .\Docs\Cmdlets -OutputPath .\NTFSSecurity\en-US -Force
 ```
 
-## Preview the website
+## Preview your change
 
-MkDocs needs Python. Install the MkDocs version that the site is built with
-and start the preview server:
-
-```powershell
-pip install -r Docs/requirements.txt
-mkdocs serve
-```
-
-Open `http://127.0.0.1:8000` in a browser. The preview reloads when you save
-a file. Run `mkdocs build --strict` to find broken links and pages that are
-missing from the navigation.
+GitHub renders the pages with GitHub Flavored Markdown. To preview a page
+before you push it, open it in Visual Studio Code and press **Ctrl+Shift+V**.
+In a pull request, the **Files changed** tab shows a changed page rendered
+when you open its menu (**...**) and select **View file**.
 
 ## Check your change
 
@@ -132,7 +126,6 @@ workflow for larger changes in [Get started](01-Getting-Started.md).
 Read the [Style guide](03-Style-Guide.md).
 
 <!-- External URLs -->
-[mkdocs]: https://www.mkdocs.org/user-guide/writing-your-docs/
 [platyps]: https://github.com/PowerShell/platyPS
 [label-documentation]: https://github.com/raandree/NTFSSecurity/labels/Documentation
 [label-help-wanted]: https://github.com/raandree/NTFSSecurity/labels/Help%20Wanted
