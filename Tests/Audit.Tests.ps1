@@ -93,4 +93,33 @@ Describe 'Add-NTFSAudit' {
             @($rules | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) | Should -HaveCount 1
         }
     }
+
+    Context 'With -PassThru' {
+        It 'Should return the audit entries of a security descriptor, not its access entries' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'PassThru'
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+
+            $result = @(Add-NTFSAudit -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData -InheritanceFlags None -PropagationFlags None -PassThru)
+
+            $result | Should -Not -BeNullOrEmpty
+            $result | ForEach-Object -Process { $_ | Should -BeOfType [Security2.FileSystemAuditRule2] }
+            @($result | Where-Object -FilterScript { $_.Account.Sid -eq 'S-1-1-0' }) | Should -HaveCount 1
+        }
+    }
+}
+
+Describe 'Remove-NTFSAudit' {
+    Context 'With -PassThru' {
+        It 'Should return the audit entries of the item, not its access entries' -Skip:(-not $canReadAudit) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'PassThru'
+            Add-NTFSAudit -Path $file -Account 'Everyone' -AccessRights ReadData -InheritanceFlags None -PropagationFlags None
+            Add-NTFSAudit -Path $file -Account 'BUILTIN\Users' -AccessRights Delete -InheritanceFlags None -PropagationFlags None
+
+            $result = @(Remove-NTFSAudit -Path $file -Account 'Everyone' -AccessRights ReadData -InheritanceFlags None -PropagationFlags None -PassThru)
+
+            $result | Should -Not -BeNullOrEmpty
+            $result | ForEach-Object -Process { $_ | Should -BeOfType [Security2.FileSystemAuditRule2] }
+            @($result | Where-Object -FilterScript { $_.Account.Sid -eq 'S-1-5-32-545' }) | Should -HaveCount 1
+        }
+    }
 }

@@ -169,7 +169,7 @@ namespace NTFSSecurity
 
                     if (passThru == true)
                     {
-                        FileSystemAccessRule2.GetFileSystemAccessRules(sd, true, true).ForEach(ace => WriteObject(ace));
+                        FileSystemAuditRule2.GetFileSystemAuditRules(sd, true, true).ForEach(ace => WriteObject(ace));
                     }
                 }
             }

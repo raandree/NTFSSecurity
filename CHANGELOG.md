@@ -68,5 +68,8 @@ The format is based on
   both at position 2, so that positional calls failed; `-AccessRights` is
   now at position 3, like in `Remove-NTFSAudit`
   ([#4](https://github.com/raandree/NTFSSecurity/issues/4))
+- Fix `-PassThru` of `Add-NTFSAudit` with `-SecurityDescriptor` and of
+  `Remove-NTFSAudit` with `-Path`, which returned access entries; both now
+  return the audit entries
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

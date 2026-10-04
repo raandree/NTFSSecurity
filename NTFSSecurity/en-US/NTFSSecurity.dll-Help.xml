@@ -1490,10 +1490,10 @@
     <command:returnValues>
       <command:returnValue>
         <dev:type>
-          <maml:name>Security2.FileSystemAccessRule2</maml:name>
+          <maml:name>Security2.FileSystemAuditRule2</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the type depends on the parameter set: in the `Path` sets the cmdlet writes all audit entries of the item, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects, while in the `SecurityDescriptor` sets it writes the access entries of the descriptor as `Security2.FileSystemAccessRule2` objects. Use `Get-NTFSAudit` when you need the audit entries of a security descriptor.</maml:para>
+          <maml:para>Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the cmdlet writes all audit entries of the item or the security descriptor, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects. Before 5.0.0, the `SecurityDescriptor` sets wrote the access entries of the descriptor instead.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -9083,10 +9083,10 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
     <command:returnValues>
       <command:returnValue>
         <dev:type>
-          <maml:name>Security2.FileSystemAccessRule2</maml:name>
+          <maml:name>Security2.FileSystemAuditRule2</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the type depends on the parameter set: in the `Path` sets the cmdlet writes all access entries of the item, explicit and inherited ones, as `Security2.FileSystemAccessRule2` objects, while in the `SecurityDescriptor` sets it writes all audit entries of the descriptor as `Security2.FileSystemAuditRule2` objects. Use `Get-NTFSAudit` to check the audit entries of an item after the removal.</maml:para>
+          <maml:para>Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the cmdlet writes all audit entries of the item or the security descriptor, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects. Before 5.0.0, the `Path` sets wrote the access entries of the item instead.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
