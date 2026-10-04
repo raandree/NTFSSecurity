@@ -47,14 +47,20 @@ namespace NTFSSecurity.AuditCmdlets
                     continue;
                 }
 
+                IEnumerable<FileSystemAuditRule2> acl = null;
+
                 try
                 {
-                    WriteOrphanedAces(FileSystemAuditRule2.GetFileSystemAuditRules(item, !ExcludeExplicit, !ExcludeInherited, getInheritedFrom), p);
+                    acl = FileSystemAuditRule2.GetFileSystemAuditRules(item, !ExcludeExplicit, !ExcludeInherited, getInheritedFrom);
                 }
                 catch (Exception ex)
                 {
                     this.WriteWarning(string.Format("Could not read item {0}. The error was: {1}", p, ex.Message));
+                    continue;
                 }
+
+                // Outside the try block, so that a stopped pipeline isn't reported as a read error.
+                WriteOrphanedAces(acl, p);
             }
         }
 

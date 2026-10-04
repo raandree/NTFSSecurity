@@ -33,7 +33,7 @@ The second simplification is that repetitions are left out. The first folder the
 
 `-IncludeRootFolder` is on by default and adds the parent folder of the first path as the baseline for the comparison, which is why the first result usually belongs to the folder above the one that was asked for. Use `-IncludeRootFolder:$false` to start the comparison at the first path itself.
 
-The cmdlet only processes folders; a path that points to a file is skipped silently. Relative paths are resolved against the current location, and the current location is used when `-Path` is omitted. `-ExcludeInherited`, `-ExcludeExplicit`, and `-Account` work as in `Get-NTFSAccess`. With `-SecurityDescriptor`, the cmdlet reports the entries of a `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, without comparing them with a parent folder.
+The cmdlet only processes folders; a path that points to a file is skipped silently, while the security descriptor of a file is reported. Relative paths are resolved against the current location, and the current location is used when `-Path` is omitted. `-ExcludeInherited`, `-ExcludeExplicit`, and `-Account` work as in `Get-NTFSAccess`. With `-SecurityDescriptor`, the cmdlet reports the entries of a `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, without comparing them with a parent folder.
 
 ## EXAMPLES
 

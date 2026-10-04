@@ -71,17 +71,17 @@ namespace Security2
             }
         }
 
-        public static void RemoveFileSystemAuditRule(string path, IdentityReference2 account, FileSystemRights2 rights, AuditFlags type, InheritanceFlags inheritanceFlags, PropagationFlags propagationFlags)
+        public static void RemoveFileSystemAuditRule(string path, IdentityReference2 account, FileSystemRights2 rights, AuditFlags type, InheritanceFlags inheritanceFlags, PropagationFlags propagationFlags, bool removeSpecific = false)
         {
             if (File.Exists(path))
             {
                 var item = new FileInfo(path);
-                RemoveFileSystemAuditRule(item, account, rights, type, inheritanceFlags, propagationFlags);
+                RemoveFileSystemAuditRule(item, account, rights, type, inheritanceFlags, propagationFlags, removeSpecific);
             }
             else
             {
                 var item = new DirectoryInfo(path);
-                RemoveFileSystemAuditRule(item, account, rights, type, inheritanceFlags, propagationFlags);
+                RemoveFileSystemAuditRule(item, account, rights, type, inheritanceFlags, propagationFlags, removeSpecific);
             }
         }
 

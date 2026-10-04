@@ -138,6 +138,8 @@ Numbered as agreed with the maintainer; each is documented on its page.
   has no format view.
 - (17) `removeSpecific` in `Remove-NTFSAccess/Audit` is never bound;
   `Remove-NTFSAudit` leaves `appliesTo` uninitialized.
+- Review of group B: no Blocker or Major; three Minor findings fixed, the
+  rest are listed in the PR description.
 
 #### C: Error handling
 
