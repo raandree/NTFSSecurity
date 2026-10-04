@@ -9,32 +9,26 @@ source: current task evidence
 
 ## Current focus
 
-Work packages 1 and 2 are pushed and green; the maintainer opens their
-PRs: `ai/housekeeping` into `master`, and `ai/ship-help` into
-`ai/housekeeping`. The agent can't open them (see `techContext.md`,
-Constraints). The work packages and their order are in `progress.md`.
+Work packages 1 (#92) and 2 (#93) are merged. Next is work package 3 (Read
+the Docs), after the maintainer's go-ahead, on the local branch
+`ai/read-the-docs`, which so far carries Memory Bank notes only. The
+remaining packages and their details are in `progress.md`.
 
 ## Evidence
 
-- AppVeyor 54834155 (`ai/housekeeping`, `74abb0b`) passed. AppVeyor
-  54834154 (`ai/ship-help`, `fba3a7d`) passed all four `test_script`
-  steps; Pester passed 218 of 218 tests in Windows PowerShell 5.1,
-  including the `Get-Help -Online` tests.
-- The same build listed 870 tests on the Tests tab: the NUnit import files
-  each Pester 5 test under every enclosing block (Pester, file, Describe,
-  Context), so 216 tests appear four times and 2 three times. The
-  follow-up commit `c9fbaf5` reports the results through the build worker
-  API instead (`POST api/tests/batch`); AppVeyor 54834216 of `c9fbaf5`
-  passed and lists 218 tests, one entry each.
-- The AppVeyor job log API returns `application/octet-stream`; decode the
-  bytes as UTF-8 before searching it.
-- Merging work package 1 with a merge commit keeps `ai/ship-help` valid;
-  after a squash merge it needs
-  `git rebase --onto origin/master ai/housekeeping ai/ship-help`.
-- PR descriptions for both work packages are in the session folder
-  (`files/pr`), outside the repository.
+- #92 was merged with a merge commit (`d917832`) and #93 squash-merged
+  (`14799fb`); the tree of `master` equals the tested `c9fbaf5`.
+- AppVeyor: the PR build of #93 (54834295) and the `master` build of
+  `14799fb` (54834350) each passed 218 of 218 Pester tests, listed once
+  each on the Tests tab; the `master` build of `d917832` passed too.
+- The remote branches `ai/housekeeping` and `ai/ship-help` are deleted, and
+  so are the local ones. The only unmerged commit, the remote-mutation note
+  (`9dc2022`), is now `023506c` on `ai/read-the-docs`.
+- The agent can't push or open PRs (`techContext.md`, Constraints): it
+  prepares the commands and PR descriptions, and the maintainer runs them.
 
 ## Next step
 
-The maintainer opens both PRs with the prepared `gh pr create` commands;
-then work package 3 (Read the Docs) after the go-ahead.
+Wait for the maintainer's go-ahead for work package 3. Nothing on
+`ai/read-the-docs` needs pushing before then; its Memory Bank commits go
+into the work package 3 PR.

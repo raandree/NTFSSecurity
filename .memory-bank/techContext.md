@@ -49,8 +49,9 @@ source: repository evidence
 
 - `ModuleVersion` in the source manifest is `4.2.5`; the latest tag and
   Gallery release is `4.2.6`.
-- HEAD differs from tag `4.2.6` only by the `Remove-Item2 -PassThur` to
-  `-PassThru` rename and `CompatiblePSEditions` in the manifest.
+- Besides the shipped help file and its tests (#93), the module source at
+  `master` differs from tag `4.2.6` only by the `Remove-Item2 -PassThur`
+  to `-PassThru` rename and `CompatiblePSEditions` in the manifest.
 - `CmdletsToExport` lists `Show-NTFSSimpleAccess`, which no longer exists
   (WinForms code removed in `d3063de`), and repeats the inheritance cmdlets.
 - `Test-ModuleManifest` fails in Windows PowerShell 5.1:
