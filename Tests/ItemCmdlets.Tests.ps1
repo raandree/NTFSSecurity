@@ -54,6 +54,30 @@ Describe 'Get-ChildItem2' {
             $items | Should -BeNullOrEmpty
         }
     }
+
+    Context 'Default table view' {
+        BeforeAll {
+            $viewFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'View' -Directory
+            $blocked = Join-Path -Path $viewFolder -ChildPath 'Blocked.txt'
+            $inheriting = Join-Path -Path $viewFolder -ChildPath 'Inheriting.txt'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $blocked, $inheriting
+            Set-Content -LiteralPath $blocked -Value 'Blocked'
+            Set-Content -LiteralPath $inheriting -Value 'Inheriting'
+            $acl = Get-Acl -LiteralPath $blocked
+            $acl.SetAccessRuleProtection($true, $true)
+            Set-Acl -LiteralPath $blocked -AclObject $acl
+
+            $lines = Get-ChildItem2 -Path $viewFolder | Out-String -Stream -Width 200
+        }
+
+        It 'Should show False in the Inherits column for a file whose inheritance is disabled' {
+            ($lines | Where-Object -FilterScript { $_ -match 'Blocked\.txt\s*$' }) | Should -Match '\bFalse\b'
+        }
+
+        It 'Should show True in the Inherits column for a file that inherits' {
+            ($lines | Where-Object -FilterScript { $_ -match 'Inheriting\.txt\s*$' }) | Should -Match '\bTrue\b'
+        }
+    }
 }
 
 Describe 'Copy-Item2' {

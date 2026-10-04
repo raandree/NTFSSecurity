@@ -88,5 +88,7 @@ The format is based on
 - Fix the inheritance cmdlets, which enabled the Backup, Restore, Take
   Ownership, and Security privileges even when the module setting
   `EnablePrivileges` was `$false`, and left them enabled
+- Fix the `Inherits` column of the `Get-ChildItem2` output, which showed
+  `True` for every item, also for items whose inheritance is disabled
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD
