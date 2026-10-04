@@ -39,7 +39,9 @@ namespace NTFSSecurity
             set { recurse = value; }
         }
 
+        // -PassThur is the parameter name in 4.2.6 and earlier.
         [Parameter]
+        [Alias("PassThur")]
         public SwitchParameter PassThru
         {
             get { return passThru; }

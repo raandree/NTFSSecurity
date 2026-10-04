@@ -95,12 +95,12 @@ Accept wildcard characters: False
 
 ### -PassThru
 
-Indicates that the cmdlet returns an object for each item that it deleted. By default, the cmdlet produces no output. The object describes a path that no longer exists, so use it for logging rather than for further file operations. In NTFSSecurity 4.2.6 and earlier, this parameter is spelled `-PassThur`.
+Indicates that the cmdlet returns an object for each item that it deleted. By default, the cmdlet produces no output. The object describes a path that no longer exists, so use it for logging rather than for further file operations. `-PassThur`, the name of this parameter in NTFSSecurity 4.2.6 and earlier, still works as an alias.
 
 ```yaml
 Type: SwitchParameter
 Parameter Sets: (All)
-Aliases:
+Aliases: PassThur
 
 Required: False
 Position: Named

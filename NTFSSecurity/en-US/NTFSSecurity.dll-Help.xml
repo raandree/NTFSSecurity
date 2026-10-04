@@ -7400,10 +7400,10 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           </dev:type>
           <dev:defaultValue>False</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="PassThur">
           <maml:name>PassThru</maml:name>
           <maml:description>
-            <maml:para>Indicates that the cmdlet returns an object for each item that it deleted. By default, the cmdlet produces no output. The object describes a path that no longer exists, so use it for logging rather than for further file operations. In NTFSSecurity 4.2.6 and earlier, this parameter is spelled `-PassThur`.</maml:para>
+            <maml:para>Indicates that the cmdlet returns an object for each item that it deleted. By default, the cmdlet produces no output. The object describes a path that no longer exists, so use it for logging rather than for further file operations. `-PassThur`, the name of this parameter in NTFSSecurity 4.2.6 and earlier, still works as an alias.</maml:para>
           </maml:description>
           <dev:type>
             <maml:name>SwitchParameter</maml:name>
@@ -7460,10 +7460,10 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         </dev:type>
         <dev:defaultValue>False</dev:defaultValue>
       </command:parameter>
-      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="PassThur">
         <maml:name>PassThru</maml:name>
         <maml:description>
-          <maml:para>Indicates that the cmdlet returns an object for each item that it deleted. By default, the cmdlet produces no output. The object describes a path that no longer exists, so use it for logging rather than for further file operations. In NTFSSecurity 4.2.6 and earlier, this parameter is spelled `-PassThur`.</maml:para>
+          <maml:para>Indicates that the cmdlet returns an object for each item that it deleted. By default, the cmdlet produces no output. The object describes a path that no longer exists, so use it for logging rather than for further file operations. `-PassThur`, the name of this parameter in NTFSSecurity 4.2.6 and earlier, still works as an alias.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
         <dev:type>
