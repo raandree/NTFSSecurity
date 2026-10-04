@@ -64,5 +64,9 @@ The format is based on
   again after a path whose security descriptor it couldn't read
 - Fix `Get-NTFSAccess`, which returned the entries of the previous item again
   after a path whose ACL it couldn't read
+- Fix `Add-NTFSAudit`, whose `-Account` and `-AccessRights` parameters were
+  both at position 2, so that positional calls failed; `-AccessRights` is
+  now at position 3, like in `Remove-NTFSAudit`
+  ([#4](https://github.com/raandree/NTFSSecurity/issues/4))
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

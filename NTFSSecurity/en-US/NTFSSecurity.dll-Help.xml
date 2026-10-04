@@ -814,7 +814,19 @@
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="FileSystemRights">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="IdentityReference, ID">
+          <maml:name>Account</maml:name>
+          <maml:description>
+            <maml:para>Specifies the accounts whose access to the item is audited. The value is an account name such as `CONTOSO\JohnDoe`, `CONTOSO\Domain Users`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. When you pass several accounts, the cmdlet adds one audit entry per account.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">IdentityReference2[]</command:parameterValue>
+          <dev:type>
+            <maml:name>IdentityReference2[]</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="3" aliases="FileSystemRights">
           <maml:name>AccessRights</maml:name>
           <maml:description>
             <maml:para>Specifies the access rights to audit. The value accepts the basic rights such as `Read`, `Write`, `Modify`, and `FullControl` as well as the individual rights such as `Delete` or `WriteAttributes`, and it accepts a comma-separated list that combines them. For the meaning of each right, see Concepts (../Concepts.md).</maml:para>
@@ -852,18 +864,6 @@
           <command:parameterValue required="true" variableLength="false">FileSystemRights2</command:parameterValue>
           <dev:type>
             <maml:name>FileSystemRights2</maml:name>
-            <maml:uri />
-          </dev:type>
-          <dev:defaultValue>None</dev:defaultValue>
-        </command:parameter>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="IdentityReference, ID">
-          <maml:name>Account</maml:name>
-          <maml:description>
-            <maml:para>Specifies the accounts whose access to the item is audited. The value is an account name such as `CONTOSO\JohnDoe`, `CONTOSO\Domain Users`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. When you pass several accounts, the cmdlet adds one audit entry per account.</maml:para>
-          </maml:description>
-          <command:parameterValue required="true" variableLength="false">IdentityReference2[]</command:parameterValue>
-          <dev:type>
-            <maml:name>IdentityReference2[]</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -938,7 +938,19 @@
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="FileSystemRights">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="IdentityReference, ID">
+          <maml:name>Account</maml:name>
+          <maml:description>
+            <maml:para>Specifies the accounts whose access to the item is audited. The value is an account name such as `CONTOSO\JohnDoe`, `CONTOSO\Domain Users`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. When you pass several accounts, the cmdlet adds one audit entry per account.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">IdentityReference2[]</command:parameterValue>
+          <dev:type>
+            <maml:name>IdentityReference2[]</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="3" aliases="FileSystemRights">
           <maml:name>AccessRights</maml:name>
           <maml:description>
             <maml:para>Specifies the access rights to audit. The value accepts the basic rights such as `Read`, `Write`, `Modify`, and `FullControl` as well as the individual rights such as `Delete` or `WriteAttributes`, and it accepts a comma-separated list that combines them. For the meaning of each right, see Concepts (../Concepts.md).</maml:para>
@@ -976,18 +988,6 @@
           <command:parameterValue required="true" variableLength="false">FileSystemRights2</command:parameterValue>
           <dev:type>
             <maml:name>FileSystemRights2</maml:name>
-            <maml:uri />
-          </dev:type>
-          <dev:defaultValue>None</dev:defaultValue>
-        </command:parameter>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="IdentityReference, ID">
-          <maml:name>Account</maml:name>
-          <maml:description>
-            <maml:para>Specifies the accounts whose access to the item is audited. The value is an account name such as `CONTOSO\JohnDoe`, `CONTOSO\Domain Users`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. When you pass several accounts, the cmdlet adds one audit entry per account.</maml:para>
-          </maml:description>
-          <command:parameterValue required="true" variableLength="false">IdentityReference2[]</command:parameterValue>
-          <dev:type>
-            <maml:name>IdentityReference2[]</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -1062,7 +1062,19 @@
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="FileSystemRights">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="IdentityReference, ID">
+          <maml:name>Account</maml:name>
+          <maml:description>
+            <maml:para>Specifies the accounts whose access to the item is audited. The value is an account name such as `CONTOSO\JohnDoe`, `CONTOSO\Domain Users`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. When you pass several accounts, the cmdlet adds one audit entry per account.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">IdentityReference2[]</command:parameterValue>
+          <dev:type>
+            <maml:name>IdentityReference2[]</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="3" aliases="FileSystemRights">
           <maml:name>AccessRights</maml:name>
           <maml:description>
             <maml:para>Specifies the access rights to audit. The value accepts the basic rights such as `Read`, `Write`, `Modify`, and `FullControl` as well as the individual rights such as `Delete` or `WriteAttributes`, and it accepts a comma-separated list that combines them. For the meaning of each right, see Concepts (../Concepts.md).</maml:para>
@@ -1100,18 +1112,6 @@
           <command:parameterValue required="true" variableLength="false">FileSystemRights2</command:parameterValue>
           <dev:type>
             <maml:name>FileSystemRights2</maml:name>
-            <maml:uri />
-          </dev:type>
-          <dev:defaultValue>None</dev:defaultValue>
-        </command:parameter>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="IdentityReference, ID">
-          <maml:name>Account</maml:name>
-          <maml:description>
-            <maml:para>Specifies the accounts whose access to the item is audited. The value is an account name such as `CONTOSO\JohnDoe`, `CONTOSO\Domain Users`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. When you pass several accounts, the cmdlet adds one audit entry per account.</maml:para>
-          </maml:description>
-          <command:parameterValue required="true" variableLength="false">IdentityReference2[]</command:parameterValue>
-          <dev:type>
-            <maml:name>IdentityReference2[]</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -1193,7 +1193,19 @@
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="FileSystemRights">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="IdentityReference, ID">
+          <maml:name>Account</maml:name>
+          <maml:description>
+            <maml:para>Specifies the accounts whose access to the item is audited. The value is an account name such as `CONTOSO\JohnDoe`, `CONTOSO\Domain Users`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. When you pass several accounts, the cmdlet adds one audit entry per account.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">IdentityReference2[]</command:parameterValue>
+          <dev:type>
+            <maml:name>IdentityReference2[]</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="3" aliases="FileSystemRights">
           <maml:name>AccessRights</maml:name>
           <maml:description>
             <maml:para>Specifies the access rights to audit. The value accepts the basic rights such as `Read`, `Write`, `Modify`, and `FullControl` as well as the individual rights such as `Delete` or `WriteAttributes`, and it accepts a comma-separated list that combines them. For the meaning of each right, see Concepts (../Concepts.md).</maml:para>
@@ -1231,18 +1243,6 @@
           <command:parameterValue required="true" variableLength="false">FileSystemRights2</command:parameterValue>
           <dev:type>
             <maml:name>FileSystemRights2</maml:name>
-            <maml:uri />
-          </dev:type>
-          <dev:defaultValue>None</dev:defaultValue>
-        </command:parameter>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="IdentityReference, ID">
-          <maml:name>Account</maml:name>
-          <maml:description>
-            <maml:para>Specifies the accounts whose access to the item is audited. The value is an account name such as `CONTOSO\JohnDoe`, `CONTOSO\Domain Users`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. When you pass several accounts, the cmdlet adds one audit entry per account.</maml:para>
-          </maml:description>
-          <command:parameterValue required="true" variableLength="false">IdentityReference2[]</command:parameterValue>
-          <dev:type>
-            <maml:name>IdentityReference2[]</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -1312,7 +1312,7 @@
       </command:syntaxItem>
     </command:syntax>
     <command:parameters>
-      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="FileSystemRights">
+      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="3" aliases="FileSystemRights">
         <maml:name>AccessRights</maml:name>
         <maml:description>
           <maml:para>Specifies the access rights to audit. The value accepts the basic rights such as `Read`, `Write`, `Modify`, and `FullControl` as well as the individual rights such as `Delete` or `WriteAttributes`, and it accepts a comma-separated list that combines them. For the meaning of each right, see Concepts (../Concepts.md).</maml:para>
@@ -1502,7 +1502,7 @@
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>Writing the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it, the cmdlet writes a non-terminating `AddAceError` whose message states that a required privilege is not held by the client, and the item is left unchanged.</maml:para>
         <maml:para>If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.</maml:para>
-        <maml:para>The syntax shows `-Path`, `-Account`, and `-AccessRights` as positional parameters, but `-Account` and `-AccessRights` are both declared at position 2. A command that passes them positionally therefore fails with the error that positional parameters cannot be bound because no names were given, and `Get-Command Add-NTFSAudit -Syntax` leaves `-Account` out for the same reason. Pass `-Account` and `-AccessRights` by name, as the examples above do.</maml:para>
+        <maml:para>`-Path` or `-SecurityDescriptor`, `-Account`, and `-AccessRights` are positional parameters at positions 1, 2, and 3, like in `Remove-NTFSAudit`. Before 5.0.0, `-Account` and `-AccessRights` were both declared at position 2, so a command that passed them by position failed.</maml:para>
         <maml:para>An audit entry alone does not create events. Windows writes the events to the security log only while the "Audit object access" policy, or the corresponding "Audit File System" advanced audit policy, is enabled for success, failure, or both. That policy is a Windows setting and is not managed by this module.</maml:para>
       </maml:alert>
     </maml:alertSet>

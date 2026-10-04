@@ -67,3 +67,30 @@ Describe 'Get-NTFSAudit' {
         }
     }
 }
+
+Describe 'Add-NTFSAudit' {
+    Context 'Positional parameters' {
+        It 'Should take -Account at position 2 and -AccessRights at position 3 in the <_> parameter set' -ForEach @(
+            'PathSimple', 'PathComplex', 'SDSimple', 'SDComplex'
+        ) {
+            $parameterSet = (Get-Command -Name Add-NTFSAudit).ParameterSets | Where-Object -Property Name -EQ -Value $_
+            $positions = @{}
+            $parameterSet.Parameters | Where-Object -Property Position -GE -Value 0 | ForEach-Object -Process {
+                $positions[$_.Name] = $_.Position
+            }
+
+            $positions['Account'] | Should -Be 2
+            $positions['AccessRights'] | Should -Be 3
+        }
+
+        It 'Should bind an account and access rights that are passed by position' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Positional'
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+
+            Add-NTFSAudit -SecurityDescriptor $sd 'Everyone' 'ReadData' -InheritanceFlags None -PropagationFlags None -ErrorAction Stop
+
+            $rules = $sd.SecurityDescriptor.GetAuditRules($true, $false, [System.Security.Principal.SecurityIdentifier])
+            @($rules | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) | Should -HaveCount 1
+        }
+    }
+}
