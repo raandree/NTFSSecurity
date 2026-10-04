@@ -22,6 +22,10 @@ source: repository evidence
 - Documentation: MkDocs (`mkdocs.yml`, theme `readthedocs`, `docs_dir: ./Docs`)
   built by Read the Docs (`.readthedocs.yml` v2); cmdlet pages are platyPS
   0.14 markdown (schema 2.0.0) in `Docs/Cmdlets`.
+- Help: `NTFSSecurity\en-US\NTFSSecurity.dll-Help.xml`, generated from
+  `Docs/Cmdlets` and committed (Decision 8).
+- Tests: Pester 5 tests in `Tests` (`Help.Tests.ps1`) against the Release
+  build.
 
 ## Environment
 
@@ -34,6 +38,12 @@ source: repository evidence
   `/p:CscToolPath` to the Roslyn `csc.exe` of the `Microsoft.Net.Compilers`
   package; the legacy C# 5 compiler fails with CS0136. `dotnet msbuild`
   fails on the binary resources in `Resources.resx` (MSB3822, MSB3823).
+- platyPS 0.14.2, Pester 5.7.1, PSScriptAnalyzer, and powershell-yaml are
+  installed only for PowerShell 7. Windows PowerShell 5.1 imports platyPS
+  and Pester by full path
+  (`~\OneDrive\Documents\PowerShell\Modules\platyPS\0.14.2`,
+  `C:\Program Files\PowerShell\Modules\Pester\5.7.1`) with
+  `$env:PSModulePath` cleared. MarkdownLinkCheck is not installed.
 
 ## Constraints
 
@@ -43,8 +53,15 @@ source: repository evidence
   `-PassThru` rename and `CompatiblePSEditions` in the manifest.
 - `CmdletsToExport` lists `Show-NTFSSimpleAccess`, which no longer exists
   (WinForms code removed in `d3063de`), and repeats the inheritance cmdlets.
-- `NTFSSecurity/NTFSSecurity-Help.xml` is a stale pre-4.x MAML file for old
-  command names; binary-module help must be named `NTFSSecurity.dll-Help.xml`.
+- `Test-ModuleManifest` fails in Windows PowerShell 5.1:
+  `CompatiblePSEditions` requires `PowerShellVersion` 5.1 or higher, and the
+  manifest says `2.0` (work package 4).
+- Releases have no script and no CI deployment. Evidence from 4.2.6: the
+  Gallery DLLs are Debug builds (`DebuggableAttribute` 263), the nuspec
+  comes from `Publish-Module`, the package holds the whole output folder
+  (`.pdb`, `AlphaFS.xml`, 7 MB `System.Management.Automation.dll`), and the
+  published manifest differs from the tag only by `ModuleVersion` (tags
+  carry the previous version). GitHub releases attach `NTFSSecurity.zip`.
 - CI: AppVeyor project `raandree/ntfssecurity` builds branches and pull
   requests. Read the Docs (`ntfssecurity`) and a second AppVeyor project are
   attached to the fork `Sup3rlativ3/NTFSSecurity`.
@@ -60,12 +77,23 @@ source: repository evidence
   per project plus `Microsoft.NETFramework.ReferenceAssemblies.net452`
   1.0.3, build `NTFSSecurity.csproj` in Release with
   `TargetFrameworkRootPath`/`FrameworkPathOverride`, import
-  `NTFSSecurity\bin\Release\NTFSSecurity.psd1`, run `Update-MarkdownHelp`,
-  and fail on `git diff -- Docs/Cmdlets`; then `Get-MarkdownLink -BrokenOnly`.
+  `NTFSSecurity\bin\Release\NTFSSecurity.psd1`, then: 01 run
+  `Update-MarkdownHelp` and fail on `git diff -- Docs/Cmdlets`; 02
+  `Get-MarkdownLink -BrokenOnly`; 03 regenerate the help file and fail on
+  `git status --porcelain -- NTFSSecurity/en-US`; 04 Pester 5.7.1 on
+  `Tests`, each result reported once through the build worker API
+  (`POST $env:APPVEYOR_API_URL/api/tests/batch`).
+- AppVeyor REST API (public, no token): build
+  `api/projects/raandree/ntfssecurity/builds/<buildId>`, job log
+  `api/buildjobs/<jobId>/log` (bytes; decode as UTF-8), and test list
+  `api/buildjobs/<jobId>/tests`.
 - Run platyPS in Windows PowerShell 5.1 to avoid PowerShell 7.4+
   `-ProgressAction` noise.
 - Placeholder check: no `{{` left in `Docs/Cmdlets/*.md`.
-- Help build check: `New-ExternalHelp -Path ./Docs/Cmdlets` to a temp folder.
+- Help file: `New-ExternalHelp -Path .\Docs\Cmdlets -OutputPath
+  .\NTFSSecurity\en-US -Force` must leave `git status` unchanged.
+- Pester: run detached (`Start-DetachedPowerShell.ps1`) in Windows
+  PowerShell 5.1; a run without `bin\Release\en-US` must fail.
 - Markdown lint: `npx markdownlint-cli2` with `MD013` limited to prose
   (tables, code, and headings excluded) on the conceptual pages.
 - YAML: `ConvertFrom-Yaml` (powershell-yaml) on `mkdocs.yml`,

@@ -18,7 +18,9 @@ NTFSSecurity.psd1 ─┬─ ScriptsToProcess: NTFSSecurity.Init.ps1
                    │    (Owner, IsInheritanceBlocked, LengthOnDisk on
                    │    FileInfo/DirectoryInfo; AccountType on ACEs)
                    ├─ ModuleToProcess: NTFSSecurity.psm1 (aliases)
-                   └─ NestedModules: NTFSSecurity.dll (36 cmdlets)
+                   ├─ NestedModules: NTFSSecurity.dll (36 cmdlets)
+                   └─ en-US\NTFSSecurity.dll-Help.xml (Get-Help; generated
+                        from Docs/Cmdlets, Decision 8)
 NTFSSecurity.dll ── cmdlets ──> Security2.dll (FileSystemAccessRule2,
                                 FileSystemAuditRule2, IdentityReference2,
                                 FileSystemInheritanceInfo, EffectiveAccess)
@@ -52,6 +54,7 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 | 5 | [Document defects, don't fix them in docs work](decisions/0005-document-defects-separately.md) |
 | 6 | [CI checks the docs against a build of the source](decisions/0006-ci-checks-docs-against-build.md) |
 | 7 | [CHANGELOG lists user-visible changes only](decisions/0007-changelog-user-visible-only.md) |
+| 8 | [Commit the generated help file and check it in CI](decisions/0008-commit-generated-help.md) |
 
 ## Patterns
 
@@ -61,5 +64,20 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
   `Docs/Cmdlets` must round-trip through `Update-MarkdownHelp` unchanged.
 - platyPS rewrites non-ASCII punctuation such as em dashes; keep cmdlet pages
   ASCII-only.
+- In cmdlet pages, end a sentence with a link: platyPS renders a link as
+  `text (url)` in the help file and drops the space after it.
 - Verify examples in a `$env:TEMP` sandbox, never on real data; parse every
   example and check its parameters against `Get-Command` metadata.
+
+### Testing the module
+
+- Pester 5 tests in `Tests/*.Tests.ps1` import
+  `NTFSSecurity\bin\Release\NTFSSecurity.psd1` and run in Windows
+  PowerShell 5.1 (as in AppVeyor); PowerShell 7 runs are a secondary check.
+- `Get-Help -Online` is tested with the internal test hook
+  `BypassOnlineHelpRetrieval`, which returns the URI instead of opening a
+  browser. In PowerShell 7 the hook also skips the help file, so that test
+  runs only in Windows PowerShell; PowerShell 7 resolves the same URI.
+- Report Pester 5 results to AppVeyor through the build worker API, not as
+  an uploaded NUnit file: the NUnit import files each test under every
+  enclosing block (870 entries for 218 tests in build 54834154).

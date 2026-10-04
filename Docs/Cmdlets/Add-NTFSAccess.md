@@ -90,7 +90,7 @@ This command restores the access control entries that `Get-NTFSAccess` exported 
 
 ### -AccessRights
 
-Specifies the rights the ACE grants or denies. The parameter accepts basic rights such as `Read`, `ReadAndExecute`, `Modify`, and `FullControl`, granular rights such as `CreateFiles`, `Traverse`, or `WriteAttributes`, and any combination of them. An `Allow` ACE always receives `Synchronize` in addition to the specified rights. See [Concepts](../Concepts.md) for how the values relate to the Windows security dialog.
+Specifies the rights the ACE grants or denies. The parameter accepts basic rights such as `Read`, `ReadAndExecute`, `Modify`, and `FullControl`, granular rights such as `CreateFiles`, `Traverse`, or `WriteAttributes`, and any combination of them. An `Allow` ACE always receives `Synchronize` in addition to the specified rights. For how the values relate to the Windows security dialog, see [Concepts](../Concepts.md).
 
 ```yaml
 Type: FileSystemRights2
@@ -159,7 +159,7 @@ Accept wildcard characters: False
 
 Specifies which kind of child objects inherit the ACE. `ContainerInherit` passes the ACE on to child folders, `ObjectInherit` passes it on to child files, and `None` keeps the ACE on the item itself. The default is `ContainerInherit, ObjectInherit`. Inheritance flags have no effect on files, where the ACE is always created with `None`.
 
-For details about the flags, see [InheritanceFlags Enum](https://learn.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.inheritanceflags) in the .NET documentation.
+For details about the flags, see the .NET documentation of the [InheritanceFlags Enum](https://learn.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.inheritanceflags).
 
 ```yaml
 Type: InheritanceFlags

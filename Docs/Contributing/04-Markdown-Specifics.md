@@ -18,8 +18,9 @@ the additional rules for the cmdlet reference pages, which platyPS processes.
 
 ## Cmdlet reference pages
 
-platyPS converts the pages in `Docs/Cmdlets` to help files and updates them
-from the module. Keep the structure that platyPS expects:
+platyPS converts the pages in `Docs/Cmdlets` to the help file that `Get-Help`
+shows and updates the pages from the module. Keep the structure that platyPS
+expects:
 
 - Keep the front matter. `external help file`, `Module Name`, and `schema`
   must stay as they are. `online version` is the address of the page on
@@ -32,6 +33,8 @@ from the module. Keep the structure that platyPS expects:
   `Default value`, which platyPS keeps.
 - Write each paragraph on a single line. platyPS carries line breaks into the
   text that `Get-Help` shows.
+- Put a link at the end of a sentence. In the text that `Get-Help` shows,
+  platyPS writes a link as `text (address)` and drops the space after it.
 - Start each example with a level 3 heading such as
   `### Example 1: Get the permissions of a folder`, followed by a code block
   with the language `PowerShell` whose first line starts with `PS C:\>`.

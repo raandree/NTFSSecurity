@@ -33,7 +33,20 @@ source is unchanged since the 4.2.6 release except the
   superseded: #91 ships the same two `learn.microsoft.com` links in
   `Docs/index.md` and `README.md`. The maintainer decided to close it;
   the remote-mutation hook denied the agent's `gh pr close`, so the
-  maintainer closes it by hand.
+  maintainer closed it by hand (2026-10-02 21:18 UTC).
+- 2026-10-02: Work package 2 (ship help, `ai/ship-help`, stacked on
+  `ai/housekeeping`): `en-US\NTFSSecurity.dll-Help.xml` generated from
+  `Docs/Cmdlets`, committed, copied by the csproj, and listed in a complete
+  `FileList` (Decision 8); stale `NTFSSecurity-Help.xml` and the unused
+  `NTFSSecurity.Help.pshproj` removed; `Tests\Help.Tests.ps1` (Pester 5)
+  and two CI steps added; six inline links in five cmdlet pages reworded
+  because platyPS drops the space after a link in the help text. Tests: 218
+  of 218 pass in Windows PowerShell 5.1; without the help file 180 of 182
+  failed.
+- 2026-10-04: Work packages 1 and 2 pushed; AppVeyor 54834155
+  (`74abb0b`) and 54834154 (`fba3a7d`, 218 of 218 Pester tests) passed. A
+  follow-up commit reports each test once on the AppVeyor Tests tab
+  (the NUnit upload listed 870 entries).
 
 ## Stable capabilities
 
@@ -49,12 +62,11 @@ Work packages in the order agreed with the maintainer. Each gets one
 `ai/<slug>` branch and PR, committed locally; the maintainer pushes, and
 the next package starts only after the maintainer's go-ahead.
 
-1. Housekeeping: committed on `ai/housekeeping`; awaiting push and PR.
-2. Ship help: generate `en-US\NTFSSecurity.dll-Help.xml` from `Docs/Cmdlets`
-   with `New-ExternalHelp` and ship it (csproj `Content`, manifest
-   `FileList`); remove the stale `NTFSSecurity-Help.xml` and, if unused,
-   `NTFSSecurity\Help\NTFSSecurity.Help.pshproj`. Ask the maintainer:
-   commit the file plus a CI currency check, or generate it in the build.
+1. Housekeeping: `ai/housekeeping` pushed at `74abb0b`, AppVeyor green;
+   PR into `master` to open.
+2. Ship help: `ai/ship-help` pushed at `fba3a7d`, AppVeyor green; the
+   follow-up commit for the Tests tab awaits push. PR into
+   `ai/housekeeping` to open.
 3. Read the Docs: project `ntfssecurity` (maintainer `Sup3rlativ3`) builds
    the fork; switch it to this repository or import a new project. Ask
    before installing Python for `mkdocs build --strict`.
@@ -62,7 +74,11 @@ the next package starts only after the maintainer's go-ahead.
    inheritance entries from `CmdletsToExport` (36 cmdlets remain); ask
    about the next version (with or without a `PassThur` alias),
    `PowerShellVersion`, and `DotNetFrameworkVersion`; align `AssemblyInfo`.
-   No tag or publish.
+   No tag or publish. Inputs found in work package 2: `Test-ModuleManifest`
+   already fails on `PowerShellVersion = '2.0'` with `CompatiblePSEditions`;
+   releases ship Debug builds plus `.pdb`, `.xml`, and
+   `System.Management.Automation.dll` (`Private=True` reference), which
+   `FileList` doesn't list.
 5. Code defects, listed below: `review: on`, one PR per group, regression
    test first. Pester 5 tests import `NTFSSecurity\bin\Release`, run in a
    `$env:TEMP` sandbox and in `appveyor.yml`, and skip elevated cases when

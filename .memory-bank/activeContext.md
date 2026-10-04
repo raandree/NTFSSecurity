@@ -9,23 +9,32 @@ source: current task evidence
 
 ## Current focus
 
-Work package 1 (housekeeping) on branch `ai/housekeeping`; the five work
-packages and their order are in `progress.md`.
+Work packages 1 and 2 are pushed; the maintainer opens their PRs:
+`ai/housekeeping` into `master`, and `ai/ship-help` into
+`ai/housekeeping`. The work packages and their order are in `progress.md`.
 
 ## Evidence
 
-- PR #91 is merged into `master` as `690d8dd` (squash merge). The local
-  branch `ai/docs-alignment` had the same tree as `690d8dd` and is deleted;
-  GitHub had already deleted the remote branch.
-- `.memory-bank/promptHistory.md` is ignored by git (`.gitignore`) and stays
-  a local file.
-- The changelog policy is Decision 7. The inline Decisions moved to
-  `decisions/` records because `systemPatterns.md` was near its 110-line
-  budget.
-- Read the Docs project `ntfssecurity` still builds the fork
-  `Sup3rlativ3/NTFSSecurity`.
+- AppVeyor 54834155 (`ai/housekeeping`, `74abb0b`) passed. AppVeyor
+  54834154 (`ai/ship-help`, `fba3a7d`) passed all four `test_script`
+  steps; Pester passed 218 of 218 tests in Windows PowerShell 5.1,
+  including the `Get-Help -Online` tests.
+- The same build listed 870 tests on the Tests tab: the NUnit import files
+  each Pester 5 test under every enclosing block (Pester, file, Describe,
+  Context), so 216 tests appear four times and 2 three times. The
+  follow-up commit on `ai/ship-help` reports the results through the build
+  worker API instead (`POST api/tests/batch`), one entry per test; a local
+  run of step 04 against a sample test file sent 11 entries for 11 tests.
+- The AppVeyor job log API returns `application/octet-stream`; decode the
+  bytes as UTF-8 before searching it.
+- Merging work package 1 with a merge commit keeps `ai/ship-help` valid;
+  after a squash merge it needs
+  `git rebase --onto origin/master ai/housekeeping ai/ship-help`.
+- PR descriptions for both work packages are in the session folder
+  (`files/pr`), outside the repository.
 
 ## Next step
 
-The maintainer pushes `ai/housekeeping` and opens the PR. After the
-go-ahead, start work package 2 (ship the generated help).
+The maintainer pushes the follow-up commit on `ai/ship-help`, opens both
+PRs, and checks that AppVeyor lists 218 tests; then work package 3 (Read
+the Docs).

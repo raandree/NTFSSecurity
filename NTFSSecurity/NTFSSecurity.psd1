@@ -80,7 +80,19 @@
     'Get-DiskSpace',
     'Get-FileHash2'
 
-    FileList               = @('NTFSSecurity.dll', 'NTFSSecurity.types.ps1xml', 'NTFSSecurity.format.ps1xml', 'NTFSSecurity.Init.ps1', 'NTFSSecurity.psm1')
+    FileList               = @(
+        'NTFSSecurity.psd1'
+        'NTFSSecurity.psm1'
+        'NTFSSecurity.Init.ps1'
+        'NTFSSecurity.dll'
+        'Security2.dll'
+        'PrivilegeControl.dll'
+        'ProcessPrivileges.dll'
+        'AlphaFS.dll'
+        'NTFSSecurity.types.ps1xml'
+        'NTFSSecurity.format.ps1xml'
+        'en-US\NTFSSecurity.dll-Help.xml'
+    )
 
     PrivateData            = @{ 
         EnablePrivileges          = $true
