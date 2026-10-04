@@ -74,5 +74,8 @@ The format is based on
 - Fix the `InheritanceEnabled` property of audit entries, which reported the
   inheritance of the access entries; it now reports whether the audit
   entries are inherited
+- Fix `Get-NTFSInheritance -SecurityDescriptor`, which reported
+  `AuditInheritanceEnabled` as `$true` for a security descriptor that was
+  read without its audit section; it now reports `$null`, like `-Path`
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

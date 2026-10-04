@@ -26,6 +26,33 @@ AfterAll {
     Remove-Module -Name NTFSSecurity -Force -ErrorAction SilentlyContinue
 }
 
+Describe 'Get-NTFSInheritance' {
+    Context 'With a security descriptor' {
+        BeforeEach {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Descriptor'
+        }
+
+        It 'Should report the same state as for the path of the item' {
+            $byPath = Get-NTFSInheritance -Path $file
+            $bySecurityDescriptor = Get-NTFSInheritance -SecurityDescriptor (Get-NTFSSecurityDescriptor -Path $file)
+
+            $bySecurityDescriptor.AccessInheritanceEnabled | Should -Be $byPath.AccessInheritanceEnabled
+            $bySecurityDescriptor.AuditInheritanceEnabled | Should -Be $byPath.AuditInheritanceEnabled
+        }
+
+        It 'Should report the audit inheritance as $null for a security descriptor without the audit entries' {
+            $sd = New-Object -TypeName 'Security2.FileSystemSecurity2' -ArgumentList (
+                (Get-Item2 -Path $file), [System.Security.AccessControl.AccessControlSections]::Access
+            )
+
+            $result = Get-NTFSInheritance -SecurityDescriptor $sd
+
+            $result.AccessInheritanceEnabled | Should -BeTrue
+            $result.AuditInheritanceEnabled | Should -BeNullOrEmpty
+        }
+    }
+}
+
 Describe 'Set-NTFSInheritance' {
     Context 'When -AccessInheritanceEnabled or -AuditInheritanceEnabled is omitted' {
         BeforeEach {
