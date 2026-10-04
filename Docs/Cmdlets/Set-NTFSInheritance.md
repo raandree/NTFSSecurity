@@ -77,7 +77,7 @@ The first two commands read the security descriptor and change its inheritance i
 
 ### -AccessInheritanceEnabled
 
-Specifies whether the item inherits access rules from its parent folder. `$true` removes the protection from the DACL and keeps the access rules that are stored directly on the item; `$false` protects the DACL and discards the rules the item currently inherits, which leaves only its explicit rules. The section is left untouched when the requested value already matches the current state. Always supply this parameter, because the cmdlet fails with "Nullable object must have a value" when it has to compare against a value that was not provided.
+Specifies whether the item inherits access rules from its parent folder. `$true` removes the protection from the DACL and keeps the access rules that are stored directly on the item; `$false` protects the DACL and discards the rules the item currently inherits, which leaves only its explicit rules. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the access section is left unchanged.
 
 ```yaml
 Type: Boolean
@@ -93,7 +93,7 @@ Accept wildcard characters: False
 
 ### -AuditInheritanceEnabled
 
-Specifies whether the item inherits audit rules from its parent folder. `$true` removes the protection from the SACL and removes the audit rules that are stored directly on the item; `$false` protects the SACL and copies the inherited audit rules into it. The section is left untouched when the requested value already matches the current state. Reading and writing the audit section requires the Security privilege and therefore an elevated session.
+Specifies whether the item inherits audit rules from its parent folder. `$true` removes the protection from the SACL and removes the audit rules that are stored directly on the item; `$false` protects the SACL and copies the inherited audit rules into it. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the audit section is left unchanged. Reading and writing the audit section requires the Security privilege and therefore an elevated session.
 
 ```yaml
 Type: Boolean

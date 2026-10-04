@@ -9197,7 +9197,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AccessInheritanceEnabled</maml:name>
           <maml:description>
-            <maml:para>Specifies whether the item inherits access rules from its parent folder. `$true` removes the protection from the DACL and keeps the access rules that are stored directly on the item; `$false` protects the DACL and discards the rules the item currently inherits, which leaves only its explicit rules. The section is left untouched when the requested value already matches the current state. Always supply this parameter, because the cmdlet fails with "Nullable object must have a value" when it has to compare against a value that was not provided.</maml:para>
+            <maml:para>Specifies whether the item inherits access rules from its parent folder. `$true` removes the protection from the DACL and keeps the access rules that are stored directly on the item; `$false` protects the DACL and discards the rules the item currently inherits, which leaves only its explicit rules. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the access section is left unchanged.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="false">Boolean</command:parameterValue>
           <dev:type>
@@ -9209,7 +9209,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AuditInheritanceEnabled</maml:name>
           <maml:description>
-            <maml:para>Specifies whether the item inherits audit rules from its parent folder. `$true` removes the protection from the SACL and removes the audit rules that are stored directly on the item; `$false` protects the SACL and copies the inherited audit rules into it. The section is left untouched when the requested value already matches the current state. Reading and writing the audit section requires the Security privilege and therefore an elevated session.</maml:para>
+            <maml:para>Specifies whether the item inherits audit rules from its parent folder. `$true` removes the protection from the SACL and removes the audit rules that are stored directly on the item; `$false` protects the SACL and copies the inherited audit rules into it. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the audit section is left unchanged. Reading and writing the audit section requires the Security privilege and therefore an elevated session.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="false">Boolean</command:parameterValue>
           <dev:type>
@@ -9249,7 +9249,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AccessInheritanceEnabled</maml:name>
           <maml:description>
-            <maml:para>Specifies whether the item inherits access rules from its parent folder. `$true` removes the protection from the DACL and keeps the access rules that are stored directly on the item; `$false` protects the DACL and discards the rules the item currently inherits, which leaves only its explicit rules. The section is left untouched when the requested value already matches the current state. Always supply this parameter, because the cmdlet fails with "Nullable object must have a value" when it has to compare against a value that was not provided.</maml:para>
+            <maml:para>Specifies whether the item inherits access rules from its parent folder. `$true` removes the protection from the DACL and keeps the access rules that are stored directly on the item; `$false` protects the DACL and discards the rules the item currently inherits, which leaves only its explicit rules. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the access section is left unchanged.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="false">Boolean</command:parameterValue>
           <dev:type>
@@ -9261,7 +9261,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AuditInheritanceEnabled</maml:name>
           <maml:description>
-            <maml:para>Specifies whether the item inherits audit rules from its parent folder. `$true` removes the protection from the SACL and removes the audit rules that are stored directly on the item; `$false` protects the SACL and copies the inherited audit rules into it. The section is left untouched when the requested value already matches the current state. Reading and writing the audit section requires the Security privilege and therefore an elevated session.</maml:para>
+            <maml:para>Specifies whether the item inherits audit rules from its parent folder. `$true` removes the protection from the SACL and removes the audit rules that are stored directly on the item; `$false` protects the SACL and copies the inherited audit rules into it. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the audit section is left unchanged. Reading and writing the audit section requires the Security privilege and therefore an elevated session.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="false">Boolean</command:parameterValue>
           <dev:type>
@@ -9287,7 +9287,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>AccessInheritanceEnabled</maml:name>
         <maml:description>
-          <maml:para>Specifies whether the item inherits access rules from its parent folder. `$true` removes the protection from the DACL and keeps the access rules that are stored directly on the item; `$false` protects the DACL and discards the rules the item currently inherits, which leaves only its explicit rules. The section is left untouched when the requested value already matches the current state. Always supply this parameter, because the cmdlet fails with "Nullable object must have a value" when it has to compare against a value that was not provided.</maml:para>
+          <maml:para>Specifies whether the item inherits access rules from its parent folder. `$true` removes the protection from the DACL and keeps the access rules that are stored directly on the item; `$false` protects the DACL and discards the rules the item currently inherits, which leaves only its explicit rules. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the access section is left unchanged.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="false">Boolean</command:parameterValue>
         <dev:type>
@@ -9299,7 +9299,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>AuditInheritanceEnabled</maml:name>
         <maml:description>
-          <maml:para>Specifies whether the item inherits audit rules from its parent folder. `$true` removes the protection from the SACL and removes the audit rules that are stored directly on the item; `$false` protects the SACL and copies the inherited audit rules into it. The section is left untouched when the requested value already matches the current state. Reading and writing the audit section requires the Security privilege and therefore an elevated session.</maml:para>
+          <maml:para>Specifies whether the item inherits audit rules from its parent folder. `$true` removes the protection from the SACL and removes the audit rules that are stored directly on the item; `$false` protects the SACL and copies the inherited audit rules into it. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the audit section is left unchanged. Reading and writing the audit section requires the Security privilege and therefore an elevated session.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="false">Boolean</command:parameterValue>
         <dev:type>
