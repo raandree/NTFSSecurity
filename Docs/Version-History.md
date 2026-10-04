@@ -1,8 +1,8 @@
 # Version history
 
 This page lists the changes in NTFSSecurity 4.2.6 and earlier. It replaces
-the version history in the former GitHub wiki. For the changes since 4.2.6,
-see the [changelog](../CHANGELOG.md).
+the hand-written version history that the GitHub wiki kept until 2018. For the
+changes since 4.2.6, see the [changelog](../CHANGELOG.md).
 
 ## 4.2.5 and 4.2.6
 

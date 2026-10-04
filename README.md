@@ -43,6 +43,10 @@ Get-ChildItem2 -Path C:\Data -Recurse | Get-NTFSAccess -ExcludeInherited
 
 ## Documentation
 
+Read the documentation in the
+[wiki](https://github.com/raandree/NTFSSecurity/wiki), which is generated
+from the `Docs` folder, or in the folder itself:
+
 - [Overview](Docs/README.md): features, requirements, and the list of cmdlets
 - [Concepts](Docs/Concepts.md): security descriptors, access rights,
   inheritance, privileges, long paths, and module settings
