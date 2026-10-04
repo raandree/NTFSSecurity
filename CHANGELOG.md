@@ -71,5 +71,8 @@ The format is based on
 - Fix `-PassThru` of `Add-NTFSAudit` with `-SecurityDescriptor` and of
   `Remove-NTFSAudit` with `-Path`, which returned access entries; both now
   return the audit entries
+- Fix the `InheritanceEnabled` property of audit entries, which reported the
+  inheritance of the access entries; it now reports whether the audit
+  entries are inherited
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

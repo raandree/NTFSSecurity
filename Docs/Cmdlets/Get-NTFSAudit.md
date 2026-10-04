@@ -183,7 +183,7 @@ Reading the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage
 
 If the security descriptor cannot be read because access is denied, the cmdlet takes ownership of the item, reads the descriptor again, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.
 
-Before 5.0.0, the cmdlet returned no entries and no error without the Security privilege, and after a path whose security descriptor could not be read, it returned the entries of the previous item again.
+Before 5.0.0, the cmdlet returned no entries and no error without the Security privilege, and after a path whose security descriptor could not be read, it returned the entries of the previous item again. The `InheritanceEnabled` property of the entries also reported whether the access entries were inherited instead of the audit entries.
 
 ## RELATED LINKS
 

@@ -105,6 +105,18 @@ Describe 'Add-NTFSAudit' {
             $result | ForEach-Object -Process { $_ | Should -BeOfType [Security2.FileSystemAuditRule2] }
             @($result | Where-Object -FilterScript { $_.Account.Sid -eq 'S-1-1-0' }) | Should -HaveCount 1
         }
+
+        It 'Should report the inheritance of the audit entries in InheritanceEnabled, not that of the access entries' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'AuditProtected'
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+            $sd.SecurityDescriptor.SetAuditRuleProtection($true, $false)
+
+            $result = @(Add-NTFSAudit -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData -InheritanceFlags None -PropagationFlags None -PassThru)
+
+            $sd.SecurityDescriptor.AreAccessRulesProtected | Should -BeFalse
+            $result | Should -Not -BeNullOrEmpty
+            $result | ForEach-Object -Process { $_.InheritanceEnabled | Should -BeFalse }
+        }
     }
 }
 
