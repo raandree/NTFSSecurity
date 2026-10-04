@@ -2788,6 +2788,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     <maml:alertSet>
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), the file system cmdlets of the module try to enable the Backup, Restore, Take Ownership, and Security privileges while they run and disable the privileges they enabled when they finish. You therefore need `Disable-Privileges` only after an explicit `Enable-Privileges`. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group.</maml:para>
+        <maml:para>Before 5.0.0, when `EnablePrivileges` was `$false`, the cmdlet wrote warnings that it could not disable the privileges and left them enabled.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
