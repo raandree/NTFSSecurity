@@ -148,16 +148,26 @@ namespace NTFSSecurity
         {
             foreach (var path in paths)
             {
-                DirectoryInfo di = null;
+                FileSystemInfo item = null;
 
                 try
                 {
-                    di = (DirectoryInfo)GetFileSystemInfo2(path);
-
+                    item = GetFileSystemInfo2(path);
                 }
                 catch (System.IO.FileNotFoundException ex)
                 {
                     WriteError(new ErrorRecord(ex, "FileNotFound", ErrorCategory.ObjectNotFound, path));
+                    continue;
+                }
+
+                var di = item as DirectoryInfo;
+                if (di == null)
+                {
+                    // Like Get-ChildItem, a file path returns the file itself.
+                    if (!directory)
+                    {
+                        WriteFileSystemInfoCollection(new FileSystemInfo[] { item }.GetEnumerator());
+                    }
                     continue;
                 }
 
