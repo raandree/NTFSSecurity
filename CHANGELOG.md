@@ -112,5 +112,8 @@ The format is based on
 - Restore the `-RemoveSpecific` switch of `Remove-NTFSAccess`, which version
   4.1 introduced but later versions lacked, and add it to `Remove-NTFSAudit`:
   with it, the cmdlets remove only an entry that matches exactly
+- Fix `Copy-Item2`, `Move-Item2`, and `Remove-Item2`, which skipped the
+  remaining paths of `-Path` after a path that didn't exist or, for copy and
+  move, a file that already existed at the destination
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

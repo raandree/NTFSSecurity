@@ -66,7 +66,7 @@ namespace NTFSSecurity
                 catch (System.IO.FileNotFoundException ex)
                 {
                     WriteError(new ErrorRecord(ex, "FileNotFound", ErrorCategory.ObjectNotFound, path));
-                    return;
+                    continue;
                 }
 
                 try

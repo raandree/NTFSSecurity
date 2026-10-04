@@ -186,7 +186,7 @@ By default this cmdlet returns nothing. With `-PassThru $true` it returns an `Al
 
 Before 5.0.0, copying a folder that contained files failed with a `CopyError` that reported a `DirectoryNotFoundException` for the first file in the folder.
 
-If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and skips the remaining paths that were passed in the same call. Items that arrive one by one through the pipeline are not affected, because each of them is processed separately.
+If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call.
 
 ## RELATED LINKS
 

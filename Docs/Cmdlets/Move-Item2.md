@@ -186,7 +186,7 @@ By default this cmdlet returns nothing. With `-PassThru $true` it returns an `Al
 
 The cmdlet chooses between two mutually exclusive move options. Without `-Force` it moves with `CopyAllowed`, which permits a file to cross volume boundaries because Windows then copies and deletes it. With `-Force` it moves with `ReplaceExisting`, which overwrites the destination but does not request `CopyAllowed`, so a move across volumes can fail when `-Force` is specified.
 
-If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and skips the remaining paths that were passed in the same call. Items that arrive one by one through the pipeline are not affected, because each of them is processed separately.
+If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call.
 
 ## RELATED LINKS
 
