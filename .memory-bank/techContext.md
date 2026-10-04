@@ -118,15 +118,17 @@ source: repository evidence
   `Get-MarkdownLink -BrokenOnly`; 03 regenerate the help file and fail on
   `git status --porcelain -- NTFSSecurity/en-US`; 04 `Invoke-Tests.ps1` in
   Windows PowerShell 5.1 and in PowerShell 7. Job `wiki` on `ubuntu-latest`
-  clones the wiki (`gh auth setup-git` with the built-in token), runs
-  `Export-WikiContent.ps1`, lists the changed pages in the job summary, and
-  publishes from `master` only. After the tests, `build` runs
+  (read-only) clones the wiki (`gh auth setup-git` with the built-in token),
+  runs `Export-WikiContent.ps1`, and lists the changed pages in the job
+  summary; job `publish-wiki` (`contents: write`) repeats that and publishes,
+  for `master` only. After the tests, `build` runs
   `New-ModulePackage.ps1` and uploads the artifact `packages` (nupkg and
   `NTFSSecurity.zip`). Job `release` runs only for tags matching
   `[0-9]+.[0-9]+.[0-9]+` or `[0-9]+.[0-9]+.[0-9]+-*`, in the environment
   `powershell-gallery` (secret `PSGALLERY_API_KEY`); see Decision 12.
   Actions are pinned by commit SHA: `actions/checkout` v7.0.1,
-  `actions/upload-artifact` v7.0.1, `actions/download-artifact` v8.0.1.
+  `actions/upload-artifact` v7.0.1, `actions/download-artifact` v8.0.1;
+  Dependabot proposes updates weekly, one week after a release.
 - Packaging needs PSResourceGet (`Compress-PSResource`, PowerShell 7.4 or
   later); its tests skip in Windows PowerShell. Dry run locally: run
   `New-ModulePackage.ps1` against `NTFSSecurity\bin\Release` into

@@ -7,6 +7,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Waits a week before it proposes a new release, so that a compromised
+    # release is more likely to be found and withdrawn first.
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: ci
     groups:

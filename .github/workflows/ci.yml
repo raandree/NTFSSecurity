@@ -149,10 +149,10 @@ jobs:
     if: github.ref_type != 'tag'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # This job can write: it publishes the wiki from master. On pull requests,
-    # it shows the pages that would change.
+    # Shows the pages that would change. Read-only: on pull requests, including
+    # those of Dependabot, this job runs code that nobody has reviewed yet.
     permissions:
-      contents: write
+      contents: read
     steps:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -179,10 +179,39 @@ jobs:
               @('### Wiki', '', 'The wiki is up to date.')
           }
           Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value $summary
+
+  publish-wiki:
+    name: Publish the wiki
+    needs: wiki
+    if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # This job can write, so it runs only for master, after the changes were
+    # reviewed and merged.
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Generate the wiki pages
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh auth setup-git
+          $wiki = Join-Path -Path $env:RUNNER_TEMP -ChildPath 'wiki'
+          git clone --quiet --depth 1 "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY.wiki.git" $wiki
+          if ($LASTEXITCODE -ne 0) {
+              throw "Cloning the wiki failed with exit code $LASTEXITCODE."
+          }
+          ./.github/scripts/Export-WikiContent.ps1 -Path ./Docs -DestinationPath $wiki -RepositoryUrl "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY"
+          git -C $wiki add --all
           Add-Content -LiteralPath $env:GITHUB_ENV -Value "WIKI_PATH=$wiki"
 
       - name: Publish the wiki
-        if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}

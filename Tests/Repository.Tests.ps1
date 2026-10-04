@@ -29,6 +29,10 @@ Describe 'NuGet packages of the projects' {
         $hintPathVersions | Should -HaveCount 1
     }
 
+    It 'Should find the packages.config of the three projects that reference AlphaFS' -ForEach @(@{ Configs = $packageConfigs }) {
+        $Configs | Should -HaveCount 3
+    }
+
     It 'Should list the AlphaFS version of the HintPaths in <Project>\packages.config' -ForEach $packageConfigs {
         $package = ([xml] (Get-Content -LiteralPath $Path -Raw)).packages.package |
             Where-Object -Property id -EQ -Value 'AlphaFS'
@@ -41,12 +45,18 @@ Describe 'Dependabot configuration' {
     BeforeAll {
         $configPath = Join-Path -Path $PSScriptRoot -ChildPath '..\.github\dependabot.yml'
         $lines = if (Test-Path -LiteralPath $configPath) { Get-Content -LiteralPath $configPath } else { @() }
+        $raw = $lines -join "`n"
         $ecosystems = @($lines | Select-String -Pattern '^\s*-\s*package-ecosystem:\s*"?([\w-]+)"?\s*$' |
                 ForEach-Object -Process { $_.Matches[0].Groups[1].Value })
     }
 
     It 'Should exist in the .github folder' {
         $configPath | Should -Exist
+    }
+
+    It 'Should use version 2 of the format and the root folder of the repository' {
+        $lines -match '^version:\s*2\s*$' | Should -HaveCount 1
+        $lines -match '^\s+directory:\s*"?/"?\s*$' | Should -HaveCount 1
     }
 
     It 'Should update only the actions of the CI workflow' {
@@ -57,8 +67,11 @@ Describe 'Dependabot configuration' {
         $lines -match '^\s+interval:\s*"?weekly"?\s*$' | Should -HaveCount 1
     }
 
+    It 'Should wait at least a week before it proposes a new release' {
+        $raw | Should -Match '(?m)^\s+cooldown:\s*\n\s+default-days:\s*([7-9]|[1-9]\d+)\s*$'
+    }
+
     It 'Should group all updates into one pull request' {
-        $lines -match '^\s+groups:\s*$' | Should -HaveCount 1
-        $lines -match '^\s+-\s*"\*"\s*$' | Should -HaveCount 1
+        $raw | Should -Match '(?m)^\s+groups:\s*\n\s+[\w-]+:\s*\n\s+patterns:\s*\n\s+-\s*["'']\*["'']\s*$'
     }
 }
