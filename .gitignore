@@ -243,3 +243,6 @@ ModelManifest.xml
 
 # FAKE - F# Make
 .fake/
+
+# Memory Bank: local prompt history, not version-controlled
+/.memory-bank/promptHistory.md

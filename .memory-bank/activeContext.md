@@ -9,22 +9,23 @@ source: current task evidence
 
 ## Current focus
 
-PR #91 (`ai/docs-alignment`): CI fixed by building the module from source
-in `appveyor.yml` and checking the docs against that build.
+Work package 1 (housekeeping) on branch `ai/housekeeping`; the five work
+packages and their order are in `progress.md`.
 
 ## Evidence
 
-- AppVeyor build 54825990 failed in step 01: `Update-MarkdownHelp` against
-  the Gallery module 4.2.6 rewrote `Remove-Item2 -PassThru` to `-PassThur`.
-- Against a Release build of the source, `Update-MarkdownHelp` changes none
-  of the 36 pages; a simulation of all `appveyor.yml` steps in a fresh clone
-  passed, and a page with stale syntax made it fail as intended.
-- The link check (`Get-MarkdownLink -BrokenOnly`) finds 308 links, none
-  broken.
+- PR #91 is merged into `master` as `690d8dd` (squash merge). The local
+  branch `ai/docs-alignment` had the same tree as `690d8dd` and is deleted;
+  GitHub had already deleted the remote branch.
+- `.memory-bank/promptHistory.md` is ignored by git (`.gitignore`) and stays
+  a local file.
+- The changelog policy is Decision 7. The inline Decisions moved to
+  `decisions/` records because `systemPatterns.md` was near its 110-line
+  budget.
 - Read the Docs project `ntfssecurity` still builds the fork
   `Sup3rlativ3/NTFSSecurity`.
 
 ## Next step
 
-PR #91 is green (AppVeyor 54828078 branch and 54828080 pull request, both
-on `dbd8d16`). Await review and merge; open follow-ups are in `progress.md`.
+The maintainer pushes `ai/housekeeping` and opens the PR. After the
+go-ahead, start work package 2 (ship the generated help).
