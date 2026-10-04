@@ -9,36 +9,36 @@ source: current task evidence
 
 ## Current focus
 
-Release 5.0.0 through CI, with the prerelease `5.0.0-rc1` first
-(Decision 12). The release workflow, scripts, tests, and docs are PR-ready
-on the local branch `ai/release-5.0.0`; the maintainer pushes it, opens the
-PR, sets up the Gallery key and the environment `powershell-gallery`, and
-tags `5.0.0-rc1` after the merge. Work package 5 (code defects) and the
-open issues come after the release.
+5.0.0-rc1 is published (Gallery and GitHub prerelease, #98, tag
+`5.0.0-rc1`) and verified. The maintainer tests it; after that comes the
+final 5.0.0 release (remove the label, date the changelog, tag `5.0.0`),
+then work package 5 (code defects) and the open issues. The local branch
+`ai/memory-bank-rc1` holds this note and rides along with the next PR.
 
 ## Evidence
 
-- Test first: `Tests\Release.Tests.ps1` failed 15 of 15 (Windows
-  PowerShell: 9 failed, 6 skipped) before the scripts existed; the command
-  tag test failed before the tags were added. Final: full suite 268 tests,
-  PowerShell 7 232 passed and 36 skipped, Windows PowerShell 261 passed and
-  7 skipped (packaging needs PowerShell 7).
-- Package dry run: `NTFSSecurity.5.0.0-rc1.nupkg` (about 275 KB) with the 11
-  `FileList` files, version `5.0.0-rc1`, release notes link, and 83 tags
-  (36 `PSCmdlet_`, 36 `PSCommand_`, `PSIncludes_Cmdlet`); the extracted
-  package imports in Windows PowerShell 5.1 and PowerShell 7.6.1 with 36
-  cmdlets and working help. 4.2.6 on the Gallery has 37 + 37 command tags;
-  PSResourceGet 1.2.0 `Compress-PSResource` adds none.
-- actionlint, PSScriptAnalyzer, and markdownlint: no findings.
-- `master` has 37 open issues; several overlap the work package 5 defects
-  (for example #4) or are already fixed (#19 in 4.2.4; #15, #47, #66 by the
-  documentation).
-- The local branch `ai/read-the-docs` keeps the dropped strict-build work
-  (`886c874`, `325ec76`); delete it once it is no longer wanted.
+- Release run 37230802387: build, tests in both editions, packages,
+  release checks, Gallery publish, and GitHub release all passed; the wiki
+  job skipped the tag as designed.
+- The Gallery nupkg (275,437 bytes) is byte-identical to the CI artifact,
+  and the GitHub `NTFSSecurity.zip` to the CI zip; all 11 module files
+  match. The DLLs are optimized Release builds (JIT optimizer enabled).
+- Gallery: `IsPrerelease` true, `IsAbsoluteLatestVersion` true,
+  `IsLatestVersion` false; stable `Find-PSResource` returns 4.2.6, with
+  `-Prerelease` 5.0.0-rc1. 85 tags with all 36 `PSCmdlet_` and 36
+  `PSCommand_`; the Gallery itself adds `PSEdition_Core` and
+  `PSEdition_Desktop`.
+- Installed with `Save-PSResource` and copied to `bin\Release`, the module
+  passes the full suite: Windows PowerShell 261 passed, 7 skipped;
+  PowerShell 7 232 passed, 36 skipped.
+- The command search (`Find-PSResource -CommandName`) still returned 4.2.6
+  at 20:16 UTC, four minutes after publishing; the search index was stale,
+  because it treated 4.2.6 as the absolute latest version.
+- The wiki was republished from `e0f5366`; Home mentions
+  `-AllowPrerelease`.
 
 ## Next step
 
-After the maintainer opens the PR: read its CI run, and download the
-`packages` artifact (`gh run download`) to compare it with the local dry
-run. After the `5.0.0-rc1` tag: check the release job, the Gallery entry
-(version, tags, `Find-Command Get-NTFSAccess`), and the GitHub prerelease.
+Recheck the command search for 5.0.0-rc1. When the maintainer reports test
+results: prepare the final 5.0.0 release PR, or fix what the tests found
+and publish `5.0.0-rc2`.

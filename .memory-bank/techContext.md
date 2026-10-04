@@ -65,12 +65,12 @@ source: repository evidence
 
 ## Constraints
 
-- `ModuleVersion` on `master` is `5.0.0` (not released); the latest tag and
-  Gallery release is `4.2.6`. On `ai/release-5.0.0`, the manifest adds the
-  prerelease label `rc1`, so the next tag is `5.0.0-rc1`. The manifest
-  requires PowerShell 5.1 and .NET Framework 4.5.2, uses `RootModule`, and
-  lists exactly 36 cmdlets; `Test-ModuleManifest` passes in Windows
-  PowerShell 5.1 and PowerShell 7.6.
+- `ModuleVersion` on `master` is `5.0.0` with the prerelease label `rc1`;
+  5.0.0-rc1 is on the Gallery (published 2026-10-04 by CI). The latest
+  stable tag and Gallery release is `4.2.6`. The manifest requires
+  PowerShell 5.1 and .NET Framework 4.5.2, uses `RootModule`, and lists
+  exactly 36 cmdlets; `Test-ModuleManifest` passes in Windows PowerShell 5.1
+  and PowerShell 7.6.
 - Besides the shipped help file and its tests (#93), the module source at
   `master` differs from tag `4.2.6` by the `Remove-Item2 -PassThur` to
   `-PassThru` rename (with a `-PassThur` alias), the manifest changes of

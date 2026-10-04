@@ -9,12 +9,12 @@ source: repository evidence
 
 ## Current status
 
-PRs #91 to #97 are merged; `master` (`59663c9`) carries version 5.0.0,
-which is not released yet. CI runs on GitHub Actions: build, docs checks,
-and tests in Windows PowerShell 5.1 and PowerShell 7, plus the wiki, which
-is generated from `Docs` (43 pages). PR-ready locally: `ai/release-5.0.0`,
-releases by CI on a version tag (Decision 12), starting with the
-prerelease `5.0.0-rc1`.
+PRs #91 to #98 are merged. CI published the prerelease 5.0.0-rc1 from
+`master` (`e0f5366`, tag `5.0.0-rc1`) to the PowerShell Gallery and GitHub;
+the stable Gallery version is still 4.2.6. CI runs on GitHub Actions:
+build, docs checks, tests in Windows PowerShell 5.1 and PowerShell 7,
+packages, the wiki generated from `Docs` (43 pages), and releases on a
+version tag (Decision 12). Next: the maintainer tests 5.0.0-rc1.
 
 ## Recent milestones
 
@@ -52,6 +52,18 @@ prerelease `5.0.0-rc1`.
   the label `rc1`, and `Docs/Contributing/05-Releasing.md`. The package
   dry run found that PSResourceGet drops the command tags that 4.2.6 had;
   the script adds them back.
+- 2026-10-04: #98 merged (`e0f5366`); the tag `5.0.0-rc1` ran the release
+  job (run 37230802387), which published to the Gallery at 20:12 UTC and
+  created the GitHub prerelease. Verified: the Gallery nupkg is
+  byte-identical to the CI artifact, the GitHub zip to the CI zip; the DLLs
+  are optimized Release builds; the Gallery shows the prerelease flag, the
+  release notes link, and 85 tags (36 `PSCmdlet_`, 36 `PSCommand_`,
+  `PSIncludes_Cmdlet`, plus `PSEdition_Core` and `PSEdition_Desktop`, which
+  the Gallery adds itself); stable search still returns 4.2.6. Installed
+  with `Save-PSResource`, the module passes the full suite (Windows
+  PowerShell 261 passed and 7 skipped, PowerShell 7 232 passed and 36
+  skipped). The command search still returned 4.2.6 minutes after
+  publishing, because the search index lagged.
 
 ## Stable capabilities
 
@@ -77,14 +89,15 @@ next package starts only after the maintainer's go-ahead.
    **Restrict editing to collaborators only** for the wiki, and optionally
    ask `Sup3rlativ3` to delete the Read the Docs project.
 4c. Version history from the PowerShell Gallery: done (#97).
-4d. Release 5.0.0 through CI (Decision 12): PR-ready on `ai/release-5.0.0`.
-   Before the first tag, the maintainer creates the Gallery API key, the
-   environment `powershell-gallery`, and its secret `PSGALLERY_API_KEY`
-   (steps in `Docs/Contributing/05-Releasing.md`). Then: merge, tag
-   `5.0.0-rc1`, test the prerelease, check its Gallery tags and
-   `Find-Command`, and for the final release remove the label and date the
-   changelog section. Releases no longer come from a local build, so the
-   old manual steps (cleaning
+4d. Release 5.0.0 through CI (Decision 12): 5.0.0-rc1 published and
+   verified (#98). Next: the maintainer tests the prerelease; recheck
+   `Find-PSResource -CommandName Get-NTFSAccess -Prerelease`, which should
+   list 5.0.0-rc1 once the Gallery index catches up. For the final release:
+   remove the label, rename `[Unreleased]` to `[5.0.0]` with the date, and
+   tag `5.0.0` (steps in `Docs/Contributing/05-Releasing.md`). Consider
+   changing the manifest `Description`, which says "Windows PowerShell
+   Module", before the final release. Releases no longer come from a local
+   build, so the old manual steps (cleaning
    `C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity`, Debug
    builds) no longer apply.
 5. Code defects, listed below: `review: on`, one PR per group, regression
