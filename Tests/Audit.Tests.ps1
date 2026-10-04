@@ -123,6 +123,30 @@ Describe 'Add-NTFSAudit' {
     }
 }
 
+Describe 'Get-NTFSOrphanedAudit' {
+    BeforeAll {
+        $orphanedFile = New-TestSandboxItem -Sandbox $sandbox -Name 'OrphanedAudit'
+    }
+
+    # Before 5.0.0, the cmdlet wrote the entries of an item as one collection and ignored -Account.
+    It 'Should return one object per entry whose account cannot be resolved' -Skip:(-not $canReadAudit) {
+        foreach ($sid in 'S-1-5-21-1-2-3-1001', 'S-1-5-21-1-2-3-1002') {
+            Add-NTFSAudit -Path $orphanedFile -Account $sid -AccessRights ReadData -InheritanceFlags None -PropagationFlags None
+        }
+
+        $result = @(Get-NTFSOrphanedAudit -Path $orphanedFile)
+
+        $result | Should -HaveCount 2
+        $result | ForEach-Object -Process { $_ | Should -BeOfType [Security2.FileSystemAuditRule2] }
+    }
+
+    It 'Should return only the entries of -Account' -Skip:(-not $canReadAudit) {
+        $result = @(Get-NTFSOrphanedAudit -Path $orphanedFile -Account 'S-1-5-21-1-2-3-1002')
+
+        $result | Should -HaveCount 1
+    }
+}
+
 Describe 'Remove-NTFSAudit' {
     Context 'With -PassThru' {
         It 'Should return the audit entries of the item, not its access entries' -Skip:(-not $canReadAudit) {

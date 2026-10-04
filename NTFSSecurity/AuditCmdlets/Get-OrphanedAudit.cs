@@ -15,11 +15,28 @@ namespace NTFSSecurity.AuditCmdlets
 
         protected override void ProcessRecord()
         {
-            IEnumerable<FileSystemAuditRule2> acl;
-            FileSystemInfo item = null;
+            if (ParameterSetName == "SD")
+            {
+                foreach (var sd in securityDescriptors)
+                {
+                    if (!sd.HasAuditSection)
+                    {
+                        var ex = new InvalidOperationException(string.Format(
+                            "The security descriptor of '{0}' doesn't contain the audit entries, because it was read without the Security privilege.", sd.FullName));
+                        WriteError(new ErrorRecord(ex, "ReadSecurityError", ErrorCategory.InvalidData, sd));
+                        continue;
+                    }
+
+                    WriteOrphanedAces(FileSystemAuditRule2.GetFileSystemAuditRules(sd, !ExcludeExplicit, !ExcludeInherited, getInheritedFrom), sd.FullName);
+                }
+
+                return;
+            }
 
             foreach (var p in paths)
             {
+                FileSystemInfo item = null;
+
                 try
                 {
                     item = this.GetFileSystemInfo2(p);
@@ -32,19 +49,30 @@ namespace NTFSSecurity.AuditCmdlets
 
                 try
                 {
-                    acl = FileSystemAuditRule2.GetFileSystemAuditRules(item, !ExcludeExplicit, !ExcludeInherited, getInheritedFrom);
-
-                    var orphanedAces = acl.Where(ace => string.IsNullOrEmpty(ace.Account.AccountName));
-                    orphanedSidCount += orphanedAces.Count();
-
-                    this.WriteVerbose(string.Format("Item {0} knows about {1} orphaned SIDs in its ACL", p, orphanedAces.Count()));
-                    this.WriteObject(orphanedAces);
+                    WriteOrphanedAces(FileSystemAuditRule2.GetFileSystemAuditRules(item, !ExcludeExplicit, !ExcludeInherited, getInheritedFrom), p);
                 }
                 catch (Exception ex)
                 {
                     this.WriteWarning(string.Format("Could not read item {0}. The error was: {1}", p, ex.Message));
                 }
             }
+        }
+
+        private void WriteOrphanedAces(IEnumerable<FileSystemAuditRule2> acl, string path)
+        {
+            var orphanedAces = acl.Where(ace => string.IsNullOrEmpty(ace.Account.AccountName));
+            if (Account != null)
+            {
+                orphanedAces = orphanedAces.Where(ace => ace.Account == Account);
+            }
+
+            var orphanedAceList = orphanedAces.ToList();
+            orphanedSidCount += orphanedAceList.Count;
+
+            this.WriteVerbose(string.Format("Item {0} knows about {1} orphaned SIDs in its ACL", path, orphanedAceList.Count));
+
+            // One object per entry, not one collection per item
+            orphanedAceList.ForEach(ace => WriteObject(ace));
         }
 
         protected override void EndProcessing()

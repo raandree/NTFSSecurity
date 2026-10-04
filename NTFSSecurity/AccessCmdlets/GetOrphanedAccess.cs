@@ -15,11 +15,21 @@ namespace NTFSSecurity
 
         protected override void ProcessRecord()
         {
-            IEnumerable<FileSystemAccessRule2> acl = null;
-            FileSystemInfo item = null;
+            if (ParameterSetName == "SD")
+            {
+                foreach (var sd in securityDescriptors)
+                {
+                    WriteOrphanedAces(FileSystemAccessRule2.GetFileSystemAccessRules(sd, !ExcludeExplicit, !ExcludeInherited, getInheritedFrom), sd.FullName);
+                }
+
+                return;
+            }
 
             foreach (var path in paths)
             {
+                FileSystemInfo item = null;
+                IEnumerable<FileSystemAccessRule2> acl = null;
+
                 try
                 {
                     item = this.GetFileSystemInfo2(path);
@@ -50,25 +60,33 @@ namespace NTFSSecurity
                     catch (Exception ex2)
                     {
                         this.WriteError(new ErrorRecord(ex2, "AddAceError", ErrorCategory.WriteError, path));
+                        continue;
                     }
                 }
                 catch (Exception ex)
                 {
                     this.WriteWarning(string.Format("Could not read item {0}. The error was: {1}", path, ex.Message));
+                    continue;
                 }
-                finally
-                {
-                    if (acl != null)
-                    {
-                        var orphanedAces = acl.Where(ace => string.IsNullOrEmpty(ace.Account.AccountName));
-                        orphanedSidCount += orphanedAces.Count();
 
-                        WriteVerbose(string.Format("Item {0} knows about {1} orphaned SIDs in its ACL", path, orphanedAces.Count()));
-
-                        orphanedAces.ForEach(ace => WriteObject(ace));
-                    }
-                }
+                WriteOrphanedAces(acl, path);
             }
+        }
+
+        private void WriteOrphanedAces(IEnumerable<FileSystemAccessRule2> acl, string path)
+        {
+            var orphanedAces = acl.Where(ace => string.IsNullOrEmpty(ace.Account.AccountName));
+            if (Account != null)
+            {
+                orphanedAces = orphanedAces.Where(ace => ace.Account == Account);
+            }
+
+            var orphanedAceList = orphanedAces.ToList();
+            orphanedSidCount += orphanedAceList.Count;
+
+            WriteVerbose(string.Format("Item {0} knows about {1} orphaned SIDs in its ACL", path, orphanedAceList.Count));
+
+            orphanedAceList.ForEach(ace => WriteObject(ace));
         }
 
         protected override void EndProcessing()

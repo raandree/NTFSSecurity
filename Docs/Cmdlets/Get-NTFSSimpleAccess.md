@@ -33,7 +33,7 @@ The second simplification is that repetitions are left out. The first folder the
 
 `-IncludeRootFolder` is on by default and adds the parent folder of the first path as the baseline for the comparison, which is why the first result usually belongs to the folder above the one that was asked for. Use `-IncludeRootFolder:$false` to start the comparison at the first path itself.
 
-The cmdlet only processes folders; a path that points to a file is skipped silently. Relative paths are resolved against the current location, and the current location is used when `-Path` is omitted. `-ExcludeInherited` and `-ExcludeExplicit` work as in `Get-NTFSAccess`, while `-Account` and `-SecurityDescriptor` are inherited from that cmdlet and have no effect here.
+The cmdlet only processes folders; a path that points to a file is skipped silently. Relative paths are resolved against the current location, and the current location is used when `-Path` is omitted. `-ExcludeInherited`, `-ExcludeExplicit`, and `-Account` work as in `Get-NTFSAccess`. With `-SecurityDescriptor`, the cmdlet reports the entries of a `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, without comparing them with a parent folder.
 
 ## EXAMPLES
 
@@ -65,7 +65,7 @@ This command shows the explicit entries of `C:\Data` in simplified form and leav
 
 ### -Account
 
-This parameter is inherited from `Get-NTFSAccess` and has no effect. The cmdlet always returns the entries of all accounts.
+Specifies the account whose entries are returned. When you omit the parameter, the cmdlet returns the entries of all accounts.
 
 ```yaml
 Type: IdentityReference2
@@ -145,7 +145,7 @@ Accept wildcard characters: False
 
 ### -SecurityDescriptor
 
-This parameter is inherited from `Get-NTFSAccess` and has no effect. A security descriptor passed here is ignored, and the cmdlet reads the path in `-Path` or the current location instead.
+Specifies one or more security descriptors that `Get-NTFSSecurityDescriptor` returned. The cmdlet reports the entries of the in-memory objects instead of reading the items again.
 
 A security descriptor contains information about the owner of the object, and the primary group of an object. The security descriptor also contains two access control lists (ACL). The first list is called the discretionary access control lists (DACL), and describes who should have access to an object and what type of access to grant. The second list is called the system access control lists (SACL) and defines what type of auditing to record for an object.
 
@@ -172,23 +172,25 @@ One or more paths of folders, piped by value or by the property `FullName`.
 
 ### Security2.FileSystemSecurity2[]
 
-Security descriptors are accepted by the parameter binder but ignored by this cmdlet.
+You can pipe the security descriptors that `Get-NTFSSecurityDescriptor` returns to this cmdlet.
 
 ### Security2.IdentityReference2
 
-An account is accepted by the parameter binder but ignored by this cmdlet.
+An account name or a SID string binds to `-Account`.
 
 ## OUTPUTS
 
 ### Security2.SimpleFileSystemAccessRule
 
-One object per reported entry, with the folder in `FullName` and `Name`, the account in `Identity`, the access type in `AccessControlType`, and the simplified rights `Read`, `Write`, and `Delete` in `AccessRights`.
+One object per reported entry, with the folder in `FullName` and `Name`, the account in `Identity`, the access type in `AccessControlType`, and the simplified rights `Read`, `Write`, and `Delete` in `AccessRights`. The default view is a table with the `Account`, `Access Rights`, and `Type` columns, grouped by folder.
 
 ## NOTES
 
 When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.
 
 The simplified rights hide which exact rights an account holds. Use `Get-NTFSAccess` when you need the full access control entry, and `Get-NTFSEffectiveAccess` when you need the rights that result from all entries together.
+
+Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor`, and its output had no table view.
 
 ## RELATED LINKS
 

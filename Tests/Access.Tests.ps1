@@ -78,6 +78,76 @@ Describe 'Get-NTFSEffectiveAccess' {
     }
 }
 
+Describe 'Get-NTFSOrphanedAccess' {
+    BeforeAll {
+        $orphanedFile = New-TestSandboxItem -Sandbox $sandbox -Name 'Orphaned'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $orphanedFile
+        $acl = Get-Acl -LiteralPath $orphanedFile
+        foreach ($sid in 'S-1-5-21-1-2-3-1001', 'S-1-5-21-1-2-3-1002') {
+            $acl.AddAccessRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
+                        (New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList $sid),
+                        [System.Security.AccessControl.FileSystemRights]::ReadData, [System.Security.AccessControl.AccessControlType]::Allow
+                    )))
+        }
+        Set-Acl -LiteralPath $orphanedFile -AclObject $acl
+    }
+
+    It 'Should return the entries whose account cannot be resolved' {
+        @(Get-NTFSOrphanedAccess -Path $orphanedFile) | Should -HaveCount 2
+    }
+
+    It 'Should return only the entries of -Account' {
+        $result = @(Get-NTFSOrphanedAccess -Path $orphanedFile -Account 'S-1-5-21-1-2-3-1002')
+
+        $result | Should -HaveCount 1
+        $result[0].Account.Sid | Should -Be 'S-1-5-21-1-2-3-1002'
+    }
+
+    It 'Should read the entries of a security descriptor' {
+        $sd = Get-NTFSSecurityDescriptor -Path $orphanedFile
+
+        $result = @(Get-NTFSOrphanedAccess -SecurityDescriptor $sd)
+
+        $result | Should -HaveCount 2
+        $result | ForEach-Object -Process { $_.FullName | Should -Be $orphanedFile }
+    }
+}
+
+Describe 'Get-NTFSSimpleAccess' {
+    BeforeAll {
+        $simpleFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'Simple' -Directory
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $simpleFolder
+        $acl = Get-Acl -LiteralPath $simpleFolder
+        $acl.AddAccessRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
+                    (New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList 'S-1-1-0'),
+                    [System.Security.AccessControl.FileSystemRights]::ReadData, [System.Security.AccessControl.AccessControlType]::Allow
+                )))
+        Set-Acl -LiteralPath $simpleFolder -AclObject $acl
+    }
+
+    It 'Should return only the entries of -Account' {
+        $result = @(Get-NTFSSimpleAccess -Path $simpleFolder -Account 'S-1-1-0' -IncludeRootFolder:$false)
+
+        $result | Should -Not -BeNullOrEmpty
+        $result | ForEach-Object -Process { $_.Identity.Sid | Should -Be 'S-1-1-0' }
+    }
+
+    It 'Should read the entries of a security descriptor' {
+        $sd = Get-NTFSSecurityDescriptor -Path $simpleFolder
+
+        $result = @(Get-NTFSSimpleAccess -SecurityDescriptor $sd)
+
+        $result | Should -Not -BeNullOrEmpty
+        $result | ForEach-Object -Process { $_.FullName | Should -Be $simpleFolder }
+    }
+
+    It 'Should show the entries as a table with the account, the rights, and the type' {
+        $text = Get-NTFSSimpleAccess -Path $simpleFolder -IncludeRootFolder:$false | Out-String -Width 200
+
+        $text | Should -Match 'Account\s+Access Rights\s+Type'
+    }
+}
+
 Describe 'Security descriptor parameter sets' {
     BeforeAll {
         $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ParameterSets' -Directory

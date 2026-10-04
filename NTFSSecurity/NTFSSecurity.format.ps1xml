@@ -235,6 +235,56 @@
     </View>
 
     <View>
+      <Name>Security2.SimpleFileSystemAccessRule</Name>
+      <ViewSelectedBy>
+        <TypeName>Security2.SimpleFileSystemAccessRule</TypeName>
+      </ViewSelectedBy>
+      <GroupBy>
+        <PropertyName>FullName</PropertyName>
+        <CustomControlName>SimpleFileSystemAccessRule2Grouping</CustomControlName>
+      </GroupBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader>
+            <Width>35</Width>
+            <Label>Account</Label>
+          </TableColumnHeader>
+          <TableColumnHeader>
+            <Label>Access Rights</Label>
+          </TableColumnHeader>
+          <TableColumnHeader>
+            <Label>Type</Label>
+          </TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <Wrap/>
+            <TableColumnItems>
+              <TableColumnItem>
+                <ScriptBlock>
+                  if ((Get-Module NTFSSecurity).PrivateData.ShowAccountSid)
+                  {
+                  '{0} ({1})' -f $_.Identity.AccountName, $_.Identity.Sid
+                  }
+                  else
+                  {
+                  $_.Identity.ToString()
+                  }
+                </ScriptBlock>
+              </TableColumnItem>
+              <TableColumnItem>
+                <PropertyName>AccessRights</PropertyName>
+              </TableColumnItem>
+              <TableColumnItem>
+                <PropertyName>AccessControlType</PropertyName>
+              </TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+    <View>
       <Name>Security2.SimpleFileSystemAuditRule2</Name>
       <ViewSelectedBy>
         <TypeName>Security2.SimpleFileSystemAuditRule2</TypeName>

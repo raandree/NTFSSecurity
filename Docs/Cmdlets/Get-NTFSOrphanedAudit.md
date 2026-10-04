@@ -33,7 +33,7 @@ An entry is reported as orphaned whenever the name resolution fails at that mome
 
 The cmdlet is built on `Get-NTFSAudit` and reads the SACL of every item in `-Path`, using the current location when you omit the parameter. `-Path` accepts pipeline input by value and by property name through its `FullName` alias, so the output of `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` binds to it. `-ExcludeExplicit` and `-ExcludeInherited` narrow the entries that are examined, and `-Verbose` reports how many orphaned entries each item has and their total.
 
-`Get-NTFSOrphanedAudit` inherits the `-Account` and `-SecurityDescriptor` parameters from `Get-NTFSAudit`, but it does not evaluate them. The entries are always read from the items in `-Path`, so a command that passes `-SecurityDescriptor` examines the current location instead of the descriptor.
+`-Account` limits the result to the entries of one account, which you specify by its SID. With `-SecurityDescriptor`, the cmdlet examines a `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned; a descriptor that was read without the Security privilege doesn't contain the audit entries, and the cmdlet writes an error for it.
 
 ## EXAMPLES
 
@@ -60,7 +60,7 @@ PS C:\> $orphaned = Get-NTFSOrphanedAudit -Path C:\Data -Verbose
 PS C:\> $orphaned | Select-Object FullName, Account, AccessRights, AuditFlags
 ```
 
-This command stores the result in a variable and then lists the item, the unresolved SID, the audited rights, and the audit flags of every orphaned entry. Storing the result first is necessary because the cmdlet writes one collection per item rather than one object per entry.
+This command stores the result in a variable and then lists the item, the unresolved SID, the audited rights, and the audit flags of every orphaned entry.
 
 ### Example 4: Check the current location
 
@@ -74,7 +74,7 @@ This command examines the current location, because `-Path` is omitted.
 
 ### -Account
 
-Specifies an account in the base cmdlet `Get-NTFSAudit`. `Get-NTFSOrphanedAudit` inherits the parameter but does not evaluate it, so the result always contains the entries of every account whose SID cannot be resolved.
+Specifies the account whose orphaned audit entries are returned. Because the account cannot be resolved, specify it by its SID. When you omit the parameter, the cmdlet returns the entries of all accounts that cannot be resolved.
 
 ```yaml
 Type: IdentityReference2
@@ -138,7 +138,7 @@ Accept wildcard characters: False
 
 ### -SecurityDescriptor
 
-Specifies one or more security descriptors in the base cmdlet `Get-NTFSAudit`. `Get-NTFSOrphanedAudit` inherits the parameter but does not read from it; the cmdlet always examines the items in `-Path` and therefore the current location when `-Path` is omitted. Use `Get-NTFSAudit -SecurityDescriptor` to inspect the audit entries of a security descriptor.
+Specifies one or more security descriptors that `Get-NTFSSecurityDescriptor` returned. The cmdlet examines the in-memory objects instead of reading the items again.
 
 ```yaml
 Type: FileSystemSecurity2[]
@@ -167,13 +167,13 @@ Security descriptors bind to the inherited `-SecurityDescriptor` parameter, but 
 
 ### Security2.IdentityReference2
 
-An account name or a SID string binds to the inherited `-Account` parameter, which this cmdlet does not evaluate.
+An account name or a SID string binds to `-Account`.
 
 ## OUTPUTS
 
 ### Security2.FileSystemAuditRule2
 
-The cmdlet returns the audit entries whose account SID cannot be translated into a name, each with the item, the unresolved account, the audited access rights, the audit flags, and the inheritance information. The entries of an item are written as a single collection rather than one object per entry, so store the result in a variable before you filter or format it; an item without orphaned entries still produces one empty collection, and a command placed directly after this cmdlet in the pipeline receives the collection instead of the individual entries.
+The cmdlet returns the audit entries whose account SID cannot be translated into a name, each with the item, the unresolved account, the audited access rights, the audit flags, and the inheritance information. The cmdlet writes one object per entry.
 
 ## NOTES
 
@@ -182,6 +182,8 @@ When the module setting `EnablePrivileges` is `$true` (the default in the `Priva
 Reading the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it the cmdlet reads the security descriptor without its SACL and reports no orphaned entries at all, which looks the same as a tree that has none.
 
 If an item cannot be read, the cmdlet writes a warning and continues with the next item. Unlike `Get-NTFSAudit`, it does not try to take ownership of the item when access is denied.
+
+Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor` and wrote the entries of each item as one collection.
 
 ## RELATED LINKS
 

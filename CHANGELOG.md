@@ -103,5 +103,11 @@ The format is based on
   is omitted, and `-SecurityDescriptor` returns the effective access of the
   security descriptor; before, all three returned nothing or ignored the
   parameter
+- Fix `Get-NTFSOrphanedAccess`, `Get-NTFSOrphanedAudit`, and
+  `Get-NTFSSimpleAccess`, which ignored `-Account` and `-SecurityDescriptor`;
+  `Get-NTFSOrphanedAudit` now writes one object per entry instead of one
+  collection per item, `Get-NTFSOrphanedAccess` no longer repeats the entries
+  of the previous item after a failed read, and the output of
+  `Get-NTFSSimpleAccess` has a table view
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD
