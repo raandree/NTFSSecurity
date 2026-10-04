@@ -194,6 +194,8 @@ A path that does not exist produces a non-terminating error and the cmdlet conti
 
 Before 5.0.0, omitting `-AccessInheritanceEnabled` or `-AuditInheritanceEnabled` could fail with the error "Nullable object must have a value".
 
+Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.
+
 ## RELATED LINKS
 
 [Get-NTFSInheritance](Get-NTFSInheritance.md)

@@ -168,6 +168,8 @@ Blocking access inheritance requires permission to change the DACL of the item, 
 
 A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.
 
+Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.
+
 ## RELATED LINKS
 
 [Enable-NTFSAccessInheritance](Enable-NTFSAccessInheritance.md)

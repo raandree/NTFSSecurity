@@ -85,5 +85,8 @@ The format is based on
   copied a folder that contained files
 - Fix `Disable-Privileges`, which couldn't disable the privileges when the
   module setting `EnablePrivileges` was `$false`
+- Fix the inheritance cmdlets, which enabled the Backup, Restore, Take
+  Ownership, and Security privileges even when the module setting
+  `EnablePrivileges` was `$false`, and left them enabled
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

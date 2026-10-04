@@ -61,3 +61,28 @@ Describe 'Disable-Privileges' {
         }
     }
 }
+
+Describe 'Inheritance cmdlets' {
+    Context 'When the module setting EnablePrivileges is $false' {
+        BeforeAll {
+            $privateData['EnablePrivileges'] = $false
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Inheritance'
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        # Before 5.0.0, the inheritance cmdlets enabled the privileges anyway and left them enabled.
+        It '<_> should leave the privileges disabled' -Skip:(-not $holdsPrivileges) -ForEach @(
+            'Get-NTFSInheritance', 'Set-NTFSInheritance', 'Enable-NTFSAccessInheritance',
+            'Disable-NTFSAccessInheritance', 'Enable-NTFSAuditInheritance', 'Disable-NTFSAuditInheritance'
+        ) {
+            Get-BackupPrivilegeState | Should -Be 'Disabled'
+
+            & $_ -Path $file -ErrorAction SilentlyContinue | Out-Null
+
+            Get-BackupPrivilegeState | Should -Be 'Disabled'
+        }
+    }
+}
