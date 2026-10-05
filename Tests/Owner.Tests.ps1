@@ -4,6 +4,9 @@
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
     'PSUseDeclaredVarsMoreThanAssignments', '', Justification = 'Pester shares variables between blocks.'
 )]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+    'PSAvoidAssignmentToAutomaticVariable', '', Justification = 'A test shadows $PWD on purpose (#86).'
+)]
 param ()
 
 BeforeDiscovery {
@@ -50,5 +53,35 @@ Describe 'Get-NTFSOwner' {
             $ownerErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadSecurityError,*'
             $ownerErrors[0].CategoryInfo.Category | Should -Be 'PermissionDenied'
         }
+    }
+}
+
+Describe 'Current location' {
+    BeforeAll {
+        function Invoke-WithShadowedPwd {
+            param ([scriptblock] $Command)
+
+            $PWD = $null
+            & $Command
+        }
+    }
+
+    # Before 5.0.0, a variable named PWD in the scope of the caller, such as a loop variable, made every cmdlet
+    # fail with a NullReferenceException, also for an absolute path (#86).
+    It 'Should ignore a variable named PWD for an absolute path' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Pwd'
+
+        $result = Invoke-WithShadowedPwd -Command { Get-NTFSOwner -Path $file -ErrorAction Stop }
+
+        $result.FullName | Should -Be $file
+    }
+
+    It 'Should resolve a relative path against the current location despite a variable named PWD' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'PwdRelative'
+        $name = Split-Path -Path $file -Leaf
+
+        $result = Invoke-WithShadowedPwd -Command { Get-NTFSOwner -Path $name -ErrorAction Stop }
+
+        $result.FullName | Should -Be $file
     }
 }

@@ -172,5 +172,10 @@ The format is based on
 - Fix a `FormatException` in the cmdlets for a path with braces, such as
   `C:\Data\{Archive}`: their messages formatted the path a second time
   ([#3](https://github.com/raandree/NTFSSecurity/issues/3))
+- Fix a `NullReferenceException` in every cmdlet when a variable named
+  `PWD` in the scope of the caller, such as a loop variable, hid the
+  automatic variable; the cmdlets now read the current location from the
+  session, and only for a relative path
+  ([#86](https://github.com/raandree/NTFSSecurity/issues/86))
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

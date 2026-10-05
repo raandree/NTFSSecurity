@@ -26,32 +26,7 @@ namespace NTFSSecurity
         #region GetFileSystemInfo
         protected System.IO.FileSystemInfo GetFileSystemInfo(string path)
         {
-            string currentLocation = GetVariableValue("PWD").ToString();
-
-            if (path == ".")
-            {
-                path = currentLocation;
-            }
-            if (path.StartsWith(".."))
-            {
-                path = System.IO.Path.Combine(
-                    string.Join("\\", currentLocation.Split('\\').Take(currentLocation.Split('\\').Count() - path.Split('\\').Count(s => s == "..")).ToArray()),
-                    string.Join("\\", path.Split('\\').Where(e => e != "..").ToArray()));
-            }
-            else if (path.StartsWith("."))
-            {
-                //combine . and .\path\subpath
-                path = System.IO.Path.Combine(currentLocation, path.Substring(2));
-            }
-            else if (path.StartsWith("\\"))
-            {
-                //do nothing
-            }
-            else
-            {
-                ////combine . and \path\subpath or path\subpath
-                path = System.IO.Path.Combine(currentLocation, path.Substring(0));
-            }
+            path = GetRelativePath(path);
 
             if (System.IO.File.Exists(path))
             {
@@ -114,18 +89,17 @@ namespace NTFSSecurity
         #region GetRelativePath
         protected string GetRelativePath(string path)
         {
-            string currentLocation = GetVariableValue("PWD").ToString();
-
             if (string.IsNullOrEmpty(path))
             {
-                path = currentLocation;
+                path = GetCurrentLocation();
             }
             else if (path == ".")
             {
-                path = currentLocation;
+                path = GetCurrentLocation();
             }
             else if (path.StartsWith(".."))
             {
+                var currentLocation = GetCurrentLocation();
                 path = System.IO.Path.Combine(
                     string.Join("\\", currentLocation.Split('\\').Take(currentLocation.Split('\\').Count() - path.Split('\\').Count(s => s == "..")).ToArray()),
                     string.Join("\\", path.Split('\\').Where(e => e != "..").ToArray()));
@@ -133,19 +107,27 @@ namespace NTFSSecurity
             else if (path.StartsWith("."))
             {
                 //combine . and .\path\subpath
-                path = System.IO.Path.Combine(currentLocation, path.Substring(2));
+                path = System.IO.Path.Combine(GetCurrentLocation(), path.Substring(2));
             }
-            else if (path.StartsWith("\\"))
+            else if (path.StartsWith("\\") || System.IO.Path.IsPathRooted(path))
             {
-                //do nothing
+                //an absolute path needs no location
             }
             else
             {
-                ////combine . and \path\subpath or path\subpath
-                path = System.IO.Path.Combine(currentLocation, path);
+                ////combine . and path\subpath
+                path = System.IO.Path.Combine(GetCurrentLocation(), path);
             }
 
             return path;
+        }
+
+        // Read from the session state, not from $PWD: a variable named PWD in the caller's scope shadows the
+        // automatic variable and can be $null (#86). In a location of another provider, such as the registry, this
+        // is the last file system location.
+        private string GetCurrentLocation()
+        {
+            return SessionState.Path.CurrentFileSystemLocation.ProviderPath;
         }
         #endregion
 
