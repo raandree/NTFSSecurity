@@ -65,8 +65,9 @@ source: repository evidence
 
 ## Constraints
 
-- `ModuleVersion` on `master` is `5.0.0` with the prerelease label `rc1`;
-  5.0.0-rc1 is on the Gallery (published 2026-10-04 by CI). The latest
+- `ModuleVersion` on `master` is `5.0.0` with the prerelease label `rc1`
+  (`ai/release-5.0.0-rc2` sets `rc2`); 5.0.0-rc1 is on the Gallery
+  (published 2026-10-04 by CI). The latest
   stable tag and Gallery release is `4.2.6`. The manifest requires
   PowerShell 5.1 and .NET Framework 4.5.2, uses `RootModule`, and lists
   exactly 36 cmdlets; `Test-ModuleManifest` passes in Windows PowerShell 5.1

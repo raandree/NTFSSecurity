@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-04
+last-verified: 2026-10-05
 owner: active-agent
 source: repository evidence
 ---
@@ -28,17 +28,18 @@ NTFSSecurity.dll ── cmdlets ──> Security2.dll (FileSystemAccessRule2,
                  ── privileges ──> PrivilegeControl / ProcessPrivileges
 ```
 
-- `BaseCmdlet` resolves relative paths against `$PWD`.
-- `BaseCmdletWithPrivControl` (access, audit, inheritance, owner, security
-  descriptor, and privilege cmdlets) enables Backup, Restore, TakeOwnership,
-  and Security in `BeginProcessing` when `PrivateData.EnablePrivileges` is
+- `BaseCmdlet` resolves only relative paths, against the current file
+  system location of the session (not `$PWD`, #86). Path parameters carry
+  `[FileSystemPathTransformation]`, which binds file objects as full paths.
+- On access denied, most cmdlets retry through `InvokeAsOwner`, which takes
+  ownership and restores the previous owner on every exit path.
+- `BaseCmdletWithPrivControl` enables Backup, Restore, TakeOwnership, and
+  Security in `BeginProcessing` when `PrivateData.EnablePrivileges` is
   `$true`, and disables the ones it enabled in `EndProcessing`.
-- `PrivateData` switches: `EnablePrivileges` (base cmdlet), `GetInheritedFrom`
-  (`Get-NTFSAccess`, `Get-NTFSAudit`), `GetFileSystemModeProperty` and
-  `IdentifyHardLinks` (`Get-ChildItem2`), `ShowAccountSid` (format file).
-- Cmdlets accept either `-Path` (alias `FullName`) or `-SecurityDescriptor`
-  (from `Get-NTFSSecurityDescriptor`); SD sets change the in-memory object
-  until `Set-NTFSSecurityDescriptor` writes it back.
+- `PrivateData` switches: `EnablePrivileges`, `GetInheritedFrom`,
+  `GetFileSystemModeProperty`, `IdentifyHardLinks`, `ShowAccountSid`.
+- Cmdlets accept `-Path` (alias `FullName`) or `-SecurityDescriptor`; the
+  SD sets change the object in memory until `Set-NTFSSecurityDescriptor`.
 
 ## Decisions
 
@@ -64,36 +65,28 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 
 ### Verifying documentation
 
-- Run platyPS in Windows PowerShell 5.1 against a module build; a copy of
+- Run platyPS in Windows PowerShell 5.1 against a Release build; a copy of
   `Docs/Cmdlets` must round-trip through `Update-MarkdownHelp` unchanged.
-  platyPS rewrites non-ASCII punctuation, so keep cmdlet pages ASCII-only.
-  It takes a parameter's `Position` from `Get-Help`, that is from the shipped
-  help file: after a position change, edit the page YAML, run
+  Keep cmdlet pages ASCII-only. platyPS takes `Position` and `Required` from
+  the shipped help file: after such a change, edit the page YAML, run
   `New-ExternalHelp`, rebuild, and check the round trip.
-- Links: MarkdownLinkCheck checks relative `Docs` links (no anchors),
-  `Tests\Wiki.Tests.ps1` the wiki links and anchors; neither covers
-  `README.md` and `CHANGELOG.md`. The wiki is generated from `Docs` (never
-  edit it); `Docs/README.md` becomes Home, its cmdlet groups the sidebar.
-- In cmdlet pages, end a sentence with a link (platyPS drops the space after
-  it). Verify examples in a `$env:TEMP` sandbox, never on real data.
+- MarkdownLinkCheck checks relative `Docs` links, `Tests\Wiki.Tests.ps1`
+  the wiki links and anchors. The wiki is generated from `Docs` (never edit
+  it); `Docs/README.md` becomes Home, its cmdlet groups the sidebar.
+- In cmdlet pages, end a sentence with a link (platyPS drops the space
+  after it). Verify examples in a `$env:TEMP` sandbox, never on real data.
 
 ### Testing the module
 
-- Pester 5 tests in `Tests/*.Tests.ps1` import
-  `NTFSSecurity\bin\Release\NTFSSecurity.psd1`; CI runs every file of
-  `Tests` in Windows PowerShell 5.1 and in PowerShell 7 (Decision 11) with
-  `.github/scripts/Invoke-Tests.ps1` (job summary, NUnit `test-results`).
+- Pester 5 tests in `Tests/*.Tests.ps1` import the Release build; CI runs
+  them in Windows PowerShell 5.1 and PowerShell 7 (Decision 11).
 - A test that changes files, links, or security descriptors uses
-  `Tests\TestHelpers.psm1`: its own sandbox below
-  `$env:TEMP\NTFSSecurity.Tests`, `Assert-TestSandboxPath` before each
-  change, `Remove-TestSandbox` (links first, then ACL reset). Cases that need
-  a privilege skip with `Test-PrivilegeHeld` and run in CI (elevated);
-  `Block-TestReadPermission` (OWNER RIGHTS deny) makes a read fail without
-  elevation.
-- `Get-Help -Online` tests use the internal hook `BypassOnlineHelpRetrieval`,
-  which PowerShell 7 ignores for the help file: 36 tests run only in Windows
-  PowerShell.
-- `Manifest.Tests.ps1`: `Test-ModuleManifest` clean, exactly 36 cmdlets, one
-  version in manifest and assemblies (Decision 10). `Release.Tests.ps1`:
-  release notes for the manifest version, and the packages (`FileList`
-  files, version with label, command tags, zip layout).
+  `Tests\TestHelpers.psm1`: its own sandbox, `Assert-TestSandboxPath`
+  before each change, `Remove-TestSandbox`. Cases that need a privilege
+  skip with `Test-PrivilegeHeld` and run in CI (elevated);
+  `Block-TestReadPermission` and `Block-TestWritePermission` make a read or
+  a write fail without elevation.
+- `Get-Help -Online` tests run only in Windows PowerShell, which honors the
+  hook `BypassOnlineHelpRetrieval`. `Manifest.Tests.ps1` and
+  `Release.Tests.ps1` check the manifest, the version (Decision 10), the
+  release notes, and the packages.

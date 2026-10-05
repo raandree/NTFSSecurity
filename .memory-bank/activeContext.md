@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-04
+last-verified: 2026-10-05
 owner: active-agent
 source: current task evidence
 ---
@@ -9,62 +9,41 @@ source: current task evidence
 
 ## Current focus
 
-Overnight run 2026-10-04/05 (autopilot, maintainer asleep): fix the code
-defects A to D of `progress.md`, implement the maintainer's E decisions,
-triage the 37 open issues, and prepare 5.0.0-rc2. Eight stacked local
-branches, each a PR against `master`, to be merged in this order with merge
-commits: `ai/maintenance`, `ai/defects-a`, `ai/defects-b`, `ai/defects-c`,
-`ai/defects-d`, `ai/decisions-e`, `ai/issue-fixes`,
-`ai/release-5.0.0-rc2`. Nothing is pushed; the maintainer pushes, opens
-the PRs, and tags `5.0.0-rc2` after the merges.
+The overnight run of 2026-10-04/05 is finished. 5.0.0-rc2 waits on eight
+stacked local branches (see `progress.md`): the maintainer pushes them,
+opens one PR each against `master`, merges them in order with merge
+commits, and tags `5.0.0-rc2` on the last merge commit once CI on `master`
+is green. The run's report lists the commands, the PR descriptions, a
+reply for each issue, and the open questions.
 
 ## Maintainer decisions for the run (2026-10-04)
 
-- D1: the fixes ship in 5.0.0; entries go under `[Unreleased]` (`Fixed`;
-  intended behavior changes under `Changed` with the way back). The last
-  PR sets `Prerelease = 'rc2'`.
-- D2: `Clear-NTFSAccess -DisableInheritance` keeps leaving an empty DACL;
-  the page states the result and the risk.
-- D3: `Set-NTFSInheritance` keeps entries like the dedicated cmdlets.
+- D1: the fixes ship in 5.0.0, under `[Unreleased]`; the behavior changes
+  of D3 and D4 are listed under `Changed` with the way back.
+- D2: `Clear-NTFSAccess -DisableInheritance` keeps leaving an empty DACL.
+- D3: `Set-NTFSInheritance` keeps entries like the dedicated cmdlets
+  (Decision 13).
 - D4: `-RemoveInheritedAuditRules` and `-RemoveExplicitAuditRules`, with
-  the `*AccessRules` names as aliases.
-- D5: `Get-FileHash2` works in PowerShell 7 for every algorithm .NET has;
-  a missing one fails only when requested.
-- D7: Dependabot for `github-actions` only; AlphaFS 2.2.1 in
-  `NTFSSecurity\packages.config` (no upgrade, no changelog entry).
+  the old names as aliases.
+- D5: `Get-FileHash2` works in PowerShell 7; `MACTripleDES` is deprecated.
+- D6: only reproducible bugs are fixed; other behavior changes are
+  questions for the maintainer.
+- D7: Dependabot for `github-actions` only; AlphaFS 2.2.1 everywhere.
+- D8: the manifest `Description` and a version-neutral README.
+- D9: merged local branches deleted after the run.
 
 ## Evidence
 
-- Baseline at `e0f5366` (Release build, workstation): Windows PowerShell
-  261 passed, 7 skipped; PowerShell 7 232 passed, 36 skipped (268 tests).
-- `ai/maintenance` adds `Tests\Repository.Tests.ps1` (8 tests): Windows
-  PowerShell 269 passed, 7 skipped; PowerShell 7 240 passed, 36 skipped.
-  Review: Dependabot PRs ran unreviewed actions in a job with
-  `contents: write`; the wiki preview is now read-only (`publish-wiki`).
-- `ai/defects-a` fixes defects 1 to 13 and the same repeat bug in
-  `Get-NTFSAccess` (found with 4); its review fixes are in the last
-  commit: Windows PowerShell 312 passed, 17 skipped; PowerShell 7 282
-  passed, 47 skipped (329 tests).
-- `ai/defects-b` fixes defects 14 to 17 (`-AppliesTo` is mandatory in the
-  `Simple` sets; `-RemoveSpecific` is back): Windows PowerShell 333 passed,
-  19 skipped; PowerShell 7 303 passed, 49 skipped (352 tests).
-- `ai/defects-c` fixes defects 18 to 21, the same missing `continue` in
-  `Remove-NTFSAudit`, and a stale hash in `Get-FileHash2`. Its review
-  found that a failed retry after taking ownership left the owner changed;
-  `BaseCmdlet.InvokeAsOwner` now restores it: Windows PowerShell 356
-  passed, 20 skipped; PowerShell 7 325 passed, 51 skipped (376 tests).
-- `ai/defects-d` fixes defects 22 to 24 and `-PassThru` under `-WhatIf` in
-  the `*-Item2` cmdlets: Windows PowerShell 379 passed, 23 skipped;
-  PowerShell 7 348 passed, 54 skipped (402 tests).
-
-- `ai/decisions-e` implements D2 to D5 (Decision 13): Windows PowerShell
-  395 passed, 26 skipped; PowerShell 7 366 passed, 55 skipped (421
-  tests). `Get-FileHash2` tests now run in PowerShell 7 as well.
-
-- `ai/issue-fixes` fixes #3, #86, and #88 and adds `Docs/FAQ.md`: Windows
-  PowerShell 402 passed, 26 skipped; PowerShell 7 373 passed, 55 skipped
-  (428 tests).
+- Every branch tip: Release build without new warnings (296 at the top,
+  305 at the baseline), docs checks clean, package dry run passed.
+- Tests at the top branch: Windows PowerShell 405 passed, 26 skipped;
+  PowerShell 7 376 passed, 55 skipped (431). The baseline had 268 tests.
+- Tests that need privileges skip on the workstation and run in CI only;
+  the PR descriptions list them.
+- Reviews: one security review per PR; the Major findings were fixed in
+  the PR that had them (PR 1: 1, PR 2: 5, PR 4: 2, PR 6: 1).
 
 ## Next step
 
-5.0.0-rc2 on `ai/release-5.0.0-rc2`.
+The maintainer reads the report, pushes the branches, opens and merges the
+PRs, tags `5.0.0-rc2`, and decides #5 (`Get-ChildItem2 -Attributes`).
