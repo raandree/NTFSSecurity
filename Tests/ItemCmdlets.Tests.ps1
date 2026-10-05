@@ -78,6 +78,32 @@ Describe 'Get-ChildItem2' {
             ($lines | Where-Object -FilterScript { $_ -match 'Inheriting\.txt\s*$' }) | Should -Match '\bTrue\b'
         }
     }
+
+    Context 'With -Attributes' {
+        BeforeAll {
+            $attributeFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'Attributes' -Directory
+            $hiddenFile = Join-Path -Path $attributeFolder -ChildPath 'Hidden.txt'
+            $readOnlyFile = Join-Path -Path $attributeFolder -ChildPath 'ReadOnly.txt'
+            $plainFile = Join-Path -Path $attributeFolder -ChildPath 'Plain.txt'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $hiddenFile, $readOnlyFile, $plainFile
+            Set-Content -LiteralPath $hiddenFile, $readOnlyFile, $plainFile -Value 'Attributes'
+            (Get-Item -LiteralPath $hiddenFile -Force).Attributes = [IO.FileAttributes]::Hidden
+            (Get-Item -LiteralPath $readOnlyFile).Attributes = [IO.FileAttributes]::ReadOnly
+        }
+
+        # Before 5.0.0, the cmdlet returned only the items that had all the listed attributes (#5).
+        It 'Should return the items that have any of the listed attributes, like Get-ChildItem' {
+            $result = @(Get-ChildItem2 -Path $attributeFolder -Attributes Hidden, ReadOnly)
+
+            @($result.Name | Sort-Object) | Should -Be @('Hidden.txt', 'ReadOnly.txt')
+        }
+
+        It 'Should return only the items with the attribute when one is listed' {
+            $result = @(Get-ChildItem2 -Path $attributeFolder -Attributes ReadOnly)
+
+            $result.Name | Should -Be 'ReadOnly.txt'
+        }
+    }
 }
 
 Describe 'Copy-Item2, Move-Item2, and Remove-Item2 with several paths' {

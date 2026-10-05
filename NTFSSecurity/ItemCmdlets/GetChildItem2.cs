@@ -275,7 +275,8 @@ namespace NTFSSecurity
 
                 if (MyInvocation.BoundParameters.ContainsKey("Attributes"))
                 {
-                    if ((current.Attributes & attributes) != attributes)
+                    // Like Get-ChildItem, an item matches when it has any of the listed attributes (#5).
+                    if (attributes != 0 && (current.Attributes & attributes) == 0)
                         continue;
 
                     writeItem = true;

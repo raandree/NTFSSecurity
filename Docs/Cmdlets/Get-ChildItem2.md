@@ -57,19 +57,19 @@ PS C:\> Get-ChildItem2 -Path C:\Data -Recurse -Depth 1 -Filter '*.log'
 
 Returns the log files in `C:\Data` and in its immediate subfolders. Without `-Depth`, the command would descend through the entire tree.
 
-### Example 4: List hidden system files
+### Example 4: List hidden or system files
 
 ```PowerShell
 PS C:\> dir2 -Path C:\Data -Attributes Hidden, System
 ```
 
-Uses the `dir2` alias and returns the items of `C:\Data` that have both the hidden and the system attribute.
+Uses the `dir2` alias and returns the items of `C:\Data` that have the hidden or the system attribute, like `Get-ChildItem -Attributes Hidden, System`.
 
 ## PARAMETERS
 
 ### -Attributes
 
-Specifies a set of file attributes. The cmdlet returns only the items that have all the attributes you list; separate several values with commas, as in `-Attributes Hidden, System`. When you use this parameter, the cmdlet ignores `-Force`, `-Hidden`, `-System`, and `-ReadOnly`, and it returns matching hidden items without `-Force`.
+Specifies a set of file attributes. Like `Get-ChildItem`, the cmdlet returns the items that have at least one of the attributes you list; separate several values with commas, as in `-Attributes Hidden, System`. To get only the items that have all of them, filter the result, for example with `Where-Object { ($_.Attributes -band [IO.FileAttributes]'Hidden, System') -eq [IO.FileAttributes]'Hidden, System' }`. When you use this parameter, the cmdlet ignores `-Force`, `-Hidden`, `-System`, and `-ReadOnly`, and it returns matching hidden items without `-Force`.
 
 ```yaml
 Type: FileAttributes
@@ -307,7 +307,7 @@ The `PrivateData` section of the module manifest `NTFSSecurity.psd1` contains tw
 
 A folder that cannot be read produces a non-terminating error with the ID `DirUnauthorizedAccessError` for an access denial or `DirUnspecifiedError` for any other failure, and a path that does not exist produces the error `FileNotFound`. In each case the cmdlet continues with the next path. Failures that occur while `-Recurse` collects the subfolders of a folder are reported as verbose messages only, not as errors.
 
-Before 5.0.0, a `-Path` value that points to a file stopped the cmdlet with an `InvalidCastException`.
+Before 5.0.0, a `-Path` value that points to a file stopped the cmdlet with an `InvalidCastException`, and `-Attributes` returned only the items that had all the listed attributes.
 
 ## RELATED LINKS
 

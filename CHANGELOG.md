@@ -49,6 +49,11 @@ The format is based on
   before. To remove the entries, use
   `Disable-NTFSAccessInheritance -RemoveInheritedAccessRules` or
   `Enable-NTFSAuditInheritance -RemoveExplicitAuditRules`
+- **Breaking:** `Get-ChildItem2 -Attributes` returns the items that have any
+  of the listed attributes, like `Get-ChildItem`; it returned only the items
+  that had all of them. To get the old result, filter with `Where-Object`,
+  as the cmdlet page shows
+  ([#5](https://github.com/raandree/NTFSSecurity/issues/5))
 
 ### Deprecated
 
