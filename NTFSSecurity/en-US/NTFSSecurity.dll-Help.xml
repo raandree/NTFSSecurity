@@ -1601,7 +1601,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
           <maml:name>DisableInheritance</maml:name>
           <maml:description>
-            <maml:para>Indicates that inheritance is disabled after the explicit entries are removed, and that the inherited entries are discarded rather than copied into the item. Without this switch the inherited entries remain in effect.</maml:para>
+            <maml:para>Indicates that inheritance is disabled after the explicit entries are removed, and that the inherited entries are discarded rather than copied into the item. The item is left with an empty DACL, which denies access to everyone; only its owner can still change the permissions. Without this switch the inherited entries remain in effect.</maml:para>
           </maml:description>
           <dev:type>
             <maml:name>SwitchParameter</maml:name>
@@ -1628,7 +1628,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
           <maml:name>DisableInheritance</maml:name>
           <maml:description>
-            <maml:para>Indicates that inheritance is disabled after the explicit entries are removed, and that the inherited entries are discarded rather than copied into the item. Without this switch the inherited entries remain in effect.</maml:para>
+            <maml:para>Indicates that inheritance is disabled after the explicit entries are removed, and that the inherited entries are discarded rather than copied into the item. The item is left with an empty DACL, which denies access to everyone; only its owner can still change the permissions. Without this switch the inherited entries remain in effect.</maml:para>
           </maml:description>
           <dev:type>
             <maml:name>SwitchParameter</maml:name>
@@ -1642,7 +1642,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
         <maml:name>DisableInheritance</maml:name>
         <maml:description>
-          <maml:para>Indicates that inheritance is disabled after the explicit entries are removed, and that the inherited entries are discarded rather than copied into the item. Without this switch the inherited entries remain in effect.</maml:para>
+          <maml:para>Indicates that inheritance is disabled after the explicit entries are removed, and that the inherited entries are discarded rather than copied into the item. The item is left with an empty DACL, which denies access to everyone; only its owner can still change the permissions. Without this switch the inherited entries remain in effect.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
         <dev:type>

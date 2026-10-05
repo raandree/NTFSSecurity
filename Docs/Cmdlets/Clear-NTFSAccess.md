@@ -72,7 +72,7 @@ These commands replace the complete ACL of `C:\Data` in one write. The security 
 
 ### -DisableInheritance
 
-Indicates that inheritance is disabled after the explicit entries are removed, and that the inherited entries are discarded rather than copied into the item. Without this switch the inherited entries remain in effect.
+Indicates that inheritance is disabled after the explicit entries are removed, and that the inherited entries are discarded rather than copied into the item. The item is left with an empty DACL, which denies access to everyone; only its owner can still change the permissions. Without this switch the inherited entries remain in effect.
 
 ```yaml
 Type: SwitchParameter
