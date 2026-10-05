@@ -169,5 +169,8 @@ The format is based on
   `RIPEMD160` and `MACTripleDES`, which .NET lacks there, now stop the
   cmdlet with an error that names the algorithm and points to Windows
   PowerShell 5.1
+- Fix a `FormatException` in the cmdlets for a path with braces, such as
+  `C:\Data\{Archive}`: their messages formatted the path a second time
+  ([#3](https://github.com/raandree/NTFSSecurity/issues/3))
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

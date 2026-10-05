@@ -94,6 +94,15 @@ Describe 'Get-NTFSEffectiveAccess' {
 }
 
 Describe 'Get-NTFSOrphanedAccess' {
+    # Before 5.0.0, a path with braces stopped the cmdlet with a FormatException (#3).
+    It 'Should read a folder whose name contains braces' {
+        $braces = Join-Path -Path $sandbox -ChildPath ('{{Braces}}-{0}' -f [guid]::NewGuid().ToString('N').Substring(0, 8))
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $braces
+        [IO.Directory]::CreateDirectory($braces) | Out-Null
+
+        { Get-NTFSOrphanedAccess -Path $braces -ErrorAction Stop } | Should -Not -Throw
+    }
+
     BeforeAll {
         $orphanedFile = New-TestSandboxItem -Sandbox $sandbox -Name 'Orphaned'
         Assert-TestSandboxPath -Sandbox $sandbox -Path $orphanedFile

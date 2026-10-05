@@ -337,18 +337,20 @@ namespace NTFSSecurity
                 WriteDebug("The privilige 'Security' was disabled.");
         }
 
+        // These overloads hide the single-argument methods of Cmdlet, so a message without arguments must not be
+        // formatted: a path with braces in it would make string.Format throw (#3).
         protected void WriteWarning(string text, params string[] args)
         {
-            base.WriteWarning(string.Format(text, args));
+            base.WriteWarning(args == null || args.Length == 0 ? text : string.Format(text, args));
         }
         protected void WriteVerbose(string text, params string[] args)
         {
-            base.WriteVerbose(string.Format(text, args));
+            base.WriteVerbose(args == null || args.Length == 0 ? text : string.Format(text, args));
         }
 
         protected void WriteDebug(string text, params string[] args)
         {
-            base.WriteDebug(string.Format(text, args));
+            base.WriteDebug(args == null || args.Length == 0 ? text : string.Format(text, args));
         }
     }
 }
