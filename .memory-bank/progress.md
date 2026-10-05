@@ -179,3 +179,18 @@ Numbered as agreed with the maintainer; each is documented on its page.
   `MACTripleDES` uses a random key (verified), so it is deprecated.
 - Review of group E: the changelog now marks the `Set-NTFSInheritance`
   change as breaking and warns that it leaves broader access in place.
+
+#### Issue triage (fixes on `ai/issue-fixes`, not merged)
+
+- Fixed: #3 (braces in a path), #86 (`$PWD` shadowed, also for the default
+  location of nine cmdlets, found by the review), #88 (an object passed by
+  position), #17 (an entry with `GenericAll`); `Docs/FAQ.md` answers the
+  recurring questions.
+- Review of #17: generic rights are removed the way .NET removes other
+  rights, an exact match as it is, otherwise without `Synchronize`.
+- Maintainer decisions of 2026-10-05: #5 (`Get-ChildItem2 -Attributes`
+  matches any listed attribute) and #82 (no `Size` alias) ship in 5.0.0 as
+  breaking changes. Their review added that an empty `-Attributes` value is
+  an error, as in `Get-ChildItem`.
+- Open bugs: #34 and #67 (writes owner and group, rc3 if a file server is
+  available), #41 (drive root) and #90 (trailing space), both after 5.0.0.

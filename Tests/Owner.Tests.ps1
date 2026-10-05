@@ -4,6 +4,9 @@
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
     'PSUseDeclaredVarsMoreThanAssignments', '', Justification = 'Pester shares variables between blocks.'
 )]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+    'PSAvoidAssignmentToAutomaticVariable', '', Justification = 'A test shadows $PWD on purpose (#86).'
+)]
 param ()
 
 BeforeDiscovery {
@@ -50,5 +53,76 @@ Describe 'Get-NTFSOwner' {
             $ownerErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadSecurityError,*'
             $ownerErrors[0].CategoryInfo.Category | Should -Be 'PermissionDenied'
         }
+    }
+}
+
+Describe 'Current location' {
+    BeforeAll {
+        # The command runs in a child scope of this function, so the cmdlets see its $PWD = $null through the scope
+        # chain, as in the report.
+        function Invoke-WithShadowedPwd {
+            param ([scriptblock] $Command)
+
+            $PWD = $null
+            & $Command
+        }
+    }
+
+    # Before 5.0.0, a variable named PWD in the scope of the caller, such as a loop variable, made every cmdlet
+    # fail with a NullReferenceException, also for an absolute path (#86).
+    It 'Should ignore a variable named PWD for an absolute path' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Pwd'
+
+        $result = Invoke-WithShadowedPwd -Command { Get-NTFSOwner -Path $file -ErrorAction Stop }
+
+        $result.FullName | Should -Be $file
+    }
+
+    It 'Should resolve a relative path against the current location despite a variable named PWD' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'PwdRelative'
+        $name = Split-Path -Path $file -Leaf
+
+        $result = Invoke-WithShadowedPwd -Command { Get-NTFSOwner -Path $name -ErrorAction Stop }
+
+        $result.FullName | Should -Be $file
+    }
+
+    It '<_> should use the current location without -Path despite a variable named PWD' -ForEach @(
+        'Get-NTFSAccess', 'Get-NTFSAudit', 'Get-NTFSEffectiveAccess', 'Get-NTFSInheritance', 'Get-ChildItem2',
+        'Get-Item2', 'Get-NTFSSecurityDescriptor'
+    ) {
+        $cmdlet = $_
+
+        { Invoke-WithShadowedPwd -Command { & $cmdlet -ErrorAction SilentlyContinue -WarningAction SilentlyContinue } } |
+            Should -Not -Throw
+    }
+
+    It 'Get-NTFSHardLink should report the folder of the current location, not a NullReferenceException' {
+        { Invoke-WithShadowedPwd -Command { Get-NTFSHardLink -ErrorAction SilentlyContinue } } |
+            Should -Throw -ExpectedMessage '*must be a file*'
+    }
+}
+
+Describe 'File and folder objects as arguments' {
+    # Before 5.0.0, Windows PowerShell bound a folder object that was passed by position as its name, which the
+    # cmdlets resolved against the current location (#88).
+    It 'Should take a folder object by position' {
+        $parent = New-TestSandboxItem -Sandbox $sandbox -Name 'Parent' -Directory
+        $child = Join-Path -Path $parent -ChildPath 'Child'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $child
+        New-Item -ItemType Directory -Path $child | Out-Null
+        $folder = Get-ChildItem -LiteralPath $parent -Directory
+
+        $result = Get-NTFSOwner $folder -ErrorAction Stop
+
+        $result.FullName | Should -Be $child
+    }
+
+    It 'Should take file objects through the pipeline as before' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Piped'
+
+        $result = Get-Item -LiteralPath $file | Get-NTFSOwner
+
+        $result.FullName | Should -Be $file
     }
 }

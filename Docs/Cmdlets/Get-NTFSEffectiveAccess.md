@@ -164,7 +164,7 @@ One or more paths of files or folders, piped by value or by the property `FullNa
 
 ### Security2.FileSystemSecurity2[]
 
-Security descriptors are accepted by the parameter binder but produce no result in this cmdlet.
+One or more security descriptors that `Get-NTFSSecurityDescriptor` returned. The cmdlet calculates the effective access from the descriptor in memory instead of reading the item again.
 
 ### Security2.IdentityReference2
 

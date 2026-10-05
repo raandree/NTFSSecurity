@@ -15,6 +15,7 @@ namespace NTFSSecurity
         [Parameter(Position = 1, Mandatory = true, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
         [ValidateNotNullOrEmpty]
         [Alias("FullName")]
+        [FileSystemPathTransformation]
         public string[] Path
         {
             get { return paths.ToArray(); }
@@ -26,6 +27,7 @@ namespace NTFSSecurity
         }
 
         [Parameter(Position = 2, Mandatory = true, ValueFromPipelineByPropertyName = true)]
+        [FileSystemPathTransformation]
         public string Destination
         {
             get { return destination; }
@@ -95,12 +97,13 @@ namespace NTFSSecurity
                 try
                 {
                     var processed = false;
+                    FileSystemInfo copy = null;
 
                     if (item is FileInfo)
                     {
                         if (ShouldProcess(resolvedPath, "Copy File"))
                         {
-                            ((FileInfo)item).CopyTo(actualDestination, force ? CopyOptions.None : CopyOptions.FailIfExists, PathFormat.RelativePath);
+                            copy = ((FileInfo)item).CopyTo(actualDestination, force ? CopyOptions.None : CopyOptions.FailIfExists, PathFormat.RelativePath);
                             WriteVerbose(string.Format("File '{0}' copied to '{1}'", resolvedPath, actualDestination));
                             processed = true;
                         }
@@ -112,14 +115,15 @@ namespace NTFSSecurity
                             // AlphaFS 2.2 copies into an existing folder only and otherwise fails with a
                             // DirectoryNotFoundException for the first file.
                             Directory.CreateDirectory(actualDestination);
-                            ((DirectoryInfo)item).CopyTo(actualDestination, force ? CopyOptions.None : CopyOptions.FailIfExists, PathFormat.RelativePath);
+                            copy = ((DirectoryInfo)item).CopyTo(actualDestination, force ? CopyOptions.None : CopyOptions.FailIfExists, PathFormat.RelativePath);
                             WriteVerbose(string.Format("Directory '{0}' copied to '{1}'", resolvedPath, actualDestination));
                             processed = true;
                         }
                     }
 
+                    // Write the object for the copy that CopyTo returns, not the source item.
                     if (passThru && processed)
-                        WriteObject(item);
+                        WriteObject(copy);
                 }
                 catch (System.IO.IOException ex)
                 {

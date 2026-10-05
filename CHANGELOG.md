@@ -49,6 +49,19 @@ The format is based on
   before. To remove the entries, use
   `Disable-NTFSAccessInheritance -RemoveInheritedAccessRules` or
   `Enable-NTFSAuditInheritance -RemoveExplicitAuditRules`
+- **Breaking:** `Get-ChildItem2 -Attributes` returns the items that have any
+  of the listed attributes, like `Get-ChildItem`; it returned only the items
+  that had all of them. A call that lists several attributes now returns
+  more items, including hidden and system items when those are in the
+  list, so review calls whose result is deleted or whose permissions are
+  changed. To get the old result, filter with `Where-Object`, as the cmdlet
+  page shows. An empty value, such as `0`, is now an error; it returned
+  every item, also the hidden ones
+  ([#5](https://github.com/raandree/NTFSSecurity/issues/5))
+- **Breaking:** remove the alias `Size` of `LengthOnDisk` from the files of
+  `Get-ChildItem`, which made the import fail in Windows PowerShell when
+  another module had added a `Size` member; use `LengthOnDisk`
+  ([#82](https://github.com/raandree/NTFSSecurity/issues/82))
 
 ### Deprecated
 
@@ -169,5 +182,21 @@ The format is based on
   `RIPEMD160` and `MACTripleDES`, which .NET lacks there, now stop the
   cmdlet with an error that names the algorithm and points to Windows
   PowerShell 5.1
+- Fix a `FormatException` in the cmdlets for a path with braces, such as
+  `C:\Data\{Archive}`: their messages formatted the path a second time
+  ([#3](https://github.com/raandree/NTFSSecurity/issues/3))
+- Fix a `NullReferenceException` in every cmdlet when a variable named
+  `PWD` in the scope of the caller, such as a loop variable, hid the
+  automatic variable; the cmdlets now read the current location from the
+  session, and only for a relative path
+  ([#86](https://github.com/raandree/NTFSSecurity/issues/86))
+- Fix file and folder objects passed by position, such as
+  `Get-NTFSOwner $folder`, which Windows PowerShell bound as the name of the
+  item, so the cmdlets looked for it in the current location
+  ([#88](https://github.com/raandree/NTFSSecurity/issues/88))
+- Fix `Remove-NTFSAccess` for an entry with a generic right such as
+  `GenericAll`, which Windows keeps in the inherit-only entries of folders;
+  it failed with "The value '269484032' is not valid"
+  ([#17](https://github.com/raandree/NTFSSecurity/issues/17))
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

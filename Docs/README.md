@@ -72,7 +72,8 @@ Get-NTFSAccess -Path C:\Windows
 
 Read [Concepts](Concepts.md) for the background and [Examples](Examples.md)
 for common tasks. Every cmdlet has a reference page with all parameters and
-examples; see the [cmdlet list](#cmdlets).
+examples; see the [cmdlet list](#cmdlets). The [FAQ](FAQ.md) answers
+questions that come up again and again.
 
 ## Cmdlets
 

@@ -2166,7 +2166,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
           <maml:name>Alphaleonis.Win32.Filesystem.FileInfo</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>By default this cmdlet returns nothing. With `-PassThru $true` it returns a file object for each file that it copied.</maml:para>
+          <maml:para>By default this cmdlet returns nothing. With `-PassThru $true` it returns a file object for each file that it copied, pointing at the copy.</maml:para>
         </maml:description>
       </command:returnValue>
       <command:returnValue>
@@ -2174,7 +2174,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
           <maml:name>Alphaleonis.Win32.Filesystem.DirectoryInfo</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>With `-PassThru $true` the cmdlet returns a folder object for each folder that it copied.</maml:para>
+          <maml:para>With `-PassThru $true` the cmdlet returns a folder object for each folder that it copied, pointing at the copy.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -3524,7 +3524,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
           <maml:name>Attributes</maml:name>
           <maml:description>
-            <maml:para>Specifies a set of file attributes. The cmdlet returns only the items that have all the attributes you list; separate several values with commas, as in `-Attributes Hidden, System`. When you use this parameter, the cmdlet ignores `-Force`, `-Hidden`, `-System`, and `-ReadOnly`, and it returns matching hidden items without `-Force`.</maml:para>
+            <maml:para>Specifies a set of file attributes. Like `Get-ChildItem`, the cmdlet returns the items that have at least one of the attributes you list; separate several values with commas, as in `-Attributes Hidden, System`. Unlike `Get-ChildItem`, the parameter takes only such a list, not the `+` and `!` operators; to get only the items that have all the attributes, filter the result, for example with `Where-Object { ($_.Attributes -band [IO.FileAttributes]'Hidden, System') -eq [IO.FileAttributes]'Hidden, System' }`. An empty value, such as `0`, stops the cmdlet with the error `AttributesEmpty`. When you use this parameter, the cmdlet ignores `-Force`, `-Hidden`, `-System`, and `-ReadOnly`, and it returns matching hidden items without `-Force`. The parameter restricts the returned items only; `-Recurse` still descends into every subfolder, including hidden ones.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">ReadOnly</command:parameterValue>
@@ -3668,7 +3668,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
         <maml:name>Attributes</maml:name>
         <maml:description>
-          <maml:para>Specifies a set of file attributes. The cmdlet returns only the items that have all the attributes you list; separate several values with commas, as in `-Attributes Hidden, System`. When you use this parameter, the cmdlet ignores `-Force`, `-Hidden`, `-System`, and `-ReadOnly`, and it returns matching hidden items without `-Force`.</maml:para>
+          <maml:para>Specifies a set of file attributes. Like `Get-ChildItem`, the cmdlet returns the items that have at least one of the attributes you list; separate several values with commas, as in `-Attributes Hidden, System`. Unlike `Get-ChildItem`, the parameter takes only such a list, not the `+` and `!` operators; to get only the items that have all the attributes, filter the result, for example with `Where-Object { ($_.Attributes -band [IO.FileAttributes]'Hidden, System') -eq [IO.FileAttributes]'Hidden, System' }`. An empty value, such as `0`, stops the cmdlet with the error `AttributesEmpty`. When you use this parameter, the cmdlet ignores `-Force`, `-Hidden`, `-System`, and `-ReadOnly`, and it returns matching hidden items without `-Force`. The parameter restricts the returned items only; `-Recurse` still descends into every subfolder, including hidden ones.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="false">FileAttributes</command:parameterValue>
         <dev:type>
@@ -3857,7 +3857,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
         <maml:para>The default table view shows the `Mode`, `Inherits`, `LastWriteTime`, `Size(M)`, and `Name` columns. `Inherits` is `False` for an item whose access inheritance is disabled. Reading that value costs one access to the ACL of each displayed item, which slows down the display of large listings; to avoid it, select the properties you need, for example with `Format-Table -Property Mode, LastWriteTime, Length, Name`. Objects that you pipe to another command are not affected. Before 5.0.0, the column showed `True` for every item.</maml:para>
         <maml:para>The `PrivateData` section of the module manifest `NTFSSecurity.psd1` contains two settings that this cmdlet reads when it starts. `GetFileSystemModeProperty` adds the calculated `Mode` property to every item. `IdentifyHardLinks` adds the `HardLinkCount` property to every file, which requires an extra call into the file system for each file and therefore slows down large listings noticeably. Set either value to `$false` in the manifest and import the module again if you prefer the faster enumeration over the additional properties.</maml:para>
         <maml:para>A folder that cannot be read produces a non-terminating error with the ID `DirUnauthorizedAccessError` for an access denial or `DirUnspecifiedError` for any other failure, and a path that does not exist produces the error `FileNotFound`. In each case the cmdlet continues with the next path. Failures that occur while `-Recurse` collects the subfolders of a folder are reported as verbose messages only, not as errors.</maml:para>
-        <maml:para>Before 5.0.0, a `-Path` value that points to a file stopped the cmdlet with an `InvalidCastException`.</maml:para>
+        <maml:para>Before 5.0.0, a `-Path` value that points to a file stopped the cmdlet with an `InvalidCastException`, `-Attributes` returned only the items that had all the listed attributes, and an empty `-Attributes` value returned every item, also the hidden ones.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -3883,10 +3883,10 @@ PS C:\&gt; Disable-Privileges</dev:code>
         </dev:remarks>
       </command:example>
       <command:example>
-        <maml:title>------------- Example 4: List hidden system files -------------</maml:title>
+        <maml:title>------------ Example 4: List hidden or system files ------------</maml:title>
         <dev:code>PS C:\&gt; dir2 -Path C:\Data -Attributes Hidden, System</dev:code>
         <dev:remarks>
-          <maml:para>Uses the `dir2` alias and returns the items of `C:\Data` that have both the hidden and the system attribute.</maml:para>
+          <maml:para>Uses the `dir2` alias and returns the items of `C:\Data` that have the hidden or the system attribute, like `Get-ChildItem -Attributes Hidden, System`.</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>
@@ -5117,7 +5117,7 @@ PS C:\&gt; Get-NTFSAudit -SecurityDescriptor $sd</dev:code>
           <maml:name>Security2.FileSystemSecurity2[]</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>Security descriptors are accepted by the parameter binder but produce no result in this cmdlet.</maml:para>
+          <maml:para>One or more security descriptors that `Get-NTFSSecurityDescriptor` returned. The cmdlet calculates the effective access from the descriptor in memory instead of reading the item again.</maml:para>
         </maml:description>
       </command:inputType>
       <command:inputType>
@@ -8416,6 +8416,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>If the ACL of an item cannot be written because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.</maml:para>
         <maml:para>Removing rights from an entry that does not exist is not an error; the cmdlet leaves the ACL unchanged.</maml:para>
+        <maml:para>An entry with a generic right, such as `GenericAll`, can be removed, for example by piping it from `Get-NTFSAccess`. Windows keeps generic rights in the inherit-only entries of folders. Before 5.0.0, the cmdlet failed for such an entry with the error "The value '269484032' is not valid for this usage of the type FileSystemRights".</maml:para>
         <maml:para>Before 5.0.0, the `-RemoveSpecific` switch was missing, although version 4.1 had introduced it.</maml:para>
         <maml:para>A path that does not exist produces the non-terminating error `ReadFileError`, and the cmdlet continues with the next path. Before 5.0.0, the cmdlet also wrote a misleading `RemoveAceError` for that path, and with `-PassThru` it stopped with a `NullReferenceException`.</maml:para>
       </maml:alert>

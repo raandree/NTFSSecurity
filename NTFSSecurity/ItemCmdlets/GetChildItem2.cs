@@ -33,6 +33,7 @@ namespace NTFSSecurity
         [Parameter(Position = 1, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
         [ValidateNotNullOrEmpty]
         [Alias("FullName")]
+        [FileSystemPathTransformation]
         public string[] Path
         {
             get { return paths.ToArray(); }
@@ -131,9 +132,17 @@ namespace NTFSSecurity
         {
             base.BeginProcessing();
 
+            // An empty value would match every item, also the hidden ones; Get-ChildItem rejects it as well.
+            if (MyInvocation.BoundParameters.ContainsKey("Attributes") && attributes == 0)
+            {
+                ThrowTerminatingError(new ErrorRecord(
+                    new ArgumentException("Specify at least one file attribute for the Attributes parameter."),
+                    "AttributesEmpty", ErrorCategory.InvalidArgument, attributes));
+            }
+
             if (paths.Count == 0)
             {
-                paths = new List<string>() { GetVariableValue("PWD").ToString() };
+                paths = new List<string>() { GetCurrentLocation() };
             }
 
             wildcard = new WildcardPattern(filter, WildcardOptions.Compiled | WildcardOptions.IgnoreCase);
@@ -274,7 +283,8 @@ namespace NTFSSecurity
 
                 if (MyInvocation.BoundParameters.ContainsKey("Attributes"))
                 {
-                    if ((current.Attributes & attributes) != attributes)
+                    // Like Get-ChildItem, an item matches when it has any of the listed attributes (#5).
+                    if ((current.Attributes & attributes) == 0)
                         continue;
 
                     writeItem = true;

@@ -304,6 +304,8 @@ If the ACL of an item cannot be written because access is denied, the cmdlet tri
 
 Removing rights from an entry that does not exist is not an error; the cmdlet leaves the ACL unchanged.
 
+An entry with a generic right, such as `GenericAll`, can be removed, for example by piping it from `Get-NTFSAccess`. Windows keeps generic rights in the inherit-only entries of folders. Before 5.0.0, the cmdlet failed for such an entry with the error "The value '269484032' is not valid for this usage of the type FileSystemRights".
+
 Before 5.0.0, the `-RemoveSpecific` switch was missing, although version 4.1 had introduced it.
 
 A path that does not exist produces the non-terminating error `ReadFileError`, and the cmdlet continues with the next path. Before 5.0.0, the cmdlet also wrote a misleading `RemoveAceError` for that path, and with `-PassThru` it stopped with a `NullReferenceException`.

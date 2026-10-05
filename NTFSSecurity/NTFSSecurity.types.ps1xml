@@ -23,10 +23,6 @@
           [Math]::Ceiling($this.Length / ($driveInfo.BytesPerSector * $driveInfo.SectorsPerCluster)) * ($driveInfo.BytesPerSector * $driveInfo.SectorsPerCluster)
         </GetScriptBlock>
       </ScriptProperty>
-      <AliasProperty>
-        <Name>Size</Name>
-        <ReferencedMemberName>LengthOnDisk</ReferencedMemberName>
-      </AliasProperty>
       <ScriptMethod>
         <Name>EnableInheritance</Name>
         <Script>

@@ -14,6 +14,7 @@ namespace NTFSSecurity
         [Parameter(Position = 1, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
         [ValidateNotNullOrEmpty]
         [Alias("FullName")]
+        [FileSystemPathTransformation]
         public string[] Path
         {
             get { return paths.ToArray(); }
@@ -30,7 +31,7 @@ namespace NTFSSecurity
 
             if (paths.Count == 0)
             {
-                paths = new List<string>() { GetVariableValue("PWD").ToString() };
+                paths = new List<string>() { GetCurrentLocation() };
             }
 
             modeMethodInfo = typeof(FileSystemCodeMembers).GetMethod("Mode");

@@ -20,6 +20,7 @@ namespace NTFSSecurity
         [Parameter(Position = 1, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true, ParameterSetName = "Path")]
         [ValidateNotNullOrEmpty]
         [Alias("FullName")]
+        [FileSystemPathTransformation]
         public string[] Path
         {
             get { return paths.ToArray(); }
@@ -108,7 +109,7 @@ namespace NTFSSecurity
             }
 
             // Like the other cmdlets, use the current location when -Path is omitted.
-            var targets = paths.Count > 0 ? paths : new List<string>() { GetVariableValue("PWD").ToString() };
+            var targets = paths.Count > 0 ? paths : new List<string>() { GetCurrentLocation() };
 
             foreach (var path in targets)
             {
