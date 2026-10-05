@@ -142,7 +142,7 @@ namespace NTFSSecurity
                 else
                 {
                     WriteVerbose("Calling DisableAccessInheritance");
-                    FileSystemInheritanceInfo.DisableAccessInheritance(item, true);
+                    FileSystemInheritanceInfo.DisableAccessInheritance(item, false);
                 }
             }
 
@@ -151,7 +151,7 @@ namespace NTFSSecurity
                 if (auditInheritanceEnabled.Value)
                 {
                     WriteVerbose("Calling EnableAuditInheritance");
-                    FileSystemInheritanceInfo.EnableAuditInheritance(item, true);
+                    FileSystemInheritanceInfo.EnableAuditInheritance(item, false);
                 }
                 else
                 {
@@ -175,7 +175,7 @@ namespace NTFSSecurity
                 else
                 {
                     WriteVerbose("Calling DisableAccessInheritance");
-                    FileSystemInheritanceInfo.DisableAccessInheritance(sd, true);
+                    FileSystemInheritanceInfo.DisableAccessInheritance(sd, false);
                 }
             }
 
@@ -184,7 +184,7 @@ namespace NTFSSecurity
                 if (auditInheritanceEnabled.Value)
                 {
                     WriteVerbose("Calling EnableAuditInheritance");
-                    FileSystemInheritanceInfo.EnableAuditInheritance(sd, true);
+                    FileSystemInheritanceInfo.EnableAuditInheritance(sd, false);
                 }
                 else
                 {

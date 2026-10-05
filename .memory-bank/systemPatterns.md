@@ -58,6 +58,7 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 | 10 | [One version for the manifest, assemblies, and changelog](decisions/0010-one-version.md) |
 | 11 | [CI and the wiki run on GitHub Actions](decisions/0011-github-actions.md) |
 | 12 | [Releases are built and published by CI on a version tag](decisions/0012-ci-releases.md) |
+| 13 | [Set-NTFSInheritance keeps entries like the dedicated cmdlets](decisions/0013-set-inheritance-keeps-entries.md) |
 
 ## Patterns
 

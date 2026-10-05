@@ -40,6 +40,12 @@ The format is based on
   `-RemoveInheritedAuditRules` and `-RemoveExplicitAccessRules` of
   `Enable-NTFSAuditInheritance` to `-RemoveExplicitAuditRules`, because they
   act on audit entries; the old names still work as aliases
+- `Set-NTFSInheritance` keeps entries like the dedicated cmdlets:
+  `-AccessInheritanceEnabled $false` now copies the inherited access entries
+  into the DACL instead of removing them, and
+  `-AuditInheritanceEnabled $true` now keeps the explicit audit entries. To
+  remove them, use `Disable-NTFSAccessInheritance -RemoveInheritedAccessRules`
+  or `Enable-NTFSAuditInheritance -RemoveExplicitAuditRules`
 
 ### Deprecated
 

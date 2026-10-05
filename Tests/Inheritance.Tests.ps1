@@ -108,6 +108,45 @@ Describe 'Inheritance cmdlets with -PassThru' {
 }
 
 Describe 'Set-NTFSInheritance' {
+    Context 'When it changes the inheritance' {
+        # Before 5.0.0, -AccessInheritanceEnabled $false removed the inherited access entries and
+        # -AuditInheritanceEnabled $true removed the explicit audit entries, unlike the dedicated cmdlets.
+        It 'Should keep the inherited access entries as explicit ones when it disables access inheritance' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'KeepAccess'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+            $inheritedCount = @((Get-Acl -LiteralPath $file).Access | Where-Object -Property IsInherited).Count
+
+            Set-NTFSInheritance -Path $file -AccessInheritanceEnabled $false
+
+            $acl = Get-Acl -LiteralPath $file
+            $acl.AreAccessRulesProtected | Should -BeTrue
+            @($acl.Access | Where-Object -Property IsInherited -EQ -Value $false) | Should -HaveCount $inheritedCount
+        }
+
+        # In memory, the kept entries stay marked as inherited; Windows stores them as explicit ones on write.
+        It 'Should keep the inherited access entries of a security descriptor' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'KeepDescriptor'
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+            $sidType = [System.Security.Principal.SecurityIdentifier]
+            $inheritedCount = @($sd.SecurityDescriptor.GetAccessRules($false, $true, $sidType)).Count
+
+            Set-NTFSInheritance -SecurityDescriptor $sd -AccessInheritanceEnabled $false
+
+            $sd.SecurityDescriptor.AreAccessRulesProtected | Should -BeTrue
+            @($sd.SecurityDescriptor.GetAccessRules($true, $true, $sidType)) | Should -HaveCount $inheritedCount
+        }
+
+        It 'Should keep the explicit audit entries when it enables audit inheritance' -Skip:(-not $canChangeAudit) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'KeepAudit'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+            Add-NTFSAudit -Path $file -Account 'Everyone' -AccessRights Delete -AuditFlags Failure
+            Disable-NTFSAuditInheritance -Path $file
+
+            Set-NTFSInheritance -Path $file -AuditInheritanceEnabled $true
+
+            @(Get-NTFSAudit -Path $file -ExcludeInherited) | Should -HaveCount 1
+        }
+    }
     Context 'When -AccessInheritanceEnabled or -AuditInheritanceEnabled is omitted' {
         BeforeEach {
             $file = New-TestSandboxItem -Sandbox $sandbox -Name 'File'

@@ -126,11 +126,13 @@ entries:
 - `Enable-NTFSAccessInheritance` restores inheritance and keeps the explicit
   entries unless you use `-RemoveExplicitAccessRules`.
 - `Get-NTFSInheritance` and `Set-NTFSInheritance` read and set both
-  settings at once. Unlike the dedicated cmdlets, `Set-NTFSInheritance`
-  removes the inherited access entries when it turns access inheritance off,
-  and removes the explicit audit entries when it turns audit inheritance on.
+  settings at once. Like the dedicated cmdlets without their switches,
+  `Set-NTFSInheritance` keeps the entries; before 5.0.0, it removed the
+  inherited access entries when it turned access inheritance off, and the
+  explicit audit entries when it turned audit inheritance on.
   The audit equivalents of the dedicated cmdlets are
-  `Disable-NTFSAuditInheritance` and `Enable-NTFSAuditInheritance`.
+  `Disable-NTFSAuditInheritance` and `Enable-NTFSAuditInheritance`, with
+  the switches `-RemoveInheritedAuditRules` and `-RemoveExplicitAuditRules`.
 
 ### The AppliesTo parameter
 

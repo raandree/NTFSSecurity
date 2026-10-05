@@ -29,7 +29,7 @@ Set-NTFSInheritance [-SecurityDescriptor] <FileSystemSecurity2[]> [-AccessInheri
 
 The `Set-NTFSInheritance` cmdlet turns the inheritance of access rules and audit rules on or off in a single call. It reads the current state of the item first and changes a section only when the requested value differs from the current one, which makes the cmdlet suitable for repeatedly applying a desired state to a folder tree.
 
-The cmdlet performs the same operations as `Enable-NTFSAccessInheritance`, `Disable-NTFSAccessInheritance`, `Enable-NTFSAuditInheritance`, and `Disable-NTFSAuditInheritance`, but it does not expose their switches and it does not use their defaults. `-AccessInheritanceEnabled $false` discards the inherited access rules instead of copying them into the item's own DACL, `-AccessInheritanceEnabled $true` keeps the explicit access rules, `-AuditInheritanceEnabled $false` copies the inherited audit rules into the item's own SACL, and `-AuditInheritanceEnabled $true` removes the explicit audit rules. Use the individual Enable and Disable cmdlets when you need the opposite behavior.
+The cmdlet performs the same operations as `Enable-NTFSAccessInheritance`, `Disable-NTFSAccessInheritance`, `Enable-NTFSAuditInheritance`, and `Disable-NTFSAuditInheritance`, but it does not expose their switches; it uses their defaults instead. `-AccessInheritanceEnabled $false` copies the inherited access rules into the item's own DACL, `-AccessInheritanceEnabled $true` keeps the explicit access rules, `-AuditInheritanceEnabled $false` copies the inherited audit rules into the item's own SACL, and `-AuditInheritanceEnabled $true` keeps the explicit audit rules. To remove the rules instead, use `Disable-NTFSAccessInheritance -RemoveInheritedAccessRules` or `Enable-NTFSAuditInheritance -RemoveExplicitAuditRules`. Before 5.0.0, `-AccessInheritanceEnabled $false` discarded the inherited access rules, and `-AuditInheritanceEnabled $true` removed the explicit audit rules.
 
 Omit `-AccessInheritanceEnabled` or `-AuditInheritanceEnabled` to leave that section unchanged. Changing the audit section requires the Security privilege and therefore an elevated session.
 
@@ -43,7 +43,7 @@ In the `Path` parameter set the cmdlet writes each changed section back to disk 
 PS C:\> Set-NTFSInheritance -Path C:\Data\Projects -AccessInheritanceEnabled $false -AuditInheritanceEnabled $false
 ```
 
-This command protects the DACL and the SACL of `C:\Data\Projects`. The inherited access rules are discarded, so make sure the folder has explicit access rules of its own; the inherited audit rules are copied into the folder's SACL. Changing the audit section requires an elevated session.
+This command protects the DACL and the SACL of `C:\Data\Projects`. The inherited access and audit rules are copied into the folder's DACL and SACL, so the effective permissions and the auditing stay the same. Changing the audit section requires an elevated session.
 
 ### Example 2: Restore inheritance of both sections
 
@@ -51,7 +51,7 @@ This command protects the DACL and the SACL of `C:\Data\Projects`. The inherited
 PS C:\> Set-NTFSInheritance -Path C:\Data\Projects -AccessInheritanceEnabled $true -AuditInheritanceEnabled $true -PassThru
 ```
 
-This command lets the folder inherit from `C:\Data` again. The explicit access rules are kept, the explicit audit rules are removed, and `-PassThru` returns the resulting state.
+This command lets the folder inherit from `C:\Data` again. The explicit access and audit rules are kept, and `-PassThru` returns the resulting state.
 
 ### Example 3: Save a state and apply it again
 
@@ -77,7 +77,7 @@ The first two commands read the security descriptor and change its inheritance i
 
 ### -AccessInheritanceEnabled
 
-Specifies whether the item inherits access rules from its parent folder. `$true` removes the protection from the DACL and keeps the access rules that are stored directly on the item; `$false` protects the DACL and discards the rules the item currently inherits, which leaves only its explicit rules. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the access section is left unchanged.
+Specifies whether the item inherits access rules from its parent folder. `$true` removes the protection from the DACL and keeps the access rules that are stored directly on the item; `$false` protects the DACL and copies the rules the item currently inherits into it, so the effective permissions stay the same. Before 5.0.0, `$false` discarded the inherited rules. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the access section is left unchanged.
 
 ```yaml
 Type: Boolean
@@ -93,7 +93,7 @@ Accept wildcard characters: False
 
 ### -AuditInheritanceEnabled
 
-Specifies whether the item inherits audit rules from its parent folder. `$true` removes the protection from the SACL and removes the audit rules that are stored directly on the item; `$false` protects the SACL and copies the inherited audit rules into it. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the audit section is left unchanged. Reading and writing the audit section requires the Security privilege and therefore an elevated session.
+Specifies whether the item inherits audit rules from its parent folder. `$true` removes the protection from the SACL and keeps the audit rules that are stored directly on the item (before 5.0.0, it removed them); `$false` protects the SACL and copies the inherited audit rules into it. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the audit section is left unchanged. Reading and writing the audit section requires the Security privilege and therefore an elevated session.
 
 ```yaml
 Type: Boolean
