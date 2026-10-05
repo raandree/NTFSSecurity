@@ -6,6 +6,12 @@
 )]
 param ()
 
+BeforeDiscovery {
+    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
+    # With the Restore privilege, Windows may grant writing the DACL despite a deny entry.
+    $canBypassWriteDeny = Test-PrivilegeHeld -Name 'SeRestorePrivilege'
+}
+
 BeforeAll {
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
     $modulePath = Join-Path -Path $PSScriptRoot -ChildPath '..\NTFSSecurity\bin\Release\NTFSSecurity.psd1'
@@ -168,6 +174,22 @@ Describe 'Remove-NTFSAccess' {
         }
     }
 
+    Context 'When the entries cannot be changed' {
+        # Before 5.0.0, -PassThru returned the unchanged entries of the item after the error.
+        It 'Should write an error and return nothing with -PassThru' -Skip:$canBypassWriteDeny {
+            $protected = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveProtected'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $protected
+            Add-NTFSAccess -Path $protected -Account 'Everyone' -AccessRights ReadData
+            Block-TestWritePermission -Sandbox $sandbox -Path $protected
+
+            $result = @(Remove-NTFSAccess -Path $protected -Account 'Everyone' -AccessRights ReadData -PassThru -ErrorVariable removeErrors -ErrorAction SilentlyContinue)
+
+            $removeErrors | Should -HaveCount 1
+            $removeErrors[0].FullyQualifiedErrorId | Should -BeLike 'RemoveAceError,*'
+            $result | Should -BeNullOrEmpty
+        }
+    }
+
     Context 'With -RemoveSpecific' {
         BeforeEach {
             $removeFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSpecific' -Directory
@@ -198,6 +220,23 @@ Describe 'Remove-NTFSAccess' {
             $rule = Get-EveryoneRule
             $rule | Should -Not -BeNullOrEmpty
             $rule.FileSystemRights.HasFlag([System.Security.AccessControl.FileSystemRights]::ReadData) | Should -BeFalse
+        }
+    }
+}
+
+Describe 'Add-NTFSAccess' {
+    Context 'When the entries cannot be changed' {
+        # Before 5.0.0, -PassThru returned the unchanged entries of the item after the error.
+        It 'Should write an error and return nothing with -PassThru' -Skip:$canBypassWriteDeny {
+            $protected = New-TestSandboxItem -Sandbox $sandbox -Name 'AddProtected'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $protected
+            Block-TestWritePermission -Sandbox $sandbox -Path $protected
+
+            $result = @(Add-NTFSAccess -Path $protected -Account 'Everyone' -AccessRights ReadData -PassThru -ErrorVariable addErrors -ErrorAction SilentlyContinue)
+
+            $addErrors | Should -HaveCount 1
+            $addErrors[0].FullyQualifiedErrorId | Should -BeLike 'AddAceError,*'
+            $result | Should -BeNullOrEmpty
         }
     }
 }

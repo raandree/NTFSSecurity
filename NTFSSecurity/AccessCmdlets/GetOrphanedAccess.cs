@@ -48,14 +48,10 @@ namespace NTFSSecurity
                 {
                     try
                     {
-                        var ownerInfo = FileSystemOwner.GetOwner(item);
-                        var previousOwner = ownerInfo.Owner;
-
-                        FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
-
-                        acl = FileSystemAccessRule2.GetFileSystemAccessRules(item, !ExcludeExplicit, !ExcludeInherited, getInheritedFrom);
-
-                        FileSystemOwner.SetOwner(item, previousOwner);
+                        InvokeAsOwner(item, path, () =>
+                        {
+                            acl = FileSystemAccessRule2.GetFileSystemAccessRules(item, !ExcludeExplicit, !ExcludeInherited, getInheritedFrom);
+                        });
                     }
                     catch (Exception ex2)
                     {

@@ -282,7 +282,7 @@ The scope of the ACE, piped by the property `AppliesTo` in the `Simple` paramete
 
 ### Security2.FileSystemAccessRule2
 
-With `-PassThru`, the cmdlet writes all access control entries of every processed item, explicit and inherited. Without `-PassThru` it writes nothing.
+With `-PassThru`, the cmdlet writes all access control entries, explicit and inherited, of every item it changed; an item it could not change produces only an error. Before 5.0.0, `-PassThru` also wrote the unchanged entries of such an item. Without `-PassThru` it writes nothing.
 
 ## NOTES
 

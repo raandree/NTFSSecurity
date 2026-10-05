@@ -712,7 +712,7 @@
           <maml:name>Security2.FileSystemAccessRule2</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>With `-PassThru`, the cmdlet writes all access control entries of every processed item, explicit and inherited. Without `-PassThru` it writes nothing.</maml:para>
+          <maml:para>With `-PassThru`, the cmdlet writes all access control entries, explicit and inherited, of every item it changed; an item it could not change produces only an error. Before 5.0.0, `-PassThru` also wrote the unchanged entries of such an item. Without `-PassThru` it writes nothing.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -1493,7 +1493,7 @@
           <maml:name>Security2.FileSystemAuditRule2</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the cmdlet writes all audit entries of the item or the security descriptor, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects. Before 5.0.0, the `SecurityDescriptor` sets wrote the access entries of the descriptor instead.</maml:para>
+          <maml:para>Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the cmdlet writes all audit entries of the item or the security descriptor, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects. Before 5.0.0, the `SecurityDescriptor` sets wrote the access entries of the descriptor instead. An item whose audit entries could not be changed produces only an error; before 5.0.0, `-PassThru` also wrote its unchanged entries.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -1501,7 +1501,7 @@
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>Writing the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it, the cmdlet writes a non-terminating `AddAceError` whose message states that a required privilege is not held by the client, and the item is left unchanged.</maml:para>
-        <maml:para>If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.</maml:para>
+        <maml:para>If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet restores the previous owner and writes an error. Before 5.0.0, the account that ran the cmdlet stayed the owner of the item in that case.</maml:para>
         <maml:para>`-Path` or `-SecurityDescriptor`, `-Account`, and `-AccessRights` are positional parameters at positions 1, 2, and 3, like in `Remove-NTFSAudit`. Before 5.0.0, `-Account` and `-AccessRights` were both declared at position 2, so a command that passed them by position failed.</maml:para>
         <maml:para>An audit entry alone does not create events. Windows writes the events to the security log only while the "Audit object access" policy, or the corresponding "Audit File System" advanced audit policy, is enabled for success, failure, or both. That policy is a Windows setting and is not managed by this module.</maml:para>
       </maml:alert>
@@ -1913,7 +1913,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>Reading and writing the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without that privilege the cmdlet reads the security descriptor without its SACL, finds no audit entries to remove, and finishes without an error although nothing was changed. `-DisableInheritance` fails in that situation with a `ClearAclError` whose message states that a required privilege is not held by the client.</maml:para>
-        <maml:para>If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.</maml:para>
+        <maml:para>If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet restores the previous owner and writes an error. Before 5.0.0, the account that ran the cmdlet stayed the owner of the item in that case.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -8380,7 +8380,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           <maml:name>Security2.FileSystemAccessRule2</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>With `-PassThru`, the cmdlet writes all access control entries of every processed item, explicit and inherited. Without `-PassThru` it writes nothing.</maml:para>
+          <maml:para>With `-PassThru`, the cmdlet writes all access control entries, explicit and inherited, of every item it changed; an item it could not change produces only an error. Before 5.0.0, `-PassThru` also wrote the unchanged entries of such an item. Without `-PassThru` it writes nothing.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -9219,7 +9219,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           <maml:name>Security2.FileSystemAuditRule2</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the cmdlet writes all audit entries of the item or the security descriptor, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects. Before 5.0.0, the `Path` sets wrote the access entries of the item instead.</maml:para>
+          <maml:para>Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the cmdlet writes all audit entries of the item or the security descriptor, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects. Before 5.0.0, the `Path` sets wrote the access entries of the item instead. An item whose audit entries could not be changed produces only an error; before 5.0.0, `-PassThru` also wrote its unchanged entries.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -9227,7 +9227,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>Reading and writing the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it, the cmdlet writes a non-terminating `RemoveAceError` whose message states that a required privilege is not held by the client, and the item is left unchanged.</maml:para>
-        <maml:para>If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.</maml:para>
+        <maml:para>If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet restores the previous owner and writes an error. Before 5.0.0, the account that ran the cmdlet stayed the owner of the item in that case.</maml:para>
         <maml:para>The cmdlet reports no error when no entry matches the supplied values. Compare the result with `Get-NTFSAudit` to confirm that the entry is gone.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet had no `-RemoveSpecific` switch.</maml:para>
         <maml:para>A path that does not exist produces the non-terminating error `ReadFileError`, and the cmdlet continues with the next path. Before 5.0.0, the cmdlet also wrote a misleading `RemoveAceError` for that path, and with `-PassThru` it stopped with a `NullReferenceException`.</maml:para>

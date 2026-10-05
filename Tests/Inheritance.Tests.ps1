@@ -80,7 +80,7 @@ Describe 'Inheritance cmdlets with -PassThru' {
         $result | Should -BeNullOrEmpty
     }
 
-    It '<_> should write an error and return nothing when the item cannot be read' -Skip:$canBypassDeny -ForEach @(
+    It '<_> should write an error and return nothing when the security descriptor cannot be read' -Skip:$canBypassDeny -ForEach @(
         'Enable-NTFSAccessInheritance', 'Disable-NTFSAccessInheritance'
     ) {
         $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Denied'
@@ -88,7 +88,21 @@ Describe 'Inheritance cmdlets with -PassThru' {
 
         $result = @(& $_ -Path $file -PassThru -ErrorVariable inheritanceErrors -ErrorAction SilentlyContinue)
 
-        $inheritanceErrors | Should -Not -BeNullOrEmpty
+        $inheritanceErrors | Should -HaveCount 1
+        $inheritanceErrors[0].FullyQualifiedErrorId | Should -BeLike 'ModifySdError,*'
+        $result | Should -BeNullOrEmpty
+    }
+
+    It '<_> should write a read error and return nothing for a path that does not exist' -ForEach @(
+        'Enable-NTFSAccessInheritance', 'Disable-NTFSAccessInheritance',
+        'Enable-NTFSAuditInheritance', 'Disable-NTFSAuditInheritance'
+    ) {
+        $missing = Join-Path -Path $sandbox -ChildPath 'Missing.txt'
+
+        $result = @(& $_ -Path $missing -PassThru -ErrorVariable inheritanceErrors -ErrorAction SilentlyContinue)
+
+        $inheritanceErrors | Should -HaveCount 1
+        $inheritanceErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadFileError,*'
         $result | Should -BeNullOrEmpty
     }
 }

@@ -72,14 +72,10 @@ namespace NTFSSecurity
                     {
                         try
                         {
-                            var ownerInfo = FileSystemOwner.GetOwner(item);
-                            var previousOwner = ownerInfo.Owner;
-
-                            FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
-
-                            inheritanceInfo = FileSystemInheritanceInfo.GetFileSystemInheritanceInfo(item);
-
-                            FileSystemOwner.SetOwner(item, previousOwner);
+                            InvokeAsOwner(item, path, () =>
+                            {
+                                inheritanceInfo = FileSystemInheritanceInfo.GetFileSystemInheritanceInfo(item);
+                            });
                         }
                         catch (Exception ex2)
                         {

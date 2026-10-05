@@ -128,5 +128,11 @@ The format is based on
   that the target path existed
 - Fix `Get-FileHash2`, which wrote a result for a file that it couldn't
   read, with the hash of the previous file
+- Fix `-PassThru` of `Add-NTFSAccess`, `Add-NTFSAudit`, `Remove-NTFSAccess`,
+  and `Remove-NTFSAudit`, which returned the unchanged entries of an item
+  also when the change failed
+- Fix the cmdlets that take ownership of an item to repeat an operation that
+  was denied: when the second attempt failed as well, the account that ran
+  the cmdlet stayed the owner of the item; now the previous owner is restored
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

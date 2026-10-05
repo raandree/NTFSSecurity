@@ -148,6 +148,38 @@ namespace NTFSSecurity
             return path;
         }
         #endregion
+
+        #region InvokeAsOwner
+        /// <summary>
+        /// Takes ownership of the item, runs the action, and restores the previous owner on every exit path.
+        /// A failure to restore the owner is written as a RestoreOwnerError and doesn't hide an error of the action.
+        /// </summary>
+        /// <param name="item">The file or folder to take ownership of.</param>
+        /// <param name="path">The path the user specified, used as the error target.</param>
+        /// <param name="action">The operation to run while the current user owns the item.</param>
+        protected void InvokeAsOwner(Alphaleonis.Win32.Filesystem.FileSystemInfo item, string path, Action action)
+        {
+            var previousOwner = FileSystemOwner.GetOwner(item).Owner;
+
+            FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
+
+            try
+            {
+                action();
+            }
+            finally
+            {
+                try
+                {
+                    FileSystemOwner.SetOwner(item, previousOwner);
+                }
+                catch (Exception ex)
+                {
+                    WriteError(new ErrorRecord(ex, "RestoreOwnerError", ErrorCategory.WriteError, path));
+                }
+            }
+        }
+        #endregion
     }
 
     public class BaseCmdletWithPrivControl : BaseCmdlet

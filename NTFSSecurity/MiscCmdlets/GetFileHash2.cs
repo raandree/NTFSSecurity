@@ -68,14 +68,10 @@ namespace NTFSSecurity
                 {
                     try
                     {
-                        var ownerInfo = FileSystemOwner.GetOwner(item);
-                        var previousOwner = ownerInfo.Owner;
-
-                        FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
-
-                        hash = ((FileInfo)item).GetHash(algorithm);
-
-                        FileSystemOwner.SetOwner(item, previousOwner);
+                        InvokeAsOwner(item, path, () =>
+                        {
+                            hash = ((FileInfo)item).GetHash(algorithm);
+                        });
                     }
                     catch (Exception ex2)
                     {

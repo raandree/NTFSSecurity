@@ -56,14 +56,10 @@ namespace NTFSSecurity
                 {
                     try
                     {
-                        var ownerInfo = FileSystemOwner.GetOwner(item);
-                        var previousOwner = ownerInfo.Owner;
-
-                        FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
-
-                        WriteObject(new FileSystemSecurity2(item));
-
-                        FileSystemOwner.SetOwner(item, previousOwner);
+                        InvokeAsOwner(item, path, () =>
+                        {
+                            WriteObject(new FileSystemSecurity2(item));
+                        });
                     }
                     catch (Exception ex2)
                     {
