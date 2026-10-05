@@ -36,6 +36,9 @@ The format is based on
   into the documentation, and complete the version history with the release
   dates from the PowerShell Gallery, the missing notes for 4.2.2, 4.2.5, and
   4.2.6, and detailed notes for 4.2.4
+- Describe the module as a PowerShell module in the manifest, which the
+  PowerShell Gallery shows; it said Windows PowerShell, although the module
+  supports PowerShell 7 as well
 - Rename `-RemoveInheritedAccessRules` of `Disable-NTFSAuditInheritance` to
   `-RemoveInheritedAuditRules` and `-RemoveExplicitAccessRules` of
   `Enable-NTFSAuditInheritance` to `-RemoveExplicitAuditRules`, because they
@@ -198,5 +201,9 @@ The format is based on
   `GenericAll`, which Windows keeps in the inherit-only entries of folders;
   it failed with "The value '269484032' is not valid"
   ([#17](https://github.com/raandree/NTFSSecurity/issues/17))
+- Fix `Enable-NTFSAuditInheritance`, `Disable-NTFSAuditInheritance`, and
+  `Set-NTFSInheritance -AuditInheritanceEnabled`, which failed with "Access
+  is denied" for a file or folder without audit entries, also in an elevated
+  session with the Security privilege
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

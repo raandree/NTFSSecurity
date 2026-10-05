@@ -1,6 +1,7 @@
 ﻿<#
     Tests repository files that the build and GitHub use, without a build: every packages.config lists the AlphaFS
-    version that the projects reference and ship, and Dependabot keeps the actions of the CI workflow up to date.
+    version that the projects reference and ship, Dependabot keeps the actions of the CI workflow up to date, and the
+    manifest and the README describe the release.
 #>
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
     'PSUseDeclaredVarsMoreThanAssignments', '', Justification = 'Pester shares variables between blocks.'
@@ -73,5 +74,34 @@ Describe 'Dependabot configuration' {
 
     It 'Should group all updates into one pull request' {
         $raw | Should -Match '(?m)^\s+groups:\s*\n\s+[\w-]+:\s*\n\s+patterns:\s*\n\s+-\s*["'']\*["'']\s*$'
+    }
+}
+
+Describe 'Release metadata' {
+    BeforeAll {
+        $repositoryPath = Join-Path -Path $PSScriptRoot -ChildPath '..'
+        $manifest = Import-PowerShellDataFile -Path (Join-Path -Path $repositoryPath -ChildPath 'NTFSSecurity\NTFSSecurity.psd1')
+        $version = $manifest.ModuleVersion
+        if ($manifest.PrivateData.PSData.Prerelease) {
+            $version = '{0}-{1}' -f $version, $manifest.PrivateData.PSData.Prerelease
+        }
+    }
+
+    # Before 5.0.0-rc2, the description said "Windows PowerShell Module", although the module supports PowerShell 7.
+    It 'Should have the description that the PowerShell Gallery shows for the module' {
+        $manifest.Description | Should -BeExactly 'PowerShell module for managing file and folder security on NTFS volumes'
+    }
+
+    # The PowerShell Gallery doesn't accept a version twice. Add every published version to this list
+    # (Docs/Contributing/05-Releasing.md).
+    It 'Should not reuse a version that the PowerShell Gallery already has' {
+        $publishedVersions = '4.0', '4.2.2', '4.2.3', '4.2.4', '4.2.5', '4.2.6', '5.0.0-rc1'
+
+        $publishedVersions | Should -Not -Contain $version
+    }
+
+    It 'Should not name a prerelease version in the README, which outlives the release' {
+        Get-Content -LiteralPath (Join-Path -Path $repositoryPath -ChildPath 'Docs\README.md') -Raw |
+            Should -Not -Match '\d+\.\d+\.\d+-[A-Za-z]'
     }
 }

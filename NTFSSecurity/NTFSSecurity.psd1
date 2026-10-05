@@ -11,7 +11,7 @@
 
     Copyright              = '2018'
 
-    Description            = 'Windows PowerShell Module for managing file and folder security on NTFS volumes'
+    Description            = 'PowerShell module for managing file and folder security on NTFS volumes'
 
     PowerShellVersion      = '5.1'
 
@@ -102,7 +102,7 @@
             ProjectUri   = 'https://github.com/raandree/NTFSSecurity'
             ReleaseNotes = 'https://github.com/raandree/NTFSSecurity/blob/master/CHANGELOG.md'
             # Remove the prerelease label for the final release, see Docs/Contributing/05-Releasing.md
-            Prerelease   = 'rc1'
+            Prerelease   = 'rc2'
         }
     }
 }

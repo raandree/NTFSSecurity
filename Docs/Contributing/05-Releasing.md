@@ -45,7 +45,9 @@ release notes for the version of the module manifest.
 
 1. Set the version and the `Prerelease` label, such as `rc1`, and make sure
    that the `[Unreleased]` section of `CHANGELOG.md` describes the changes.
-   Merge the change into `master`.
+   Add the version that the Gallery has now to `$publishedVersions` in
+   `Tests/Repository.Tests.ps1`, so that a test catches a version that is
+   reused. Merge the change into `master`.
 2. Tag the commit on `master` with the version and push the tag:
 
    ```powershell
