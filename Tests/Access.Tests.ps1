@@ -259,6 +259,25 @@ Describe 'Add-NTFSAccess' {
     }
 }
 
+Describe 'Remove-NTFSAccess with generic rights' {
+    # Before 5.0.0, removing an entry with a generic right such as GENERIC_ALL failed with "The value '269484032' is not
+    # valid", because .NET rebuilds the rule and rejects generic rights (#17). Windows keeps generic rights in
+    # inherit-only entries of folders.
+    It 'Should remove an inherit-only GenericAll entry that Get-NTFSAccess returned' {
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'Generic' -Directory
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $folder
+        $acl = Get-Acl -LiteralPath $folder
+        $acl.SetSecurityDescriptorSddlForm(($acl.Sddl -replace 'D:(?<flags>[A-Z]*)', 'D:${flags}(A;OICIIO;GA;;;S-1-5-32-546)'))
+        Set-Acl -LiteralPath $folder -AclObject $acl
+        (Get-Acl -LiteralPath $folder).Sddl | Should -Match '\(A;OICIIO;GA;;;BG\)'
+
+        Get-NTFSAccess -Path $folder -Account 'S-1-5-32-546' -ExcludeInherited |
+            Remove-NTFSAccess -ErrorVariable removeErrors -ErrorAction SilentlyContinue
+
+        $removeErrors | Should -BeNullOrEmpty
+        (Get-Acl -LiteralPath $folder).Sddl | Should -Not -Match ';;;BG\)'
+    }
+}
 Describe 'Security descriptor parameter sets' {
     BeforeAll {
         $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ParameterSets' -Directory

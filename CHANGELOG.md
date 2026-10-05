@@ -181,5 +181,9 @@ The format is based on
   `Get-NTFSOwner $folder`, which Windows PowerShell bound as the name of the
   item, so the cmdlets looked for it in the current location
   ([#88](https://github.com/raandree/NTFSSecurity/issues/88))
+- Fix `Remove-NTFSAccess` for an entry with a generic right such as
+  `GenericAll`, which Windows keeps in the inherit-only entries of folders;
+  it failed with "The value '269484032' is not valid"
+  ([#17](https://github.com/raandree/NTFSSecurity/issues/17))
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

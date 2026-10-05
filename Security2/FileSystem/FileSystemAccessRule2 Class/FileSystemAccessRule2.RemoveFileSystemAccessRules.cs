@@ -6,9 +6,34 @@ namespace Security2
 {
     public partial class FileSystemAccessRule2
     {
+        // Generic rights, such as GENERIC_ALL, appear in inherit-only entries. FileSystemSecurity.RemoveAccessRule
+        // rebuilds a rule that doesn't match exactly and rejects generic rights then, so such a rule is removed
+        // through ModifyAccessRule, which works on the access mask (#17).
+        private static bool HasGenericRights(FileSystemRights2 rights)
+        {
+            return ((long)rights & 0xF0000000L) != 0;
+        }
+
+        private static void RemoveRule(FileSystemSecurity sd, FileSystemAccessRule ace, bool removeSpecific)
+        {
+            if (HasGenericRights((FileSystemRights2)(int)ace.FileSystemRights))
+            {
+                bool modified;
+                sd.ModifyAccessRule(removeSpecific ? AccessControlModification.RemoveSpecific : AccessControlModification.Remove, ace, out modified);
+            }
+            else if (removeSpecific)
+            {
+                sd.RemoveAccessRuleSpecific(ace);
+            }
+            else
+            {
+                sd.RemoveAccessRule(ace);
+            }
+        }
+
         public static void RemoveFileSystemAccessRule(FileSystemInfo item, IdentityReference2 account, FileSystemRights2 rights, AccessControlType type, InheritanceFlags inheritanceFlags, PropagationFlags propagationFlags, bool removeSpecific = false)
         {
-            if (type == AccessControlType.Allow)
+            if (type == AccessControlType.Allow && !HasGenericRights(rights))
                 rights = rights | FileSystemRights2.Synchronize;
 
             FileSystemAccessRule ace = null;
@@ -19,10 +44,7 @@ namespace Security2
                 var sd = file.GetAccessControl(AccessControlSections.Access);
 
                 ace = (FileSystemAccessRule)sd.AccessRuleFactory(account, (int)rights, false, inheritanceFlags, propagationFlags, type);
-                if (removeSpecific)
-                    sd.RemoveAccessRuleSpecific(ace);
-                else
-                    sd.RemoveAccessRule(ace);
+                RemoveRule(sd, ace, removeSpecific);
 
                 file.SetAccessControl(sd);
             }
@@ -33,10 +55,7 @@ namespace Security2
                 var sd = directory.GetAccessControl(AccessControlSections.Access);
 
                 ace = (FileSystemAccessRule)sd.AccessRuleFactory(account, (int)rights, false, inheritanceFlags, propagationFlags, type);
-                if (removeSpecific)
-                    sd.RemoveAccessRuleSpecific(ace);
-                else
-                    sd.RemoveAccessRule(ace);
+                RemoveRule(sd, ace, removeSpecific);
 
                 directory.SetAccessControl(sd);
             }
@@ -85,10 +104,7 @@ namespace Security2
                 var file = (FileInfo)item;
                 var sd = file.GetAccessControl(AccessControlSections.Access);
 
-                if (removeSpecific)
-                    sd.RemoveAccessRuleSpecific(ace);
-                else
-                    sd.RemoveAccessRule(ace);
+                RemoveRule(sd, ace, removeSpecific);
 
                 file.SetAccessControl(sd);
             }
@@ -98,10 +114,7 @@ namespace Security2
 
                 var sd = directory.GetAccessControl(AccessControlSections.Access);
 
-                if (removeSpecific)
-                    sd.RemoveAccessRuleSpecific(ace);
-                else
-                    sd.RemoveAccessRule(ace);
+                RemoveRule(sd, ace, removeSpecific);
 
                 directory.SetAccessControl(sd);
             }
@@ -109,23 +122,17 @@ namespace Security2
 
         public static FileSystemAccessRule2 RemoveFileSystemAccessRule(FileSystemSecurity2 sd, IdentityReference2 account, FileSystemRights2 rights, AccessControlType type, InheritanceFlags inheritanceFlags, PropagationFlags propagationFlags, bool removeSpecific = false)
         {
-            if (type == AccessControlType.Allow)
+            if (type == AccessControlType.Allow && !HasGenericRights(rights))
                 rights = rights | FileSystemRights2.Synchronize;
 
             var ace = (FileSystemAccessRule)sd.SecurityDescriptor.AccessRuleFactory(account, (int)rights, false, inheritanceFlags, propagationFlags, type);
             if (sd.IsFile)
             {
-                if (removeSpecific)
-                    ((FileSecurity)sd.SecurityDescriptor).RemoveAccessRuleSpecific(ace);
-                else
-                    ((FileSecurity)sd.SecurityDescriptor).RemoveAccessRule(ace);
+                RemoveRule(((FileSecurity)sd.SecurityDescriptor), ace, removeSpecific);
             }
             else
             {
-                if (removeSpecific)
-                    ((DirectorySecurity)sd.SecurityDescriptor).RemoveAccessRuleSpecific(ace);
-                else
-                    ((DirectorySecurity)sd.SecurityDescriptor).RemoveAccessRule(ace);
+                RemoveRule(((DirectorySecurity)sd.SecurityDescriptor), ace, removeSpecific);
             }
 
             return ace;

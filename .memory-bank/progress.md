@@ -184,7 +184,8 @@ Numbered as agreed with the maintainer; each is documented on its page.
 
 - Fixed: #3 (braces in a path), #86 (`$PWD` shadowed, also for the default
   location of nine cmdlets, found by the review), #88 (an object passed by
-  position); `Docs/FAQ.md` answers the recurring questions.
+  position), #17 (an entry with `GenericAll`); `Docs/FAQ.md` answers the
+  recurring questions.
 - Open bugs: #5 (`-Attributes` matches all, `Get-ChildItem` any; needs a
-  decision), #17 (`GenericAll`), #34 and #67 (writes owner and group),
-  #41 (drive root), #82 (`Size` type data), #90 (trailing space).
+  decision), #34 and #67 (writes owner and group), #41 (drive root), #82
+  (`Size` type data), #90 (trailing space).
