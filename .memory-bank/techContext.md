@@ -54,7 +54,7 @@ source: repository evidence
   in PowerShell 7.6 on 2026-10-04. Download the 0.2.0 package from
   `https://www.powershellgallery.com/api/v2/package/MarkdownLinkCheck/0.2.0`
   into `$env:TEMP`, extract it, and import it by path.
-- The workstation is ARM64; PowerShell 7 runs as x64 under emulation.
+- The first workstation is ARM64; PowerShell 7 runs as x64 under emulation.
   Python 3.12.10 (ARM64) is installed per user with winget, the
   maintainer's choice for an MkDocs check that Decision 9 made unnecessary.
 - The NuGet cache (`~\.nuget\packages`) holds every build dependency: copy
@@ -62,23 +62,30 @@ source: repository evidence
   `microsoft.netframework.referenceassemblies.net452\1.0.3` into
   `packages\<Id>.<Version>`, and point `CscToolPath` at
   `microsoft.net.compilers\4.2.0\tools`.
+- The second workstation (x64, used since 2026-10-05) runs the agent
+  session elevated, so the tests that need privileges run there as in CI.
+  It has no NuGet cache with these packages: download each from
+  `https://api.nuget.org/v3-flatcontainer/<id>/<version>/<id>.<version>.nupkg`,
+  extract the first three into `packages\<Id>.<Version>` and the compilers
+  into `$env:TEMP`; Pester 5.7.1 comes from the Gallery package API the
+  same way, its folder first on `$env:PSModulePath` of the test process.
+  The GitHub CLI is in `C:\Program Files\GitHub CLI`, outside the PATH of
+  sessions started before its installation.
 
 ## Constraints
 
-- `ModuleVersion` on `master` is `5.0.0` with the prerelease label `rc1`
-  (`ai/release-5.0.0-rc2` sets `rc2`); 5.0.0-rc1 is on the Gallery
-  (published 2026-10-04 by CI). The latest
-  stable tag and Gallery release is `4.2.6`. The manifest requires
-  PowerShell 5.1 and .NET Framework 4.5.2, uses `RootModule`, and lists
-  exactly 36 cmdlets; `Test-ModuleManifest` passes in Windows PowerShell 5.1
-  and PowerShell 7.6.
-- Besides the shipped help file and its tests (#93), the module source at
-  `master` differs from tag `4.2.6` by the `Remove-Item2 -PassThur` to
-  `-PassThru` rename (with a `-PassThur` alias), the manifest changes of
-  #95, and the assembly versions.
+- `ModuleVersion` on `master` is `5.0.0` with the prerelease label `rc2`.
+  The latest stable tag and Gallery release is `4.2.6`. The manifest
+  requires PowerShell 5.1 and .NET Framework 4.5.2, uses `RootModule`, and
+  lists exactly 36 cmdlets; `Test-ModuleManifest` passes in Windows
+  PowerShell 5.1 and PowerShell 7.6.
+- The module source at `master` differs from tag `4.2.6` by the changes
+  that `CHANGELOG.md` lists under `[Unreleased]`, the release notes of each
+  5.0.0 prerelease.
 - PowerShell Gallery versions (publish dates): 4.0.0 (2015-08-19), 4.2.2
   (2016-05-18), 4.2.3 (2016-05-19), 4.2.4 (2018-08-13), 4.2.5 (2019-07-11),
-  4.2.6 (2019-07-12); none has release notes. Older versions were released
+  4.2.6 (2019-07-12), none with release notes; 5.0.0-rc1 (2026-10-04) and
+  5.0.0-rc2 (2026-10-05), published by CI. Older versions were released
   on CodePlex only, and their dates are lost. The git history starts on
   2016-10-10, when the project moved from CodePlex.
 - Releases up to 4.2.6 had no script and no CI deployment: the Gallery
@@ -106,7 +113,11 @@ source: repository evidence
   inside an agent command has no effect (verified 2026-10-04). The hook
   matches the whole command text, so a commit message that quotes such a
   command is blocked too. Prepare the commands and descriptions; the
-  maintainer runs them.
+  maintainer runs them. Give each command as one line, or as a script with
+  `-WhatIf`: the agent's question dialog renders Markdown, which joins the
+  lines of a block, and PowerShell then rejects all of it. Simulated `gh`
+  commands in offline tests must print what the real ones print, such as
+  the URL of a new comment.
 
 ## Validation
 

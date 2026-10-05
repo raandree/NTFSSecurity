@@ -60,6 +60,9 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 | 11 | [CI and the wiki run on GitHub Actions](decisions/0011-github-actions.md) |
 | 12 | [Releases are built and published by CI on a version tag](decisions/0012-ci-releases.md) |
 | 13 | [Set-NTFSInheritance keeps entries like the dedicated cmdlets](decisions/0013-set-inheritance-keeps-entries.md) |
+| 14 | [Repository hardening is optional](decisions/0014-repository-hardening-optional.md) |
+| 15 | [Merge stacked pull requests in order with merge commits](decisions/0015-merge-stacks-with-merge-commits.md) |
+| 16 | [Fix only reproducible bugs](decisions/0016-fix-reproducible-bugs-only.md) |
 
 ## Patterns
 
