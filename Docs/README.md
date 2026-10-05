@@ -38,8 +38,8 @@ Install the module from the
 Install-Module -Name NTFSSecurity
 ```
 
-To try a prerelease of the next version, such as `5.0.0-rc1`, add
-`-AllowPrerelease`. A prerelease is for testing; don't use it in production.
+To try a prerelease of the next version, add `-AllowPrerelease`. A
+prerelease is for testing; don't use it in production.
 
 You can also install a release without the PowerShell Gallery. Download
 `NTFSSecurity.zip` from the
