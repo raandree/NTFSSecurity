@@ -335,4 +335,55 @@ namespace NTFSSecurity
             base.WriteDebug(args == null || args.Length == 0 ? text : string.Format(text, args));
         }
     }
+
+    /// <summary>
+    /// Converts file and folder objects to their full path. Windows PowerShell binds an object that is passed by
+    /// position to a string parameter through ToString, which returns only the name of a child item, so the cmdlet
+    /// resolved it against the current location (#88).
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
+    public sealed class FileSystemPathTransformationAttribute : ArgumentTransformationAttribute
+    {
+        /// <summary>
+        /// Returns the full path of a file or folder object, or of each one in a collection, and any other value
+        /// unchanged.
+        /// </summary>
+        /// <param name="engineIntrinsics">The engine APIs of the session.</param>
+        /// <param name="inputData">The argument to transform.</param>
+        /// <returns>The transformed argument.</returns>
+        public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
+        {
+            var input = inputData is PSObject ? ((PSObject)inputData).BaseObject : inputData;
+
+            if (input is string || !(input is IEnumerable))
+            {
+                return ToPath(inputData);
+            }
+
+            var result = new List<object>();
+            foreach (var item in (IEnumerable)input)
+            {
+                result.Add(ToPath(item));
+            }
+
+            return result.ToArray();
+        }
+
+        private static object ToPath(object value)
+        {
+            var baseObject = value is PSObject ? ((PSObject)value).BaseObject : value;
+
+            if (baseObject is System.IO.FileSystemInfo)
+            {
+                return ((System.IO.FileSystemInfo)baseObject).FullName;
+            }
+
+            if (baseObject is Alphaleonis.Win32.Filesystem.FileSystemInfo)
+            {
+                return ((Alphaleonis.Win32.Filesystem.FileSystemInfo)baseObject).FullName;
+            }
+
+            return value;
+        }
+    }
 }

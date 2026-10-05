@@ -177,5 +177,9 @@ The format is based on
   automatic variable; the cmdlets now read the current location from the
   session, and only for a relative path
   ([#86](https://github.com/raandree/NTFSSecurity/issues/86))
+- Fix file and folder objects passed by position, such as
+  `Get-NTFSOwner $folder`, which Windows PowerShell bound as the name of the
+  item, so the cmdlets looked for it in the current location
+  ([#88](https://github.com/raandree/NTFSSecurity/issues/88))
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

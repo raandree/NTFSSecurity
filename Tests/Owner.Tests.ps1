@@ -85,3 +85,27 @@ Describe 'Current location' {
         $result.FullName | Should -Be $file
     }
 }
+
+Describe 'File and folder objects as arguments' {
+    # Before 5.0.0, Windows PowerShell bound a folder object that was passed by position as its name, which the
+    # cmdlets resolved against the current location (#88).
+    It 'Should take a folder object by position' {
+        $parent = New-TestSandboxItem -Sandbox $sandbox -Name 'Parent' -Directory
+        $child = Join-Path -Path $parent -ChildPath 'Child'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $child
+        New-Item -ItemType Directory -Path $child | Out-Null
+        $folder = Get-ChildItem -LiteralPath $parent -Directory
+
+        $result = Get-NTFSOwner $folder -ErrorAction Stop
+
+        $result.FullName | Should -Be $child
+    }
+
+    It 'Should take file objects through the pipeline as before' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Piped'
+
+        $result = Get-Item -LiteralPath $file | Get-NTFSOwner
+
+        $result.FullName | Should -Be $file
+    }
+}

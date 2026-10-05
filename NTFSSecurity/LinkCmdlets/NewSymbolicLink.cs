@@ -15,6 +15,7 @@ namespace NTFSSecurity
         [Parameter(Position = 1, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
         [ValidateNotNullOrEmpty]
         [Alias("FullName")]
+        [FileSystemPathTransformation]
         public string Path
         {
             get { return paths[0]; }
@@ -27,6 +28,7 @@ namespace NTFSSecurity
 
         [Parameter(Position = 2, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
         [ValidateNotNullOrEmpty]
+        [FileSystemPathTransformation]
         public string Target
         {
             get { return target; }
