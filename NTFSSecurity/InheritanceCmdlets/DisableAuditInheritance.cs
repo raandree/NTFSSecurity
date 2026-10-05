@@ -10,7 +10,7 @@ namespace NTFSSecurity
     [OutputType(typeof(FileSystemInheritanceInfo))]
     public class DisableAuditInheritance : BaseCmdletWithPrivControl
     {
-        private bool removeInheritedAccessRules;
+        private bool removeInheritedAuditRules;
         private bool passThru;
 
         [Parameter(Position = 1, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true, ParameterSetName = "Path")]
@@ -38,11 +38,16 @@ namespace NTFSSecurity
             }
         }
 
+        /// <summary>
+        /// Removes the inherited audit entries instead of copying them to the item. Before 5.0.0, the switch was
+        /// named RemoveInheritedAccessRules, which remains an alias.
+        /// </summary>
         [Parameter]
-        public SwitchParameter RemoveInheritedAccessRules
+        [Alias("RemoveInheritedAccessRules")]
+        public SwitchParameter RemoveInheritedAuditRules
         {
-            get { return removeInheritedAccessRules; }
-            set { removeInheritedAccessRules = value; }
+            get { return removeInheritedAuditRules; }
+            set { removeInheritedAuditRules = value; }
         }
 
         [Parameter]
@@ -77,7 +82,7 @@ namespace NTFSSecurity
 
                     try
                     {
-                        FileSystemInheritanceInfo.DisableAuditInheritance(item, removeInheritedAccessRules);
+                        FileSystemInheritanceInfo.DisableAuditInheritance(item, removeInheritedAuditRules);
                     }
                     catch (UnauthorizedAccessException)
                     {
@@ -85,7 +90,7 @@ namespace NTFSSecurity
                         {
                             InvokeAsOwner(item, path, () =>
                             {
-                                FileSystemInheritanceInfo.DisableAuditInheritance(item, removeInheritedAccessRules);
+                                FileSystemInheritanceInfo.DisableAuditInheritance(item, removeInheritedAuditRules);
                             });
                         }
                         catch (Exception ex2)
@@ -111,7 +116,7 @@ namespace NTFSSecurity
             {
                 foreach (var sd in securityDescriptors)
                 {
-                    FileSystemInheritanceInfo.DisableAuditInheritance(sd, removeInheritedAccessRules);
+                    FileSystemInheritanceInfo.DisableAuditInheritance(sd, removeInheritedAuditRules);
 
                     if (passThru)
                     {

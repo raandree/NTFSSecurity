@@ -36,10 +36,26 @@ The format is based on
   into the documentation, and complete the version history with the release
   dates from the PowerShell Gallery, the missing notes for 4.2.2, 4.2.5, and
   4.2.6, and detailed notes for 4.2.4
+- Rename `-RemoveInheritedAccessRules` of `Disable-NTFSAuditInheritance` to
+  `-RemoveInheritedAuditRules` and `-RemoveExplicitAccessRules` of
+  `Enable-NTFSAuditInheritance` to `-RemoveExplicitAuditRules`, because they
+  act on audit entries; the old names still work as aliases
+- **Breaking:** `Set-NTFSInheritance` keeps entries like the dedicated
+  cmdlets: `-AccessInheritanceEnabled $false` now copies the inherited access
+  entries into the DACL instead of removing them, and
+  `-AuditInheritanceEnabled $true` now keeps the explicit audit entries. A
+  script that used `-AccessInheritanceEnabled $false` to drop the inherited
+  access entries now leaves them in place, which grants broader access than
+  before. To remove the entries, use
+  `Disable-NTFSAccessInheritance -RemoveInheritedAccessRules` or
+  `Enable-NTFSAuditInheritance -RemoveExplicitAuditRules`
 
 ### Deprecated
 
 - Deprecate the `-PassThur` alias of `Remove-Item2`; use `-PassThru`
+- Deprecate the `MACTripleDES` value of `Get-FileHash2 -Algorithm`: it uses
+  a random key, so its result differs on every call; the cmdlet now warns
+  when you use it
 
 ### Fixed
 
@@ -149,5 +165,9 @@ The format is based on
 - Fix `-PassThru` of `Copy-Item2`, `Move-Item2`, and `Remove-Item2`, which
   wrote the item also when `-WhatIf` or a declined confirmation skipped the
   operation
+- Fix `Get-FileHash2` in PowerShell 7, where it failed for every algorithm;
+  `RIPEMD160` and `MACTripleDES`, which .NET lacks there, now stop the
+  cmdlet with an error that names the algorithm and points to Windows
+  PowerShell 5.1
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

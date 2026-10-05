@@ -285,3 +285,20 @@ Describe 'Security descriptor parameter sets' {
         $rule.InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags]::None)
     }
 }
+
+Describe 'Clear-NTFSAccess' {
+    Context 'With -DisableInheritance' {
+        # The cmdlet does not copy the inherited entries, so the item is left with an empty DACL. This is the
+        # documented behavior; Set-NTFSInheritance and Disable-NTFSAccessInheritance keep the entries.
+        It 'Should leave the item with an empty, protected DACL' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'ClearAll'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+
+            Clear-NTFSAccess -Path $file -DisableInheritance
+
+            $acl = Get-Acl -LiteralPath $file
+            $acl.AreAccessRulesProtected | Should -BeTrue
+            $acl.Access | Should -BeNullOrEmpty
+        }
+    }
+}

@@ -15,13 +15,12 @@ Blocks the inheritance of audit rules on a file or folder.
 
 ### Path (Default)
 ```
-Disable-NTFSAuditInheritance [[-Path] <String[]>] [-RemoveInheritedAccessRules] [-PassThru]
- [<CommonParameters>]
+Disable-NTFSAuditInheritance [[-Path] <String[]>] [-RemoveInheritedAuditRules] [-PassThru] [<CommonParameters>]
 ```
 
 ### SecurityDescriptor
 ```
-Disable-NTFSAuditInheritance [-SecurityDescriptor] <FileSystemSecurity2[]> [-RemoveInheritedAccessRules]
+Disable-NTFSAuditInheritance [-SecurityDescriptor] <FileSystemSecurity2[]> [-RemoveInheritedAuditRules]
  [-PassThru] [<CommonParameters>]
 ```
 
@@ -29,7 +28,7 @@ Disable-NTFSAuditInheritance [-SecurityDescriptor] <FileSystemSecurity2[]> [-Rem
 
 The `Disable-NTFSAuditInheritance` cmdlet protects the system access control list (SACL) of a file or folder, so that the audit rules of the parent folder no longer apply to the item. From then on, only the audit rules stored in the item's own SACL decide which access attempts are written to the security event log.
 
-By default, the audit rules that the item currently inherits are copied into its SACL before inheritance is blocked, so the auditing behavior stays the same. The `-RemoveInheritedAccessRules` switch discards the inherited audit rules instead of copying them, which leaves only the audit rules that were already explicit on the item. Despite its name, the switch acts on audit rules, not on access rules.
+By default, the audit rules that the item currently inherits are copied into its SACL before inheritance is blocked, so the auditing behavior stays the same. The `-RemoveInheritedAuditRules` switch discards the inherited audit rules instead of copying them, which leaves only the audit rules that were already explicit on the item. Before 5.0.0, the switch was named `-RemoveInheritedAccessRules`; that name still works as an alias.
 
 In the `Path` parameter set the cmdlet reads the audit section of the item's security descriptor, changes it, and writes it back to disk immediately. In the `SecurityDescriptor` parameter set it changes the `Security2.FileSystemSecurity2` object in memory only; nothing reaches the file system until you pass that object to `Set-NTFSSecurityDescriptor`.
 
@@ -48,7 +47,7 @@ This command protects the SACL of `C:\Data\Projects` and copies the audit rules 
 ### Example 2: Block audit inheritance and discard the inherited rules
 
 ```PowerShell
-PS C:\> Disable-NTFSAuditInheritance -Path C:\Data\Projects -RemoveInheritedAccessRules -PassThru
+PS C:\> Disable-NTFSAuditInheritance -Path C:\Data\Projects -RemoveInheritedAuditRules -PassThru
 ```
 
 This command protects the SACL and removes the inherited audit rules instead of copying them, so the folder is audited only by the rules that were already explicit on it. `-PassThru` returns the resulting state, in which `AuditInheritanceEnabled` is `$false`.
@@ -105,14 +104,14 @@ Accept pipeline input: True (ByPropertyName, ByValue)
 Accept wildcard characters: False
 ```
 
-### -RemoveInheritedAccessRules
+### -RemoveInheritedAuditRules
 
-Indicates that the audit rules the item currently inherits are discarded. Despite its name, the switch acts on the audit rules in the SACL, not on access rules. By default, when the switch is omitted, the inherited audit rules are copied into the item's own SACL as explicit rules and auditing continues unchanged.
+Indicates that the audit rules the item currently inherits are discarded. By default, when the switch is omitted, the inherited audit rules are copied into the item's own SACL as explicit rules and auditing continues unchanged. Before 5.0.0, the switch was named `-RemoveInheritedAccessRules`, which remains an alias.
 
 ```yaml
 Type: SwitchParameter
 Parameter Sets: (All)
-Aliases:
+Aliases: RemoveInheritedAccessRules
 
 Required: False
 Position: Named

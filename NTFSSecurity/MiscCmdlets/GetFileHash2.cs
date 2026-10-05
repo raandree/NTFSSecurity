@@ -11,6 +11,7 @@ namespace NTFSSecurity
     public class GetFileHash2 : BaseCmdlet
     {
         private HashAlgorithms algorithm = HashAlgorithms.SHA256;
+        private bool deprecationWarningWritten = false;
 
         [Parameter(Mandatory = true, Position = 1, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
         [ValidateNotNullOrEmpty]
@@ -39,6 +40,26 @@ namespace NTFSSecurity
 
         protected override void ProcessRecord()
         {
+            try
+            {
+                Security2.FileSystem.FileInfo.Extensions.CreateHashAlgorithm(algorithm).Dispose();
+            }
+            catch (PlatformNotSupportedException ex)
+            {
+                ThrowTerminatingError(new ErrorRecord(ex, "HashAlgorithmNotAvailable", ErrorCategory.NotImplemented, algorithm));
+            }
+            catch (Exception ex)
+            {
+                // For example, an algorithm that a FIPS policy doesn't allow.
+                ThrowTerminatingError(new ErrorRecord(ex, "HashAlgorithmNotAvailable", ErrorCategory.NotImplemented, algorithm));
+            }
+
+            if (algorithm == HashAlgorithms.MACTripleDES && !deprecationWarningWritten)
+            {
+                WriteWarning("The MACTripleDES algorithm uses a random key, so its result differs on every call. The value is deprecated and will be removed in a future version.");
+                deprecationWarningWritten = true;
+            }
+
             foreach (var path in paths)
             {
                 string hash = null;

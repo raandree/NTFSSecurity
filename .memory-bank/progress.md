@@ -166,19 +166,16 @@ Numbered as agreed with the maintainer; each is documented on its page.
 - Found with group D: `-PassThru` of the `*-Item2` cmdlets wrote the item
   also when `-WhatIf` skipped the operation.
 
-#### E: Maintainer decisions before changing behavior
+#### E: Maintainer decisions (implemented on `ai/decisions-e`, not merged)
 
-- `Clear-NTFSAccess -DisableInheritance` removes the explicit entries and
-  then disables inheritance without copying the inherited ones, which
-  leaves an empty DACL: keep that, or copy them?
-- `Set-NTFSInheritance` differs from the dedicated cmdlets in two of four
-  directions: `-AccessInheritanceEnabled $false` removes the inherited
-  access entries, and `-AuditInheritanceEnabled $true` removes the
-  explicit audit entries; the dedicated cmdlets keep them unless a switch
-  is given. Align?
-- The audit inheritance switches are named `*AccessRules`: add
-  `*AuditRules` aliases?
-- `Get-FileHash2` fails in PowerShell 7 (`RIPEMD160`): drop the algorithm
-  there, load it lazily, or deprecate the cmdlet? To verify:
-  `MACTripleDES.Create()` may use a random key, so its result would differ
-  on every call.
+- D2: `Clear-NTFSAccess -DisableInheritance` keeps leaving an empty DACL;
+  the page states the result and the risk, and a test pins it.
+- D3: `Set-NTFSInheritance` keeps entries like the dedicated cmdlets
+  (Decision 13; listed under `Changed`).
+- D4: `-RemoveInheritedAuditRules` and `-RemoveExplicitAuditRules`, with
+  the `*AccessRules` names as aliases.
+- D5: `Get-FileHash2` works in PowerShell 7; `RIPEMD160` and
+  `MACTripleDES` stop it there with `HashAlgorithmNotAvailable`.
+  `MACTripleDES` uses a random key (verified), so it is deprecated.
+- Review of group E: the changelog now marks the `Set-NTFSInheritance`
+  change as breaking and warns that it leaves broader access in place.
