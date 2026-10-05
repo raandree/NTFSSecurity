@@ -85,3 +85,18 @@ Describe 'New-NTFSSymbolicLink with -PassThru' {
         $result | Should -BeOfType [Alphaleonis.Win32.Filesystem.DirectoryInfo]
     }
 }
+
+Describe 'Cmdlet classes' {
+    # Before 5.0.0, these classes declared members that nothing used.
+    It '<_> should declare no Path property, which was never a parameter' -ForEach @(
+        'Enable-Privileges', 'Disable-Privileges', 'Get-Privileges'
+    ) {
+        (Get-Command -Name $_).ImplementingType.GetProperty('Path') | Should -BeNullOrEmpty
+    }
+
+    It 'Remove-Item2 should declare no filter field' {
+        $flags = [System.Reflection.BindingFlags]'NonPublic, Instance'
+
+        (Get-Command -Name 'Remove-Item2').ImplementingType.GetField('filter', $flags) | Should -BeNullOrEmpty
+    }
+}

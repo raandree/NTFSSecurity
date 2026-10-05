@@ -14,7 +14,6 @@ namespace NTFSSecurity
     {
         private bool enablePrivileges = false;
         private SwitchParameter passThru;
-        public string[] Path { get; set; }
 
         [Parameter]
         public SwitchParameter PassThru
@@ -71,7 +70,6 @@ namespace NTFSSecurity
     public class DisablePrivileges : BaseCmdletWithPrivControl
     {
         private SwitchParameter passThru;
-        public string[] Path { get; set; }
 
         [Parameter]
         public SwitchParameter PassThru
@@ -120,7 +118,6 @@ namespace NTFSSecurity
     [OutputType(typeof(ProcessPrivileges.PrivilegeAndAttributes))]
     public class GetPrivileges : BaseCmdlet
     {
-        public string[] Path { get; set; }
 
         protected override void BeginProcessing()
         {

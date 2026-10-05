@@ -10,7 +10,6 @@ namespace NTFSSecurity
     {
         private SwitchParameter force;
         private SwitchParameter recurse;
-        private string filter;
         private bool passThru;
 
         [Parameter(Position = 1, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
