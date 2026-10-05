@@ -142,5 +142,9 @@ The format is based on
   `Add-NTFSAudit`, `Remove-NTFSAudit`, `Copy-Item2`, `Move-Item2`,
   `Remove-Item2`, and the inheritance cmdlets correctly, so that
   `Get-Command` and tab completion report the objects they write
+- Fix the verbose messages of `Copy-Item2` and `Move-Item2`, which named the
+  source path as the destination, and of `Disable-Privileges`, which said
+  that the privileges were enabled, and the spelling of the privilege in
+  the warning of `Get-NTFSEffectiveAccess`
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

@@ -99,7 +99,7 @@ namespace NTFSSecurity
                         if (ShouldProcess(resolvedPath, "Copy File"))
                         {
                             ((FileInfo)item).CopyTo(actualDestination, force ? CopyOptions.None : CopyOptions.FailIfExists, PathFormat.RelativePath);
-                            WriteVerbose(string.Format("File '{0}' copied to '{0}'", resolvedPath, destination));
+                            WriteVerbose(string.Format("File '{0}' copied to '{1}'", resolvedPath, actualDestination));
                         }
                     }
                     else
@@ -110,7 +110,7 @@ namespace NTFSSecurity
                             // DirectoryNotFoundException for the first file.
                             Directory.CreateDirectory(actualDestination);
                             ((DirectoryInfo)item).CopyTo(actualDestination, force ? CopyOptions.None : CopyOptions.FailIfExists, PathFormat.RelativePath);
-                            WriteVerbose(string.Format("Directory '{0}' copied to '{0}'", resolvedPath, destination));
+                            WriteVerbose(string.Format("Directory '{0}' copied to '{1}'", resolvedPath, actualDestination));
                         }
                     }
 

@@ -100,7 +100,7 @@ namespace NTFSSecurity
             }
 
             this.DisableFileSystemPrivileges();
-            this.WriteVerbose("The privileges 'TakeOwnership', 'Restore' and 'Backup' are now enabled.");
+            this.WriteVerbose("The privileges 'TakeOwnership', 'Restore' and 'Backup' are now disabled.");
 
             if (passThru)
             {

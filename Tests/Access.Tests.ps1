@@ -10,6 +10,7 @@ BeforeDiscovery {
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
     # With the Restore privilege, Windows may grant writing the DACL despite a deny entry.
     $canBypassWriteDeny = Test-PrivilegeHeld -Name 'SeRestorePrivilege'
+    $holdsSecurityPrivilege = Test-PrivilegeHeld -Name 'SeSecurityPrivilege'
 }
 
 BeforeAll {
@@ -53,6 +54,14 @@ Describe 'Get-NTFSEffectiveAccess' {
                     [System.Security.AccessControl.AccessControlType]::Deny
                 )))
         Set-Acl -LiteralPath $effectiveFile -AclObject $acl
+    }
+
+    # Before 5.0.0, the warning misspelled the privilege as "Privliege".
+    It 'Should warn once that the Security privilege is missing' -Skip:$holdsSecurityPrivilege {
+        Get-NTFSEffectiveAccess -Path $effectiveFile -WarningVariable accessWarnings -WarningAction SilentlyContinue | Out-Null
+
+        $accessWarnings | Should -HaveCount 1
+        $accessWarnings[0].Message | Should -BeExactly 'The user does not hold the Security privilege and might not be able to read the effective permissions.'
     }
 
     It 'Should leave out an account without access when -ExcludeNoneAccessEntries is used' {
