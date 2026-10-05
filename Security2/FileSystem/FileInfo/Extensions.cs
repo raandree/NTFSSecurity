@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using System;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Security2.FileSystem.FileInfo
 {
@@ -15,48 +17,60 @@ namespace Security2.FileSystem.FileInfo
 
     public static class Extensions
     {
-        
         public static string GetHash(this Alphaleonis.Win32.Filesystem.FileInfo file, HashAlgorithms algorithm)
         {
             byte[] hash = null;
 
+            using (var hashAlgorithm = CreateHashAlgorithm(algorithm))
             using (var fileStream = file.OpenRead())
             {
-                switch (algorithm)
-                {
-                    case HashAlgorithms.MD5:
-                        hash = System.Security.Cryptography.MD5.Create().ComputeHash(fileStream);
-                        break;
-                    case HashAlgorithms.SHA1:
-                        hash = System.Security.Cryptography.SHA1.Create().ComputeHash(fileStream);
-                        break;
-                    case HashAlgorithms.SHA256:
-                        hash = System.Security.Cryptography.SHA256.Create().ComputeHash(fileStream);
-                        break;
-                    case HashAlgorithms.SHA384:
-                        hash = System.Security.Cryptography.SHA384.Create().ComputeHash(fileStream);
-                        break;
-                    case HashAlgorithms.SHA512:
-                        hash = System.Security.Cryptography.SHA512.Create().ComputeHash(fileStream);
-                        break;
-                    case HashAlgorithms.MACTripleDES:
-                        hash = System.Security.Cryptography.MACTripleDES.Create().ComputeHash(fileStream);
-                        break;
-                    case HashAlgorithms.RIPEMD160:
-                        hash = System.Security.Cryptography.RIPEMD160.Create().ComputeHash(fileStream);
-                        break;
-                }
-
-                fileStream.Close();
+                hash = hashAlgorithm.ComputeHash(fileStream);
             }
 
-            var sb = new StringBuilder(hash.Length);
+            var sb = new StringBuilder(hash.Length * 2);
             for (var i = 0; i < hash.Length; i++)
             {
                 sb.Append(hash[i].ToString("X2"));
             }
-            
+
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Creates the hash algorithm. Throws a PlatformNotSupportedException that names the algorithm when the
+        /// .NET runtime lacks it, as .NET Core and later lack RIPEMD160 and MACTripleDES.
+        /// </summary>
+        /// <param name="algorithm">The hash algorithm to create.</param>
+        /// <returns>A new instance of the hash algorithm.</returns>
+        public static HashAlgorithm CreateHashAlgorithm(HashAlgorithms algorithm)
+        {
+            switch (algorithm)
+            {
+                case HashAlgorithms.MD5:
+                    return MD5.Create();
+                case HashAlgorithms.SHA1:
+                    return SHA1.Create();
+                case HashAlgorithms.SHA256:
+                    return SHA256.Create();
+                case HashAlgorithms.SHA384:
+                    return SHA384.Create();
+                case HashAlgorithms.SHA512:
+                    return SHA512.Create();
+                case HashAlgorithms.MACTripleDES:
+                case HashAlgorithms.RIPEMD160:
+                    // Created by name: a reference to the type would make every hash fail where the type is missing.
+                    var hashAlgorithm = CryptoConfig.CreateFromName(algorithm.ToString()) as HashAlgorithm;
+                    if (hashAlgorithm == null)
+                    {
+                        throw new PlatformNotSupportedException(string.Format(
+                            "The hash algorithm '{0}' is not available in this version of .NET. Use Windows PowerShell 5.1 to calculate it.",
+                            algorithm));
+                    }
+
+                    return hashAlgorithm;
+                default:
+                    throw new ArgumentOutOfRangeException("algorithm", algorithm, "Unknown hash algorithm.");
+            }
         }
     }
 }

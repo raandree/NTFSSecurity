@@ -65,7 +65,7 @@ This command groups the files below `C:\Data` by hash value and returns the grou
 
 ### -Algorithm
 
-Specifies the hash algorithm to use. The accepted values are `SHA1`, `SHA256`, `SHA384`, `SHA512`, `MACTripleDES`, `MD5`, and `RIPEMD160`. When you omit this parameter, the cmdlet uses `SHA256`.
+Specifies the hash algorithm to use. The accepted values are `SHA1`, `SHA256`, `SHA384`, `SHA512`, `MACTripleDES`, `MD5`, and `RIPEMD160`. When you omit this parameter, the cmdlet uses `SHA256`. `RIPEMD160` and `MACTripleDES` are available only in Windows PowerShell 5.1, and `MACTripleDES` is deprecated.
 
 ```yaml
 Type: HashAlgorithms
@@ -117,13 +117,13 @@ For every hashed file, the cmdlet writes the file object of that file, decorated
 
 ## NOTES
 
-The cmdlet works only in Windows PowerShell. In PowerShell 7, it fails for every algorithm with the error `Could not load type 'System.Security.Cryptography.RIPEMD160'`, because .NET no longer includes the RIPEMD-160 implementation that the cmdlet references. In PowerShell 7, use the built-in `Get-FileHash` cmdlet instead.
+In PowerShell 7, the cmdlet supports `SHA1`, `SHA256`, `SHA384`, `SHA512`, and `MD5`. .NET no longer includes `RIPEMD160` and `MACTripleDES`, so requesting one of them there stops the cmdlet with the error `HashAlgorithmNotAvailable`, which names the algorithm; use Windows PowerShell 5.1 to calculate those hashes. Before 5.0.0, the cmdlet failed in PowerShell 7 for every algorithm with the error `Could not load type 'System.Security.Cryptography.RIPEMD160'`.
 
 If the file cannot be opened because access is denied, the cmdlet takes ownership of the file with the account that runs it, calculates the hash, and restores the previous owner afterward. That fallback fails with a `GetHashError` when the account is not allowed to change the owner of the file. A file that cannot be read produces a `GetHashError` and no result.
 
 The hash is returned as an uppercase hexadecimal string without separators, which differs from the lowercase output of some other hashing tools. Compare hash values case-insensitively.
 
-`MACTripleDES` is a keyed message authentication code that is created with a key that is generated for each call, so its result is not reproducible across invocations and is not suitable for comparing files.
+`MACTripleDES` is a keyed message authentication code that is created with a key that is generated for each call, so its result is not reproducible across invocations and is not suitable for comparing files. The value is deprecated: the cmdlet writes a warning when you use it, and a future version will remove it.
 
 Before 5.0.0, a folder in a `-Path` array stopped the processing of that array, so the files that followed the folder were not hashed, and a file that could not be read got a result with the hash of the previous file.
 
