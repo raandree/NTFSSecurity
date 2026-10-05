@@ -57,7 +57,10 @@ the PRs, and tags `5.0.0-rc2` after the merges.
   the `*-Item2` cmdlets: Windows PowerShell 379 passed, 23 skipped;
   PowerShell 7 348 passed, 54 skipped (402 tests).
 
+- `ai/decisions-e` implements D2 to D5 (Decision 13): Windows PowerShell
+  395 passed, 26 skipped; PowerShell 7 366 passed, 55 skipped (421
+  tests). `Get-FileHash2` tests now run in PowerShell 7 as well.
+
 ## Next step
 
-The E decisions on `ai/decisions-e` (Decision 13 for `Set-NTFSInheritance`),
-then the bugs from the issue triage (`ai/issue-fixes`) and 5.0.0-rc2.
+The bugs from the issue triage (`ai/issue-fixes`), then 5.0.0-rc2.
