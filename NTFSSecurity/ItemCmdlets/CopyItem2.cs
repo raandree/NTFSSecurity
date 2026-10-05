@@ -94,12 +94,15 @@ namespace NTFSSecurity
 
                 try
                 {
+                    var processed = false;
+
                     if (item is FileInfo)
                     {
                         if (ShouldProcess(resolvedPath, "Copy File"))
                         {
                             ((FileInfo)item).CopyTo(actualDestination, force ? CopyOptions.None : CopyOptions.FailIfExists, PathFormat.RelativePath);
                             WriteVerbose(string.Format("File '{0}' copied to '{1}'", resolvedPath, actualDestination));
+                            processed = true;
                         }
                     }
                     else
@@ -111,10 +114,11 @@ namespace NTFSSecurity
                             Directory.CreateDirectory(actualDestination);
                             ((DirectoryInfo)item).CopyTo(actualDestination, force ? CopyOptions.None : CopyOptions.FailIfExists, PathFormat.RelativePath);
                             WriteVerbose(string.Format("Directory '{0}' copied to '{1}'", resolvedPath, actualDestination));
+                            processed = true;
                         }
                     }
 
-                    if (passThru)
+                    if (passThru && processed)
                         WriteObject(item);
                 }
                 catch (System.IO.IOException ex)

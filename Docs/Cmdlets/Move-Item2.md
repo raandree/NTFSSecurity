@@ -188,6 +188,8 @@ With `-PassThru $true` the cmdlet returns a folder object for each folder that i
 
 `Move-Item2` moves through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it handles source and destination paths that exceed the 260-character `MAX_PATH` limit of the built-in `Move-Item` cmdlet.
 
+Before 5.0.0, `-PassThru` also wrote the item when `-WhatIf` or a declined confirmation skipped the operation.
+
 The cmdlet chooses between two mutually exclusive move options. Without `-Force` it moves with `CopyAllowed`, which permits a file to cross volume boundaries because Windows then copies and deletes it. With `-Force` it moves with `ReplaceExisting`, which overwrites the destination but does not request `CopyAllowed`, so a move across volumes can fail when `-Force` is specified.
 
 If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call.

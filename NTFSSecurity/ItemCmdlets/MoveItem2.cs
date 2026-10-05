@@ -94,12 +94,15 @@ namespace NTFSSecurity
 
                 try
                 {
+                    var processed = false;
+
                     if (item is FileInfo)
                     {
                         if (ShouldProcess(resolvedPath, "Move File"))
                         {
                             ((FileInfo)item).MoveTo(actualDestination, force ? MoveOptions.ReplaceExisting : MoveOptions.CopyAllowed, PathFormat.RelativePath);
                             WriteVerbose(string.Format("File '{0}' moved to '{1}'", resolvedPath, actualDestination));
+                            processed = true;
                         }
                     }
                     else
@@ -108,10 +111,11 @@ namespace NTFSSecurity
                         {
                             ((DirectoryInfo)item).MoveTo(actualDestination, force ? MoveOptions.ReplaceExisting : MoveOptions.CopyAllowed, PathFormat.RelativePath);
                             WriteVerbose(string.Format("Directory '{0}' moved to '{1}'", resolvedPath, actualDestination));
+                            processed = true;
                         }
                     }
 
-                    if (passThru)
+                    if (passThru && processed)
                         WriteObject(item);
                 }
                 catch (System.IO.IOException ex)

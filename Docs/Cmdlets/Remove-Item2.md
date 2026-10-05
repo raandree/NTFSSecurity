@@ -181,6 +181,8 @@ With `-PassThru` the cmdlet returns a folder object for each folder that it dele
 
 `Remove-Item2` deletes through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it reaches items whose path exceeds the 260-character `MAX_PATH` limit of the built-in `Remove-Item` cmdlet. Deletion is permanent; the cmdlet does not use the Recycle Bin.
 
+Before 5.0.0, `-PassThru` also wrote the item when `-WhatIf` or a declined confirmation skipped the operation.
+
 The module defines the aliases `rm2` and `del2` for this cmdlet.
 
 A path that does not exist causes the error `FileNotFound`, and a deletion that the file system rejects causes a `DeleteError`. In both cases the cmdlet continues with the next path. Before 5.0.0, a path that did not exist made the cmdlet skip the remaining paths that were passed in the same call.

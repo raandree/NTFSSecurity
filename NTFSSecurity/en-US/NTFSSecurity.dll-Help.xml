@@ -2181,6 +2181,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     <maml:alertSet>
       <maml:alert>
         <maml:para>`Copy-Item2` copies through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it handles source and destination paths that exceed the 260-character `MAX_PATH` limit of the built-in `Copy-Item` cmdlet.</maml:para>
+        <maml:para>Before 5.0.0, `-PassThru` also wrote the item when `-WhatIf` or a declined confirmation skipped the operation.</maml:para>
         <maml:para>Before 5.0.0, copying a folder that contained files failed with a `CopyError` that reported a `DirectoryNotFoundException` for the first file in the folder.</maml:para>
         <maml:para>If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call.</maml:para>
       </maml:alert>
@@ -6964,6 +6965,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
     <maml:alertSet>
       <maml:alert>
         <maml:para>`Move-Item2` moves through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it handles source and destination paths that exceed the 260-character `MAX_PATH` limit of the built-in `Move-Item` cmdlet.</maml:para>
+        <maml:para>Before 5.0.0, `-PassThru` also wrote the item when `-WhatIf` or a declined confirmation skipped the operation.</maml:para>
         <maml:para>The cmdlet chooses between two mutually exclusive move options. Without `-Force` it moves with `CopyAllowed`, which permits a file to cross volume boundaries because Windows then copies and deletes it. With `-Force` it moves with `ReplaceExisting`, which overwrites the destination but does not request `CopyAllowed`, so a move across volumes can fail when `-Force` is specified.</maml:para>
         <maml:para>If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call.</maml:para>
       </maml:alert>
@@ -7579,6 +7581,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
     <maml:alertSet>
       <maml:alert>
         <maml:para>`Remove-Item2` deletes through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it reaches items whose path exceeds the 260-character `MAX_PATH` limit of the built-in `Remove-Item` cmdlet. Deletion is permanent; the cmdlet does not use the Recycle Bin.</maml:para>
+        <maml:para>Before 5.0.0, `-PassThru` also wrote the item when `-WhatIf` or a declined confirmation skipped the operation.</maml:para>
         <maml:para>The module defines the aliases `rm2` and `del2` for this cmdlet.</maml:para>
         <maml:para>A path that does not exist causes the error `FileNotFound`, and a deletion that the file system rejects causes a `DeleteError`. In both cases the cmdlet continues with the next path. Before 5.0.0, a path that did not exist made the cmdlet skip the remaining paths that were passed in the same call.</maml:para>
       </maml:alert>

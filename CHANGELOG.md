@@ -146,5 +146,8 @@ The format is based on
   source path as the destination, and of `Disable-Privileges`, which said
   that the privileges were enabled, and the spelling of the privilege in
   the warning of `Get-NTFSEffectiveAccess`
+- Fix `-PassThru` of `Copy-Item2`, `Move-Item2`, and `Remove-Item2`, which
+  wrote the item also when `-WhatIf` or a declined confirmation skipped the
+  operation
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

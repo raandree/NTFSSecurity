@@ -188,6 +188,8 @@ With `-PassThru $true` the cmdlet returns a folder object for each folder that i
 
 `Copy-Item2` copies through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it handles source and destination paths that exceed the 260-character `MAX_PATH` limit of the built-in `Copy-Item` cmdlet.
 
+Before 5.0.0, `-PassThru` also wrote the item when `-WhatIf` or a declined confirmation skipped the operation.
+
 Before 5.0.0, copying a folder that contained files failed with a `CopyError` that reported a `DirectoryNotFoundException` for the first file in the folder.
 
 If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call.
