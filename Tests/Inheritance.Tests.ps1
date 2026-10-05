@@ -126,6 +126,7 @@ Describe 'Set-NTFSInheritance' {
         # In memory, the kept entries stay marked as inherited; Windows stores them as explicit ones on write.
         It 'Should keep the inherited access entries of a security descriptor' {
             $file = New-TestSandboxItem -Sandbox $sandbox -Name 'KeepDescriptor'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
             $sd = Get-NTFSSecurityDescriptor -Path $file
             $sidType = [System.Security.Principal.SecurityIdentifier]
             $inheritedCount = @($sd.SecurityDescriptor.GetAccessRules($false, $true, $sidType)).Count

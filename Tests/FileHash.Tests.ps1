@@ -55,14 +55,17 @@ Describe 'Get-FileHash2' {
         It 'Should stop with an error that names <_> in PowerShell 7' -Skip:(-not $isCore) -ForEach @('RIPEMD160', 'MACTripleDES') {
             $algorithm = $_
 
-            { Get-FileHash2 -Path $first -Algorithm $algorithm -ErrorAction Stop } |
-                Should -Throw -ExpectedMessage "*'$algorithm'*Windows PowerShell 5.1*"
+            $hashError = { Get-FileHash2 -Path $first -Algorithm $algorithm -ErrorAction Stop } |
+                Should -Throw -ExpectedMessage "*'$algorithm'*Windows PowerShell 5.1*" -PassThru
+
+            $hashError.FullyQualifiedErrorId | Should -BeLike 'HashAlgorithmNotAvailable,*'
         }
 
-        It 'Should warn that MACTripleDES is deprecated' -Skip:$isCore {
-            $result = Get-FileHash2 -Path $first -Algorithm MACTripleDES -WarningVariable hashWarnings -WarningAction SilentlyContinue
+        It 'Should warn once that MACTripleDES is deprecated' -Skip:$isCore {
+            $results = @(Get-FileHash2 -Path $first, $second -Algorithm MACTripleDES -WarningVariable hashWarnings -WarningAction SilentlyContinue)
 
-            $result.Hash | Should -Not -BeNullOrEmpty
+            $results | Should -HaveCount 2
+            $results[0].Hash | Should -Not -BeNullOrEmpty
             $hashWarnings | Should -HaveCount 1
             $hashWarnings[0].Message | Should -BeLike '*MACTripleDES*random key*deprecated*'
         }

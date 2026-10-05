@@ -48,6 +48,11 @@ namespace NTFSSecurity
             {
                 ThrowTerminatingError(new ErrorRecord(ex, "HashAlgorithmNotAvailable", ErrorCategory.NotImplemented, algorithm));
             }
+            catch (Exception ex)
+            {
+                // For example, an algorithm that a FIPS policy doesn't allow.
+                ThrowTerminatingError(new ErrorRecord(ex, "HashAlgorithmNotAvailable", ErrorCategory.NotImplemented, algorithm));
+            }
 
             if (algorithm == HashAlgorithms.MACTripleDES && !deprecationWarningWritten)
             {

@@ -177,3 +177,5 @@ Numbered as agreed with the maintainer; each is documented on its page.
 - D5: `Get-FileHash2` works in PowerShell 7; `RIPEMD160` and
   `MACTripleDES` stop it there with `HashAlgorithmNotAvailable`.
   `MACTripleDES` uses a random key (verified), so it is deprecated.
+- Review of group E: the changelog now marks the `Set-NTFSInheritance`
+  change as breaking and warns that it leaves broader access in place.
