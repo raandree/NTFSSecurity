@@ -43,10 +43,11 @@ namespace NTFSSecurity.OwnerCmdlets
         {
             if (ParameterSetName == "Path")
             {
-                FileSystemInfo item = null;
-
                 foreach (var path in paths)
                 {
+                    FileSystemInfo item = null;
+                    FileSystemOwner owner = null;
+
                     try
                     {
                         item = GetFileSystemInfo2(path);
@@ -59,32 +60,22 @@ namespace NTFSSecurity.OwnerCmdlets
 
                     try
                     {
-                        WriteObject(FileSystemOwner.GetOwner(item));
+                        owner = FileSystemOwner.GetOwner(item);
                     }
-                    catch (UnauthorizedAccessException)
+                    catch (UnauthorizedAccessException ex)
                     {
-                        try
-                        {
-                            var ownerInfo = FileSystemOwner.GetOwner(item);
-                            var previousOwner = ownerInfo.Owner;
-
-                            FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
-
-                            WriteObject(FileSystemOwner.GetOwner(item));
-
-                            FileSystemOwner.SetOwner(item, previousOwner);
-                        }
-                        catch (Exception ex2)
-                        {
-                            WriteError(new ErrorRecord(ex2, "ReadSecurityError", ErrorCategory.WriteError, path));
-                            continue;
-                        }
+                        // Taking ownership to read the owner would replace the owner that the cmdlet reports.
+                        WriteError(new ErrorRecord(ex, "ReadSecurityError", ErrorCategory.PermissionDenied, path));
+                        continue;
                     }
                     catch (Exception ex)
                     {
                         WriteError(new ErrorRecord(ex, "ReadSecurityError", ErrorCategory.OpenError, path));
                         continue;
                     }
+
+                    // Outside the try block, so that a stopped pipeline isn't reported as a read error.
+                    WriteObject(owner);
                 }
             }
             else

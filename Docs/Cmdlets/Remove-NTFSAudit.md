@@ -276,9 +276,9 @@ The value passed to `-AppliesTo` is converted to this type and binds by property
 
 ## OUTPUTS
 
-### Security2.FileSystemAccessRule2
+### Security2.FileSystemAuditRule2
 
-Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the type depends on the parameter set: in the `Path` sets the cmdlet writes all access entries of the item, explicit and inherited ones, as `Security2.FileSystemAccessRule2` objects, while in the `SecurityDescriptor` sets it writes all audit entries of the descriptor as `Security2.FileSystemAuditRule2` objects. Use `Get-NTFSAudit` to check the audit entries of an item after the removal.
+Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the cmdlet writes all audit entries of the item or the security descriptor, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects. Before 5.0.0, the `Path` sets wrote the access entries of the item instead.
 
 ## NOTES
 

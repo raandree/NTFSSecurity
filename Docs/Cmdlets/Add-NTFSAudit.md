@@ -101,7 +101,7 @@ Aliases: FileSystemRights
 Accepted values: None, ReadData, ListDirectory, WriteData, CreateFiles, AppendData, CreateDirectories, ReadExtendedAttributes, WriteExtendedAttributes, ExecuteFile, Traverse, DeleteSubdirectoriesAndFiles, ReadAttributes, WriteAttributes, Write, Delete, ReadPermissions, Read, ReadAndExecute, Modify, ChangePermissions, TakeOwnership, Synchronize, FullControl, GenericAll, GenericExecute, GenericWrite, GenericRead
 
 Required: True
-Position: 2
+Position: 3
 Default value: None
 Accept pipeline input: True (ByPropertyName)
 Accept wildcard characters: False
@@ -278,9 +278,9 @@ The value passed to `-AppliesTo` is converted to this type and binds by property
 
 ## OUTPUTS
 
-### Security2.FileSystemAccessRule2
+### Security2.FileSystemAuditRule2
 
-Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the type depends on the parameter set: in the `Path` sets the cmdlet writes all audit entries of the item, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects, while in the `SecurityDescriptor` sets it writes the access entries of the descriptor as `Security2.FileSystemAccessRule2` objects. Use `Get-NTFSAudit` when you need the audit entries of a security descriptor.
+Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the cmdlet writes all audit entries of the item or the security descriptor, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects. Before 5.0.0, the `SecurityDescriptor` sets wrote the access entries of the descriptor instead.
 
 ## NOTES
 
@@ -290,7 +290,7 @@ Writing the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage
 
 If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.
 
-The syntax shows `-Path`, `-Account`, and `-AccessRights` as positional parameters, but `-Account` and `-AccessRights` are both declared at position 2. A command that passes them positionally therefore fails with the error that positional parameters cannot be bound because no names were given, and `Get-Command Add-NTFSAudit -Syntax` leaves `-Account` out for the same reason. Pass `-Account` and `-AccessRights` by name, as the examples above do.
+`-Path` or `-SecurityDescriptor`, `-Account`, and `-AccessRights` are positional parameters at positions 1, 2, and 3, like in `Remove-NTFSAudit`. Before 5.0.0, `-Account` and `-AccessRights` were both declared at position 2, so a command that passed them by position failed.
 
 An audit entry alone does not create events. Windows writes the events to the security log only while the "Audit object access" policy, or the corresponding "Audit File System" advanced audit policy, is enabled for success, failure, or both. That policy is a Windows setting and is not managed by this module.
 

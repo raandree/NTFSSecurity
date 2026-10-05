@@ -94,7 +94,14 @@ namespace Security2
 
         public static FileSystemInheritanceInfo GetFileSystemInheritanceInfo(FileSystemSecurity2 sd)
         {
-            return new FileSystemInheritanceInfo(sd.Item, !sd.SecurityDescriptor.AreAccessRulesProtected, !sd.SecurityDescriptor.AreAuditRulesProtected);            
+            // Like for an item, the audit state is unknown when the SACL was not read.
+            bool? auditInheritanceEnabled = null;
+            if (sd.HasAuditSection)
+            {
+                auditInheritanceEnabled = !sd.SecurityDescriptor.AreAuditRulesProtected;
+            }
+
+            return new FileSystemInheritanceInfo(sd.Item, !sd.SecurityDescriptor.AreAccessRulesProtected, auditInheritanceEnabled);
         }
         #endregion GetFileSystemInheritanceInfo
 

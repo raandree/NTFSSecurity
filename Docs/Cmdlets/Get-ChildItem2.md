@@ -182,7 +182,7 @@ Accept wildcard characters: False
 
 ### -Path
 
-Specifies the folders whose content you want to list. Relative paths are resolved against the current location, and wildcard characters are not supported. If you omit this parameter, the cmdlet lists the current location. A value that points to a file instead of a folder produces an error.
+Specifies the folders whose content you want to list. Relative paths are resolved against the current location, and wildcard characters are not supported. If you omit this parameter, the cmdlet lists the current location. A value that points to a file returns that file, like `Get-ChildItem`, unless you use `-Directory`.
 
 ```yaml
 Type: String[]
@@ -301,9 +301,13 @@ The cmdlet returns this object for every folder it finds. Depending on the modul
 
 The module defines the alias `dir2` for this cmdlet.
 
+The default table view shows the `Mode`, `Inherits`, `LastWriteTime`, `Size(M)`, and `Name` columns. `Inherits` is `False` for an item whose access inheritance is disabled. Reading that value costs one access to the ACL of each displayed item, which slows down the display of large listings; to avoid it, select the properties you need, for example with `Format-Table -Property Mode, LastWriteTime, Length, Name`. Objects that you pipe to another command are not affected. Before 5.0.0, the column showed `True` for every item.
+
 The `PrivateData` section of the module manifest `NTFSSecurity.psd1` contains two settings that this cmdlet reads when it starts. `GetFileSystemModeProperty` adds the calculated `Mode` property to every item. `IdentifyHardLinks` adds the `HardLinkCount` property to every file, which requires an extra call into the file system for each file and therefore slows down large listings noticeably. Set either value to `$false` in the manifest and import the module again if you prefer the faster enumeration over the additional properties.
 
 A folder that cannot be read produces a non-terminating error with the ID `DirUnauthorizedAccessError` for an access denial or `DirUnspecifiedError` for any other failure, and a path that does not exist produces the error `FileNotFound`. In each case the cmdlet continues with the next path. Failures that occur while `-Recurse` collects the subfolders of a folder are reported as verbose messages only, not as errors.
+
+Before 5.0.0, a `-Path` value that points to a file stopped the cmdlet with an `InvalidCastException`.
 
 ## RELATED LINKS
 

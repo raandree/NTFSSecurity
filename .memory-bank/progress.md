@@ -93,7 +93,7 @@ authorization, restrict wiki editing to collaborators, and ask
 
 Numbered as agreed with the maintainer; each is documented on its page.
 
-#### A: Crashes and wrong results
+#### A: Crashes and wrong results (fixed on `ai/defects-a`, not merged)
 
 - (1) `Set-NTFSInheritance` reads an unset `Nullable<bool>` when
   `-AccessInheritanceEnabled` is omitted; omitted should mean unchanged.
@@ -122,6 +122,8 @@ Numbered as agreed with the maintainer; each is documented on its page.
   `BeginProcessing` and leave them enabled.
 - (13) Format view `Children2`: the `Inherits` column uses
   `IsInheritanceBlocked`, so it always shows `True` for `Get-ChildItem2`.
+- Review of group A: five Major findings fixed in the last commit; the
+  Minor ones are listed in the PR description.
 
 #### B: Ignored parameters and parameter sets
 

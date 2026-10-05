@@ -184,6 +184,8 @@ If the ACL of an item cannot be read because access is denied, the cmdlet tries 
 
 Entries whose account cannot be translated into a name are returned with their SID. Use `Get-NTFSOrphanedAccess` to list only those entries.
 
+Before 5.0.0, after a path whose ACL could not be read, the cmdlet returned the entries of the previous item again.
+
 ## RELATED LINKS
 
 [Add-NTFSAccess](Add-NTFSAccess.md)

@@ -188,9 +188,9 @@ The access, audit, inheritance, owner, and security descriptor cmdlets enable
 these privileges automatically while they run and disable the ones they
 enabled when they finish. If a privilege cannot be enabled, the cmdlet
 continues without it. You can turn this behavior off with the
-`EnablePrivileges` module setting. The inheritance cmdlets are an exception:
-they always try to enable the privileges, and when `EnablePrivileges` is
-`$false`, they leave them enabled.
+`EnablePrivileges` module setting. Before 5.0.0, the inheritance cmdlets were
+an exception: they always tried to enable the privileges, and when
+`EnablePrivileges` was `$false`, they left them enabled.
 
 `Enable-Privileges` enables the four privileges for the current PowerShell
 process until you run `Disable-Privileges` or close the session.

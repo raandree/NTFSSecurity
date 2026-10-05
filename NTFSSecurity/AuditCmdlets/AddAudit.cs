@@ -54,7 +54,7 @@ namespace NTFSSecurity
             set { account = value; }
         }
 
-        [Parameter(Mandatory = true, Position = 2, ValueFromPipelineByPropertyName = true)]
+        [Parameter(Mandatory = true, Position = 3, ValueFromPipelineByPropertyName = true)]
         [Alias("FileSystemRights")]
         public FileSystemRights2 AccessRights
         {
@@ -169,7 +169,7 @@ namespace NTFSSecurity
 
                     if (passThru == true)
                     {
-                        FileSystemAccessRule2.GetFileSystemAccessRules(sd, true, true).ForEach(ace => WriteObject(ace));
+                        FileSystemAuditRule2.GetFileSystemAuditRules(sd, true, true).ForEach(ace => WriteObject(ace));
                     }
                 }
             }

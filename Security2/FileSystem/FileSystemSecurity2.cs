@@ -53,16 +53,19 @@ namespace Security2
                 try
                 {
                     sd = ((FileInfo)this.item).GetAccessControl(AccessControlSections.All);
+                    sections = AccessControlSections.All;
                 }
                 catch
                 {
                     try
                     {
                         sd = ((FileInfo)this.item).GetAccessControl(AccessControlSections.Access | AccessControlSections.Owner | AccessControlSections.Group);
+                        sections = AccessControlSections.Access | AccessControlSections.Owner | AccessControlSections.Group;
                     }
                     catch
                     {
                         sd = ((FileInfo)this.item).GetAccessControl(AccessControlSections.Access);
+                        sections = AccessControlSections.Access;
                     }
                 }
 
@@ -74,19 +77,28 @@ namespace Security2
                 try
                 {
                     sd = ((DirectoryInfo)this.item).GetAccessControl(AccessControlSections.All);
+                    sections = AccessControlSections.All;
                 }
                 catch
                 {
                     try
                     {
                         sd = ((DirectoryInfo)this.item).GetAccessControl(AccessControlSections.Access | AccessControlSections.Owner | AccessControlSections.Group);
+                        sections = AccessControlSections.Access | AccessControlSections.Owner | AccessControlSections.Group;
                     }
                     catch
                     {
                         sd = ((DirectoryInfo)this.item).GetAccessControl(AccessControlSections.Access);
+                        sections = AccessControlSections.Access;
                     }
                 }
             }
+        }
+
+        // Without the Security privilege, the security descriptor is read without its SACL.
+        internal bool HasAuditSection
+        {
+            get { return (sections & AccessControlSections.Audit) == AccessControlSections.Audit; }
         }
 
         public FileSystemSecurity SecurityDescriptor

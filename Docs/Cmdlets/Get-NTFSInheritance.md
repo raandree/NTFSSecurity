@@ -29,7 +29,7 @@ The `Get-NTFSInheritance` cmdlet reports whether a file or folder inherits acces
 
 `AccessInheritanceEnabled` is `$false` when the discretionary access control list (DACL) of the item is protected, which is the state that `Disable-NTFSAccessInheritance` produces. `AuditInheritanceEnabled` reports the same for the system access control list (SACL), which holds the audit rules. When the audit section cannot be read because the session does not hold the Security privilege, `AuditInheritanceEnabled` is `$null` and its column stays empty; the access value is still reported and no error is written.
 
-In the `Path` parameter set the cmdlet reads the security descriptor of each item from disk. In the `SecurityDescriptor` parameter set it reads the state from the `Security2.FileSystemSecurity2` objects that `Get-NTFSSecurityDescriptor` returns, without touching the file system. Note that a descriptor that was retrieved without its audit section reports `AuditInheritanceEnabled` as `$true`, because the protection flag of a section that was never read is not set.
+In the `Path` parameter set the cmdlet reads the security descriptor of each item from disk. In the `SecurityDescriptor` parameter set it reads the state from the `Security2.FileSystemSecurity2` objects that `Get-NTFSSecurityDescriptor` returns, without touching the file system. A descriptor that was read without its audit section, because the session doesn't hold the Security privilege, reports `AuditInheritanceEnabled` as `$null`, like the `Path` parameter set.
 
 `-Path` accepts pipeline input by value and by property name through its `FullName` alias, so the output of `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` binds to it. Relative paths are resolved against the current location, and when no path is supplied at all, the cmdlet reports the current location.
 
@@ -130,9 +130,13 @@ When the module setting `EnablePrivileges` is `$true` (the default in the `Priva
 
 Reading the audit section (SACL) of an item requires the Security privilege (`SeSecurityPrivilege`), which an account can only use in an elevated session. Without it, the cmdlet still reports the access state and sets `AuditInheritanceEnabled` to `$null` instead of writing an error.
 
+Before 5.0.0, a security descriptor that was read without its audit section reported `AuditInheritanceEnabled` as `$true`.
+
 If the security descriptor of an item cannot be opened because the account has no permission to it, the cmdlet takes ownership of the item, reads the state, and sets the previous owner back. That fallback only succeeds when the account can take ownership of the item and restore the original owner; otherwise the cmdlet writes an error and continues with the next item.
 
 A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.
+
+Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.
 
 ## RELATED LINKS
 

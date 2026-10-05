@@ -31,7 +31,7 @@ namespace Security2
 
             foreach (FileSystemAuditRule ace in acl)
             {
-                var ace2 = new FileSystemAuditRule2(ace) { FullName = sd.Item.FullName, InheritanceEnabled = !sd.SecurityDescriptor.AreAccessRulesProtected };
+                var ace2 = new FileSystemAuditRule2(ace) { FullName = sd.Item.FullName, InheritanceEnabled = !sd.SecurityDescriptor.AreAuditRulesProtected };
                 if (getInheritedFrom)
                 {
                     ace2.inheritedFrom = string.IsNullOrEmpty(inheritedFrom[aceCounter]) ? "" : inheritedFrom[aceCounter].Substring(0, inheritedFrom[aceCounter].Length - 1);

@@ -170,6 +170,8 @@ If the descriptor cannot be opened because the account has no permission to the 
 
 A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.
 
+Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.
+
 ## RELATED LINKS
 
 [Enable-NTFSAuditInheritance](Enable-NTFSAuditInheritance.md)

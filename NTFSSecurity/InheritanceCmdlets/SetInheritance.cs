@@ -61,7 +61,6 @@ namespace NTFSSecurity
         protected override void BeginProcessing()
         {
             base.BeginProcessing();
-            EnableFileSystemPrivileges(true);
         }
 
         protected override void ProcessRecord()
@@ -84,41 +83,7 @@ namespace NTFSSecurity
 
                     try
                     {
-                        var currentState = FileSystemInheritanceInfo.GetFileSystemInheritanceInfo(item);
-
-                        if (currentState.AccessInheritanceEnabled != accessInheritanceEnabled)
-                        {
-                            WriteVerbose("AccessInheritanceEnabled not equal");
-                            if (accessInheritanceEnabled.Value)
-                            {
-                                WriteVerbose("Calling EnableAccessInheritance");
-                                FileSystemInheritanceInfo.EnableAccessInheritance(item, false);
-                            }
-                            else
-                            {
-                                WriteVerbose("Calling DisableAccessInheritance");
-                                FileSystemInheritanceInfo.DisableAccessInheritance(item, true);
-                            }
-                        }
-                        else
-                            WriteVerbose("AccessInheritanceEnabled is equal - no change was done");
-
-                        if (currentState.AuditInheritanceEnabled != auditInheritanceEnabled)
-                        {
-                            WriteVerbose("AuditInheritanceEnabled not equal");
-                            if (auditInheritanceEnabled.Value)
-                            {
-                                WriteVerbose("Calling EnableAuditInheritance");
-                                FileSystemInheritanceInfo.EnableAuditInheritance(item, true);
-                            }
-                            else
-                            {
-                                WriteVerbose("Calling DisableAuditInheritance");
-                                FileSystemInheritanceInfo.DisableAuditInheritance(item, false);
-                            }
-                        }
-                        else
-                            WriteVerbose("AuditInheritanceEnabled is equal - no change was done");
+                        SetInheritanceState(item);
                     }
                     catch (UnauthorizedAccessException)
                     {
@@ -129,41 +94,7 @@ namespace NTFSSecurity
 
                             FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
 
-                            var currentState = FileSystemInheritanceInfo.GetFileSystemInheritanceInfo(item);
-
-                            if (currentState.AccessInheritanceEnabled != accessInheritanceEnabled)
-                            {
-                                WriteVerbose("AccessInheritanceEnabled not equal");
-                                if (accessInheritanceEnabled.Value)
-                                {
-                                    WriteVerbose("Calling EnableAccessInheritance");
-                                    FileSystemInheritanceInfo.EnableAccessInheritance(item, false);
-                                }
-                                else
-                                {
-                                    WriteVerbose("Calling DisableAccessInheritance");
-                                    FileSystemInheritanceInfo.DisableAccessInheritance(item, true);
-                                }
-                            }
-                            else
-                                WriteVerbose("AccessInheritanceEnabled is equal - no change was done");
-
-                            if (currentState.AuditInheritanceEnabled != auditInheritanceEnabled)
-                            {
-                                WriteVerbose("AuditInheritanceEnabled not equal");
-                                if (auditInheritanceEnabled.Value)
-                                {
-                                    WriteVerbose("Calling EnableAuditInheritance");
-                                    FileSystemInheritanceInfo.EnableAuditInheritance(item, true);
-                                }
-                                else
-                                {
-                                    WriteVerbose("Calling DisableAuditInheritance");
-                                    FileSystemInheritanceInfo.DisableAuditInheritance(item, false);
-                                }
-                            }
-                            else
-                                WriteVerbose("AuditInheritanceEnabled is equal - no change was done");
+                            SetInheritanceState(item);
 
                             FileSystemOwner.SetOwner(item, previousOwner);
                         }
@@ -191,41 +122,7 @@ namespace NTFSSecurity
             {
                 foreach (var sd in securityDescriptors)
                 {
-                    var currentState = FileSystemInheritanceInfo.GetFileSystemInheritanceInfo(sd);
-
-                    if (currentState.AccessInheritanceEnabled != accessInheritanceEnabled)
-                    {
-                        WriteVerbose("AccessInheritanceEnabled not equal");
-                        if (accessInheritanceEnabled.Value)
-                        {
-                            WriteVerbose("Calling EnableAccessInheritance");
-                            FileSystemInheritanceInfo.EnableAccessInheritance(sd, false);
-                        }
-                        else
-                        {
-                            WriteVerbose("Calling DisableAccessInheritance");
-                            FileSystemInheritanceInfo.DisableAccessInheritance(sd, true);
-                        }
-                    }
-                    else
-                        WriteVerbose("AccessInheritanceEnabled is equal - no change was done");
-
-                    if (currentState.AuditInheritanceEnabled != auditInheritanceEnabled)
-                    {
-                        WriteVerbose("AuditInheritanceEnabled not equal");
-                        if (auditInheritanceEnabled.Value)
-                        {
-                            WriteVerbose("Calling EnableAuditInheritance");
-                            FileSystemInheritanceInfo.EnableAuditInheritance(sd, true);
-                        }
-                        else
-                        {
-                            WriteVerbose("Calling DisableAuditInheritance");
-                            FileSystemInheritanceInfo.DisableAuditInheritance(sd, false);
-                        }
-                    }
-                    else
-                        WriteVerbose("AuditInheritanceEnabled is equal - no change was done");
+                    SetInheritanceState(sd);
 
                     if (passThru)
                     {
@@ -233,6 +130,91 @@ namespace NTFSSecurity
                     }
                 }
             }
+        }
+
+        private void SetInheritanceState(FileSystemInfo item)
+        {
+            var currentState = FileSystemInheritanceInfo.GetFileSystemInheritanceInfo(item);
+
+            if (IsChangeRequested("AccessInheritanceEnabled", accessInheritanceEnabled, currentState.AccessInheritanceEnabled))
+            {
+                if (accessInheritanceEnabled.Value)
+                {
+                    WriteVerbose("Calling EnableAccessInheritance");
+                    FileSystemInheritanceInfo.EnableAccessInheritance(item, false);
+                }
+                else
+                {
+                    WriteVerbose("Calling DisableAccessInheritance");
+                    FileSystemInheritanceInfo.DisableAccessInheritance(item, true);
+                }
+            }
+
+            if (IsChangeRequested("AuditInheritanceEnabled", auditInheritanceEnabled, currentState.AuditInheritanceEnabled))
+            {
+                if (auditInheritanceEnabled.Value)
+                {
+                    WriteVerbose("Calling EnableAuditInheritance");
+                    FileSystemInheritanceInfo.EnableAuditInheritance(item, true);
+                }
+                else
+                {
+                    WriteVerbose("Calling DisableAuditInheritance");
+                    FileSystemInheritanceInfo.DisableAuditInheritance(item, false);
+                }
+            }
+        }
+
+        private void SetInheritanceState(FileSystemSecurity2 sd)
+        {
+            var currentState = FileSystemInheritanceInfo.GetFileSystemInheritanceInfo(sd);
+
+            if (IsChangeRequested("AccessInheritanceEnabled", accessInheritanceEnabled, currentState.AccessInheritanceEnabled))
+            {
+                if (accessInheritanceEnabled.Value)
+                {
+                    WriteVerbose("Calling EnableAccessInheritance");
+                    FileSystemInheritanceInfo.EnableAccessInheritance(sd, false);
+                }
+                else
+                {
+                    WriteVerbose("Calling DisableAccessInheritance");
+                    FileSystemInheritanceInfo.DisableAccessInheritance(sd, true);
+                }
+            }
+
+            if (IsChangeRequested("AuditInheritanceEnabled", auditInheritanceEnabled, currentState.AuditInheritanceEnabled))
+            {
+                if (auditInheritanceEnabled.Value)
+                {
+                    WriteVerbose("Calling EnableAuditInheritance");
+                    FileSystemInheritanceInfo.EnableAuditInheritance(sd, true);
+                }
+                else
+                {
+                    WriteVerbose("Calling DisableAuditInheritance");
+                    FileSystemInheritanceInfo.DisableAuditInheritance(sd, false);
+                }
+            }
+        }
+
+        // An omitted parameter leaves its section unchanged.
+        private bool IsChangeRequested(string parameterName, bool? requestedState, bool? currentState)
+        {
+            if (!requestedState.HasValue)
+            {
+                WriteVerbose(string.Format("{0} not specified - no change was done", parameterName));
+                return false;
+            }
+
+            if (currentState == requestedState)
+            {
+                WriteVerbose(string.Format("{0} is equal - no change was done", parameterName));
+                return false;
+            }
+
+            WriteVerbose(string.Format("{0} not equal", parameterName));
+            return true;
         }
     }
 }

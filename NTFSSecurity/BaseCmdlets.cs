@@ -278,7 +278,8 @@ namespace NTFSSecurity
 
         protected void DisableFileSystemPrivileges()
         {
-            var privileges = privControl.GetPrivileges();
+            // Refreshes the field that DisablePrivilege reads; it is null when BeginProcessing enabled nothing.
+            privileges = privControl.GetPrivileges();
 
             if (privileges.Where(p => p.Privilege == Privilege.TakeOwnership) != null)
                 if (!TryDisablePrivilege(Privilege.TakeOwnership))

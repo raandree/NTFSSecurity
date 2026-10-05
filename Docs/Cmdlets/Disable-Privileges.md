@@ -99,6 +99,8 @@ With `-PassThru`, the cmdlet writes the privilege collection of the current proc
 
 When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), the file system cmdlets of the module try to enable the Backup, Restore, Take Ownership, and Security privileges while they run and disable the privileges they enabled when they finish. You therefore need `Disable-Privileges` only after an explicit `Enable-Privileges`. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group.
 
+Before 5.0.0, when `EnablePrivileges` was `$false`, the cmdlet wrote warnings that it could not disable the privileges and left them enabled.
+
 ## RELATED LINKS
 
 [Enable-Privileges](Enable-Privileges.md)

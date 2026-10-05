@@ -814,7 +814,19 @@
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="FileSystemRights">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="IdentityReference, ID">
+          <maml:name>Account</maml:name>
+          <maml:description>
+            <maml:para>Specifies the accounts whose access to the item is audited. The value is an account name such as `CONTOSO\JohnDoe`, `CONTOSO\Domain Users`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. When you pass several accounts, the cmdlet adds one audit entry per account.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">IdentityReference2[]</command:parameterValue>
+          <dev:type>
+            <maml:name>IdentityReference2[]</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="3" aliases="FileSystemRights">
           <maml:name>AccessRights</maml:name>
           <maml:description>
             <maml:para>Specifies the access rights to audit. The value accepts the basic rights such as `Read`, `Write`, `Modify`, and `FullControl` as well as the individual rights such as `Delete` or `WriteAttributes`, and it accepts a comma-separated list that combines them. For the meaning of each right, see Concepts (../Concepts.md).</maml:para>
@@ -852,18 +864,6 @@
           <command:parameterValue required="true" variableLength="false">FileSystemRights2</command:parameterValue>
           <dev:type>
             <maml:name>FileSystemRights2</maml:name>
-            <maml:uri />
-          </dev:type>
-          <dev:defaultValue>None</dev:defaultValue>
-        </command:parameter>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="IdentityReference, ID">
-          <maml:name>Account</maml:name>
-          <maml:description>
-            <maml:para>Specifies the accounts whose access to the item is audited. The value is an account name such as `CONTOSO\JohnDoe`, `CONTOSO\Domain Users`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. When you pass several accounts, the cmdlet adds one audit entry per account.</maml:para>
-          </maml:description>
-          <command:parameterValue required="true" variableLength="false">IdentityReference2[]</command:parameterValue>
-          <dev:type>
-            <maml:name>IdentityReference2[]</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -938,7 +938,19 @@
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="FileSystemRights">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="IdentityReference, ID">
+          <maml:name>Account</maml:name>
+          <maml:description>
+            <maml:para>Specifies the accounts whose access to the item is audited. The value is an account name such as `CONTOSO\JohnDoe`, `CONTOSO\Domain Users`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. When you pass several accounts, the cmdlet adds one audit entry per account.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">IdentityReference2[]</command:parameterValue>
+          <dev:type>
+            <maml:name>IdentityReference2[]</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="3" aliases="FileSystemRights">
           <maml:name>AccessRights</maml:name>
           <maml:description>
             <maml:para>Specifies the access rights to audit. The value accepts the basic rights such as `Read`, `Write`, `Modify`, and `FullControl` as well as the individual rights such as `Delete` or `WriteAttributes`, and it accepts a comma-separated list that combines them. For the meaning of each right, see Concepts (../Concepts.md).</maml:para>
@@ -976,18 +988,6 @@
           <command:parameterValue required="true" variableLength="false">FileSystemRights2</command:parameterValue>
           <dev:type>
             <maml:name>FileSystemRights2</maml:name>
-            <maml:uri />
-          </dev:type>
-          <dev:defaultValue>None</dev:defaultValue>
-        </command:parameter>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="IdentityReference, ID">
-          <maml:name>Account</maml:name>
-          <maml:description>
-            <maml:para>Specifies the accounts whose access to the item is audited. The value is an account name such as `CONTOSO\JohnDoe`, `CONTOSO\Domain Users`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. When you pass several accounts, the cmdlet adds one audit entry per account.</maml:para>
-          </maml:description>
-          <command:parameterValue required="true" variableLength="false">IdentityReference2[]</command:parameterValue>
-          <dev:type>
-            <maml:name>IdentityReference2[]</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -1062,7 +1062,19 @@
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="FileSystemRights">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="IdentityReference, ID">
+          <maml:name>Account</maml:name>
+          <maml:description>
+            <maml:para>Specifies the accounts whose access to the item is audited. The value is an account name such as `CONTOSO\JohnDoe`, `CONTOSO\Domain Users`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. When you pass several accounts, the cmdlet adds one audit entry per account.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">IdentityReference2[]</command:parameterValue>
+          <dev:type>
+            <maml:name>IdentityReference2[]</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="3" aliases="FileSystemRights">
           <maml:name>AccessRights</maml:name>
           <maml:description>
             <maml:para>Specifies the access rights to audit. The value accepts the basic rights such as `Read`, `Write`, `Modify`, and `FullControl` as well as the individual rights such as `Delete` or `WriteAttributes`, and it accepts a comma-separated list that combines them. For the meaning of each right, see Concepts (../Concepts.md).</maml:para>
@@ -1100,18 +1112,6 @@
           <command:parameterValue required="true" variableLength="false">FileSystemRights2</command:parameterValue>
           <dev:type>
             <maml:name>FileSystemRights2</maml:name>
-            <maml:uri />
-          </dev:type>
-          <dev:defaultValue>None</dev:defaultValue>
-        </command:parameter>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="IdentityReference, ID">
-          <maml:name>Account</maml:name>
-          <maml:description>
-            <maml:para>Specifies the accounts whose access to the item is audited. The value is an account name such as `CONTOSO\JohnDoe`, `CONTOSO\Domain Users`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. When you pass several accounts, the cmdlet adds one audit entry per account.</maml:para>
-          </maml:description>
-          <command:parameterValue required="true" variableLength="false">IdentityReference2[]</command:parameterValue>
-          <dev:type>
-            <maml:name>IdentityReference2[]</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -1193,7 +1193,19 @@
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="FileSystemRights">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="IdentityReference, ID">
+          <maml:name>Account</maml:name>
+          <maml:description>
+            <maml:para>Specifies the accounts whose access to the item is audited. The value is an account name such as `CONTOSO\JohnDoe`, `CONTOSO\Domain Users`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. When you pass several accounts, the cmdlet adds one audit entry per account.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">IdentityReference2[]</command:parameterValue>
+          <dev:type>
+            <maml:name>IdentityReference2[]</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="3" aliases="FileSystemRights">
           <maml:name>AccessRights</maml:name>
           <maml:description>
             <maml:para>Specifies the access rights to audit. The value accepts the basic rights such as `Read`, `Write`, `Modify`, and `FullControl` as well as the individual rights such as `Delete` or `WriteAttributes`, and it accepts a comma-separated list that combines them. For the meaning of each right, see Concepts (../Concepts.md).</maml:para>
@@ -1231,18 +1243,6 @@
           <command:parameterValue required="true" variableLength="false">FileSystemRights2</command:parameterValue>
           <dev:type>
             <maml:name>FileSystemRights2</maml:name>
-            <maml:uri />
-          </dev:type>
-          <dev:defaultValue>None</dev:defaultValue>
-        </command:parameter>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="IdentityReference, ID">
-          <maml:name>Account</maml:name>
-          <maml:description>
-            <maml:para>Specifies the accounts whose access to the item is audited. The value is an account name such as `CONTOSO\JohnDoe`, `CONTOSO\Domain Users`, `BUILTIN\Users`, or `Everyone`, or a SID string such as `S-1-5-32-545`. When you pass several accounts, the cmdlet adds one audit entry per account.</maml:para>
-          </maml:description>
-          <command:parameterValue required="true" variableLength="false">IdentityReference2[]</command:parameterValue>
-          <dev:type>
-            <maml:name>IdentityReference2[]</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -1312,7 +1312,7 @@
       </command:syntaxItem>
     </command:syntax>
     <command:parameters>
-      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="2" aliases="FileSystemRights">
+      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="3" aliases="FileSystemRights">
         <maml:name>AccessRights</maml:name>
         <maml:description>
           <maml:para>Specifies the access rights to audit. The value accepts the basic rights such as `Read`, `Write`, `Modify`, and `FullControl` as well as the individual rights such as `Delete` or `WriteAttributes`, and it accepts a comma-separated list that combines them. For the meaning of each right, see Concepts (../Concepts.md).</maml:para>
@@ -1490,10 +1490,10 @@
     <command:returnValues>
       <command:returnValue>
         <dev:type>
-          <maml:name>Security2.FileSystemAccessRule2</maml:name>
+          <maml:name>Security2.FileSystemAuditRule2</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the type depends on the parameter set: in the `Path` sets the cmdlet writes all audit entries of the item, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects, while in the `SecurityDescriptor` sets it writes the access entries of the descriptor as `Security2.FileSystemAccessRule2` objects. Use `Get-NTFSAudit` when you need the audit entries of a security descriptor.</maml:para>
+          <maml:para>Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the cmdlet writes all audit entries of the item or the security descriptor, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects. Before 5.0.0, the `SecurityDescriptor` sets wrote the access entries of the descriptor instead.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -1502,7 +1502,7 @@
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>Writing the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it, the cmdlet writes a non-terminating `AddAceError` whose message states that a required privilege is not held by the client, and the item is left unchanged.</maml:para>
         <maml:para>If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.</maml:para>
-        <maml:para>The syntax shows `-Path`, `-Account`, and `-AccessRights` as positional parameters, but `-Account` and `-AccessRights` are both declared at position 2. A command that passes them positionally therefore fails with the error that positional parameters cannot be bound because no names were given, and `Get-Command Add-NTFSAudit -Syntax` leaves `-Account` out for the same reason. Pass `-Account` and `-AccessRights` by name, as the examples above do.</maml:para>
+        <maml:para>`-Path` or `-SecurityDescriptor`, `-Account`, and `-AccessRights` are positional parameters at positions 1, 2, and 3, like in `Remove-NTFSAudit`. Before 5.0.0, `-Account` and `-AccessRights` were both declared at position 2, so a command that passed them by position failed.</maml:para>
         <maml:para>An audit entry alone does not create events. Windows writes the events to the security log only while the "Audit object access" policy, or the corresponding "Audit File System" advanced audit policy, is enabled for success, failure, or both. That policy is a Windows setting and is not managed by this module.</maml:para>
       </maml:alert>
     </maml:alertSet>
@@ -2173,7 +2173,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     <maml:alertSet>
       <maml:alert>
         <maml:para>`Copy-Item2` copies through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it handles source and destination paths that exceed the 260-character `MAX_PATH` limit of the built-in `Copy-Item` cmdlet.</maml:para>
-        <maml:para>Copying a folder that contains files currently fails with a `CopyError` that reports a `DirectoryNotFoundException` for the first file in the folder. Copy files individually, for example by piping `Get-ChildItem2 -Recurse -File` into this cmdlet, and create the target folders beforehand.</maml:para>
+        <maml:para>Before 5.0.0, copying a folder that contained files failed with a `CopyError` that reported a `DirectoryNotFoundException` for the first file in the folder.</maml:para>
         <maml:para>If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and skips the remaining paths that were passed in the same call. Items that arrive one by one through the pipeline are not affected, because each of them is processed separately.</maml:para>
       </maml:alert>
     </maml:alertSet>
@@ -2412,6 +2412,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>Blocking access inheritance requires permission to change the DACL of the item, which the owner of an item always has. If the descriptor cannot be opened, the cmdlet takes ownership of the item, applies the change, and sets the previous owner back. That fallback only succeeds when the account can take ownership of the item and restore the original owner; otherwise the cmdlet writes an error and continues with the next item.</maml:para>
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
+        <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -2656,6 +2657,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <maml:para>The audit section of a security descriptor can only be read and written with the Security privilege (`SeSecurityPrivilege`), which an account can only use in an elevated session. Without it, the cmdlet writes a non-terminating error that reports Windows error 1314, "A required privilege is not held by the client", and the audit rules of the item stay unchanged.</maml:para>
         <maml:para>If the descriptor cannot be opened because the account has no permission to the item, the cmdlet takes ownership of the item, applies the change, and sets the previous owner back. That fallback only succeeds when the account can take ownership of the item and restore the original owner; a missing Security privilege is not an access problem and is not repaired by it.</maml:para>
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
+        <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -2788,6 +2790,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     <maml:alertSet>
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), the file system cmdlets of the module try to enable the Backup, Restore, Take Ownership, and Security privileges while they run and disable the privileges they enabled when they finish. You therefore need `Disable-Privileges` only after an explicit `Enable-Privileges`. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group.</maml:para>
+        <maml:para>Before 5.0.0, when `EnablePrivileges` was `$false`, the cmdlet wrote warnings that it could not disable the privileges and left them enabled.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -3024,6 +3027,7 @@ PS C:\&gt; Get-Privileges | Where-Object { $_.Privilege -in 'Backup', 'Restore',
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>Restoring access inheritance requires permission to change the DACL of the item, which the owner of an item always has. If the descriptor cannot be opened, the cmdlet takes ownership of the item, applies the change, and sets the previous owner back. That fallback only succeeds when the account can take ownership of the item and restore the original owner; otherwise the cmdlet writes an error and continues with the next item.</maml:para>
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
+        <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -3268,6 +3272,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <maml:para>The audit section of a security descriptor can only be read and written with the Security privilege (`SeSecurityPrivilege`), which an account can only use in an elevated session. Without it, the cmdlet writes a non-terminating error that reports Windows error 1314, "A required privilege is not held by the client", and the audit rules of the item stay unchanged.</maml:para>
         <maml:para>If the descriptor cannot be opened because the account has no permission to the item, the cmdlet takes ownership of the item, applies the change, and sets the previous owner back. That fallback only succeeds when the account can take ownership of the item and restore the original owner; a missing Security privilege is not an access problem and is not repaired by it.</maml:para>
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
+        <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -3482,7 +3487,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
           <maml:name>Path</maml:name>
           <maml:description>
-            <maml:para>Specifies the folders whose content you want to list. Relative paths are resolved against the current location, and wildcard characters are not supported. If you omit this parameter, the cmdlet lists the current location. A value that points to a file instead of a folder produces an error.</maml:para>
+            <maml:para>Specifies the folders whose content you want to list. Relative paths are resolved against the current location, and wildcard characters are not supported. If you omit this parameter, the cmdlet lists the current location. A value that points to a file returns that file, like `Get-ChildItem`, unless you use `-Directory`.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="false">String[]</command:parameterValue>
           <dev:type>
@@ -3734,7 +3739,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
         <maml:name>Path</maml:name>
         <maml:description>
-          <maml:para>Specifies the folders whose content you want to list. Relative paths are resolved against the current location, and wildcard characters are not supported. If you omit this parameter, the cmdlet lists the current location. A value that points to a file instead of a folder produces an error.</maml:para>
+          <maml:para>Specifies the folders whose content you want to list. Relative paths are resolved against the current location, and wildcard characters are not supported. If you omit this parameter, the cmdlet lists the current location. A value that points to a file returns that file, like `Get-ChildItem`, unless you use `-Directory`.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="false">String[]</command:parameterValue>
         <dev:type>
@@ -3836,8 +3841,10 @@ PS C:\&gt; Disable-Privileges</dev:code>
       <maml:alert>
         <maml:para>`Get-ChildItem2` enumerates the file system through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it returns items whose path exceeds the 260-character `MAX_PATH` limit that the built-in `Get-ChildItem` cmdlet is bound to. The objects are AlphaFS objects, not `System.IO` objects, and the other NTFSSecurity cmdlets accept them directly because their `-Path` parameters have the alias `FullName`.</maml:para>
         <maml:para>The module defines the alias `dir2` for this cmdlet.</maml:para>
+        <maml:para>The default table view shows the `Mode`, `Inherits`, `LastWriteTime`, `Size(M)`, and `Name` columns. `Inherits` is `False` for an item whose access inheritance is disabled. Reading that value costs one access to the ACL of each displayed item, which slows down the display of large listings; to avoid it, select the properties you need, for example with `Format-Table -Property Mode, LastWriteTime, Length, Name`. Objects that you pipe to another command are not affected. Before 5.0.0, the column showed `True` for every item.</maml:para>
         <maml:para>The `PrivateData` section of the module manifest `NTFSSecurity.psd1` contains two settings that this cmdlet reads when it starts. `GetFileSystemModeProperty` adds the calculated `Mode` property to every item. `IdentifyHardLinks` adds the `HardLinkCount` property to every file, which requires an extra call into the file system for each file and therefore slows down large listings noticeably. Set either value to `$false` in the manifest and import the module again if you prefer the faster enumeration over the additional properties.</maml:para>
         <maml:para>A folder that cannot be read produces a non-terminating error with the ID `DirUnauthorizedAccessError` for an access denial or `DirUnspecifiedError` for any other failure, and a path that does not exist produces the error `FileNotFound`. In each case the cmdlet continues with the next path. Failures that occur while `-Recurse` collects the subfolders of a folder are reported as verbose messages only, not as errors.</maml:para>
+        <maml:para>Before 5.0.0, a `-Path` value that points to a file stopped the cmdlet with an `InvalidCastException`.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -4041,7 +4048,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
     <maml:description>
       <maml:para>The `Get-FileHash2` cmdlet calculates the hash value of each file that `-Path` points to and returns the file object with the result attached. The returned object is the file object of the file, extended with a `Hash` property that holds the hash as an uppercase hexadecimal string and an `Algorithm` property that names the algorithm that was used. The module's formatting data displays those objects as a table with the `Algorithm`, `Hash`, and `FullName` columns.</maml:para>
       <maml:para>`-Algorithm` selects the hash algorithm and accepts `SHA1`, `SHA256`, `SHA384`, `SHA512`, `MACTripleDES`, `MD5`, and `RIPEMD160`. The default is `SHA256`.</maml:para>
-      <maml:para>The cmdlet hashes files only. A path that points to a folder is skipped, and because the cmdlet stops processing the current input when it meets one, a folder in the middle of a `-Path` array suppresses the results of the paths that follow it in the same array. Pass only file paths, or filter folders out before you pipe items into the cmdlet. A path that does not exist produces a non-terminating `ReadFileError`.</maml:para>
+      <maml:para>The cmdlet hashes files only and skips paths that point to folders. A path that does not exist produces a non-terminating `ReadFileError`.</maml:para>
       <maml:para>`-Path` accepts pipeline input by value and by property name through its `FullName` alias, so you can pipe the output of `Get-ChildItem2`, `Get-Item2`, or `Get-ChildItem` into the cmdlet; folders that arrive through the pipeline are skipped individually. Because the cmdlet reads files through the AlphaFS library, it also hashes files whose path exceeds the 260-character `MAX_PATH` limit. Relative paths are resolved against the current location.</maml:para>
     </maml:description>
     <command:syntax>
@@ -4142,6 +4149,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
         <maml:para>If the file cannot be opened because access is denied, the cmdlet takes ownership of the file with the account that runs it, calculates the hash, and restores the previous owner afterward. That fallback fails with a `GetHashError` when the account is not allowed to change the owner of the file.</maml:para>
         <maml:para>The hash is returned as an uppercase hexadecimal string without separators, which differs from the lowercase output of some other hashing tools. Compare hash values case-insensitively.</maml:para>
         <maml:para>`MACTripleDES` is a keyed message authentication code that is created with a key that is generated for each call, so its result is not reproducible across invocations and is not suitable for comparing files.</maml:para>
+        <maml:para>Before 5.0.0, a folder in a `-Path` array stopped the processing of that array, so the files that followed the folder were not hashed.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -4558,6 +4566,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>If the ACL of an item cannot be read because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.</maml:para>
         <maml:para>Entries whose account cannot be translated into a name are returned with their SID. Use `Get-NTFSOrphanedAccess` to list only those entries.</maml:para>
+        <maml:para>Before 5.0.0, after a path whose ACL could not be read, the cmdlet returned the entries of the previous item again.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -4830,15 +4839,16 @@ PS C:\&gt; Disable-Privileges</dev:code>
           <maml:name>Security2.FileSystemAuditRule2</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>The cmdlet returns one object per audit entry, with the audited account, the audited access rights, the audit flags, the inheritance and propagation flags, the `IsInherited` flag, and the `InheritedFrom` path. When an item has no audit entries, or when the SACL cannot be read, the cmdlet returns nothing for that item.</maml:para>
+          <maml:para>The cmdlet returns one object per audit entry, with the audited account, the audited access rights, the audit flags, the inheritance and propagation flags, the `IsInherited` flag, and the `InheritedFrom` path. When an item has no audit entries, the cmdlet returns nothing for that item; when its SACL cannot be read, the cmdlet writes an error.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
     <maml:alertSet>
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
-        <maml:para>Reading the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it the cmdlet falls back to reading the security descriptor without its SACL; it then returns no audit entries and reports no error, which looks the same as an item that is not audited at all.</maml:para>
-        <maml:para>If the security descriptor cannot be read because access is denied, the cmdlet takes ownership of the item, reads the descriptor again, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.</maml:para>
+        <maml:para>Reading the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it, the cmdlet writes the non-terminating error `ReadSecurityError` for each item, which reports "A required privilege is not held by the client". `Get-NTFSSecurityDescriptor` reads a security descriptor without its SACL when the privilege is missing; for such a descriptor, the cmdlet writes a `ReadSecurityError` as well.</maml:para>
+        <maml:para>If reading the audit entries is denied, the cmdlet writes a `ReadSecurityError` with the category `PermissionDenied`. It doesn't take ownership of the item, because ownership grants no access to the SACL.</maml:para>
+        <maml:para>Before 5.0.0, the cmdlet returned no entries and no error without the Security privilege, and after a path whose security descriptor could not be read, it returned the entries of the previous item again. The `InheritanceEnabled` property of the entries also reported whether the access entries were inherited instead of the audit entries.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -5325,7 +5335,7 @@ PS C:\&gt; Get-NTFSAudit -SecurityDescriptor $sd</dev:code>
     <maml:description>
       <maml:para>The `Get-NTFSInheritance` cmdlet reports whether a file or folder inherits access rules from its parent folder and whether it inherits audit rules. For each item it writes one `Security2.FileSystemInheritanceInfo` object with the `Name`, `FullName`, `AccessInheritanceEnabled`, and `AuditInheritanceEnabled` properties, plus the underlying file system object in the `Item` property. The default table view shows `Name`, `AccessInheritanceEnabled`, and `AuditInheritanceEnabled`.</maml:para>
       <maml:para>`AccessInheritanceEnabled` is `$false` when the discretionary access control list (DACL) of the item is protected, which is the state that `Disable-NTFSAccessInheritance` produces. `AuditInheritanceEnabled` reports the same for the system access control list (SACL), which holds the audit rules. When the audit section cannot be read because the session does not hold the Security privilege, `AuditInheritanceEnabled` is `$null` and its column stays empty; the access value is still reported and no error is written.</maml:para>
-      <maml:para>In the `Path` parameter set the cmdlet reads the security descriptor of each item from disk. In the `SecurityDescriptor` parameter set it reads the state from the `Security2.FileSystemSecurity2` objects that `Get-NTFSSecurityDescriptor` returns, without touching the file system. Note that a descriptor that was retrieved without its audit section reports `AuditInheritanceEnabled` as `$true`, because the protection flag of a section that was never read is not set.</maml:para>
+      <maml:para>In the `Path` parameter set the cmdlet reads the security descriptor of each item from disk. In the `SecurityDescriptor` parameter set it reads the state from the `Security2.FileSystemSecurity2` objects that `Get-NTFSSecurityDescriptor` returns, without touching the file system. A descriptor that was read without its audit section, because the session doesn't hold the Security privilege, reports `AuditInheritanceEnabled` as `$null`, like the `Path` parameter set.</maml:para>
       <maml:para>`-Path` accepts pipeline input by value and by property name through its `FullName` alias, so the output of `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` binds to it. Relative paths are resolved against the current location, and when no path is supplied at all, the cmdlet reports the current location.</maml:para>
     </maml:description>
     <command:syntax>
@@ -5422,8 +5432,10 @@ PS C:\&gt; Get-NTFSAudit -SecurityDescriptor $sd</dev:code>
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>Reading the audit section (SACL) of an item requires the Security privilege (`SeSecurityPrivilege`), which an account can only use in an elevated session. Without it, the cmdlet still reports the access state and sets `AuditInheritanceEnabled` to `$null` instead of writing an error.</maml:para>
+        <maml:para>Before 5.0.0, a security descriptor that was read without its audit section reported `AuditInheritanceEnabled` as `$true`.</maml:para>
         <maml:para>If the security descriptor of an item cannot be opened because the account has no permission to it, the cmdlet takes ownership of the item, reads the state, and sets the previous owner back. That fallback only succeeds when the account can take ownership of the item and restore the original owner; otherwise the cmdlet writes an error and continues with the next item.</maml:para>
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
+        <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -6141,6 +6153,8 @@ PS C:\&gt; $orphaned | Select-Object FullName, Account, AccessRights, AuditFlags
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>The module also adds an `Owner` script property to `System.IO.FileInfo` and `System.IO.DirectoryInfo`, so `(Get-Item C:\Data).Owner` returns the owning account as a `Security2.IdentityReference2` object as well.</maml:para>
+        <maml:para>If the owner of an item cannot be read because access is denied, the cmdlet writes the non-terminating error `ReadSecurityError` with the category `PermissionDenied` and continues with the next path. It does not take ownership of the item, which would replace the owner that it reports.</maml:para>
+        <maml:para>Before 5.0.0, a command that stopped the pipeline early, such as `Select-Object -First 1`, made the cmdlet write a `ReadSecurityError` with the message "The pipeline has been stopped" for every path.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -9079,10 +9093,10 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
     <command:returnValues>
       <command:returnValue>
         <dev:type>
-          <maml:name>Security2.FileSystemAccessRule2</maml:name>
+          <maml:name>Security2.FileSystemAuditRule2</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the type depends on the parameter set: in the `Path` sets the cmdlet writes all access entries of the item, explicit and inherited ones, as `Security2.FileSystemAccessRule2` objects, while in the `SecurityDescriptor` sets it writes all audit entries of the descriptor as `Security2.FileSystemAuditRule2` objects. Use `Get-NTFSAudit` to check the audit entries of an item after the removal.</maml:para>
+          <maml:para>Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the cmdlet writes all audit entries of the item or the security descriptor, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects. Before 5.0.0, the `Path` sets wrote the access entries of the item instead.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -9169,7 +9183,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     <maml:description>
       <maml:para>The `Set-NTFSInheritance` cmdlet turns the inheritance of access rules and audit rules on or off in a single call. It reads the current state of the item first and changes a section only when the requested value differs from the current one, which makes the cmdlet suitable for repeatedly applying a desired state to a folder tree.</maml:para>
       <maml:para>The cmdlet performs the same operations as `Enable-NTFSAccessInheritance`, `Disable-NTFSAccessInheritance`, `Enable-NTFSAuditInheritance`, and `Disable-NTFSAuditInheritance`, but it does not expose their switches and it does not use their defaults. `-AccessInheritanceEnabled $false` discards the inherited access rules instead of copying them into the item's own DACL, `-AccessInheritanceEnabled $true` keeps the explicit access rules, `-AuditInheritanceEnabled $false` copies the inherited audit rules into the item's own SACL, and `-AuditInheritanceEnabled $true` removes the explicit audit rules. Use the individual Enable and Disable cmdlets when you need the opposite behavior.</maml:para>
-      <maml:para>Specify both `-AccessInheritanceEnabled` and `-AuditInheritanceEnabled`. The cmdlet compares the current state against the parameter value even when the parameter was not supplied, and when such a comparison reports a difference it fails with the non-terminating error "Nullable object must have a value". Omitting `-AccessInheritanceEnabled` always triggers that error, and omitting `-AuditInheritanceEnabled` triggers it in a session that can read the audit section. Changing the audit section requires the Security privilege and therefore an elevated session.</maml:para>
+      <maml:para>Omit `-AccessInheritanceEnabled` or `-AuditInheritanceEnabled` to leave that section unchanged. Changing the audit section requires the Security privilege and therefore an elevated session.</maml:para>
       <maml:para>In the `Path` parameter set the cmdlet writes each changed section back to disk immediately. In the `SecurityDescriptor` parameter set it changes the `Security2.FileSystemSecurity2` object in memory only; nothing reaches the file system until you pass that object to `Set-NTFSSecurityDescriptor`. `-Path`, `-AccessInheritanceEnabled`, and `-AuditInheritanceEnabled` all accept pipeline input by property name, so a `Security2.FileSystemInheritanceInfo` object from `Get-NTFSInheritance` binds to all three at once.</maml:para>
     </maml:description>
     <command:syntax>
@@ -9190,7 +9204,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AccessInheritanceEnabled</maml:name>
           <maml:description>
-            <maml:para>Specifies whether the item inherits access rules from its parent folder. `$true` removes the protection from the DACL and keeps the access rules that are stored directly on the item; `$false` protects the DACL and discards the rules the item currently inherits, which leaves only its explicit rules. The section is left untouched when the requested value already matches the current state. Always supply this parameter, because the cmdlet fails with "Nullable object must have a value" when it has to compare against a value that was not provided.</maml:para>
+            <maml:para>Specifies whether the item inherits access rules from its parent folder. `$true` removes the protection from the DACL and keeps the access rules that are stored directly on the item; `$false` protects the DACL and discards the rules the item currently inherits, which leaves only its explicit rules. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the access section is left unchanged.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="false">Boolean</command:parameterValue>
           <dev:type>
@@ -9202,7 +9216,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AuditInheritanceEnabled</maml:name>
           <maml:description>
-            <maml:para>Specifies whether the item inherits audit rules from its parent folder. `$true` removes the protection from the SACL and removes the audit rules that are stored directly on the item; `$false` protects the SACL and copies the inherited audit rules into it. The section is left untouched when the requested value already matches the current state. Reading and writing the audit section requires the Security privilege and therefore an elevated session.</maml:para>
+            <maml:para>Specifies whether the item inherits audit rules from its parent folder. `$true` removes the protection from the SACL and removes the audit rules that are stored directly on the item; `$false` protects the SACL and copies the inherited audit rules into it. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the audit section is left unchanged. Reading and writing the audit section requires the Security privilege and therefore an elevated session.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="false">Boolean</command:parameterValue>
           <dev:type>
@@ -9242,7 +9256,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AccessInheritanceEnabled</maml:name>
           <maml:description>
-            <maml:para>Specifies whether the item inherits access rules from its parent folder. `$true` removes the protection from the DACL and keeps the access rules that are stored directly on the item; `$false` protects the DACL and discards the rules the item currently inherits, which leaves only its explicit rules. The section is left untouched when the requested value already matches the current state. Always supply this parameter, because the cmdlet fails with "Nullable object must have a value" when it has to compare against a value that was not provided.</maml:para>
+            <maml:para>Specifies whether the item inherits access rules from its parent folder. `$true` removes the protection from the DACL and keeps the access rules that are stored directly on the item; `$false` protects the DACL and discards the rules the item currently inherits, which leaves only its explicit rules. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the access section is left unchanged.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="false">Boolean</command:parameterValue>
           <dev:type>
@@ -9254,7 +9268,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AuditInheritanceEnabled</maml:name>
           <maml:description>
-            <maml:para>Specifies whether the item inherits audit rules from its parent folder. `$true` removes the protection from the SACL and removes the audit rules that are stored directly on the item; `$false` protects the SACL and copies the inherited audit rules into it. The section is left untouched when the requested value already matches the current state. Reading and writing the audit section requires the Security privilege and therefore an elevated session.</maml:para>
+            <maml:para>Specifies whether the item inherits audit rules from its parent folder. `$true` removes the protection from the SACL and removes the audit rules that are stored directly on the item; `$false` protects the SACL and copies the inherited audit rules into it. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the audit section is left unchanged. Reading and writing the audit section requires the Security privilege and therefore an elevated session.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="false">Boolean</command:parameterValue>
           <dev:type>
@@ -9280,7 +9294,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>AccessInheritanceEnabled</maml:name>
         <maml:description>
-          <maml:para>Specifies whether the item inherits access rules from its parent folder. `$true` removes the protection from the DACL and keeps the access rules that are stored directly on the item; `$false` protects the DACL and discards the rules the item currently inherits, which leaves only its explicit rules. The section is left untouched when the requested value already matches the current state. Always supply this parameter, because the cmdlet fails with "Nullable object must have a value" when it has to compare against a value that was not provided.</maml:para>
+          <maml:para>Specifies whether the item inherits access rules from its parent folder. `$true` removes the protection from the DACL and keeps the access rules that are stored directly on the item; `$false` protects the DACL and discards the rules the item currently inherits, which leaves only its explicit rules. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the access section is left unchanged.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="false">Boolean</command:parameterValue>
         <dev:type>
@@ -9292,7 +9306,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>AuditInheritanceEnabled</maml:name>
         <maml:description>
-          <maml:para>Specifies whether the item inherits audit rules from its parent folder. `$true` removes the protection from the SACL and removes the audit rules that are stored directly on the item; `$false` protects the SACL and copies the inherited audit rules into it. The section is left untouched when the requested value already matches the current state. Reading and writing the audit section requires the Security privilege and therefore an elevated session.</maml:para>
+          <maml:para>Specifies whether the item inherits audit rules from its parent folder. `$true` removes the protection from the SACL and removes the audit rules that are stored directly on the item; `$false` protects the SACL and copies the inherited audit rules into it. The section is left untouched when the requested value already matches the current state. When you omit the parameter, the audit section is left unchanged. Reading and writing the audit section requires the Security privilege and therefore an elevated session.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="false">Boolean</command:parameterValue>
         <dev:type>
@@ -9382,6 +9396,8 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <maml:para>The audit section of a security descriptor can only be read and written with the Security privilege (`SeSecurityPrivilege`), which an account can only use in an elevated session. Without it, a requested change of `-AuditInheritanceEnabled` produces a non-terminating error that reports Windows error 1314, "A required privilege is not held by the client". The access section is processed first, so a change of `-AccessInheritanceEnabled` in the same command is applied even when the audit change fails.</maml:para>
         <maml:para>If the descriptor cannot be opened because the account has no permission to the item, the cmdlet takes ownership of the item, applies the changes, and sets the previous owner back. That fallback only succeeds when the account can take ownership of the item and restore the original owner; otherwise the cmdlet writes an error and continues with the next item.</maml:para>
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
+        <maml:para>Before 5.0.0, omitting `-AccessInheritanceEnabled` or `-AuditInheritanceEnabled` could fail with the error "Nullable object must have a value".</maml:para>
+        <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>

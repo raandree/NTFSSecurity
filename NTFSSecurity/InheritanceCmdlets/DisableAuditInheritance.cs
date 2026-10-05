@@ -54,7 +54,6 @@ namespace NTFSSecurity
         protected override void BeginProcessing()
         {
             base.BeginProcessing();
-            EnableFileSystemPrivileges(true);
         }
 
         protected override void ProcessRecord()

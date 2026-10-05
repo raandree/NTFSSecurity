@@ -79,13 +79,13 @@ namespace NTFSSecurity
 
         protected override void ProcessRecord()
         {
-            IEnumerable<FileSystemAuditRule2> acl = null;
-            FileSystemInfo item = null;
-
             if (ParameterSetName == "Path")
             {
                 foreach (var path in paths)
                 {
+                    FileSystemInfo item = null;
+                    IEnumerable<FileSystemAuditRule2> acl = null;
+
                     try
                     {
                         item = GetFileSystemInfo2(path);
@@ -98,58 +98,55 @@ namespace NTFSSecurity
 
                     try
                     {
-                        acl = FileSystemAuditRule2.GetFileSystemAuditRules(item, !excludeExplicit, !excludeInherited, getInheritedFrom);
+                        acl = GetAuditRules(item);
                     }
-                    catch (UnauthorizedAccessException)
+                    catch (UnauthorizedAccessException ex)
                     {
-                        try
-                        {
-                            var ownerInfo = FileSystemOwner.GetOwner(item);
-                            var previousOwner = ownerInfo.Owner;
-
-                            FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
-                            acl = FileSystemAuditRule2.GetFileSystemAuditRules(item, !excludeExplicit, !excludeInherited, getInheritedFrom);
-                            FileSystemOwner.SetOwner(item, previousOwner);
-                        }
-                        catch (Exception ex2)
-                        {
-                            WriteError(new ErrorRecord(ex2, "ReadSecurityError", ErrorCategory.WriteError, path));
-                            continue;
-                        }
+                        // Taking ownership grants no access to the SACL, so it wouldn't help, and it would change the owner.
+                        WriteError(new ErrorRecord(ex, "ReadSecurityError", ErrorCategory.PermissionDenied, path));
+                        continue;
                     }
                     catch (Exception ex)
                     {
                         WriteError(new ErrorRecord(ex, "ReadSecurityError", ErrorCategory.OpenError, path));
                         continue;
                     }
-                    finally
-                    {
-                        if (acl != null)
-                        {
-                            if (account != null)
-                            {
-                                acl = acl.Where(ace => ace.Account == account);
-                            }
 
-                            acl.ForEach(ace => WriteObject(ace));
-                        }
-                    }
+                    WriteAuditRules(acl);
                 }
             }
             else
             {
                 foreach (var sd in securityDescriptors)
                 {
-                    acl = FileSystemAuditRule2.GetFileSystemAuditRules(sd, !excludeExplicit, !excludeInherited, getInheritedFrom);
-
-                    if (account != null)
+                    if (!sd.HasAuditSection)
                     {
-                        acl = acl.Where(ace => ace.Account == account);
+                        var ex = new InvalidOperationException(string.Format(
+                            "The security descriptor of '{0}' doesn't contain the audit entries, because it was read without the Security privilege.", sd.FullName));
+                        WriteError(new ErrorRecord(ex, "ReadSecurityError", ErrorCategory.InvalidData, sd));
+                        continue;
                     }
 
-                    acl.ForEach(ace => WriteObject(ace));
+                    WriteAuditRules(FileSystemAuditRule2.GetFileSystemAuditRules(sd, !excludeExplicit, !excludeInherited, getInheritedFrom));
                 }
             }
+        }
+
+        private IEnumerable<FileSystemAuditRule2> GetAuditRules(FileSystemInfo item)
+        {
+            // Reading only the SACL fails without the Security privilege, instead of returning no entries.
+            var sd = new FileSystemSecurity2(item, System.Security.AccessControl.AccessControlSections.Audit);
+            return FileSystemAuditRule2.GetFileSystemAuditRules(sd, !excludeExplicit, !excludeInherited, getInheritedFrom);
+        }
+
+        private void WriteAuditRules(IEnumerable<FileSystemAuditRule2> acl)
+        {
+            if (account != null)
+            {
+                acl = acl.Where(ace => ace.Account == account);
+            }
+
+            acl.ForEach(ace => WriteObject(ace));
         }
     }
 }

@@ -430,7 +430,7 @@
               </TableColumnItem>
               <TableColumnItem>
                 <ScriptBlock>
-                  !$_.IsInheritanceBlocked
+                  -not $_.GetAccessControl([System.Security.AccessControl.AccessControlSections]::Access).AreAccessRulesProtected
                 </ScriptBlock>
               </TableColumnItem>
               <TableColumnItem>

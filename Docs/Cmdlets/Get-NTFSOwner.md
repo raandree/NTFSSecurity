@@ -127,6 +127,10 @@ When the module setting `EnablePrivileges` is `$true` (the default in the `Priva
 
 The module also adds an `Owner` script property to `System.IO.FileInfo` and `System.IO.DirectoryInfo`, so `(Get-Item C:\Data).Owner` returns the owning account as a `Security2.IdentityReference2` object as well.
 
+If the owner of an item cannot be read because access is denied, the cmdlet writes the non-terminating error `ReadSecurityError` with the category `PermissionDenied` and continues with the next path. It does not take ownership of the item, which would replace the owner that it reports.
+
+Before 5.0.0, a command that stopped the pipeline early, such as `Select-Object -First 1`, made the cmdlet write a `ReadSecurityError` with the message "The pipeline has been stopped" for every path.
+
 ## RELATED LINKS
 
 [Set-NTFSOwner](Set-NTFSOwner.md)

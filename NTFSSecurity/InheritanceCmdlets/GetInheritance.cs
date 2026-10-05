@@ -38,7 +38,6 @@ namespace NTFSSecurity
         protected override void BeginProcessing()
         {
             base.BeginProcessing();
-            EnableFileSystemPrivileges(true);
 
             if (paths.Count == 0)
             {

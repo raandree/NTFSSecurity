@@ -52,5 +52,45 @@ The format is based on
 - Remove `Show-NTFSSimpleAccess`, which no longer exists, and duplicate
   entries from the cmdlets that the module manifest exports and the
   PowerShell Gallery lists
+- Fix `Set-NTFSInheritance`, which failed with "Nullable object must have a
+  value" when `-AccessInheritanceEnabled` or `-AuditInheritanceEnabled` was
+  omitted; an omitted parameter now leaves its section unchanged
+- Fix `Get-ChildItem2`, which stopped with an `InvalidCastException` when
+  `-Path` pointed to a file; it now returns the file, like `Get-ChildItem`
+- Fix `Get-FileHash2`, which stopped at a folder in `-Path` and didn't hash
+  the files that followed it; folders are now skipped
+- Fix `Get-NTFSAudit`, which returned nothing without the Security privilege
+  instead of an error, and which returned the entries of the previous item
+  again after a path whose security descriptor it couldn't read; it also no
+  longer takes ownership of an item whose audit entries it can't read, which
+  didn't help and could leave the owner changed
+- Fix `Get-NTFSAccess`, which returned the entries of the previous item again
+  after a path whose ACL it couldn't read
+- Fix `Add-NTFSAudit`, whose `-Account` and `-AccessRights` parameters were
+  both at position 2, so that positional calls failed; `-AccessRights` is
+  now at position 3, like in `Remove-NTFSAudit`
+  ([#4](https://github.com/raandree/NTFSSecurity/issues/4))
+- Fix `-PassThru` of `Add-NTFSAudit` with `-SecurityDescriptor` and of
+  `Remove-NTFSAudit` with `-Path`, which returned access entries; both now
+  return the audit entries
+- Fix the `InheritanceEnabled` property of audit entries, which reported the
+  inheritance of the access entries; it now reports whether the audit
+  entries are inherited
+- Fix `Get-NTFSInheritance -SecurityDescriptor`, which reported
+  `AuditInheritanceEnabled` as `$true` for a security descriptor that was
+  read without its audit section; it now reports `$null`, like `-Path`
+- Fix `Get-NTFSOwner`, which wrote a "The pipeline has been stopped" error
+  for every path when a command such as `Select-Object -First 1` stopped the
+  pipeline, and which repeated a failed read instead of reporting the
+  denied access
+- Fix `Copy-Item2`, which failed with a `DirectoryNotFoundException` when it
+  copied a folder that contained files
+- Fix `Disable-Privileges`, which couldn't disable the privileges when the
+  module setting `EnablePrivileges` was `$false`
+- Fix the inheritance cmdlets, which enabled the Backup, Restore, Take
+  Ownership, and Security privileges even when the module setting
+  `EnablePrivileges` was `$false`, and left them enabled
+- Fix the `Inherits` column of the `Get-ChildItem2` output, which showed
+  `True` for every item, also for items whose inheritance is disabled
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD
