@@ -33,10 +33,9 @@ NTFSSecurity.dll ── cmdlets ──> Security2.dll (FileSystemAccessRule2,
   descriptor, and privilege cmdlets) enables Backup, Restore, TakeOwnership,
   and Security in `BeginProcessing` when `PrivateData.EnablePrivileges` is
   `$true`, and disables the ones it enabled in `EndProcessing`.
-- `PrivateData` switches: `EnablePrivileges` (base cmdlet),
-  `GetInheritedFrom` (`Get-NTFSAccess`, `Get-NTFSAudit`),
-  `GetFileSystemModeProperty` and `IdentifyHardLinks` (`Get-ChildItem2`),
-  `ShowAccountSid` (format file).
+- `PrivateData` switches: `EnablePrivileges` (base cmdlet), `GetInheritedFrom`
+  (`Get-NTFSAccess`, `Get-NTFSAudit`), `GetFileSystemModeProperty` and
+  `IdentifyHardLinks` (`Get-ChildItem2`), `ShowAccountSid` (format file).
 - Cmdlets accept either `-Path` (alias `FullName`) or `-SecurityDescriptor`
   (from `Get-NTFSSecurityDescriptor`); SD sets change the in-memory object
   until `Set-NTFSSecurityDescriptor` writes it back.
@@ -66,18 +65,14 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 
 - Run platyPS in Windows PowerShell 5.1 against a module build; a copy of
   `Docs/Cmdlets` must round-trip through `Update-MarkdownHelp` unchanged.
-- GitHub renders the docs (Decision 9), and CI publishes them to the wiki
-  (Decision 11). The MarkdownLinkCheck step covers only relative links in
-  `Docs` and ignores anchors; `Tests\Wiki.Tests.ps1` checks every link of
-  the generated wiki, including anchors (GitHub's slug rules: lowercase,
-  punctuation removed, spaces to hyphens). Check the links in `README.md`
-  and `CHANGELOG.md` separately.
-- The wiki is generated: edit `Docs`, never the wiki.
-  `Export-WikiContent.ps1` names a page after its file (`Docs/README.md`
-  becomes Home), rewrites links, and builds the sidebar from the cmdlet
-  groups of `Docs/README.md`; a cmdlet missing there fails `Wiki.Tests.ps1`.
-- platyPS rewrites non-ASCII punctuation such as em dashes; keep cmdlet pages
-  ASCII-only.
+  platyPS rewrites non-ASCII punctuation, so keep cmdlet pages ASCII-only.
+- GitHub renders the docs (Decision 9); CI publishes them to the wiki
+  (Decision 11). MarkdownLinkCheck: relative `Docs` links, no anchors;
+  `Tests\Wiki.Tests.ps1`: every wiki link and anchor (GitHub slug rules).
+  Neither covers the links in `README.md` and `CHANGELOG.md`.
+- The wiki is generated from `Docs`; never edit the wiki. Pages are named
+  after their files, `Docs/README.md` becomes Home, and its cmdlet groups
+  form the sidebar; a cmdlet missing there fails `Wiki.Tests.ps1`.
 - In cmdlet pages, end a sentence with a link: platyPS renders a link as
   `text (url)` in the help file and drops the space after it.
 - Verify examples in a `$env:TEMP` sandbox, never on real data; parse every
@@ -88,18 +83,14 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 - Pester 5 tests in `Tests/*.Tests.ps1` import
   `NTFSSecurity\bin\Release\NTFSSecurity.psd1`; CI runs them in Windows
   PowerShell 5.1 and in PowerShell 7 (Decision 11).
-- `Get-Help -Online` is tested with the internal test hook
-  `BypassOnlineHelpRetrieval`, which returns the URI instead of opening a
-  browser. In PowerShell 7 the hook also skips the help file, so that test
-  runs only in Windows PowerShell (36 skipped tests in PowerShell 7);
-  PowerShell 7 resolves the same URI.
-- `.github/scripts/Invoke-Tests.ps1` runs Pester for CI: the counts and the
-  failed tests go to the job summary, the NUnit file to the `test-results`
-  artifact, and it fails on failed test files too (`Result -ne 'Passed'`).
-- `Tests\Manifest.Tests.ps1` checks the built manifest: `Test-ModuleManifest`
-  without errors or warnings, exactly 36 cmdlets, and the same version in
-  the manifest and the assemblies (Decision 10). Add a new cmdlet to
-  `CmdletsToExport` and to the expected count in the same change.
+- `Get-Help -Online` tests use the internal hook `BypassOnlineHelpRetrieval`
+  (URI instead of a browser); it skips the help file in PowerShell 7, so
+  those 36 tests run only in Windows PowerShell.
+- `.github/scripts/Invoke-Tests.ps1` runs Pester in CI: counts and failures
+  to the job summary, NUnit to `test-results`; failed test files fail too.
+- `Tests\Manifest.Tests.ps1`: `Test-ModuleManifest` without errors or
+  warnings, exactly 36 cmdlets, one version in manifest and assemblies
+  (Decision 10). A new cmdlet updates `CmdletsToExport` and that count.
 - `Tests\Release.Tests.ps1` checks that `CHANGELOG.md` has release notes
   for the manifest version (dated section, or `[Unreleased]` for a
   prerelease) and the packages: only `FileList` files, version with label,

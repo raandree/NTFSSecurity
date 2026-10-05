@@ -9,49 +9,33 @@ source: repository evidence
 
 ## Current status
 
-PRs #91 to #97 are merged; `master` (`59663c9`) carries version 5.0.0,
-which is not released yet. CI runs on GitHub Actions: build, docs checks,
-and tests in Windows PowerShell 5.1 and PowerShell 7, plus the wiki, which
-is generated from `Docs` (43 pages). PR-ready locally: `ai/release-5.0.0`,
-releases by CI on a version tag (Decision 12), starting with the
-prerelease `5.0.0-rc1`.
+PRs #91 to #98 are merged. CI published the prerelease 5.0.0-rc1 from
+`master` (`e0f5366`, tag `5.0.0-rc1`) to the PowerShell Gallery and GitHub;
+the stable Gallery version is still 4.2.6. CI runs on GitHub Actions:
+build, docs checks, tests in Windows PowerShell 5.1 and PowerShell 7,
+packages, the wiki generated from `Docs` (43 pages), and releases on a
+version tag (Decision 12). Next: the maintainer tests 5.0.0-rc1.
 
 ## Recent milestones
 
-- 2026-10-02: Memory Bank initialized. PR #91 aligned the documentation
-  with the code (36 cmdlet pages, conceptual pages, README, `mkdocs.yml`,
-  `.readthedocs.yml`, `CHANGELOG.md`) and made `appveyor.yml` build the
-  module and check the docs against that build (Decision 6); squash-merged
-  as `690d8dd`.
-- 2026-10-02: PR #83 (TechNet links) closed by the maintainer as superseded
-  by #91.
-- 2026-10-04: Work package 1 merged as PR #92 with a merge commit
-  (`d917832`): `promptHistory.md` ignored, Decision 7, Decisions moved to
-  `decisions/`.
-- 2026-10-04: Work package 2 squash-merged as PR #93 (`14799fb`): generated
-  help file shipped (Decision 8), stale help files removed, `FileList`
-  complete, `Tests\Help.Tests.ps1` (218 Pester tests), CI steps 03 (help
-  file current) and 04 (Pester, one Tests-tab entry per test; the NUnit
-  upload had listed 870), six cmdlet-page links reworded for the help
-  text. AppVeyor passed 218 of 218 on the PR (54834295) and on `master`
-  (54834350).
-- 2026-10-04: Work packages 3 (#94, `bde59a5`), 4 (#95, `6665825`), and the
-  move to GitHub Actions (#96, `4f9f7cc`) merged with merge commits: Read
-  the Docs dropped (Decision 9), version 5.0.0 with a valid manifest
-  (Decision 10), CI and a wiki generated from `Docs` on GitHub Actions
-  (Decision 11). The first `master` run (37218869672) passed and published
-  the wiki (`62ec94a`, 43 pages).
-- 2026-10-04: The maintainer kept the version history separate from
-  `CHANGELOG.md` and had it completed from the six PowerShell Gallery
-  packages and the commit history (#97, `59663c9`): release dates, notes
-  for 4.2.2, detailed notes for 4.2.4, and separate notes for 4.2.5 and
-  4.2.6. The wiki republished it.
-- 2026-10-04: The maintainer chose to release 5.0.0 next, through CI and a
-  prerelease first (Decision 12): `ai/release-5.0.0` adds the `release` job,
-  `Get-ReleaseInfo.ps1`, `New-ModulePackage.ps1`, `Tests\Release.Tests.ps1`,
-  the label `rc1`, and `Docs/Contributing/05-Releasing.md`. The package
-  dry run found that PSResourceGet drops the command tags that 4.2.6 had;
-  the script adds them back.
+- 2026-10-02 to 2026-10-04: #91 aligned the docs with the code (Decision
+  6; #83 closed as superseded), #92 did housekeeping (Decision 7), and
+  #93 shipped the generated help file (Decision 8, `Tests\Help.Tests.ps1`).
+- 2026-10-04: #94 to #96 dropped Read the Docs (Decision 9), set version
+  5.0.0 with a valid manifest (Decision 10), and moved CI and a wiki
+  generated from `Docs` to GitHub Actions (Decision 11). #97 completed the
+  version history, kept separate from `CHANGELOG.md`, from the six Gallery
+  packages and the commit history.
+- 2026-10-04: #98 (`e0f5366`) added releases on a version tag through CI
+  (Decision 12), with a prerelease first; `New-ModulePackage.ps1` adds the
+  command tags that PSResourceGet drops. The tag `5.0.0-rc1` (run
+  37230802387) published to the Gallery at 20:12 UTC and created the
+  GitHub prerelease. Verified: the Gallery nupkg and the GitHub zip are
+  byte-identical to the CI artifacts, the DLLs are optimized Release
+  builds, the Gallery shows the prerelease flag, the release notes link,
+  and all 36 `PSCmdlet_` and `PSCommand_` tags, and the installed module
+  passes the full suite (Windows PowerShell 261 passed, 7 skipped;
+  PowerShell 7 232 passed, 36 skipped).
 
 ## Stable capabilities
 
@@ -68,31 +52,42 @@ Work packages in the order agreed with the maintainer. Each gets one
 opens the PR (the agent can't; see `techContext.md`, Constraints), and the
 next package starts only after the maintainer's go-ahead.
 
-1. Housekeeping: done (#92).
-2. Ship help: done (#93).
-3. Docs on GitHub: done (#94).
-4. Manifest and version 5.0.0: done (#95).
-4b. CI and the wiki on GitHub Actions: done (#96). Left to the maintainer:
-   revoke AppVeyor's GitHub access if it is still granted, consider
-   **Restrict editing to collaborators only** for the wiki, and optionally
-   ask `Sup3rlativ3` to delete the Read the Docs project.
-4c. Version history from the PowerShell Gallery: done (#97).
-4d. Release 5.0.0 through CI (Decision 12): PR-ready on `ai/release-5.0.0`.
-   Before the first tag, the maintainer creates the Gallery API key, the
-   environment `powershell-gallery`, and its secret `PSGALLERY_API_KEY`
-   (steps in `Docs/Contributing/05-Releasing.md`). Then: merge, tag
-   `5.0.0-rc1`, test the prerelease, check its Gallery tags and
-   `Find-Command`, and for the final release remove the label and date the
-   changelog section. Releases no longer come from a local build, so the
-   old manual steps (cleaning
-   `C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity`, Debug
-   builds) no longer apply.
+Items 1 to 4c are done: housekeeping (#92), shipped help (#93), docs on
+GitHub (#94), manifest and version 5.0.0 (#95), CI and the wiki on GitHub
+Actions (#96), version history from the Gallery (#97). Optional for the
+maintainer: delete the AppVeyor project and revoke its GitHub
+authorization, restrict wiki editing to collaborators, and ask
+`Sup3rlativ3` to delete the Read the Docs project.
+
+4d. Release 5.0.0 through CI (Decision 12): 5.0.0-rc1 published and
+   verified (#98); the maintainer tests it. The final release PR comes on
+   release day (CI warns when the changelog date isn't that day): remove
+   the label, date `[Unreleased]` as `[5.0.0]`, tag `5.0.0` (steps in
+   `Docs/Contributing/05-Releasing.md`). Also consider the manifest
+   `Description` ("Windows PowerShell Module") and the `5.0.0-rc1` example
+   in `Docs/README.md`. Releases no longer come from a local Debug build.
+4e. Repository settings, proposed to the maintainer on 2026-10-04 (not yet
+   agreed): the `powershell-gallery` environment has no protection rules
+   and no deployment policy, so a workflow on any branch can use
+   `PSGALLERY_API_KEY` (`nyanhp` also has write access); `master` has no
+   protection or ruleset; head branches aren't deleted on merge; the
+   remote branches `fix/#34` and `test/transfer` (2023-11-28, two commits
+   each) aren't merged. Dependabot for the SHA-pinned actions comes with
+   `ai/maintenance` (maintainer decision D7, 2026-10-04).
 5. Code defects, listed below: `review: on`, one PR per group, regression
    test first. Pester 5 tests import `NTFSSecurity\bin\Release`, run in a
    `$env:TEMP` sandbox and in the CI workflow (pattern:
-   `Tests\Help.Tests.ps1`), and skip elevated cases when not elevated;
-   check whether the GitHub Actions Windows runner runs elevated. Each fix
-   updates its cmdlet page and `CHANGELOG.md`.
+   `Tests\Help.Tests.ps1`), and skip elevated cases when not elevated.
+   GitHub-hosted Windows runners run as administrators with UAC disabled
+   (GitHub docs, checked 2026-10-04), so elevated cases run in CI; the
+   workstation session isn't elevated. Each fix updates its cmdlet page
+   and `CHANGELOG.md`. Start by triaging the 37 open issues (none newer
+   than May 2025): #15, #47, and #66 (documentation) and #19 (fixed in
+   4.2.4) can be closed; #4 is defect (5); #34 has the WIP branch
+   `fix/#34` (`Extensions.cs`, `FileSystemSecurity2.cs`, `TestClient`);
+   `test/transfer` only adds a 3 MB `New.zip`. The E decisions set the
+   next version: fixes only 5.0.1, additions 5.1.0, changed defaults
+   6.0.0, unless they ship in 5.0.0 (rc2).
 
 ### Code defects (work package 5)
 
@@ -164,11 +159,17 @@ Numbered as agreed with the maintainer; each is documented on its page.
 
 #### E: Maintainer decisions before changing behavior
 
-- `Clear-NTFSAccess -DisableInheritance` discards inherited entries: keep
-  that, or copy them?
-- `Set-NTFSInheritance` defaults are the opposite of the dedicated
-  inheritance cmdlets: align?
+- `Clear-NTFSAccess -DisableInheritance` removes the explicit entries and
+  then disables inheritance without copying the inherited ones, which
+  leaves an empty DACL: keep that, or copy them?
+- `Set-NTFSInheritance` differs from the dedicated cmdlets in two of four
+  directions: `-AccessInheritanceEnabled $false` removes the inherited
+  access entries, and `-AuditInheritanceEnabled $true` removes the
+  explicit audit entries; the dedicated cmdlets keep them unless a switch
+  is given. Align?
 - The audit inheritance switches are named `*AccessRules`: add
   `*AuditRules` aliases?
 - `Get-FileHash2` fails in PowerShell 7 (`RIPEMD160`): drop the algorithm
-  there, load it lazily, or deprecate the cmdlet?
+  there, load it lazily, or deprecate the cmdlet? To verify:
+  `MACTripleDES.Create()` may use a random key, so its result would differ
+  on every call.

@@ -9,36 +9,37 @@ source: current task evidence
 
 ## Current focus
 
-Release 5.0.0 through CI, with the prerelease `5.0.0-rc1` first
-(Decision 12). The release workflow, scripts, tests, and docs are PR-ready
-on the local branch `ai/release-5.0.0`; the maintainer pushes it, opens the
-PR, sets up the Gallery key and the environment `powershell-gallery`, and
-tags `5.0.0-rc1` after the merge. Work package 5 (code defects) and the
-open issues come after the release.
+Overnight run 2026-10-04/05 (autopilot, maintainer asleep): fix the code
+defects A to D of `progress.md`, implement the maintainer's E decisions,
+triage the 37 open issues, and prepare 5.0.0-rc2. Eight stacked local
+branches, each a PR against `master`, to be merged in this order with merge
+commits: `ai/maintenance`, `ai/defects-a`, `ai/defects-b`, `ai/defects-c`,
+`ai/defects-d`, `ai/decisions-e`, `ai/issue-fixes`,
+`ai/release-5.0.0-rc2`. Nothing is pushed; the maintainer pushes, opens
+the PRs, and tags `5.0.0-rc2` after the merges.
+
+## Maintainer decisions for the run (2026-10-04)
+
+- D1: the fixes ship in 5.0.0; entries go under `[Unreleased]` (`Fixed`;
+  intended behavior changes under `Changed` with the way back). The last
+  PR sets `Prerelease = 'rc2'`.
+- D2: `Clear-NTFSAccess -DisableInheritance` keeps leaving an empty DACL;
+  the page states the result and the risk.
+- D3: `Set-NTFSInheritance` keeps entries like the dedicated cmdlets.
+- D4: `-RemoveInheritedAuditRules` and `-RemoveExplicitAuditRules`, with
+  the `*AccessRules` names as aliases.
+- D5: `Get-FileHash2` works in PowerShell 7 for every algorithm .NET has;
+  a missing one fails only when requested.
+- D7: Dependabot for `github-actions` only; AlphaFS 2.2.1 in
+  `NTFSSecurity\packages.config` (no upgrade, no changelog entry).
 
 ## Evidence
 
-- Test first: `Tests\Release.Tests.ps1` failed 15 of 15 (Windows
-  PowerShell: 9 failed, 6 skipped) before the scripts existed; the command
-  tag test failed before the tags were added. Final: full suite 268 tests,
-  PowerShell 7 232 passed and 36 skipped, Windows PowerShell 261 passed and
-  7 skipped (packaging needs PowerShell 7).
-- Package dry run: `NTFSSecurity.5.0.0-rc1.nupkg` (about 275 KB) with the 11
-  `FileList` files, version `5.0.0-rc1`, release notes link, and 83 tags
-  (36 `PSCmdlet_`, 36 `PSCommand_`, `PSIncludes_Cmdlet`); the extracted
-  package imports in Windows PowerShell 5.1 and PowerShell 7.6.1 with 36
-  cmdlets and working help. 4.2.6 on the Gallery has 37 + 37 command tags;
-  PSResourceGet 1.2.0 `Compress-PSResource` adds none.
-- actionlint, PSScriptAnalyzer, and markdownlint: no findings.
-- `master` has 37 open issues; several overlap the work package 5 defects
-  (for example #4) or are already fixed (#19 in 4.2.4; #15, #47, #66 by the
-  documentation).
-- The local branch `ai/read-the-docs` keeps the dropped strict-build work
-  (`886c874`, `325ec76`); delete it once it is no longer wanted.
+- Baseline at `e0f5366` (Release build, workstation): Windows PowerShell
+  261 passed, 7 skipped; PowerShell 7 232 passed, 36 skipped (268 tests).
+- `ai/maintenance` adds `Tests\Repository.Tests.ps1` (8 tests): Windows
+  PowerShell 269 passed, 7 skipped; PowerShell 7 240 passed, 36 skipped.
 
 ## Next step
 
-After the maintainer opens the PR: read its CI run, and download the
-`packages` artifact (`gh run download`) to compare it with the local dry
-run. After the `5.0.0-rc1` tag: check the release job, the Gallery entry
-(version, tags, `Find-Command Get-NTFSAccess`), and the GitHub prerelease.
+Group A on `ai/defects-a`, starting with the shared test helpers.

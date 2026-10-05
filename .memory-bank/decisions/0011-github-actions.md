@@ -21,7 +21,9 @@ source: maintainer decision after work package 4
   checks appear on the pull request without a third-party service.
 - Consequences: `Docs` stays the only source (Decision 9); the wiki is a
   generated mirror, and edits made in the wiki are overwritten. Only the
-  `wiki` job has `contents: write`; actions are pinned by commit SHA. Test
+  `publish-wiki` job, which runs for `master` alone, has `contents: write`;
+  the `wiki` job that previews pull requests, including Dependabot's, is
+  read-only (2026-10-04). Actions are pinned by commit SHA. Test
   results appear in the job summary and as the `test-results` artifact.
 - Rejected: a hand-maintained wiki next to `Docs`, publishing the wiki by
   hand at release time, and keeping AppVeyor for build and tests.
