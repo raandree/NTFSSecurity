@@ -54,6 +54,10 @@ The format is based on
   that had all of them. To get the old result, filter with `Where-Object`,
   as the cmdlet page shows
   ([#5](https://github.com/raandree/NTFSSecurity/issues/5))
+- **Breaking:** remove the alias `Size` of `LengthOnDisk` from the files of
+  `Get-ChildItem`, which made the import fail in Windows PowerShell when
+  another module had added a `Size` member; use `LengthOnDisk`
+  ([#82](https://github.com/raandree/NTFSSecurity/issues/82))
 
 ### Deprecated
 

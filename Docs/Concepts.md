@@ -234,7 +234,7 @@ the AlphaFS objects that the `*-Item2` cmdlets return.
 | --- | --- | --- | --- |
 | `Owner` | Property | Files and folders | The owner of the item. |
 | `IsInheritanceBlocked` | Property | Files and folders | `$true` if the item does not inherit access entries. |
-| `LengthOnDisk` | Property | Files | The file size rounded up to whole clusters of the volume. `Size` is an alias. |
+| `LengthOnDisk` | Property | Files | The file size rounded up to whole clusters of the volume. Before 5.0.0, `Size` was an alias. |
 | `EnableInheritance()` | Method | Files and folders | Turns on access inheritance. |
 | `DisableInheritance()` | Method | Files and folders | Turns off access inheritance. Pass `$false` to drop the inherited entries instead of copying them. |
 | `GetHash()` | Method | Files | Returns the SHA1 hash of the file as a hexadecimal string. |

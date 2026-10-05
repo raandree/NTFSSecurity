@@ -65,3 +65,19 @@ Describe 'Module manifest of NTFSSecurity' {
         }
     }
 }
+
+Describe 'Type data of NTFSSecurity' {
+    # Before 5.0.0, the types file added the alias Size to System.IO.FileInfo, so the import failed when another module
+    # had added a member with that name (#82). The module is imported in a child process, because type data stays in a
+    # session.
+    It 'Should import after another module added a Size member to System.IO.FileInfo' {
+        $manifestPath = Join-Path -Path $PSScriptRoot -ChildPath '..\NTFSSecurity\bin\Release\NTFSSecurity.psd1'
+        $executable = (Get-Process -Id $PID).Path
+        $command = 'Update-TypeData -TypeName System.IO.FileInfo -MemberType AliasProperty -MemberName Size -Value Length -Force; ' +
+            ("Import-Module -Name '{0}' -ErrorAction Stop; 'IMPORTED'" -f $manifestPath.Replace("'", "''"))
+
+        $output = & $executable -NoProfile -NonInteractive -Command $command 2>&1
+
+        $output | Select-Object -Last 1 | Should -Be 'IMPORTED'
+    }
+}

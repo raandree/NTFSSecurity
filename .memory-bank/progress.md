@@ -188,6 +188,8 @@ Numbered as agreed with the maintainer; each is documented on its page.
   recurring questions.
 - Review of #17: generic rights are removed the way .NET removes other
   rights, an exact match as it is, otherwise without `Synchronize`.
-- Open bugs: #5 (`-Attributes` matches all, `Get-ChildItem` any; needs a
-  decision), #34 and #67 (writes owner and group), #41 (drive root), #82
-  (`Size` type data), #90 (trailing space).
+- Maintainer decisions of 2026-10-05: #5 (`Get-ChildItem2 -Attributes`
+  matches any listed attribute) and #82 (no `Size` alias) ship in 5.0.0 as
+  breaking changes.
+- Open bugs: #34 and #67 (writes owner and group, rc3 if a file server is
+  available), #41 (drive root) and #90 (trailing space), both after 5.0.0.
