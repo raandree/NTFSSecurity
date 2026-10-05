@@ -2499,7 +2499,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     </command:details>
     <maml:description>
       <maml:para>The `Disable-NTFSAuditInheritance` cmdlet protects the system access control list (SACL) of a file or folder, so that the audit rules of the parent folder no longer apply to the item. From then on, only the audit rules stored in the item's own SACL decide which access attempts are written to the security event log.</maml:para>
-      <maml:para>By default, the audit rules that the item currently inherits are copied into its SACL before inheritance is blocked, so the auditing behavior stays the same. The `-RemoveInheritedAccessRules` switch discards the inherited audit rules instead of copying them, which leaves only the audit rules that were already explicit on the item. Despite its name, the switch acts on audit rules, not on access rules.</maml:para>
+      <maml:para>By default, the audit rules that the item currently inherits are copied into its SACL before inheritance is blocked, so the auditing behavior stays the same. The `-RemoveInheritedAuditRules` switch discards the inherited audit rules instead of copying them, which leaves only the audit rules that were already explicit on the item. Before 5.0.0, the switch was named `-RemoveInheritedAccessRules`; that name still works as an alias.</maml:para>
       <maml:para>In the `Path` parameter set the cmdlet reads the audit section of the item's security descriptor, changes it, and writes it back to disk immediately. In the `SecurityDescriptor` parameter set it changes the `Security2.FileSystemSecurity2` object in memory only; nothing reaches the file system until you pass that object to `Set-NTFSSecurityDescriptor`.</maml:para>
       <maml:para>Reading and writing the audit section requires the Security privilege, so run this cmdlet in an elevated session. `-Path` accepts pipeline input by value and by property name through its `FullName` alias, so the output of `Get-ChildItem`, `Get-ChildItem2`, `Get-Item2`, and `Get-NTFSInheritance` binds to it. The cmdlet affects only the audit rules; use `Disable-NTFSAccessInheritance` for the access rules.</maml:para>
     </maml:description>
@@ -2529,10 +2529,10 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
           </dev:type>
           <dev:defaultValue>False</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
-          <maml:name>RemoveInheritedAccessRules</maml:name>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="RemoveInheritedAccessRules">
+          <maml:name>RemoveInheritedAuditRules</maml:name>
           <maml:description>
-            <maml:para>Indicates that the audit rules the item currently inherits are discarded. Despite its name, the switch acts on the audit rules in the SACL, not on access rules. By default, when the switch is omitted, the inherited audit rules are copied into the item's own SACL as explicit rules and auditing continues unchanged.</maml:para>
+            <maml:para>Indicates that the audit rules the item currently inherits are discarded. By default, when the switch is omitted, the inherited audit rules are copied into the item's own SACL as explicit rules and auditing continues unchanged. Before 5.0.0, the switch was named `-RemoveInheritedAccessRules`, which remains an alias.</maml:para>
           </maml:description>
           <dev:type>
             <maml:name>SwitchParameter</maml:name>
@@ -2568,10 +2568,10 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
           </dev:type>
           <dev:defaultValue>False</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
-          <maml:name>RemoveInheritedAccessRules</maml:name>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="RemoveInheritedAccessRules">
+          <maml:name>RemoveInheritedAuditRules</maml:name>
           <maml:description>
-            <maml:para>Indicates that the audit rules the item currently inherits are discarded. Despite its name, the switch acts on the audit rules in the SACL, not on access rules. By default, when the switch is omitted, the inherited audit rules are copied into the item's own SACL as explicit rules and auditing continues unchanged.</maml:para>
+            <maml:para>Indicates that the audit rules the item currently inherits are discarded. By default, when the switch is omitted, the inherited audit rules are copied into the item's own SACL as explicit rules and auditing continues unchanged. Before 5.0.0, the switch was named `-RemoveInheritedAccessRules`, which remains an alias.</maml:para>
           </maml:description>
           <dev:type>
             <maml:name>SwitchParameter</maml:name>
@@ -2606,10 +2606,10 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
-      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
-        <maml:name>RemoveInheritedAccessRules</maml:name>
+      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="RemoveInheritedAccessRules">
+        <maml:name>RemoveInheritedAuditRules</maml:name>
         <maml:description>
-          <maml:para>Indicates that the audit rules the item currently inherits are discarded. Despite its name, the switch acts on the audit rules in the SACL, not on access rules. By default, when the switch is omitted, the inherited audit rules are copied into the item's own SACL as explicit rules and auditing continues unchanged.</maml:para>
+          <maml:para>Indicates that the audit rules the item currently inherits are discarded. By default, when the switch is omitted, the inherited audit rules are copied into the item's own SACL as explicit rules and auditing continues unchanged. Before 5.0.0, the switch was named `-RemoveInheritedAccessRules`, which remains an alias.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
         <dev:type>
@@ -2681,7 +2681,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
       </command:example>
       <command:example>
         <maml:title>Example 2: Block audit inheritance and discard the inherited rules</maml:title>
-        <dev:code>PS C:\&gt; Disable-NTFSAuditInheritance -Path C:\Data\Projects -RemoveInheritedAccessRules -PassThru</dev:code>
+        <dev:code>PS C:\&gt; Disable-NTFSAuditInheritance -Path C:\Data\Projects -RemoveInheritedAuditRules -PassThru</dev:code>
         <dev:remarks>
           <maml:para>This command protects the SACL and removes the inherited audit rules instead of copying them, so the folder is audited only by the rules that were already explicit on it. `-PassThru` returns the resulting state, in which `AuditInheritanceEnabled` is `$false`.</maml:para>
         </dev:remarks>
@@ -3116,7 +3116,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     </command:details>
     <maml:description>
       <maml:para>The `Enable-NTFSAuditInheritance` cmdlet removes the protection from the system access control list (SACL) of a file or folder, so that the item inherits audit rules from its parent folder again.</maml:para>
-      <maml:para>By default, the audit rules that are stored directly on the item are kept, and the inherited rules are added to them. An item that was processed by `Disable-NTFSAuditInheritance` therefore ends up with the inherited audit rules twice: once as the explicit copies that were created when inheritance was blocked, and once as true inherited rules. The `-RemoveExplicitAccessRules` switch deletes every audit rule that is stored directly on the item, which leaves only the inherited ones. Despite its name, the switch acts on audit rules, not on access rules.</maml:para>
+      <maml:para>By default, the audit rules that are stored directly on the item are kept, and the inherited rules are added to them. An item that was processed by `Disable-NTFSAuditInheritance` therefore ends up with the inherited audit rules twice: once as the explicit copies that were created when inheritance was blocked, and once as true inherited rules. The `-RemoveExplicitAuditRules` switch deletes every audit rule that is stored directly on the item, which leaves only the inherited ones. Before 5.0.0, the switch was named `-RemoveExplicitAccessRules`; that name still works as an alias.</maml:para>
       <maml:para>In the `Path` parameter set the cmdlet reads the audit section of the item's security descriptor, changes it, and writes it back to disk immediately. In the `SecurityDescriptor` parameter set it changes the `Security2.FileSystemSecurity2` object in memory only; nothing reaches the file system until you pass that object to `Set-NTFSSecurityDescriptor`.</maml:para>
       <maml:para>Reading and writing the audit section requires the Security privilege, so run this cmdlet in an elevated session. `-Path` accepts pipeline input by value and by property name through its `FullName` alias, so the output of `Get-ChildItem`, `Get-ChildItem2`, `Get-Item2`, and `Get-NTFSInheritance` binds to it. The cmdlet affects only the audit rules; use `Enable-NTFSAccessInheritance` for the access rules.</maml:para>
     </maml:description>
@@ -3146,10 +3146,10 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
           </dev:type>
           <dev:defaultValue>False</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
-          <maml:name>RemoveExplicitAccessRules</maml:name>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="RemoveExplicitAccessRules">
+          <maml:name>RemoveExplicitAuditRules</maml:name>
           <maml:description>
-            <maml:para>Indicates that every audit rule stored directly on the item is removed when inheritance is restored, so that the item ends up with the inherited audit rules only. Despite its name, the switch acts on the audit rules in the SACL, not on access rules. By default, when the switch is omitted, the explicit audit rules are kept and the inherited rules are added to them, which usually duplicates the rules that `Disable-NTFSAuditInheritance` copied earlier.</maml:para>
+            <maml:para>Indicates that every audit rule stored directly on the item is removed when inheritance is restored, so that the item ends up with the inherited audit rules only. By default, when the switch is omitted, the explicit audit rules are kept and the inherited rules are added to them, which usually duplicates the rules that `Disable-NTFSAuditInheritance` copied earlier. Before 5.0.0, the switch was named `-RemoveExplicitAccessRules`, which remains an alias.</maml:para>
           </maml:description>
           <dev:type>
             <maml:name>SwitchParameter</maml:name>
@@ -3185,10 +3185,10 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
           </dev:type>
           <dev:defaultValue>False</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
-          <maml:name>RemoveExplicitAccessRules</maml:name>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="RemoveExplicitAccessRules">
+          <maml:name>RemoveExplicitAuditRules</maml:name>
           <maml:description>
-            <maml:para>Indicates that every audit rule stored directly on the item is removed when inheritance is restored, so that the item ends up with the inherited audit rules only. Despite its name, the switch acts on the audit rules in the SACL, not on access rules. By default, when the switch is omitted, the explicit audit rules are kept and the inherited rules are added to them, which usually duplicates the rules that `Disable-NTFSAuditInheritance` copied earlier.</maml:para>
+            <maml:para>Indicates that every audit rule stored directly on the item is removed when inheritance is restored, so that the item ends up with the inherited audit rules only. By default, when the switch is omitted, the explicit audit rules are kept and the inherited rules are added to them, which usually duplicates the rules that `Disable-NTFSAuditInheritance` copied earlier. Before 5.0.0, the switch was named `-RemoveExplicitAccessRules`, which remains an alias.</maml:para>
           </maml:description>
           <dev:type>
             <maml:name>SwitchParameter</maml:name>
@@ -3223,10 +3223,10 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
-      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
-        <maml:name>RemoveExplicitAccessRules</maml:name>
+      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="RemoveExplicitAccessRules">
+        <maml:name>RemoveExplicitAuditRules</maml:name>
         <maml:description>
-          <maml:para>Indicates that every audit rule stored directly on the item is removed when inheritance is restored, so that the item ends up with the inherited audit rules only. Despite its name, the switch acts on the audit rules in the SACL, not on access rules. By default, when the switch is omitted, the explicit audit rules are kept and the inherited rules are added to them, which usually duplicates the rules that `Disable-NTFSAuditInheritance` copied earlier.</maml:para>
+          <maml:para>Indicates that every audit rule stored directly on the item is removed when inheritance is restored, so that the item ends up with the inherited audit rules only. By default, when the switch is omitted, the explicit audit rules are kept and the inherited rules are added to them, which usually duplicates the rules that `Disable-NTFSAuditInheritance` copied earlier. Before 5.0.0, the switch was named `-RemoveExplicitAccessRules`, which remains an alias.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
         <dev:type>
@@ -3298,14 +3298,14 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
       </command:example>
       <command:example>
         <maml:title>Example 2: Restore audit inheritance and drop the explicit rules</maml:title>
-        <dev:code>PS C:\&gt; Enable-NTFSAuditInheritance -Path C:\Data\Projects -RemoveExplicitAccessRules -PassThru</dev:code>
+        <dev:code>PS C:\&gt; Enable-NTFSAuditInheritance -Path C:\Data\Projects -RemoveExplicitAuditRules -PassThru</dev:code>
         <dev:remarks>
           <maml:para>This command removes every audit rule that is stored directly on the folder and lets it inherit from `C:\Data` again, so the folder is audited exactly like its parent. `-PassThru` returns the resulting state, in which `AuditInheritanceEnabled` is `$true`.</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
         <maml:title>------------ Example 3: Repair a whole folder tree ------------</maml:title>
-        <dev:code>PS C:\&gt; Get-ChildItem2 -Path C:\Data -Recurse | Get-NTFSInheritance | Where-Object { $_.AuditInheritanceEnabled -eq $false } | Enable-NTFSAuditInheritance -RemoveExplicitAccessRules</dev:code>
+        <dev:code>PS C:\&gt; Get-ChildItem2 -Path C:\Data -Recurse | Get-NTFSInheritance | Where-Object { $_.AuditInheritanceEnabled -eq $false } | Enable-NTFSAuditInheritance -RemoveExplicitAuditRules</dev:code>
         <dev:remarks>
           <maml:para>This command finds every item below `C:\Data` whose audit inheritance is blocked and restores it. The comparison with `$false` is deliberate: `AuditInheritanceEnabled` is `$null` for items whose audit section could not be read, and those items are skipped instead of being processed.</maml:para>
         </dev:remarks>
@@ -3313,7 +3313,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
       <command:example>
         <maml:title>------ Example 4: Change a security descriptor in memory ------</maml:title>
         <dev:code>PS C:\&gt; $sd = Get-NTFSSecurityDescriptor -Path C:\Data\Projects
-PS C:\&gt; Enable-NTFSAuditInheritance -SecurityDescriptor $sd -RemoveExplicitAccessRules
+PS C:\&gt; Enable-NTFSAuditInheritance -SecurityDescriptor $sd -RemoveExplicitAuditRules
 PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <dev:remarks>
           <maml:para>The first two commands read the security descriptor and restore audit inheritance in memory, which does not change anything on disk. The third command writes the descriptor back and applies the change.</maml:para>

@@ -36,6 +36,10 @@ The format is based on
   into the documentation, and complete the version history with the release
   dates from the PowerShell Gallery, the missing notes for 4.2.2, 4.2.5, and
   4.2.6, and detailed notes for 4.2.4
+- Rename `-RemoveInheritedAccessRules` of `Disable-NTFSAuditInheritance` to
+  `-RemoveInheritedAuditRules` and `-RemoveExplicitAccessRules` of
+  `Enable-NTFSAuditInheritance` to `-RemoveExplicitAuditRules`, because they
+  act on audit entries; the old names still work as aliases
 
 ### Deprecated
 

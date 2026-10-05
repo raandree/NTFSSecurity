@@ -149,3 +149,30 @@ Describe 'Set-NTFSInheritance' {
         }
     }
 }
+
+Describe 'Audit inheritance switches' {
+    # Before 5.0.0, the switches were named after access entries, although they remove audit entries.
+    It '<Command> should take -<Name> with the alias -<Alias>' -ForEach @(
+        @{ Command = 'Disable-NTFSAuditInheritance'; Name = 'RemoveInheritedAuditRules'; Alias = 'RemoveInheritedAccessRules' }
+        @{ Command = 'Enable-NTFSAuditInheritance'; Name = 'RemoveExplicitAuditRules'; Alias = 'RemoveExplicitAccessRules' }
+    ) {
+        $parameter = (Get-Command -Name $Command).Parameters[$Name]
+
+        $parameter | Should -Not -BeNullOrEmpty
+        $parameter.SwitchParameter | Should -BeTrue
+        $parameter.Aliases | Should -Contain $Alias
+    }
+
+    It '<Command> should bind -<Switch>' -ForEach @(
+        @{ Command = 'Disable-NTFSAuditInheritance'; Switch = 'RemoveInheritedAuditRules' }
+        @{ Command = 'Disable-NTFSAuditInheritance'; Switch = 'RemoveInheritedAccessRules' }
+        @{ Command = 'Enable-NTFSAuditInheritance'; Switch = 'RemoveExplicitAuditRules' }
+        @{ Command = 'Enable-NTFSAuditInheritance'; Switch = 'RemoveExplicitAccessRules' }
+    ) {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'AuditSwitch'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+        $parameters = @{ Path = $file; $Switch = $true }
+
+        { & $Command @parameters -ErrorAction SilentlyContinue } | Should -Not -Throw
+    }
+}

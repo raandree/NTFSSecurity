@@ -15,20 +15,20 @@ Restores the inheritance of audit rules on a file or folder.
 
 ### Path (Default)
 ```
-Enable-NTFSAuditInheritance [[-Path] <String[]>] [-PassThru] [-RemoveExplicitAccessRules] [<CommonParameters>]
+Enable-NTFSAuditInheritance [[-Path] <String[]>] [-PassThru] [-RemoveExplicitAuditRules] [<CommonParameters>]
 ```
 
 ### SecurityDescriptor
 ```
 Enable-NTFSAuditInheritance [-SecurityDescriptor] <FileSystemSecurity2[]> [-PassThru]
- [-RemoveExplicitAccessRules] [<CommonParameters>]
+ [-RemoveExplicitAuditRules] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 
 The `Enable-NTFSAuditInheritance` cmdlet removes the protection from the system access control list (SACL) of a file or folder, so that the item inherits audit rules from its parent folder again.
 
-By default, the audit rules that are stored directly on the item are kept, and the inherited rules are added to them. An item that was processed by `Disable-NTFSAuditInheritance` therefore ends up with the inherited audit rules twice: once as the explicit copies that were created when inheritance was blocked, and once as true inherited rules. The `-RemoveExplicitAccessRules` switch deletes every audit rule that is stored directly on the item, which leaves only the inherited ones. Despite its name, the switch acts on audit rules, not on access rules.
+By default, the audit rules that are stored directly on the item are kept, and the inherited rules are added to them. An item that was processed by `Disable-NTFSAuditInheritance` therefore ends up with the inherited audit rules twice: once as the explicit copies that were created when inheritance was blocked, and once as true inherited rules. The `-RemoveExplicitAuditRules` switch deletes every audit rule that is stored directly on the item, which leaves only the inherited ones. Before 5.0.0, the switch was named `-RemoveExplicitAccessRules`; that name still works as an alias.
 
 In the `Path` parameter set the cmdlet reads the audit section of the item's security descriptor, changes it, and writes it back to disk immediately. In the `SecurityDescriptor` parameter set it changes the `Security2.FileSystemSecurity2` object in memory only; nothing reaches the file system until you pass that object to `Set-NTFSSecurityDescriptor`.
 
@@ -47,7 +47,7 @@ This command lets `C:\Data\Projects` inherit the audit rules of `C:\Data` again.
 ### Example 2: Restore audit inheritance and drop the explicit rules
 
 ```PowerShell
-PS C:\> Enable-NTFSAuditInheritance -Path C:\Data\Projects -RemoveExplicitAccessRules -PassThru
+PS C:\> Enable-NTFSAuditInheritance -Path C:\Data\Projects -RemoveExplicitAuditRules -PassThru
 ```
 
 This command removes every audit rule that is stored directly on the folder and lets it inherit from `C:\Data` again, so the folder is audited exactly like its parent. `-PassThru` returns the resulting state, in which `AuditInheritanceEnabled` is `$true`.
@@ -55,7 +55,7 @@ This command removes every audit rule that is stored directly on the folder and 
 ### Example 3: Repair a whole folder tree
 
 ```PowerShell
-PS C:\> Get-ChildItem2 -Path C:\Data -Recurse | Get-NTFSInheritance | Where-Object { $_.AuditInheritanceEnabled -eq $false } | Enable-NTFSAuditInheritance -RemoveExplicitAccessRules
+PS C:\> Get-ChildItem2 -Path C:\Data -Recurse | Get-NTFSInheritance | Where-Object { $_.AuditInheritanceEnabled -eq $false } | Enable-NTFSAuditInheritance -RemoveExplicitAuditRules
 ```
 
 This command finds every item below `C:\Data` whose audit inheritance is blocked and restores it. The comparison with `$false` is deliberate: `AuditInheritanceEnabled` is `$null` for items whose audit section could not be read, and those items are skipped instead of being processed.
@@ -64,7 +64,7 @@ This command finds every item below `C:\Data` whose audit inheritance is blocked
 
 ```PowerShell
 PS C:\> $sd = Get-NTFSSecurityDescriptor -Path C:\Data\Projects
-PS C:\> Enable-NTFSAuditInheritance -SecurityDescriptor $sd -RemoveExplicitAccessRules
+PS C:\> Enable-NTFSAuditInheritance -SecurityDescriptor $sd -RemoveExplicitAuditRules
 PS C:\> Set-NTFSSecurityDescriptor -SecurityDescriptor $sd
 ```
 
@@ -104,14 +104,14 @@ Accept pipeline input: True (ByPropertyName, ByValue)
 Accept wildcard characters: False
 ```
 
-### -RemoveExplicitAccessRules
+### -RemoveExplicitAuditRules
 
-Indicates that every audit rule stored directly on the item is removed when inheritance is restored, so that the item ends up with the inherited audit rules only. Despite its name, the switch acts on the audit rules in the SACL, not on access rules. By default, when the switch is omitted, the explicit audit rules are kept and the inherited rules are added to them, which usually duplicates the rules that `Disable-NTFSAuditInheritance` copied earlier.
+Indicates that every audit rule stored directly on the item is removed when inheritance is restored, so that the item ends up with the inherited audit rules only. By default, when the switch is omitted, the explicit audit rules are kept and the inherited rules are added to them, which usually duplicates the rules that `Disable-NTFSAuditInheritance` copied earlier. Before 5.0.0, the switch was named `-RemoveExplicitAccessRules`, which remains an alias.
 
 ```yaml
 Type: SwitchParameter
 Parameter Sets: (All)
-Aliases:
+Aliases: RemoveExplicitAccessRules
 
 Required: False
 Position: Named
