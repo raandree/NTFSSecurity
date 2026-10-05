@@ -31,19 +31,25 @@ reply for each issue, and the open questions.
 - D7: Dependabot for `github-actions` only; AlphaFS 2.2.1 everywhere.
 - D8: the manifest `Description` and a version-neutral README.
 - D9: merged local branches deleted after the run.
+- 2026-10-05: the report's recommendations accepted. #5 and #82 ship in
+  5.0.0 as breaking changes; #34 for rc3 if a file server is available;
+  #41 and #90 after 5.0.0; Minor findings become issues; the `pwsh` crash
+  is watched in CI.
 
 ## Evidence
 
 - Every branch tip: Release build without new warnings (296 at the top,
   305 at the baseline), docs checks clean, package dry run passed.
-- Tests at the top branch: Windows PowerShell 405 passed, 26 skipped;
-  PowerShell 7 376 passed, 55 skipped (431). The baseline had 268 tests.
+- Tests at the top branch: Windows PowerShell 423 passed, 26 skipped;
+  PowerShell 7 394 passed, 55 skipped (449). The baseline had 268 tests.
 - Tests that need privileges skip on the workstation and run in CI only;
   the PR descriptions list them.
 - Reviews: one security review per PR; the Major findings were fixed in
-  the PR that had them (PR 1: 1, PR 2: 5, PR 4: 2, PR 6: 1).
+  the PR that had them (PR 1: 1, PR 2: 5, PR 4: 2, PR 6: 1, PR 7: 3,
+  PR 8: 2).
 
 ## Next step
 
-The maintainer reads the report, pushes the branches, opens and merges the
-PRs, tags `5.0.0-rc2`, and decides #5 (`Get-ChildItem2 -Attributes`).
+The maintainer applies the repository settings, pushes the eight branches,
+opens and merges the PRs in order, and tags `5.0.0-rc2` once CI on
+`master` is green.

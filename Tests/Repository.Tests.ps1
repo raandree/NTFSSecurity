@@ -87,14 +87,17 @@ Describe 'Release metadata' {
         }
     }
 
-    # Before 5.0.0-rc2, the description named Windows PowerShell, although the module supports PowerShell 7 as well.
-    It 'Should describe the module without naming one PowerShell edition' {
+    # Before 5.0.0-rc2, the description said "Windows PowerShell Module", although the module supports PowerShell 7.
+    It 'Should have the description that the PowerShell Gallery shows for the module' {
         $manifest.Description | Should -BeExactly 'PowerShell module for managing file and folder security on NTFS volumes'
     }
 
-    # The PowerShell Gallery doesn't accept a version twice, and CI published 5.0.0-rc1 on 2026-10-04.
-    It 'Should not reuse the published version 5.0.0-rc1' {
-        $version | Should -Not -Be '5.0.0-rc1'
+    # The PowerShell Gallery doesn't accept a version twice. Add every published version to this list
+    # (Docs/Contributing/05-Releasing.md).
+    It 'Should not reuse a version that the PowerShell Gallery already has' {
+        $publishedVersions = '4.0', '4.2.2', '4.2.3', '4.2.4', '4.2.5', '4.2.6', '5.0.0-rc1'
+
+        $publishedVersions | Should -Not -Contain $version
     }
 
     It 'Should not name a prerelease version in the README, which outlives the release' {

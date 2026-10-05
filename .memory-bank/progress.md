@@ -31,11 +31,16 @@ version is still 4.2.6.
   package 5 fixed with regression tests, plus what the reviews found: a
   failed retry after taking ownership left the owner changed, and
   `-PassThru` wrote objects after a failed change or under `-WhatIf`.
-  Maintainer decisions D2 to D5 (Decision 13), the issues #3, #4, #74, #86,
-  and #88 fixed, the 37 open issues triaged, `Docs/FAQ.md`, Dependabot for
+  Maintainer decisions D2 to D5 (Decision 13), the issues #3, #4, #17, #74,
+  #86, and #88 fixed, the 37 open issues triaged, `Docs/FAQ.md`, Dependabot for
   the actions, and the prerelease label `rc2`. One security review per PR;
-  every Major finding fixed. Tests at the top branch: Windows PowerShell
-  405 passed, 26 skipped; PowerShell 7 376 passed, 55 skipped (431).
+  every Major finding fixed.
+- 2026-10-05, morning: the maintainer accepted the report's
+  recommendations. #5 (`Get-ChildItem2 -Attributes` matches any listed
+  attribute; an empty value is an error) and #82 (no `Size` alias) ship in
+  5.0.0 as breaking changes on `ai/issue-fixes`. Tests at the top branch:
+  Windows PowerShell 423 passed, 26 skipped; PowerShell 7 394 passed, 55
+  skipped (449).
 
 ## Stable capabilities
 
@@ -58,22 +63,22 @@ version is still 4.2.6.
    label, date `[Unreleased]` as `[5.0.0]`, tag `5.0.0` (steps in
    `Docs/Contributing/05-Releasing.md`; CI warns when the changelog date
    isn't the release day).
-3. Repository settings, proposed on 2026-10-04 (not yet agreed): the
-   `powershell-gallery` environment has no protection rules and no
-   deployment policy, so a workflow on any branch can use
-   `PSGALLERY_API_KEY` (`nyanhp` also has write access); `master` has no
-   protection or ruleset; head branches aren't deleted on merge; the
-   remote branches `fix/#34` and `test/transfer` aren't merged.
-4. Open bugs from the triage: #5 (`Get-ChildItem2 -Attributes` matches all
-   attributes, `Get-ChildItem` any; needs a decision), #17 (an ACE with
-   `GenericAll` can't be removed), #34 and #67 (the write includes owner
-   and group; `fix/#34` swallows every error), #41 (a drive root reads the
-   device object), #82 (a `Size` member of other type data blocks the
-   import), #90 (a trailing space in a folder name). Enhancements: #22,
-   #49, #68, #77, #87.
-5. Minor review findings that the PRs list but don't fix, for example
+3. Repository settings: the hardening proposed on 2026-10-04 isn't applied
+   yet (checked 2026-10-05); the maintainer applies it before pushing the
+   stack. The details are with the maintainer, not in the repository.
+4. Open bugs from the triage: #34 and #67 (the write includes owner and
+   group; `fix/#34` swallows every error) for rc3 if a file server to test
+   against is available; #41 (a drive root reads the device object) and #90
+   (a trailing space in a folder name) after 5.0.0. Enhancements: #22, #49,
+   #68, #77, #87.
+5. `pwsh` 7.6.1 crashed three times during test runs on the ARM64
+   workstation (x64 emulation) with an access violation in `coreclr.dll` or
+   `System.Management.Automation.dll`, without module frames; not
+   reproducible on demand. Check whether CI on native x64 shows it.
+6. Minor review findings that the PRs list but don't fix, for example
    `Copy-Item2 -WhatIf` reporting a destination conflict as an error, and
-   relative path forms that the `*-Item2` cmdlets resolve themselves.
-6. Optional for the maintainer: delete the AppVeyor project and revoke its
+   relative path forms that the `*-Item2` cmdlets resolve themselves; the
+   maintainer tracks the useful ones as issues.
+7. Optional for the maintainer: delete the AppVeyor project and revoke its
    GitHub authorization, restrict wiki editing to collaborators, and ask
    `Sup3rlativ3` to delete the Read the Docs project.
