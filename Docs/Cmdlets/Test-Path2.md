@@ -109,13 +109,9 @@ You can supply the `-PathType` value through a pipeline object that has a `PathT
 
 ## OUTPUTS
 
-### Alphaleonis.Win32.Filesystem.FileInfo
+### System.Boolean
 
-`Test-Path2` does not write file objects. For each path it writes a single `System.Boolean` value that is `$true` when the item exists and matches `-PathType`, and `$false` otherwise.
-
-### Alphaleonis.Win32.Filesystem.DirectoryInfo
-
-`Test-Path2` does not write folder objects either. A folder is reported through the same `System.Boolean` result as a file.
+For each path, the cmdlet writes `$true` when the item exists and matches `-PathType`, and `$false` otherwise.
 
 ## NOTES
 

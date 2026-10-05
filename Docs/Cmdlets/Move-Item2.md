@@ -176,13 +176,19 @@ You can pipe an object that has a `Destination` property to supply the target of
 
 ## OUTPUTS
 
-### System.Object
+### Alphaleonis.Win32.Filesystem.FileInfo
 
-By default this cmdlet returns nothing. With `-PassThru $true` it returns an `Alphaleonis.Win32.Filesystem.FileInfo` or `Alphaleonis.Win32.Filesystem.DirectoryInfo` object for each item that it moved, pointing at the new location.
+By default this cmdlet returns nothing. With `-PassThru $true` it returns a file object for each file that it moved, pointing at the new location.
+
+### Alphaleonis.Win32.Filesystem.DirectoryInfo
+
+With `-PassThru $true` the cmdlet returns a folder object for each folder that it moved, pointing at the new location.
 
 ## NOTES
 
 `Move-Item2` moves through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it handles source and destination paths that exceed the 260-character `MAX_PATH` limit of the built-in `Move-Item` cmdlet.
+
+Before 5.0.0, `-PassThru` also wrote the item when `-WhatIf` or a declined confirmation skipped the operation.
 
 The cmdlet chooses between two mutually exclusive move options. Without `-Force` it moves with `CopyAllowed`, which permits a file to cross volume boundaries because Windows then copies and deletes it. With `-Force` it moves with `ReplaceExisting`, which overwrites the destination but does not request `CopyAllowed`, so a move across volumes can fail when `-Force` is specified.
 

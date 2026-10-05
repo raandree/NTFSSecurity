@@ -6,6 +6,7 @@ using System.Management.Automation;
 namespace NTFSSecurity
 {
     [Cmdlet(VerbsCommon.Set, "NTFSInheritance", DefaultParameterSetName = "Path")]
+    [OutputType(typeof(FileSystemInheritanceInfo))]
     public class SetInheritance : BaseCmdletWithPrivControl
     {
         private bool? accessInheritanceEnabled;

@@ -156,7 +156,7 @@ You can pipe the security descriptors that `Get-NTFSSecurityDescriptor` returns 
 
 ## OUTPUTS
 
-### System.Object
+### Security2.FileSystemInheritanceInfo
 
 By default this cmdlet returns no output. With `-PassThru` it writes one `Security2.FileSystemInheritanceInfo` object per item, which reports the `AccessInheritanceEnabled` and `AuditInheritanceEnabled` state after the change.
 

@@ -93,7 +93,7 @@ This cmdlet does not accept pipeline input.
 
 ### ProcessPrivileges.PrivilegeAndAttributes
 
-With `-PassThru`, the cmdlet writes the privilege collection of the current process. The pipeline enumerates it into one `ProcessPrivileges.PrivilegeAndAttributes` object per privilege, each with a `Privilege`, a `PrivilegeAttributes`, and a `PrivilegeState` property. Without `-PassThru`, the cmdlet writes nothing.
+With `-PassThru`, the cmdlet writes one `ProcessPrivileges.PrivilegeAndAttributes` object per privilege of the current process, each with a `Privilege`, a `PrivilegeAttributes`, and a `PrivilegeState` property. Without `-PassThru`, the cmdlet writes nothing. Before 5.0.0, it wrote the privileges as one collection.
 
 ## NOTES
 

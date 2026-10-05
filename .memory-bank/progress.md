@@ -154,7 +154,7 @@ Numbered as agreed with the maintainer; each is documented on its page.
   after a failed change, and a failed retry after taking ownership left the
   owner changed; `BaseCmdlet.InvokeAsOwner` now restores it on every path.
 
-#### D: Metadata and cosmetics
+#### D: Metadata and cosmetics (fixed on `ai/defects-d`, not merged)
 
 - (22) Wrong or missing `[OutputType]` (`Test-Path2`, `Get-FileHash2`,
   `Add-NTFSAudit`, `*-Item2`, inheritance cmdlets);
@@ -163,6 +163,8 @@ Numbered as agreed with the maintainer; each is documented on its page.
 - (23) Typos: "Privliege" in the `Get-NTFSEffectiveAccess` warning; "are
   now enabled" in the `Disable-Privileges` verbose message.
 - (24) Dead code in `RemoveItem2.cs` and `OtherCmdlets.cs`.
+- Found with group D: `-PassThru` of the `*-Item2` cmdlets wrote the item
+  also when `-WhatIf` skipped the operation.
 
 #### E: Maintainer decisions before changing behavior
 

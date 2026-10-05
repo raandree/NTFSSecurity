@@ -59,6 +59,15 @@ Describe 'Disable-Privileges' {
             $privilegeWarnings | Should -BeNullOrEmpty
             Get-BackupPrivilegeState | Should -Be 'Disabled'
         }
+
+        # Before 5.0.0, the verbose message said that the privileges were now enabled.
+        It 'Should say in the verbose message that the privileges are disabled' -Skip:(-not $holdsPrivileges) {
+            Enable-Privileges
+
+            $messages = Disable-Privileges -Verbose -WarningAction SilentlyContinue 4>&1
+
+            $messages.Message | Should -Contain "The privileges 'TakeOwnership', 'Restore' and 'Backup' are now disabled."
+        }
     }
 }
 

@@ -5,6 +5,7 @@ using System.Management.Automation;
 namespace NTFSSecurity
 {
     [Cmdlet(VerbsCommon.Move, "Item2", SupportsShouldProcess = true)]
+    [OutputType(typeof(FileInfo), typeof(DirectoryInfo))]
     public class MoveItem2 : BaseCmdlet
     {
         private string destination;
@@ -93,12 +94,15 @@ namespace NTFSSecurity
 
                 try
                 {
+                    var processed = false;
+
                     if (item is FileInfo)
                     {
                         if (ShouldProcess(resolvedPath, "Move File"))
                         {
                             ((FileInfo)item).MoveTo(actualDestination, force ? MoveOptions.ReplaceExisting : MoveOptions.CopyAllowed, PathFormat.RelativePath);
-                            WriteVerbose(string.Format("File '{0}' moved to '{0}'", resolvedPath, destination));
+                            WriteVerbose(string.Format("File '{0}' moved to '{1}'", resolvedPath, actualDestination));
+                            processed = true;
                         }
                     }
                     else
@@ -106,11 +110,12 @@ namespace NTFSSecurity
                         if (ShouldProcess(resolvedPath, "Move Directory"))
                         {
                             ((DirectoryInfo)item).MoveTo(actualDestination, force ? MoveOptions.ReplaceExisting : MoveOptions.CopyAllowed, PathFormat.RelativePath);
-                            WriteVerbose(string.Format("Directory '{0}' moved to '{0}'", resolvedPath, destination));
+                            WriteVerbose(string.Format("Directory '{0}' moved to '{1}'", resolvedPath, actualDestination));
+                            processed = true;
                         }
                     }
 
-                    if (passThru)
+                    if (passThru && processed)
                         WriteObject(item);
                 }
                 catch (System.IO.IOException ex)

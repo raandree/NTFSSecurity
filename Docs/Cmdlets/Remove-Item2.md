@@ -169,13 +169,19 @@ You can pipe one or more paths to this cmdlet, either as strings or as objects t
 
 ## OUTPUTS
 
-### System.Object
+### Alphaleonis.Win32.Filesystem.FileInfo
 
-By default this cmdlet returns nothing. With `-PassThru` it returns an `Alphaleonis.Win32.Filesystem.FileInfo` or `Alphaleonis.Win32.Filesystem.DirectoryInfo` object for each item that it deleted.
+By default this cmdlet returns nothing. With `-PassThru` it returns a file object for each file that it deleted.
+
+### Alphaleonis.Win32.Filesystem.DirectoryInfo
+
+With `-PassThru` the cmdlet returns a folder object for each folder that it deleted.
 
 ## NOTES
 
 `Remove-Item2` deletes through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it reaches items whose path exceeds the 260-character `MAX_PATH` limit of the built-in `Remove-Item` cmdlet. Deletion is permanent; the cmdlet does not use the Recycle Bin.
+
+Before 5.0.0, `-PassThru` also wrote the item when `-WhatIf` or a declined confirmation skipped the operation.
 
 The module defines the aliases `rm2` and `del2` for this cmdlet.
 

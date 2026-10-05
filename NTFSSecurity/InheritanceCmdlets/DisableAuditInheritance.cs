@@ -7,6 +7,7 @@ namespace NTFSSecurity
 {
 
     [Cmdlet(VerbsLifecycle.Disable, "NTFSAuditInheritance", DefaultParameterSetName = "Path")]
+    [OutputType(typeof(FileSystemInheritanceInfo))]
     public class DisableAuditInheritance : BaseCmdletWithPrivControl
     {
         private bool removeInheritedAccessRules;

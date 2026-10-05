@@ -176,13 +176,19 @@ You can pipe an object that has a `Destination` property to supply the target of
 
 ## OUTPUTS
 
-### System.Object
+### Alphaleonis.Win32.Filesystem.FileInfo
 
-By default this cmdlet returns nothing. With `-PassThru $true` it returns an `Alphaleonis.Win32.Filesystem.FileInfo` or `Alphaleonis.Win32.Filesystem.DirectoryInfo` object for each item that it copied.
+By default this cmdlet returns nothing. With `-PassThru $true` it returns a file object for each file that it copied.
+
+### Alphaleonis.Win32.Filesystem.DirectoryInfo
+
+With `-PassThru $true` the cmdlet returns a folder object for each folder that it copied.
 
 ## NOTES
 
 `Copy-Item2` copies through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it handles source and destination paths that exceed the 260-character `MAX_PATH` limit of the built-in `Copy-Item` cmdlet.
+
+Before 5.0.0, `-PassThru` also wrote the item when `-WhatIf` or a declined confirmation skipped the operation.
 
 Before 5.0.0, copying a folder that contained files failed with a `CopyError` that reported a `DirectoryNotFoundException` for the first file in the folder.
 

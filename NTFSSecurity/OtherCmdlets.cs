@@ -14,7 +14,6 @@ namespace NTFSSecurity
     {
         private bool enablePrivileges = false;
         private SwitchParameter passThru;
-        public string[] Path { get; set; }
 
         [Parameter]
         public SwitchParameter PassThru
@@ -54,7 +53,7 @@ namespace NTFSSecurity
 
             if (passThru)
             {
-                this.WriteObject(this.privControl.GetPrivileges());
+                this.WriteObject(this.privControl.GetPrivileges(), true);
             }
         }
 
@@ -71,7 +70,6 @@ namespace NTFSSecurity
     public class DisablePrivileges : BaseCmdletWithPrivControl
     {
         private SwitchParameter passThru;
-        public string[] Path { get; set; }
 
         [Parameter]
         public SwitchParameter PassThru
@@ -100,11 +98,11 @@ namespace NTFSSecurity
             }
 
             this.DisableFileSystemPrivileges();
-            this.WriteVerbose("The privileges 'TakeOwnership', 'Restore' and 'Backup' are now enabled.");
+            this.WriteVerbose("The privileges 'TakeOwnership', 'Restore' and 'Backup' are now disabled.");
 
             if (passThru)
             {
-                this.WriteObject(this.privControl.GetPrivileges());
+                this.WriteObject(this.privControl.GetPrivileges(), true);
             }
         }
 
@@ -120,7 +118,6 @@ namespace NTFSSecurity
     [OutputType(typeof(ProcessPrivileges.PrivilegeAndAttributes))]
     public class GetPrivileges : BaseCmdlet
     {
-        public string[] Path { get; set; }
 
         protected override void BeginProcessing()
         {

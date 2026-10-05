@@ -7,7 +7,7 @@ using Security2.FileSystem.FileInfo;
 namespace NTFSSecurity
 {
     [Cmdlet(VerbsCommon.Get, "FileHash2")]
-    [OutputType(typeof(FileSystemAccessRule2))]
+    [OutputType(typeof(FileInfo))]
     public class GetFileHash2 : BaseCmdlet
     {
         private HashAlgorithms algorithm = HashAlgorithms.SHA256;

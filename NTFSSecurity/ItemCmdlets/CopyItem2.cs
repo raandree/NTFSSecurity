@@ -5,6 +5,7 @@ using System.Management.Automation;
 namespace NTFSSecurity
 {
     [Cmdlet(VerbsCommon.Copy, "Item2", SupportsShouldProcess = true)]
+    [OutputType(typeof(FileInfo), typeof(DirectoryInfo))]
     public class CopyItem2 : BaseCmdlet
     {
         private string destination;
@@ -93,12 +94,15 @@ namespace NTFSSecurity
 
                 try
                 {
+                    var processed = false;
+
                     if (item is FileInfo)
                     {
                         if (ShouldProcess(resolvedPath, "Copy File"))
                         {
                             ((FileInfo)item).CopyTo(actualDestination, force ? CopyOptions.None : CopyOptions.FailIfExists, PathFormat.RelativePath);
-                            WriteVerbose(string.Format("File '{0}' copied to '{0}'", resolvedPath, destination));
+                            WriteVerbose(string.Format("File '{0}' copied to '{1}'", resolvedPath, actualDestination));
+                            processed = true;
                         }
                     }
                     else
@@ -109,11 +113,12 @@ namespace NTFSSecurity
                             // DirectoryNotFoundException for the first file.
                             Directory.CreateDirectory(actualDestination);
                             ((DirectoryInfo)item).CopyTo(actualDestination, force ? CopyOptions.None : CopyOptions.FailIfExists, PathFormat.RelativePath);
-                            WriteVerbose(string.Format("Directory '{0}' copied to '{0}'", resolvedPath, destination));
+                            WriteVerbose(string.Format("Directory '{0}' copied to '{1}'", resolvedPath, actualDestination));
+                            processed = true;
                         }
                     }
 
-                    if (passThru)
+                    if (passThru && processed)
                         WriteObject(item);
                 }
                 catch (System.IO.IOException ex)

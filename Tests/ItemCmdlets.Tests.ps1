@@ -116,6 +116,31 @@ Describe 'Copy-Item2, Move-Item2, and Remove-Item2 with several paths' {
         $itemErrors | Should -HaveCount 1
         Join-Path -Path $destination -ChildPath 'Second.txt' | Should -Exist
     }
+
+    # Before 5.0.0, the verbose message named the source path as the destination.
+    It '<Command> should name the destination in the verbose message' -ForEach @(
+        @{ Command = 'Copy-Item2'; Verb = 'copied' }
+        @{ Command = 'Move-Item2'; Verb = 'moved' }
+    ) {
+        $target = Join-Path -Path $destination -ChildPath 'First.txt'
+
+        $messages = & $Command -Path $first -Destination $destination -Verbose 4>&1
+
+        $messages.Message | Should -Contain ("File '{0}' {1} to '{2}'" -f $first, $Verb, $target)
+    }
+
+    # Before 5.0.0, -PassThru wrote the item also when -WhatIf skipped the operation.
+    It '<_> should write nothing with -PassThru and -WhatIf' -ForEach @('Copy-Item2', 'Move-Item2', 'Remove-Item2') {
+        $parameters = @{ Path = $first; PassThru = $true; WhatIf = $true }
+        if ($_ -ne 'Remove-Item2') {
+            $parameters.Destination = $destination
+        }
+
+        $result = @(& $_ @parameters)
+
+        $result | Should -BeNullOrEmpty
+        $first | Should -Exist
+    }
 }
 
 Describe 'Copy-Item2' {

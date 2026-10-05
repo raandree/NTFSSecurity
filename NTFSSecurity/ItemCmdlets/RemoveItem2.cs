@@ -5,11 +5,11 @@ using System.Management.Automation;
 namespace NTFSSecurity
 {
     [Cmdlet(VerbsCommon.Remove, "Item2", SupportsShouldProcess = true)]
+    [OutputType(typeof(FileInfo), typeof(DirectoryInfo))]
     public class RemoveItem2 : BaseCmdlet
     {
         private SwitchParameter force;
         private SwitchParameter recurse;
-        private string filter;
         private bool passThru;
 
         [Parameter(Position = 1, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
@@ -71,12 +71,15 @@ namespace NTFSSecurity
 
                 try
                 {
+                    var processed = false;
+
                     if (item is FileInfo)
                     {
                         if (ShouldProcess(item.ToString(), "Remove File"))
                         {
                             ((FileInfo)item).Delete(force);
                             WriteVerbose(string.Format("File '{0}' was removed", item.ToString()));
+                            processed = true;
                         }
                     }
                     else
@@ -85,10 +88,11 @@ namespace NTFSSecurity
                         {
                             ((DirectoryInfo)item).Delete(recurse, force);
                             WriteVerbose(string.Format("Directory '{0}' was removed", item.ToString()));
+                            processed = true;
                         }
                     }
 
-                    if (passThru)
+                    if (passThru && processed)
                         WriteObject(item);
                 }
                 catch (System.IO.IOException ex)

@@ -72,7 +72,7 @@ namespace NTFSSecurity
             securityPrivilege = privControl.GetPrivileges().Where(priv => priv.Privilege == ProcessPrivileges.Privilege.Security).ToList();
             if (securityPrivilege.Count() == 0)
             {
-                this.WriteWarning("The user does not hold the Security Privliege and might not be able to read the effective permissions");
+                this.WriteWarning("The user does not hold the Security privilege and might not be able to read the effective permissions.");
             }
             else
             {
