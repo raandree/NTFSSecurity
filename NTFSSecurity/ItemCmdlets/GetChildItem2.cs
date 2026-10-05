@@ -134,7 +134,7 @@ namespace NTFSSecurity
 
             if (paths.Count == 0)
             {
-                paths = new List<string>() { GetVariableValue("PWD").ToString() };
+                paths = new List<string>() { GetCurrentLocation() };
             }
 
             wildcard = new WildcardPattern(filter, WildcardOptions.Compiled | WildcardOptions.IgnoreCase);

@@ -137,6 +137,18 @@ Describe 'Copy-Item2, Move-Item2, and Remove-Item2 with several paths' {
         $first | Should -Exist
     }
 
+    It 'Copy-Item2 -PassThru should return the copy of a folder' {
+        $sourceFolder = Join-Path -Path $folder -ChildPath 'SourceFolder'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $sourceFolder
+        New-Item -ItemType Directory -Path $sourceFolder | Out-Null
+        Set-Content -LiteralPath (Join-Path -Path $sourceFolder -ChildPath 'Inner.txt') -Value 'Inner'
+
+        $result = Copy-Item2 -Path $sourceFolder -Destination (Join-Path -Path $destination -ChildPath 'Copied') -PassThru $true
+
+        $result.FullName | Should -Be (Join-Path -Path $destination -ChildPath 'Copied')
+        $sourceFolder | Should -Exist
+    }
+
     It 'Move-Item2 -PassThru should return the item at its new location' {
         $result = Move-Item2 -Path $first -Destination $destination -PassThru $true
 

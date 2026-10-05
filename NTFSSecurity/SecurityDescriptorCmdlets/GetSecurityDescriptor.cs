@@ -29,7 +29,7 @@ namespace NTFSSecurity
 
             if (paths.Count == 0)
             {
-                paths.Add(GetVariableValue("PWD").ToString());
+                paths.Add(GetCurrentLocation());
             }
         }
 

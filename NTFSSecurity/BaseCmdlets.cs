@@ -122,10 +122,13 @@ namespace NTFSSecurity
             return path;
         }
 
-        // Read from the session state, not from $PWD: a variable named PWD in the caller's scope shadows the
-        // automatic variable and can be $null (#86). In a location of another provider, such as the registry, this
-        // is the last file system location.
-        private string GetCurrentLocation()
+        /// <summary>
+        /// Returns the current file system location of the session. It is read from the session state, not from
+        /// $PWD, which a variable named PWD in the scope of the caller can hide (#86). In a location of another
+        /// provider, such as the registry, this is the last file system location.
+        /// </summary>
+        /// <returns>The provider path of the current file system location.</returns>
+        protected string GetCurrentLocation()
         {
             return SessionState.Path.CurrentFileSystemLocation.ProviderPath;
         }
