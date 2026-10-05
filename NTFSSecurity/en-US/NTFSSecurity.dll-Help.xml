@@ -2166,7 +2166,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
           <maml:name>Alphaleonis.Win32.Filesystem.FileInfo</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>By default this cmdlet returns nothing. With `-PassThru $true` it returns a file object for each file that it copied.</maml:para>
+          <maml:para>By default this cmdlet returns nothing. With `-PassThru $true` it returns a file object for each file that it copied, pointing at the copy.</maml:para>
         </maml:description>
       </command:returnValue>
       <command:returnValue>
@@ -2174,7 +2174,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
           <maml:name>Alphaleonis.Win32.Filesystem.DirectoryInfo</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>With `-PassThru $true` the cmdlet returns a folder object for each folder that it copied.</maml:para>
+          <maml:para>With `-PassThru $true` the cmdlet returns a folder object for each folder that it copied, pointing at the copy.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -5117,7 +5117,7 @@ PS C:\&gt; Get-NTFSAudit -SecurityDescriptor $sd</dev:code>
           <maml:name>Security2.FileSystemSecurity2[]</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>Security descriptors are accepted by the parameter binder but produce no result in this cmdlet.</maml:para>
+          <maml:para>One or more security descriptors that `Get-NTFSSecurityDescriptor` returned. The cmdlet calculates the effective access from the descriptor in memory instead of reading the item again.</maml:para>
         </maml:description>
       </command:inputType>
       <command:inputType>

@@ -129,6 +129,19 @@ Describe 'Copy-Item2, Move-Item2, and Remove-Item2 with several paths' {
         $messages.Message | Should -Contain ("File '{0}' {1} to '{2}'" -f $first, $Verb, $target)
     }
 
+    # With -PassThru, both cmdlets return the item at the destination, as their pages say.
+    It 'Copy-Item2 -PassThru should return the copy' {
+        $result = Copy-Item2 -Path $first -Destination $destination -PassThru $true
+
+        $result.FullName | Should -Be (Join-Path -Path $destination -ChildPath 'First.txt')
+        $first | Should -Exist
+    }
+
+    It 'Move-Item2 -PassThru should return the item at its new location' {
+        $result = Move-Item2 -Path $first -Destination $destination -PassThru $true
+
+        $result.FullName | Should -Be (Join-Path -Path $destination -ChildPath 'First.txt')
+    }
     # Before 5.0.0, -PassThru wrote the item also when -WhatIf skipped the operation.
     It '<_> should write nothing with -PassThru and -WhatIf' -ForEach @('Copy-Item2', 'Move-Item2', 'Remove-Item2') {
         $parameters = @{ Path = $first; PassThru = $true; WhatIf = $true }

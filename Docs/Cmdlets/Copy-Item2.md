@@ -178,11 +178,11 @@ You can pipe an object that has a `Destination` property to supply the target of
 
 ### Alphaleonis.Win32.Filesystem.FileInfo
 
-By default this cmdlet returns nothing. With `-PassThru $true` it returns a file object for each file that it copied.
+By default this cmdlet returns nothing. With `-PassThru $true` it returns a file object for each file that it copied, pointing at the copy.
 
 ### Alphaleonis.Win32.Filesystem.DirectoryInfo
 
-With `-PassThru $true` the cmdlet returns a folder object for each folder that it copied.
+With `-PassThru $true` the cmdlet returns a folder object for each folder that it copied, pointing at the copy.
 
 ## NOTES
 
