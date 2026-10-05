@@ -42,16 +42,22 @@ the PRs, and tags `5.0.0-rc2` after the merges.
   Review: Dependabot PRs ran unreviewed actions in a job with
   `contents: write`; the wiki preview is now read-only (`publish-wiki`).
 - `ai/defects-a` fixes defects 1 to 13 and the same repeat bug in
-  `Get-NTFSAccess` (found with 4): Windows PowerShell 310 passed, 17
-  skipped; PowerShell 7 280 passed, 47 skipped (327 tests). 10 tests need
-  privileges and run only in CI.
+  `Get-NTFSAccess` (found with 4); its review fixes are in the last
+  commit: Windows PowerShell 312 passed, 17 skipped; PowerShell 7 282
+  passed, 47 skipped (329 tests).
 - `ai/defects-b` fixes defects 14 to 17 (`-AppliesTo` is mandatory in the
-  `Simple` sets; `-RemoveSpecific` is back): Windows PowerShell 331 passed,
-  19 skipped; PowerShell 7 301 passed, 49 skipped (350 tests).
+  `Simple` sets; `-RemoveSpecific` is back): Windows PowerShell 333 passed,
+  19 skipped; PowerShell 7 303 passed, 49 skipped (352 tests).
 - `ai/defects-c` fixes defects 18 to 21, the same missing `continue` in
-  `Remove-NTFSAudit`, and a stale hash in `Get-FileHash2`.
+  `Remove-NTFSAudit`, and a stale hash in `Get-FileHash2`. Its review
+  found that a failed retry after taking ownership left the owner changed;
+  `BaseCmdlet.InvokeAsOwner` now restores it: Windows PowerShell 356
+  passed, 20 skipped; PowerShell 7 325 passed, 51 skipped (376 tests).
+- `ai/defects-d` fixes defects 22 to 24 and `-PassThru` under `-WhatIf` in
+  the `*-Item2` cmdlets: Windows PowerShell 379 passed, 23 skipped;
+  PowerShell 7 348 passed, 54 skipped (402 tests).
 
 ## Next step
 
-Group D (22 to 24) on `ai/defects-d`, then the E decisions and the bugs
-from the issue triage (`ai/issue-fixes`).
+The E decisions on `ai/decisions-e` (Decision 13 for `Set-NTFSInheritance`),
+then the bugs from the issue triage (`ai/issue-fixes`) and 5.0.0-rc2.
