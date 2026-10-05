@@ -61,6 +61,10 @@ the PRs, and tags `5.0.0-rc2` after the merges.
   395 passed, 26 skipped; PowerShell 7 366 passed, 55 skipped (421
   tests). `Get-FileHash2` tests now run in PowerShell 7 as well.
 
+- `ai/issue-fixes` fixes #3, #86, and #88 and adds `Docs/FAQ.md`: Windows
+  PowerShell 402 passed, 26 skipped; PowerShell 7 373 passed, 55 skipped
+  (428 tests).
+
 ## Next step
 
-The bugs from the issue triage (`ai/issue-fixes`), then 5.0.0-rc2.
+5.0.0-rc2 on `ai/release-5.0.0-rc2`.

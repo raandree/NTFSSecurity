@@ -179,3 +179,11 @@ Numbered as agreed with the maintainer; each is documented on its page.
   `MACTripleDES` uses a random key (verified), so it is deprecated.
 - Review of group E: the changelog now marks the `Set-NTFSInheritance`
   change as breaking and warns that it leaves broader access in place.
+
+#### Issue triage (fixes on `ai/issue-fixes`, not merged)
+
+- Fixed: #3 (braces in a path), #86 (`$PWD` shadowed), #88 (an object
+  passed by position); `Docs/FAQ.md` answers the recurring questions.
+- Open bugs: #5 (`-Attributes` matches all, `Get-ChildItem` any; needs a
+  decision), #17 (`GenericAll`), #34 and #67 (writes owner and group),
+  #41 (drive root), #82 (`Size` type data), #90 (trailing space).
