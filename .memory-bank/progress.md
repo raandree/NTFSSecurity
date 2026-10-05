@@ -186,6 +186,8 @@ Numbered as agreed with the maintainer; each is documented on its page.
   location of nine cmdlets, found by the review), #88 (an object passed by
   position), #17 (an entry with `GenericAll`); `Docs/FAQ.md` answers the
   recurring questions.
+- Review of #17: generic rights are removed the way .NET removes other
+  rights, an exact match as it is, otherwise without `Synchronize`.
 - Open bugs: #5 (`-Attributes` matches all, `Get-ChildItem` any; needs a
   decision), #34 and #67 (writes owner and group), #41 (drive root), #82
   (`Size` type data), #90 (trailing space).

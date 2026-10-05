@@ -208,6 +208,73 @@ Describe 'Remove-NTFSAccess' {
         }
     }
 
+    Context 'With a generic right' {
+        # Before 5.0.0, removing an entry with a generic right such as GENERIC_ALL failed with "The value '269484032' is
+        # not valid", because .NET rebuilds the rule and rejects generic rights (#17). Windows keeps generic rights in
+        # inherit-only entries of folders.
+        BeforeAll {
+            $guests = [System.Security.Principal.SecurityIdentifier]'S-1-5-32-546'
+
+            function New-GenericRightFolder {
+                [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                    'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only writes to the sandbox.'
+                )]
+                param ([string] $Entry)
+
+                $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'Generic' -Directory
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $folder
+                $acl = Get-Acl -LiteralPath $folder
+                $acl.SetSecurityDescriptorSddlForm(($acl.Sddl -replace 'D:(?<flags>[A-Z]*)', ('D:${flags}' + $Entry)))
+                Set-Acl -LiteralPath $folder -AclObject $acl
+                $folder
+            }
+
+            function Get-GuestsRule {
+                param ([string] $Path)
+
+                (Get-Acl -LiteralPath $Path).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                    Where-Object -Property IdentityReference -EQ -Value $guests
+            }
+        }
+
+        It 'Should remove an inherit-only entry that Get-NTFSAccess returned, and nothing else' -ForEach @(
+            @{ Case = 'Allow'; Entry = '(A;OICIIO;GA;;;BG)'; Specific = $false }
+            @{ Case = 'Allow with -RemoveSpecific'; Entry = '(A;OICIIO;GA;;;BG)'; Specific = $true }
+            @{ Case = 'Deny'; Entry = '(D;OICIIO;GA;;;BG)'; Specific = $false }
+        ) {
+            $folder = New-GenericRightFolder -Entry $Entry
+            $before = (Get-Acl -LiteralPath $folder).Sddl
+            $before | Should -Match ([regex]::Escape($Entry))
+
+            Get-NTFSAccess -Path $folder -Account 'S-1-5-32-546' -ExcludeInherited |
+                Remove-NTFSAccess -RemoveSpecific:$Specific -ErrorVariable removeErrors -ErrorAction SilentlyContinue
+
+            $removeErrors | Should -BeNullOrEmpty
+            (Get-Acl -LiteralPath $folder).Sddl | Should -BeExactly $before.Replace($Entry, '')
+        }
+
+        It 'Should remove only the requested generic right from an entry with two' {
+            $folder = New-GenericRightFolder -Entry '(A;OICIIO;0x90000000;;;BG)'
+
+            Remove-NTFSAccess -Path $folder -Account 'S-1-5-32-546' -AccessRights GenericRead -InheritanceFlags ContainerInherit, ObjectInherit -PropagationFlags InheritOnly -ErrorVariable removeErrors -ErrorAction SilentlyContinue
+
+            $removeErrors | Should -BeNullOrEmpty
+            $rule = Get-GuestsRule -Path $folder
+            $rule | Should -HaveCount 1
+            [int] $rule.FileSystemRights | Should -Be 0x10000000
+        }
+
+        # A rule that matches the entry exactly is removed as it is, with the Synchronize right that the module adds
+        # to an Allow rule; otherwise an entry with only Synchronize would be left behind.
+        It 'Should remove an entry with GenericAll and Synchronize when -AccessRights names GenericAll' {
+            $folder = New-GenericRightFolder -Entry '(A;OICIIO;0x10100000;;;BG)'
+
+            Remove-NTFSAccess -Path $folder -Account 'S-1-5-32-546' -AccessRights GenericAll -InheritanceFlags ContainerInherit, ObjectInherit -PropagationFlags InheritOnly -ErrorVariable removeErrors -ErrorAction SilentlyContinue
+
+            $removeErrors | Should -BeNullOrEmpty
+            Get-GuestsRule -Path $folder | Should -BeNullOrEmpty
+        }
+    }
     Context 'With -RemoveSpecific' {
         BeforeEach {
             $removeFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSpecific' -Directory
@@ -259,25 +326,6 @@ Describe 'Add-NTFSAccess' {
     }
 }
 
-Describe 'Remove-NTFSAccess with generic rights' {
-    # Before 5.0.0, removing an entry with a generic right such as GENERIC_ALL failed with "The value '269484032' is not
-    # valid", because .NET rebuilds the rule and rejects generic rights (#17). Windows keeps generic rights in
-    # inherit-only entries of folders.
-    It 'Should remove an inherit-only GenericAll entry that Get-NTFSAccess returned' {
-        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'Generic' -Directory
-        Assert-TestSandboxPath -Sandbox $sandbox -Path $folder
-        $acl = Get-Acl -LiteralPath $folder
-        $acl.SetSecurityDescriptorSddlForm(($acl.Sddl -replace 'D:(?<flags>[A-Z]*)', 'D:${flags}(A;OICIIO;GA;;;S-1-5-32-546)'))
-        Set-Acl -LiteralPath $folder -AclObject $acl
-        (Get-Acl -LiteralPath $folder).Sddl | Should -Match '\(A;OICIIO;GA;;;BG\)'
-
-        Get-NTFSAccess -Path $folder -Account 'S-1-5-32-546' -ExcludeInherited |
-            Remove-NTFSAccess -ErrorVariable removeErrors -ErrorAction SilentlyContinue
-
-        $removeErrors | Should -BeNullOrEmpty
-        (Get-Acl -LiteralPath $folder).Sddl | Should -Not -Match ';;;BG\)'
-    }
-}
 Describe 'Security descriptor parameter sets' {
     BeforeAll {
         $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ParameterSets' -Directory
