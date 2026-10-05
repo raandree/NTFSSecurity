@@ -67,16 +67,28 @@ Describe 'Module manifest of NTFSSecurity' {
 }
 
 Describe 'Type data of NTFSSecurity' {
+    BeforeDiscovery {
+        # Only Windows PowerShell fails to import type data that conflicts with an existing member, so both CI legs
+        # start it.
+        $windowsPowerShell = Join-Path -Path $env:SystemRoot -ChildPath 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    }
+
+    BeforeAll {
+        $windowsPowerShell = Join-Path -Path $env:SystemRoot -ChildPath 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    }
+
     # Before 5.0.0, the types file added the alias Size to System.IO.FileInfo, so the import failed when another module
     # had added a member with that name (#82). The module is imported in a child process, because type data stays in a
     # session.
-    It 'Should import after another module added a Size member to System.IO.FileInfo' {
+    It 'Should import in Windows PowerShell after another module added a Size member to System.IO.FileInfo' -Skip:(-not (Test-Path -LiteralPath $windowsPowerShell)) {
         $manifestPath = Join-Path -Path $PSScriptRoot -ChildPath '..\NTFSSecurity\bin\Release\NTFSSecurity.psd1'
-        $executable = (Get-Process -Id $PID).Path
+        $manifestPath | Should -Exist
+        $quotedPath = $manifestPath.Replace("'", "''")
         $command = 'Update-TypeData -TypeName System.IO.FileInfo -MemberType AliasProperty -MemberName Size -Value Length -Force; ' +
-            ("Import-Module -Name '{0}' -ErrorAction Stop; 'IMPORTED'" -f $manifestPath.Replace("'", "''"))
+            ("Import-Module -Name '{0}' -ErrorAction Stop; " -f $quotedPath) +
+            ("if ((Get-Item -LiteralPath '{0}').PSObject.Properties['LengthOnDisk']) {{ 'IMPORTED' }}" -f $quotedPath)
 
-        $output = & $executable -NoProfile -NonInteractive -Command $command 2>&1
+        $output = & $windowsPowerShell -NoProfile -NonInteractive -Command $command 2>&1
 
         $output | Select-Object -Last 1 | Should -Be 'IMPORTED'
     }

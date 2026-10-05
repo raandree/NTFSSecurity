@@ -132,6 +132,14 @@ namespace NTFSSecurity
         {
             base.BeginProcessing();
 
+            // An empty value would match every item, also the hidden ones; Get-ChildItem rejects it as well.
+            if (MyInvocation.BoundParameters.ContainsKey("Attributes") && attributes == 0)
+            {
+                ThrowTerminatingError(new ErrorRecord(
+                    new ArgumentException("Specify at least one file attribute for the Attributes parameter."),
+                    "AttributesEmpty", ErrorCategory.InvalidArgument, attributes));
+            }
+
             if (paths.Count == 0)
             {
                 paths = new List<string>() { GetCurrentLocation() };
@@ -276,7 +284,7 @@ namespace NTFSSecurity
                 if (MyInvocation.BoundParameters.ContainsKey("Attributes"))
                 {
                     // Like Get-ChildItem, an item matches when it has any of the listed attributes (#5).
-                    if (attributes != 0 && (current.Attributes & attributes) == 0)
+                    if ((current.Attributes & attributes) == 0)
                         continue;
 
                     writeItem = true;

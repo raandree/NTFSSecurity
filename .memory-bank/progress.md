@@ -190,6 +190,7 @@ Numbered as agreed with the maintainer; each is documented on its page.
   rights, an exact match as it is, otherwise without `Synchronize`.
 - Maintainer decisions of 2026-10-05: #5 (`Get-ChildItem2 -Attributes`
   matches any listed attribute) and #82 (no `Size` alias) ship in 5.0.0 as
-  breaking changes.
+  breaking changes. Their review added that an empty `-Attributes` value is
+  an error, as in `Get-ChildItem`.
 - Open bugs: #34 and #67 (writes owner and group, rc3 if a file server is
   available), #41 (drive root) and #90 (trailing space), both after 5.0.0.

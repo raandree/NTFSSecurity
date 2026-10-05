@@ -98,6 +98,11 @@ Describe 'Get-ChildItem2' {
             @($result.Name | Sort-Object) | Should -Be @('Hidden.txt', 'ReadOnly.txt')
         }
 
+        # Before 5.0.0, an empty value applied no filter and returned hidden items as well.
+        It 'Should reject an empty value' {
+            { Get-ChildItem2 -Path $attributeFolder -Attributes 0 -ErrorAction Stop } | Should -Throw -ErrorId 'AttributesEmpty,NTFSSecurity.GetChildItem2'
+        }
+
         It 'Should return only the items with the attribute when one is listed' {
             $result = @(Get-ChildItem2 -Path $attributeFolder -Attributes ReadOnly)
 

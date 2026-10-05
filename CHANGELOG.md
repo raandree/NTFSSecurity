@@ -51,8 +51,12 @@ The format is based on
   `Enable-NTFSAuditInheritance -RemoveExplicitAuditRules`
 - **Breaking:** `Get-ChildItem2 -Attributes` returns the items that have any
   of the listed attributes, like `Get-ChildItem`; it returned only the items
-  that had all of them. To get the old result, filter with `Where-Object`,
-  as the cmdlet page shows
+  that had all of them. A call that lists several attributes now returns
+  more items, including hidden and system items when those are in the
+  list, so review calls whose result is deleted or whose permissions are
+  changed. To get the old result, filter with `Where-Object`, as the cmdlet
+  page shows. An empty value, such as `0`, is now an error; it returned
+  every item, also the hidden ones
   ([#5](https://github.com/raandree/NTFSSecurity/issues/5))
 - **Breaking:** remove the alias `Size` of `LengthOnDisk` from the files of
   `Get-ChildItem`, which made the import fail in Windows PowerShell when
