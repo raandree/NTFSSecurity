@@ -106,8 +106,37 @@ namespace Security2
         #endregion GetFileSystemInheritanceInfo
 
         #region Enable / DisableInheritance internal
+        // An item without audit entries can have no SACL at all. AlphaFS writes the flag that disables or enables
+        // audit inheritance only together with a SACL, and a write without any section is denied: (5) Access is
+        // denied. The empty SACL is added only to a descriptor that was read with its SACL, so that writing it can't
+        // remove audit entries.
+        private static void AddMissingSystemAcl(FileSystemSecurity2 sd)
+        {
+            if (!sd.HasAuditSection)
+            {
+                return;
+            }
+
+            var rawDescriptor = new RawSecurityDescriptor(sd.SecurityDescriptor.GetSecurityDescriptorBinaryForm(), 0);
+            if (rawDescriptor.SystemAcl != null)
+            {
+                return;
+            }
+
+            rawDescriptor.SystemAcl = new RawAcl(GenericAcl.AclRevision, 0);
+            rawDescriptor.SetFlags(rawDescriptor.ControlFlags | ControlFlags.SystemAclPresent);
+            var binaryForm = new byte[rawDescriptor.BinaryLength];
+            rawDescriptor.GetBinaryForm(binaryForm, 0);
+            sd.SecurityDescriptor.SetSecurityDescriptorBinaryForm(binaryForm, AccessControlSections.Audit);
+        }
+
         private static void EnableInheritance(FileSystemSecurity2 sd, bool removeExplicitAccessRules, InheritanceScope scope)
         {
+            if (scope == InheritanceScope.Audit)
+            {
+                AddMissingSystemAcl(sd);
+            }
+
             if (sd.IsFile)
             {
                 if (scope == InheritanceScope.Access)
@@ -174,6 +203,11 @@ namespace Security2
 
         private static void DisableInheritance(FileSystemSecurity2 sd, bool removeInheritedAccessRules, InheritanceScope scope)
         {
+            if (scope == InheritanceScope.Audit)
+            {
+                AddMissingSystemAcl(sd);
+            }
+
             if (sd.IsFile)
             {
                 if (scope == InheritanceScope.Access)

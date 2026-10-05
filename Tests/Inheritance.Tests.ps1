@@ -124,12 +124,18 @@ Describe 'Set-NTFSInheritance' {
         }
 
         # In memory, the kept entries stay marked as inherited; Windows stores them as explicit ones on write.
+        # The descriptor holds only the access entries. Windows marks the inherited entries of a DACL that isn't in
+        # the auto-inherit format, such as that of a file in the temp folder of the user, only when the SACL isn't
+        # read with it, and Get-NTFSSecurityDescriptor reads the SACL with the Security privilege.
         It 'Should keep the inherited access entries of a security descriptor' {
             $file = New-TestSandboxItem -Sandbox $sandbox -Name 'KeepDescriptor'
             Assert-TestSandboxPath -Sandbox $sandbox -Path $file
-            $sd = Get-NTFSSecurityDescriptor -Path $file
+            $sd = New-Object -TypeName 'Security2.FileSystemSecurity2' -ArgumentList (
+                (Get-Item2 -Path $file), [System.Security.AccessControl.AccessControlSections]::Access
+            )
             $sidType = [System.Security.Principal.SecurityIdentifier]
             $inheritedCount = @($sd.SecurityDescriptor.GetAccessRules($false, $true, $sidType)).Count
+            $inheritedCount | Should -BeGreaterThan 0
 
             Set-NTFSInheritance -SecurityDescriptor $sd -AccessInheritanceEnabled $false
 
@@ -141,10 +147,14 @@ Describe 'Set-NTFSInheritance' {
             $file = New-TestSandboxItem -Sandbox $sandbox -Name 'KeepAudit'
             Assert-TestSandboxPath -Sandbox $sandbox -Path $file
             Add-NTFSAudit -Path $file -Account 'Everyone' -AccessRights Delete -AuditFlags Failure
-            Disable-NTFSAuditInheritance -Path $file
+            Disable-NTFSAuditInheritance -Path $file -ErrorVariable disableErrors -ErrorAction SilentlyContinue
+            $disableErrors | Should -BeNullOrEmpty
+            (Get-NTFSInheritance -Path $file).AuditInheritanceEnabled | Should -BeFalse
 
-            Set-NTFSInheritance -Path $file -AuditInheritanceEnabled $true
+            Set-NTFSInheritance -Path $file -AuditInheritanceEnabled $true -ErrorVariable inheritanceErrors -ErrorAction SilentlyContinue
 
+            $inheritanceErrors | Should -BeNullOrEmpty
+            (Get-NTFSInheritance -Path $file).AuditInheritanceEnabled | Should -BeTrue
             @(Get-NTFSAudit -Path $file -ExcludeInherited) | Should -HaveCount 1
         }
     }
@@ -187,6 +197,43 @@ Describe 'Set-NTFSInheritance' {
             $after.AccessInheritanceEnabled | Should -BeTrue
             $after.AuditInheritanceEnabled | Should -BeFalse
         }
+    }
+}
+
+Describe 'Audit inheritance of an item without audit entries' {
+    # A new item has no SACL. Before 5.0.0, the cmdlets changed only the flag that disables or enables audit
+    # inheritance, which is written only together with a SACL, so they wrote no section at all: (5) Access is denied.
+    It '<Command> should set the audit inheritance of a <Type> and keep its access entries' -Skip:(-not $canChangeAudit) -ForEach @(
+        @{ Command = 'Disable-NTFSAuditInheritance'; Parameters = @{}; Type = 'file'; Expected = $false }
+        @{ Command = 'Disable-NTFSAuditInheritance'; Parameters = @{}; Type = 'folder'; Expected = $false }
+        @{ Command = 'Enable-NTFSAuditInheritance'; Parameters = @{}; Type = 'file'; Expected = $true }
+        @{ Command = 'Enable-NTFSAuditInheritance'; Parameters = @{}; Type = 'folder'; Expected = $true }
+        @{ Command = 'Set-NTFSInheritance'; Parameters = @{ AuditInheritanceEnabled = $false }; Type = 'folder'; Expected = $false }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'NoAudit' -Directory:($Type -eq 'folder')
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $path
+        @((Get-Acl -LiteralPath $path -Audit).Audit) | Should -BeNullOrEmpty
+        $accessEntries = (Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm('Access')
+
+        & $Command -Path $path @Parameters -ErrorVariable inheritanceErrors -ErrorAction SilentlyContinue
+
+        $inheritanceErrors | Should -BeNullOrEmpty
+        (Get-NTFSInheritance -Path $path).AuditInheritanceEnabled | Should -Be $Expected
+        (Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm('Access') | Should -Be $accessEntries
+    }
+
+    # Written later, an added empty SACL would replace the audit entries of the item.
+    It 'Should add no SACL to a security descriptor that was read without its audit entries' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'NoAuditSection'
+        $sd = New-Object -TypeName 'Security2.FileSystemSecurity2' -ArgumentList (
+            (Get-Item2 -Path $file), [System.Security.AccessControl.AccessControlSections]::Access
+        )
+
+        Disable-NTFSAuditInheritance -SecurityDescriptor $sd
+
+        $binaryForm = $sd.SecurityDescriptor.GetSecurityDescriptorBinaryForm()
+        $descriptor = New-Object -TypeName 'System.Security.AccessControl.RawSecurityDescriptor' -ArgumentList $binaryForm, 0
+        $null -eq $descriptor.SystemAcl | Should -BeTrue
     }
 }
 

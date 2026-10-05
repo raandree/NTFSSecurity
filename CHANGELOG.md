@@ -201,5 +201,9 @@ The format is based on
   `GenericAll`, which Windows keeps in the inherit-only entries of folders;
   it failed with "The value '269484032' is not valid"
   ([#17](https://github.com/raandree/NTFSSecurity/issues/17))
+- Fix `Enable-NTFSAuditInheritance`, `Disable-NTFSAuditInheritance`, and
+  `Set-NTFSInheritance -AuditInheritanceEnabled`, which failed with "Access
+  is denied" for a file or folder without audit entries, also in an elevated
+  session with the Security privilege
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD
