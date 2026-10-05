@@ -6,7 +6,7 @@ namespace Security2
 {
     public partial class FileSystemAuditRule2
     {
-        public static void RemoveFileSystemAuditRule(FileSystemInfo item, IdentityReference2 account, FileSystemRights2 rights, AuditFlags type, InheritanceFlags inheritanceFlags, PropagationFlags propagationFlags)
+        public static void RemoveFileSystemAuditRule(FileSystemInfo item, IdentityReference2 account, FileSystemRights2 rights, AuditFlags type, InheritanceFlags inheritanceFlags, PropagationFlags propagationFlags, bool removeSpecific = false)
         {
             FileSystemAuditRule ace = null;
 
@@ -17,7 +17,10 @@ namespace Security2
 
                 ace = (FileSystemAuditRule)sd.AuditRuleFactory(account, (int)rights, false, inheritanceFlags, propagationFlags, type);
 
-                sd.RemoveAuditRule(ace);
+                if (removeSpecific)
+                    sd.RemoveAuditRuleSpecific(ace);
+                else
+                    sd.RemoveAuditRule(ace);
 
                 file.SetAccessControl(sd);
             }
@@ -28,7 +31,10 @@ namespace Security2
                 var sd = directory.GetAccessControl(AccessControlSections.Audit);
 
                 ace = (FileSystemAuditRule)sd.AuditRuleFactory(account, (int)rights, false, inheritanceFlags, propagationFlags, type);
-                sd.RemoveAuditRule(ace);
+                if (removeSpecific)
+                    sd.RemoveAuditRuleSpecific(ace);
+                else
+                    sd.RemoveAuditRule(ace);
 
                 directory.SetAccessControl(sd);
             }
@@ -38,7 +44,7 @@ namespace Security2
         {
             foreach (var account in accounts)
             {
-                RemoveFileSystemAuditRule(item, account, rights, type, inheritanceFlags, propagationFlags);
+                RemoveFileSystemAuditRule(item, account, rights, type, inheritanceFlags, propagationFlags, removeSpecific);
             }
         }
 
@@ -65,17 +71,17 @@ namespace Security2
             }
         }
 
-        public static void RemoveFileSystemAuditRule(string path, IdentityReference2 account, FileSystemRights2 rights, AuditFlags type, InheritanceFlags inheritanceFlags, PropagationFlags propagationFlags)
+        public static void RemoveFileSystemAuditRule(string path, IdentityReference2 account, FileSystemRights2 rights, AuditFlags type, InheritanceFlags inheritanceFlags, PropagationFlags propagationFlags, bool removeSpecific = false)
         {
             if (File.Exists(path))
             {
                 var item = new FileInfo(path);
-                RemoveFileSystemAuditRule(item, account, rights, type, inheritanceFlags, propagationFlags);
+                RemoveFileSystemAuditRule(item, account, rights, type, inheritanceFlags, propagationFlags, removeSpecific);
             }
             else
             {
                 var item = new DirectoryInfo(path);
-                RemoveFileSystemAuditRule(item, account, rights, type, inheritanceFlags, propagationFlags);
+                RemoveFileSystemAuditRule(item, account, rights, type, inheritanceFlags, propagationFlags, removeSpecific);
             }
         }
 
@@ -106,7 +112,7 @@ namespace Security2
 
             foreach (var account in accounts)
             {
-                aces.Add(RemoveFileSystemAuditRule(sd, account, rights, type, inheritanceFlags, propagationFlags));
+                aces.Add(RemoveFileSystemAuditRule(sd, account, rights, type, inheritanceFlags, propagationFlags, removeSpecific));
             }
 
             return aces;

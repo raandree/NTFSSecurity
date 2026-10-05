@@ -92,5 +92,25 @@ The format is based on
   `EnablePrivileges` was `$false`, and left them enabled
 - Fix the `Inherits` column of the `Get-ChildItem2` output, which showed
   `True` for every item, also for items whose inheritance is disabled
+- Fix `Add-NTFSAccess`, `Remove-NTFSAccess`, `Add-NTFSAudit`, and
+  `Remove-NTFSAudit`, which failed with "Parameter set cannot be resolved"
+  for `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or
+  `-PropagationFlags`; `-AppliesTo` is now mandatory in the `Simple`
+  parameter sets, so such a command uses the flag parameters and their
+  defaults, as for a path
+- Fix `Get-NTFSEffectiveAccess`: `-ExcludeNoneAccessEntries` now leaves out
+  items without access, the cmdlet uses the current location when `-Path`
+  is omitted, and `-SecurityDescriptor` returns the effective access of the
+  security descriptor; before, all three returned nothing or ignored the
+  parameter
+- Fix `Get-NTFSOrphanedAccess`, `Get-NTFSOrphanedAudit`, and
+  `Get-NTFSSimpleAccess`, which ignored `-Account` and `-SecurityDescriptor`;
+  `Get-NTFSOrphanedAudit` now writes one object per entry instead of one
+  collection per item, `Get-NTFSOrphanedAccess` no longer repeats the entries
+  of the previous item after a failed read, and the output of
+  `Get-NTFSSimpleAccess` has a table view
+- Restore the `-RemoveSpecific` switch of `Remove-NTFSAccess`, which version
+  4.1 introduced but later versions lacked, and add it to `Remove-NTFSAudit`:
+  with it, the cmdlets remove only an entry that matches exactly
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

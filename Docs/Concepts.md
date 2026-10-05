@@ -31,10 +31,10 @@ Most cmdlets accept either `-Path` or `-SecurityDescriptor`:
   several changes and write them in one step.
 
 When you pass a security descriptor to `Add-NTFSAccess`, `Remove-NTFSAccess`,
-`Add-NTFSAudit`, or `Remove-NTFSAudit`, also specify `-AppliesTo` or the
-`-InheritanceFlags` and `-PropagationFlags` parameters. Without them,
-PowerShell cannot choose between the two security descriptor parameter sets
-and reports that the parameter set cannot be resolved.
+`Add-NTFSAudit`, or `Remove-NTFSAudit` without `-AppliesTo`, the cmdlet uses
+the `-InheritanceFlags` and `-PropagationFlags` parameters and their defaults,
+as it does for a path. Before 5.0.0, such a command failed, because PowerShell
+couldn't choose between the two security descriptor parameter sets.
 
 ## Accounts
 

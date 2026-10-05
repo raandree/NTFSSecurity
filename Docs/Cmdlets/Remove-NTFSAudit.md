@@ -17,38 +17,38 @@ Removes an audit entry from a file or folder.
 ```
 Remove-NTFSAudit [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
  [-AuditFlags <AuditFlags>] [-InheritanceFlags <InheritanceFlags>] [-PropagationFlags <PropagationFlags>]
- [-PassThru] [<CommonParameters>]
+ [-RemoveSpecific] [-PassThru] [<CommonParameters>]
 ```
 
 ### PathSimple
 ```
 Remove-NTFSAudit [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
- [-AuditFlags <AuditFlags>] [-AppliesTo <ApplyTo>] [-PassThru] [<CommonParameters>]
+ [-AuditFlags <AuditFlags>] -AppliesTo <ApplyTo> [-RemoveSpecific] [-PassThru] [<CommonParameters>]
 ```
 
 ### SDSimple
 ```
 Remove-NTFSAudit [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
- [-AccessRights] <FileSystemRights2> [-AuditFlags <AuditFlags>] [-AppliesTo <ApplyTo>] [-PassThru]
- [<CommonParameters>]
+ [-AccessRights] <FileSystemRights2> [-AuditFlags <AuditFlags>] -AppliesTo <ApplyTo> [-RemoveSpecific]
+ [-PassThru] [<CommonParameters>]
 ```
 
 ### SDComplex
 ```
 Remove-NTFSAudit [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
  [-AccessRights] <FileSystemRights2> [-AuditFlags <AuditFlags>] [-InheritanceFlags <InheritanceFlags>]
- [-PropagationFlags <PropagationFlags>] [-PassThru] [<CommonParameters>]
+ [-PropagationFlags <PropagationFlags>] [-RemoveSpecific] [-PassThru] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 
-The `Remove-NTFSAudit` cmdlet removes an audit entry from the system access control list (SACL) of a file or folder. The cmdlet builds an audit entry from `-Account`, `-AccessRights`, `-AuditFlags`, and the inheritance and propagation flags, and removes that entry from the SACL. The audit entries of the account are matched by their inheritance and propagation flags, and the requested access rights and audit flags are then taken away from them: an entry that audits further rights keeps those rights and disappears only when nothing is left. To remove an entry completely, pass the same values that `Get-NTFSAudit` reports for it.
+The `Remove-NTFSAudit` cmdlet removes an audit entry from the system access control list (SACL) of a file or folder. The cmdlet builds an audit entry from `-Account`, `-AccessRights`, `-AuditFlags`, and the inheritance and propagation flags, and removes that entry from the SACL. The audit entries of the account are matched by their inheritance and propagation flags, and the requested access rights and audit flags are then taken away from them: an entry that audits further rights keeps those rights and disappears only when nothing is left. To remove an entry completely, pass the same values that `Get-NTFSAudit` reports for it. With `-RemoveSpecific`, the cmdlet removes only an entry that matches exactly.
 
 Because the inheritance and propagation flags take part in the match, they must describe the entry you want to remove. `-AppliesTo ThisFolderOnly` removes an entry that is not inherited by child items, which is also the shape of every audit entry on a file, while the default of the complex parameter sets removes an entry that applies to the folder, its subfolders, and its files. An entry that an item inherits from a parent folder is stored on that parent, so remove it there, or use `Clear-NTFSAudit` with `-DisableInheritance` to drop the inherited entries on the item.
 
-In the `PathSimple` and `PathComplex` parameter sets the cmdlet reads the security descriptor of every item in `-Path` and writes it back right away. In the `SDSimple` and `SDComplex` parameter sets it changes an in-memory `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, and the change reaches the file system only when you pass the object to `Set-NTFSSecurityDescriptor`. `PathComplex` is the default parameter set; because it requires `-Path`, a command that uses `-SecurityDescriptor` must also specify `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` so that PowerShell can choose between `SDSimple` and `SDComplex`.
+In the `PathSimple` and `PathComplex` parameter sets the cmdlet reads the security descriptor of every item in `-Path` and writes it back right away. In the `SDSimple` and `SDComplex` parameter sets it changes an in-memory `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, and the change reaches the file system only when you pass the object to `Set-NTFSSecurityDescriptor`. `PathComplex` is the default parameter set. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.
 
-When you omit them, `-AuditFlags` is `Success, Failure`, `-InheritanceFlags` is `ContainerInherit, ObjectInherit`, `-PropagationFlags` is `None`, and `-AppliesTo` is `ThisFolderOnly`. All parameters bind by property name, and `-Path` also binds by value and through its `FullName` alias, so you can pipe the output of `Get-NTFSAudit`, `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` into the cmdlet. The cmdlet writes no object unless you use `-PassThru`.
+When you omit them, `-AuditFlags` is `Success, Failure`, `-InheritanceFlags` is `ContainerInherit, ObjectInherit`, `-PropagationFlags` is `None`. All parameters bind by property name, and `-Path` also binds by value and through its `FullName` alias, so you can pipe the output of `Get-NTFSAudit`, `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` into the cmdlet. The cmdlet writes no object unless you use `-PassThru`.
 
 ## EXAMPLES
 
@@ -123,7 +123,7 @@ Accept wildcard characters: False
 
 ### -AppliesTo
 
-Specifies the scope of the audit entry to remove with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. The value must describe the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. The default is `ThisFolderOnly`.
+Specifies the scope of the audit entry to remove with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. The value must describe the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`.
 
 ```yaml
 Type: ApplyTo
@@ -131,9 +131,9 @@ Parameter Sets: PathSimple, SDSimple
 Aliases:
 Accepted values: ThisFolderOnly, ThisFolderSubfoldersAndFiles, ThisFolderAndSubfolders, ThisFolderAndFiles, SubfoldersAndFilesOnly, SubfoldersOnly, FilesOnly, ThisFolderSubfoldersAndFilesOneLevel, ThisFolderAndSubfoldersOneLevel, ThisFolderAndFilesOneLevel, SubfoldersAndFilesOnlyOneLevel, SubfoldersOnlyOneLevel, FilesOnlyOneLevel
 
-Required: False
+Required: True
 Position: Named
-Default value: ThisFolderOnly
+Default value: None
 Accept pipeline input: True (ByPropertyName)
 Accept wildcard characters: False
 ```
@@ -237,6 +237,22 @@ Accept pipeline input: True (ByPropertyName, ByValue)
 Accept wildcard characters: False
 ```
 
+### -RemoveSpecific
+
+Indicates that the cmdlet removes only an audit entry that matches the account, the access rights, the audit flags, and the inheritance and propagation flags exactly, and leaves all other entries unchanged. Without this switch, the cmdlet takes the specified rights and audit flags away from the matching entries.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### CommonParameters
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
@@ -289,6 +305,8 @@ Reading and writing the SACL requires the Security privilege (`SeSecurityPrivile
 If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.
 
 The cmdlet reports no error when no entry matches the supplied values. Compare the result with `Get-NTFSAudit` to confirm that the entry is gone.
+
+Before 5.0.0, the cmdlet had no `-RemoveSpecific` switch.
 
 ## RELATED LINKS
 

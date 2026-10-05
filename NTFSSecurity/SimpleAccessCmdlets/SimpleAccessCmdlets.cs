@@ -32,6 +32,18 @@ namespace NTFSSecurity
 
         protected override void ProcessRecord()
         {
+            if (ParameterSetName == "SD")
+            {
+                foreach (var sd in securityDescriptors)
+                {
+                    var sdAcl = FilterAccount(FileSystemAccessRule2.GetFileSystemAccessRules(sd, !ExcludeExplicit, !ExcludeInherited).Select(ace => ace.ToSimpleFileSystemAccessRule2())).ToList();
+                    aceList.AddRange(sdAcl);
+                    sdAcl.ForEach(ace => WriteObject(ace));
+                }
+
+                return;
+            }
+
             //as this cmdlet retreives also the current working folder to show the permissions.
             if (includeRootFolder & isFirstFolder)
             {
@@ -57,7 +69,7 @@ namespace NTFSSecurity
                         WriteVerbose(string.Format("New folder: {0}", item.FullName));
                         directoryList.Add(item);
 
-                        var acl = FileSystemAccessRule2.GetFileSystemAccessRules(item, !ExcludeExplicit, !ExcludeInherited).Select(ace => ace.ToSimpleFileSystemAccessRule2());
+                        var acl = FilterAccount(FileSystemAccessRule2.GetFileSystemAccessRules(item, !ExcludeExplicit, !ExcludeInherited).Select(ace => ace.ToSimpleFileSystemAccessRule2())).ToList();
 
                         try
                         {
@@ -111,6 +123,11 @@ namespace NTFSSecurity
                     WriteError(new ErrorRecord(ex, "ReadError", ErrorCategory.OpenError, p));
                 }
             }
+        }
+
+        private IEnumerable<SimpleFileSystemAccessRule> FilterAccount(IEnumerable<SimpleFileSystemAccessRule> acl)
+        {
+            return Account == null ? acl : acl.Where(ace => ace.Identity == Account);
         }
     }
     #endregion

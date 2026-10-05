@@ -45,8 +45,11 @@ the PRs, and tags `5.0.0-rc2` after the merges.
   `Get-NTFSAccess` (found with 4): Windows PowerShell 310 passed, 17
   skipped; PowerShell 7 280 passed, 47 skipped (327 tests). 10 tests need
   privileges and run only in CI.
+- `ai/defects-b` fixes defects 14 to 17 (`-AppliesTo` is mandatory in the
+  `Simple` sets; `-RemoveSpecific` is back): Windows PowerShell 331 passed,
+  19 skipped; PowerShell 7 301 passed, 49 skipped (350 tests).
 
 ## Next step
 
-Group B (14 to 17) on `ai/defects-b`, then C, D, the E decisions, and the
+Group C (18 to 21) on `ai/defects-c`, then D, the E decisions, and the
 bugs from the issue triage (`ai/issue-fixes`).

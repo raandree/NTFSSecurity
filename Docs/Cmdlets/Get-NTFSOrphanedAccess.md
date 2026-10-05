@@ -33,7 +33,7 @@ An entry counts as orphaned only as long as the name resolution fails, and the c
 
 Relative paths are resolved against the current location, and the current location is searched when `-Path` is omitted. By default both explicit and inherited entries are returned, which means that the same orphaned entry appears on every item that inherits it; `-ExcludeInherited` reports it only on the item where it is defined. With `-Verbose`, the cmdlet reports the number of orphaned entries per item and the total at the end.
 
-The `-Account` and `-SecurityDescriptor` parameters are inherited from `Get-NTFSAccess` and have no effect on this cmdlet. Entries are never filtered by account, and a security descriptor passed to `-SecurityDescriptor` is ignored; the cmdlet reads the current location instead.
+`-Account` limits the result to the entries of one account, which you specify by its SID. With `-SecurityDescriptor`, the cmdlet examines a `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned instead of reading the item again.
 
 ## EXAMPLES
 
@@ -65,7 +65,7 @@ This command deletes the orphaned entries from the items they are defined on. Th
 
 ### -Account
 
-This parameter is inherited from `Get-NTFSAccess` and has no effect. The cmdlet always returns the entries of all accounts that cannot be resolved.
+Specifies the account whose orphaned entries are returned. Because the account cannot be resolved, specify it by its SID. When you omit the parameter, the cmdlet returns the entries of all accounts that cannot be resolved.
 
 ```yaml
 Type: IdentityReference2
@@ -129,7 +129,7 @@ Accept wildcard characters: False
 
 ### -SecurityDescriptor
 
-This parameter is inherited from `Get-NTFSAccess` and has no effect. A security descriptor passed here is ignored, and the cmdlet searches the path in `-Path` or the current location instead.
+Specifies one or more security descriptors that `Get-NTFSSecurityDescriptor` returned. The cmdlet examines the in-memory objects instead of reading the items again.
 
 A security descriptor contains information about the owner of the object, and the primary group of an object. The security descriptor also contains two access control lists (ACL). The first list is called the discretionary access control lists (DACL), and describes who should have access to an object and what type of access to grant. The second list is called the system access control lists (SACL) and defines what type of auditing to record for an object.
 
@@ -156,11 +156,11 @@ One or more paths of files or folders, piped by value or by the property `FullNa
 
 ### Security2.FileSystemSecurity2[]
 
-Security descriptors are accepted by the parameter binder but ignored by this cmdlet.
+You can pipe the security descriptors that `Get-NTFSSecurityDescriptor` returns to this cmdlet.
 
 ### Security2.IdentityReference2
 
-An account is accepted by the parameter binder but ignored by this cmdlet.
+An account name or a SID string binds to `-Account`.
 
 ## OUTPUTS
 
@@ -173,6 +173,8 @@ One object per orphaned access control entry. The `Account` property holds the u
 When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.
 
 If the ACL of an item cannot be read because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.
+
+Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor`, and after a path whose ACL could not be read, it returned the orphaned entries of the previous item again.
 
 ## RELATED LINKS
 

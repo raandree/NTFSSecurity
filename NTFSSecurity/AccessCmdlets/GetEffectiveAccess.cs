@@ -69,12 +69,7 @@ namespace NTFSSecurity
         {
             base.BeginProcessing();
 
-            if (paths == null)
-            {
-                paths = new List<string>() { GetVariableValue("PWD").ToString() };
-            }
-
-            var securityPrivilege = privControl.GetPrivileges().Where(priv => priv.Privilege == ProcessPrivileges.Privilege.Security);
+            securityPrivilege = privControl.GetPrivileges().Where(priv => priv.Privilege == ProcessPrivileges.Privilege.Security).ToList();
             if (securityPrivilege.Count() == 0)
             {
                 this.WriteWarning("The user does not hold the Security Privliege and might not be able to read the effective permissions");
@@ -90,10 +85,34 @@ namespace NTFSSecurity
 
         protected override void ProcessRecord()
         {
-            FileSystemInfo item = null;
-
-            foreach (var path in paths)
+            if (ParameterSetName == "SecurityDescriptor")
             {
+                foreach (var sd in securityDescriptors)
+                {
+                    EffectiveAccessInfo result = null;
+
+                    try
+                    {
+                        result = EffectiveAccess.GetEffectiveAccess(sd, account, serverName);
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteError(new ErrorRecord(ex, "ReadEffectivePermissionError", ErrorCategory.ReadError, sd));
+                        continue;
+                    }
+
+                    WriteEffectiveAccess(result, sd.Item);
+                }
+
+                return;
+            }
+
+            // Like the other cmdlets, use the current location when -Path is omitted.
+            var targets = paths.Count > 0 ? paths : new List<string>() { GetVariableValue("PWD").ToString() };
+
+            foreach (var path in targets)
+            {
+                FileSystemInfo item = null;
                 EffectiveAccessInfo result = null;
 
                 try
@@ -109,30 +128,7 @@ namespace NTFSSecurity
                 try
                 {
                     result = EffectiveAccess.GetEffectiveAccess(item, account, serverName);
-
-                    if (!result.FromRemote)
-                    {
-                        WriteWarning("The effective rights can only be computed based on group membership on this" +
-                                      " computer. For more accurate results, calculate effective access rights on " +
-                                      "the target computer");
-                    }
-                    if (result.OperationFailed && securityPrivilege == null)
-                    {
-                        var ex = new Exception(string.Format("Could not get effective permissions from machine '{0}' maybe because the 'Security' privilege is not enabled which might be required. Enable the priviliges using 'Enable-Privileges'. The error was '{1}'", serverName, result.AuthzException.Message), result.AuthzException);
-                        WriteError(new ErrorRecord(ex, "GetEffectiveAccessError", ErrorCategory.ReadError, item));
-                        continue;
-                    }
-                    else if (result.OperationFailed)
-                    {
-                        var ex = new Exception(string.Format("Could not get effective permissions from machine '{0}'. The error is '{1}'", serverName, result.AuthzException.Message), result.AuthzException);
-                        WriteError(new ErrorRecord(ex, "GetEffectiveAccessError", ErrorCategory.ReadError, item));
-                        continue;
-                    }
-
-                    if (excludeNoneAccessEntries && result.Ace.AccessRights == FileSystemRights2.None)
-                        continue;
                 }
-                //not sure if the following catch block willb be invoked, testing needed.
                 catch (UnauthorizedAccessException)
                 {
                     try
@@ -142,53 +138,52 @@ namespace NTFSSecurity
 
                         FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
 
-                        //--------------------
-
                         result = EffectiveAccess.GetEffectiveAccess(item, account, serverName);
-
-                        if (!result.FromRemote)
-                        {
-                            WriteWarning("The effective rights can only be computed based on group membership on this" +
-                                          " computer. For more accurate results, calculate effective access rights on " +
-                                          "the target computer");
-                        }
-                        if (result.OperationFailed && securityPrivilege == null)
-                        {
-                            var ex = new Exception(string.Format("Could not get effective permissions from machine '{0}' maybe because the 'Security' privilege is not enabled which might be required. Enable the priviliges using 'Enable-Privileges'. The error was '{1}'", serverName, result.AuthzException.Message), result.AuthzException);
-                            WriteError(new ErrorRecord(ex, "GetEffectiveAccessError", ErrorCategory.ReadError, item));
-                            continue;
-                        }
-                        else if (result.OperationFailed)
-                        {
-                            var ex = new Exception(string.Format("Could not get effective permissions from machine '{0}'. The error is '{1}'", serverName, result.AuthzException.Message), result.AuthzException);
-                            WriteError(new ErrorRecord(ex, "GetEffectiveAccessError", ErrorCategory.ReadError, item));
-                            continue;
-                        }
-
-                        if (excludeNoneAccessEntries && result.Ace.AccessRights == FileSystemRights2.None)
-                            continue;
-
-                        //--------------------
 
                         FileSystemOwner.SetOwner(item, previousOwner);
                     }
                     catch (Exception ex2)
                     {
                         this.WriteError(new ErrorRecord(ex2, "ReadSecurityError", ErrorCategory.WriteError, path));
+                        continue;
                     }
                 }
                 catch (Exception ex)
                 {
                     WriteError(new ErrorRecord(ex, "ReadEffectivePermissionError", ErrorCategory.ReadError, path));
+                    continue;
                 }
-                finally
-                {
-                    if (result != null)
-                    {
-                        WriteObject(result.Ace);
-                    }
-                }
+
+                WriteEffectiveAccess(result, item);
             }
+        }
+
+        private void WriteEffectiveAccess(EffectiveAccessInfo result, object target)
+        {
+            if (!result.FromRemote)
+            {
+                WriteWarning("The effective rights can only be computed based on group membership on this" +
+                              " computer. For more accurate results, calculate effective access rights on " +
+                              "the target computer");
+            }
+
+            if (result.OperationFailed)
+            {
+                var securityPrivilegeEnabled = securityPrivilege.Any(p => p.PrivilegeState == PrivilegeState.Enabled);
+                var message = securityPrivilegeEnabled ?
+                    string.Format("Could not get effective permissions from machine '{0}'. The error is '{1}'", serverName, result.AuthzException.Message) :
+                    string.Format("Could not get effective permissions from machine '{0}' maybe because the 'Security' privilege is not enabled which might be required. Enable the priviliges using 'Enable-Privileges'. The error was '{1}'", serverName, result.AuthzException.Message);
+                WriteError(new ErrorRecord(new Exception(message, result.AuthzException), "GetEffectiveAccessError", ErrorCategory.ReadError, target));
+                return;
+            }
+
+            // .NET adds Synchronize to every allow rule, so an account without access has Synchronize only.
+            if (excludeNoneAccessEntries && (result.Ace.AccessRights & ~FileSystemRights2.Synchronize) == FileSystemRights2.None)
+            {
+                return;
+            }
+
+            WriteObject(result.Ace);
         }
     }
 }

@@ -17,38 +17,38 @@ Removes rights from the access control entries (ACEs) of a file, a folder, or a 
 ```
 Remove-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
  [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
- [-PropagationFlags <PropagationFlags>] [-PassThru] [<CommonParameters>]
+ [-PropagationFlags <PropagationFlags>] [-RemoveSpecific] [-PassThru] [<CommonParameters>]
 ```
 
 ### PathSimple
 ```
 Remove-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
- [-AccessType <AccessControlType>] [-AppliesTo <ApplyTo>] [-PassThru] [<CommonParameters>]
+ [-AccessType <AccessControlType>] -AppliesTo <ApplyTo> [-RemoveSpecific] [-PassThru] [<CommonParameters>]
 ```
 
 ### SDSimple
 ```
 Remove-NTFSAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
- [-AccessRights] <FileSystemRights2> [-AccessType <AccessControlType>] [-AppliesTo <ApplyTo>] [-PassThru]
- [<CommonParameters>]
+ [-AccessRights] <FileSystemRights2> [-AccessType <AccessControlType>] -AppliesTo <ApplyTo> [-RemoveSpecific]
+ [-PassThru] [<CommonParameters>]
 ```
 
 ### SDComplex
 ```
 Remove-NTFSAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
  [-AccessRights] <FileSystemRights2> [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
- [-PropagationFlags <PropagationFlags>] [-PassThru] [<CommonParameters>]
+ [-PropagationFlags <PropagationFlags>] [-RemoveSpecific] [-PassThru] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 
 Removes the rights in `-AccessRights` from the access control entries (ACEs) of a file or a folder. An entry is addressed by the account in `-Account`, the access type in `-AccessType`, and the inheritance and propagation flags, which are given either as `-AppliesTo` or as `-InheritanceFlags` and `-PropagationFlags`.
 
-Only the specified rights are taken away: when an entry grants more than `-AccessRights` names, the remaining rights stay in place, and the entry disappears only when all of its rights are removed. An `Allow` entry is always matched with the `Synchronize` right added to the specified rights. The flags must describe the entry as it exists on the item; when they do not, Windows splits the entry instead of removing the rights, so use the values that `Get-NTFSAccess` reports for the entry you want to change.
+Only the specified rights are taken away: when an entry grants more than `-AccessRights` names, the remaining rights stay in place, and the entry disappears only when all of its rights are removed. An `Allow` entry is always matched with the `Synchronize` right added to the specified rights. The flags must describe the entry as it exists on the item; when they do not, Windows splits the entry instead of removing the rights, so use the values that `Get-NTFSAccess` reports for the entry you want to change. With `-RemoveSpecific`, the cmdlet removes only an entry that matches exactly.
 
 Inherited entries cannot be removed from the item that inherits them. Remove them from the folder named in the `InheritedFrom` property, or run `Disable-NTFSAccessInheritance` on the item first, which copies the inherited entries into it as explicit ones that this cmdlet can then remove.
 
-The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`, and `PathComplex` is the default. A command that works on a security descriptor, whether it is passed to `-SecurityDescriptor` or piped in, must therefore name `-AppliesTo` or `-InheritanceFlags` and `-PropagationFlags`; without one of them PowerShell cannot choose between the two `SD` sets and reports that the parameter set cannot be resolved. All relevant parameters bind by property name, so the output of `Get-NTFSAccess` and `Get-NTFSOrphanedAccess` can be piped directly into this cmdlet. The cmdlet writes no output unless `-PassThru` is used.
+The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`, and `PathComplex` is the default. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets. All relevant parameters bind by property name, so the output of `Get-NTFSAccess` and `Get-NTFSOrphanedAccess` can be piped directly into this cmdlet. The cmdlet writes no output unless `-PassThru` is used.
 
 ## EXAMPLES
 
@@ -146,7 +146,7 @@ Parameter Sets: PathSimple, SDSimple
 Aliases:
 Accepted values: ThisFolderOnly, ThisFolderSubfoldersAndFiles, ThisFolderAndSubfolders, ThisFolderAndFiles, SubfoldersAndFilesOnly, SubfoldersOnly, FilesOnly, ThisFolderSubfoldersAndFilesOneLevel, ThisFolderAndSubfoldersOneLevel, ThisFolderAndFilesOneLevel, SubfoldersAndFilesOnlyOneLevel, SubfoldersOnlyOneLevel, FilesOnlyOneLevel
 
-Required: False
+Required: True
 Position: Named
 Default value: None
 Accept pipeline input: True (ByPropertyName)
@@ -237,6 +237,22 @@ Accept pipeline input: True (ByPropertyName, ByValue)
 Accept wildcard characters: False
 ```
 
+### -RemoveSpecific
+
+Indicates that the cmdlet removes only an entry that matches the account, the access rights, the access type, and the inheritance and propagation flags exactly, and leaves all other entries unchanged. Without this switch, the cmdlet takes the specified rights away from the matching entries.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### CommonParameters
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
@@ -287,6 +303,8 @@ When the module setting `EnablePrivileges` is `$true` (the default in the `Priva
 If the ACL of an item cannot be written because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.
 
 Removing rights from an entry that does not exist is not an error; the cmdlet leaves the ACL unchanged.
+
+Before 5.0.0, the `-RemoveSpecific` switch was missing, although version 4.1 had introduced it.
 
 ## RELATED LINKS
 

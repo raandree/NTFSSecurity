@@ -137,7 +137,7 @@ namespace Security2
 
             foreach (var account in accounts)
             {
-                aces.Add(RemoveFileSystemAccessRule(sd, account, rights, type, inheritanceFlags, propagationFlags));
+                aces.Add(RemoveFileSystemAccessRule(sd, account, rights, type, inheritanceFlags, propagationFlags, removeSpecific));
             }
 
             return aces;

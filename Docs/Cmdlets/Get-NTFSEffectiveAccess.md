@@ -33,7 +33,7 @@ The calculation covers the NTFS permissions of the item only. Share permissions 
 
 When `-Account` is omitted, the account that runs the session is used. `-ServerName` selects the computer whose authorization manager resolves the group memberships of the account and defaults to `localhost`; when the remote authorization manager of the named computer cannot be reached, the cmdlet falls back to the local one and warns that the result is based on the group memberships known on this computer and may be inaccurate. Reading effective access relies on the Security privilege, and the cmdlet warns when the account does not hold it or the privilege is disabled.
 
-Although `-Path` is optional, the cmdlet writes nothing when the parameter is omitted; pass a path or pipe items in. The `SecurityDescriptor` parameter set is accepted by the parameter binder but produces no output, so use `-Path` to query effective access.
+When `-Path` is omitted, the cmdlet calculates the effective access to the current location. In the `SecurityDescriptor` parameter set, it calculates the effective access from a `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, without reading the item again.
 
 ## EXAMPLES
 
@@ -89,7 +89,7 @@ Accept wildcard characters: False
 
 ### -ExcludeNoneAccessEntries
 
-Indicates that items on which the account has no rights at all are left out of the result. In this release the switch does not suppress anything: the cmdlet writes a result for every item it processes, even when the calculated access mask is `None`.
+Indicates that items on which the account has no rights at all are left out of the result. Because every calculated result includes the `Synchronize` right, an item counts as without rights when `Synchronize` is the only right.
 
 ```yaml
 Type: SwitchParameter
@@ -105,7 +105,7 @@ Accept wildcard characters: False
 
 ### -Path
 
-Specifies the path of one or more files or folders the effective access is calculated for. Relative paths are resolved against the current location. The parameter accepts pipeline input by value and by property name through its alias `FullName`. The cmdlet writes nothing when no path is supplied.
+Specifies the path of one or more files or folders the effective access is calculated for. Relative paths are resolved against the current location. The parameter accepts pipeline input by value and by property name through its alias `FullName`. When you omit the parameter, the cmdlet uses the current location.
 
 ```yaml
 Type: String[]
@@ -121,7 +121,7 @@ Accept wildcard characters: False
 
 ### -SecurityDescriptor
 
-This parameter is accepted by the parameter binder but has no effect. The cmdlet produces no output in this parameter set; use `-Path` instead.
+Specifies one or more security descriptors that `Get-NTFSSecurityDescriptor` returned. The cmdlet calculates the effective access from the in-memory object instead of reading the item again.
 
 A security descriptor contains information about the owner of the object, and the primary group of an object. The security descriptor also contains two access control lists (ACL). The first list is called the discretionary access control lists (DACL), and describes who should have access to an object and what type of access to grant. The second list is called the system access control lists (SACL) and defines what type of auditing to record for an object.
 
@@ -181,6 +181,8 @@ One object per item, with the calculated rights in `AccessRights` and the accoun
 When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.
 
 Reading effective access needs the Security privilege. In a session that does not hold it, the cmdlet warns before it starts and the calculation may fail with an error. Use `Enable-Privileges` in an elevated session to enable the privilege, and `Get-Privileges` to see which privileges the session holds.
+
+Before 5.0.0, `-ExcludeNoneAccessEntries` had no effect, and the cmdlet returned nothing without `-Path` or for `-SecurityDescriptor`.
 
 ## RELATED LINKS
 
