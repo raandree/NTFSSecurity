@@ -71,7 +71,7 @@ namespace NTFSSecurity
                 catch (System.IO.FileNotFoundException ex)
                 {
                     WriteError(new ErrorRecord(ex, "FileNotFound", ErrorCategory.ObjectNotFound, resolvedPath));
-                    return;
+                    continue;
                 }
 
                 //destination is a directory
@@ -88,7 +88,7 @@ namespace NTFSSecurity
                 if (!force & File.Exists(actualDestination))
                 {
                     WriteError(new ErrorRecord(new AlreadyExistsException(), "DestinationFileAlreadyExists", ErrorCategory.ResourceExists, actualDestination));
-                    return;
+                    continue;
                 }
 
                 try

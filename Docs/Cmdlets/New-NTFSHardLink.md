@@ -138,6 +138,8 @@ The cmdlet does not overwrite anything. If `-Path` already exists, or if `-Targe
 
 Because all names of a file share the same data, the number of hard links is a property of the file, not of an individual name. Use `Get-NTFSHardLink` to list them, and delete a link with `Remove-Item2` or `Remove-Item`, which removes only that name as long as other names remain.
 
+Before 5.0.0, the error for a missing `-Target` said "The target path exist", the opposite of the cause.
+
 ## RELATED LINKS
 
 [Get-NTFSHardLink](Get-NTFSHardLink.md)

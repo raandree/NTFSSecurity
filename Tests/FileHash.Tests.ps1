@@ -6,6 +6,11 @@
 )]
 param ()
 
+BeforeDiscovery {
+    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
+    $isElevated = Test-IsElevated
+}
+
 BeforeAll {
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
     $modulePath = Join-Path -Path $PSScriptRoot -ChildPath '..\NTFSSecurity\bin\Release\NTFSSecurity.psd1'
@@ -40,6 +45,50 @@ Describe 'Get-FileHash2' {
             $hashErrors | Should -BeNullOrEmpty
             $results.Name | Should -Be @('One.txt', 'Two.txt')
             $results[1].Hash | Should -BeExactly (Get-FileHash -LiteralPath $second -Algorithm SHA256).Hash
+        }
+    }
+
+    Context 'When a file cannot be read' {
+        # Before 5.0.0, the cmdlet wrote a result for the file anyway, with the hash of the previous file.
+        It 'Should write an error and no result for the file' {
+            if ($PSVersionTable.PSEdition -eq 'Core') {
+                Set-ItResult -Skipped -Because 'Get-FileHash2 fails in PowerShell 7 until it no longer references RIPEMD160'
+            }
+            $locked = New-TestSandboxItem -Sandbox $sandbox -Name 'Locked'
+            $stream = [IO.File]::Open($locked, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::None)
+            try {
+                $results = @(Get-FileHash2 -Path $first, $locked -ErrorVariable hashErrors -ErrorAction SilentlyContinue)
+            }
+            finally {
+                $stream.Dispose()
+            }
+
+            $hashErrors | Should -HaveCount 1
+            $results.Name | Should -Be @('One.txt')
+        }
+    }
+
+    Context 'When the file cannot be read after taking ownership' {
+        # Before 5.0.0, the account that ran the cmdlet stayed the owner when the second attempt failed. Only an
+        # elevated process can make another account the owner first, so the test runs in CI.
+        It 'Should restore the previous owner' -Skip:(-not $isElevated) {
+            if ($PSVersionTable.PSEdition -eq 'Core') {
+                Set-ItResult -Skipped -Because 'Get-FileHash2 fails in PowerShell 7 until it no longer references RIPEMD160'
+            }
+            $denied = New-TestSandboxItem -Sandbox $sandbox -Name 'Denied'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $denied
+            Set-NTFSOwner -Path $denied -Account 'S-1-5-32-544'
+            Add-NTFSAccess -Path $denied -Account 'S-1-1-0' -AccessRights ReadData -AccessType Deny
+
+            $results = @(Get-FileHash2 -Path $denied -ErrorVariable hashErrors -ErrorAction SilentlyContinue)
+            if (-not $hashErrors) {
+                Set-ItResult -Inconclusive -Because 'the elevated process could read the file despite the deny entry'
+            }
+
+            $hashErrors | Should -HaveCount 1
+            $hashErrors[0].FullyQualifiedErrorId | Should -BeLike 'GetHashError,*'
+            $results | Should -BeNullOrEmpty
+            (Get-NTFSOwner -Path $denied).Owner.Sid | Should -Be 'S-1-5-32-544'
         }
     }
 }

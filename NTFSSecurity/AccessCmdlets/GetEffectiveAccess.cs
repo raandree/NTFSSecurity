@@ -133,14 +133,10 @@ namespace NTFSSecurity
                 {
                     try
                     {
-                        var ownerInfo = FileSystemOwner.GetOwner(item);
-                        var previousOwner = ownerInfo.Owner;
-
-                        FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
-
-                        result = EffectiveAccess.GetEffectiveAccess(item, account, serverName);
-
-                        FileSystemOwner.SetOwner(item, previousOwner);
+                        InvokeAsOwner(item, path, () =>
+                        {
+                            result = EffectiveAccess.GetEffectiveAccess(item, account, serverName);
+                        });
                     }
                     catch (Exception ex2)
                     {

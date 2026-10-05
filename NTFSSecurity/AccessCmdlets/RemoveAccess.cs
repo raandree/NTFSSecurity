@@ -138,6 +138,7 @@ namespace NTFSSecurity
                     catch (Exception ex)
                     {
                         WriteError(new ErrorRecord(ex, "ReadFileError", ErrorCategory.OpenError, path));
+                        continue;
                     }
 
                     if (ParameterSetName == "PathSimple")
@@ -153,23 +154,21 @@ namespace NTFSSecurity
                     {
                         try
                         {
-                            var ownerInfo = FileSystemOwner.GetOwner(item);
-                            var previousOwner = ownerInfo.Owner;
-
-                            FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
-
-                            FileSystemAccessRule2.RemoveFileSystemAccessRule(item, account.ToList(), accessRights, accessType, inheritanceFlags, propagationFlags, removeSpecific);
-
-                            FileSystemOwner.SetOwner(item, previousOwner);
+                            InvokeAsOwner(item, path, () =>
+                            {
+                                FileSystemAccessRule2.RemoveFileSystemAccessRule(item, account.ToList(), accessRights, accessType, inheritanceFlags, propagationFlags, removeSpecific);
+                            });
                         }
                         catch (Exception ex2)
                         {
                             WriteError(new ErrorRecord(ex2, "RemoveAceError", ErrorCategory.WriteError, path));
+                            continue;
                         }
                     }
                     catch (Exception ex)
                     {
                         WriteError(new ErrorRecord(ex, "RemoveAceError", ErrorCategory.WriteError, path));
+                        continue;
                     }
 
                     if (passThru == true)

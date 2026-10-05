@@ -119,13 +119,13 @@ The cmdlet does not return access rules. For every hashed file it writes the fil
 
 The cmdlet works only in Windows PowerShell. In PowerShell 7, it fails for every algorithm with the error `Could not load type 'System.Security.Cryptography.RIPEMD160'`, because .NET no longer includes the RIPEMD-160 implementation that the cmdlet references. In PowerShell 7, use the built-in `Get-FileHash` cmdlet instead.
 
-If the file cannot be opened because access is denied, the cmdlet takes ownership of the file with the account that runs it, calculates the hash, and restores the previous owner afterward. That fallback fails with a `GetHashError` when the account is not allowed to change the owner of the file.
+If the file cannot be opened because access is denied, the cmdlet takes ownership of the file with the account that runs it, calculates the hash, and restores the previous owner afterward. That fallback fails with a `GetHashError` when the account is not allowed to change the owner of the file. A file that cannot be read produces a `GetHashError` and no result.
 
 The hash is returned as an uppercase hexadecimal string without separators, which differs from the lowercase output of some other hashing tools. Compare hash values case-insensitively.
 
 `MACTripleDES` is a keyed message authentication code that is created with a key that is generated for each call, so its result is not reproducible across invocations and is not suitable for comparing files.
 
-Before 5.0.0, a folder in a `-Path` array stopped the processing of that array, so the files that followed the folder were not hashed.
+Before 5.0.0, a folder in a `-Path` array stopped the processing of that array, so the files that followed the folder were not hashed, and a file that could not be read got a result with the hash of the previous file.
 
 ## RELATED LINKS
 

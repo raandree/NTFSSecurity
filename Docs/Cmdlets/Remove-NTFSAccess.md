@@ -294,7 +294,7 @@ The scope of the entry, piped by the property `AppliesTo` in the `Simple` parame
 
 ### Security2.FileSystemAccessRule2
 
-With `-PassThru`, the cmdlet writes all access control entries of every processed item, explicit and inherited. Without `-PassThru` it writes nothing.
+With `-PassThru`, the cmdlet writes all access control entries, explicit and inherited, of every item it changed; an item it could not change produces only an error. Before 5.0.0, `-PassThru` also wrote the unchanged entries of such an item. Without `-PassThru` it writes nothing.
 
 ## NOTES
 
@@ -305,6 +305,8 @@ If the ACL of an item cannot be written because access is denied, the cmdlet tri
 Removing rights from an entry that does not exist is not an error; the cmdlet leaves the ACL unchanged.
 
 Before 5.0.0, the `-RemoveSpecific` switch was missing, although version 4.1 had introduced it.
+
+A path that does not exist produces the non-terminating error `ReadFileError`, and the cmdlet continues with the next path. Before 5.0.0, the cmdlet also wrote a misleading `RemoveAceError` for that path, and with `-PassThru` it stopped with a `NullReferenceException`.
 
 ## RELATED LINKS
 

@@ -142,7 +142,7 @@ When the module setting `EnablePrivileges` is `$true` (the default in the `Priva
 
 Reading and writing the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without that privilege the cmdlet reads the security descriptor without its SACL, finds no audit entries to remove, and finishes without an error although nothing was changed. `-DisableInheritance` fails in that situation with a `ClearAclError` whose message states that a required privilege is not held by the client.
 
-If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.
+If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet restores the previous owner and writes an error. Before 5.0.0, the account that ran the cmdlet stayed the owner of the item in that case.
 
 ## RELATED LINKS
 

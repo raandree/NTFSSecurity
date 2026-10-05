@@ -195,14 +195,70 @@ function Block-TestReadPermission {
         $Path
     )
 
+    Add-TestDenyRule -Sandbox $Sandbox -Path $Path -Rights @{ 'S-1-3-4' = 'ReadPermissions' }
+}
+
+function Block-TestWritePermission {
+    <#
+    .SYNOPSIS
+        Denies the owner of an item in the sandbox to change its permissions, so that writing its DACL fails.
+    .DESCRIPTION
+        Adds a deny entry for OWNER RIGHTS (S-1-3-4) with ChangePermissions, which replaces the implicit right of the
+        owner to write the DACL. Taking ownership drops that entry, so the current user is also denied
+        TakeOwnership; without a privilege, an attempt of the module to take ownership and try again fails as well.
+        Reading the item and its security descriptor still works, and Remove-TestSandbox deletes the item through
+        the rights on its folder.
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [string]
+        $Sandbox,
+
+        [Parameter(Mandatory)]
+        [string]
+        $Path
+    )
+
+    $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    Add-TestDenyRule -Sandbox $Sandbox -Path $Path -Rights @{
+        'S-1-3-4' = 'ChangePermissions'
+        $currentUser = 'TakeOwnership'
+    }
+}
+
+function Add-TestDenyRule {
+    <#
+    .SYNOPSIS
+        Adds deny entries to an item in the sandbox in one write, so that an entry cannot block writing the next.
+    .PARAMETER Rights
+        The rights to deny, keyed by the SID of the account.
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [string]
+        $Sandbox,
+
+        [Parameter(Mandatory)]
+        [string]
+        $Path,
+
+        [Parameter(Mandatory)]
+        [System.Collections.IDictionary]
+        $Rights
+    )
+
     Assert-TestSandboxPath -Sandbox $Sandbox -Path $Path
     $acl = Get-Acl -LiteralPath $Path
-    $ownerRights = New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList 'S-1-3-4'
-    $rule = New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
-        $ownerRights, [System.Security.AccessControl.FileSystemRights]::ReadPermissions,
-        [System.Security.AccessControl.AccessControlType]::Deny
-    )
-    $acl.AddAccessRule($rule)
+    foreach ($sid in $Rights.Keys) {
+        $identity = New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList $sid
+        $rule = New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
+            $identity, [System.Security.AccessControl.FileSystemRights] $Rights[$sid],
+            [System.Security.AccessControl.AccessControlType]::Deny
+        )
+        $acl.AddAccessRule($rule)
+    }
     Set-Acl -LiteralPath $Path -AclObject $acl
 }
 
@@ -247,4 +303,4 @@ function Test-PrivilegeHeld {
 }
 
 Export-ModuleMember -Function New-TestSandbox, Assert-TestSandboxPath, Remove-TestSandbox, New-TestSandboxItem,
-    Block-TestReadPermission, Test-IsElevated, Test-PrivilegeHeld
+    Block-TestReadPermission, Block-TestWritePermission, Test-IsElevated, Test-PrivilegeHeld

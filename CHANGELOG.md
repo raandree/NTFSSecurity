@@ -112,5 +112,27 @@ The format is based on
 - Restore the `-RemoveSpecific` switch of `Remove-NTFSAccess`, which version
   4.1 introduced but later versions lacked, and add it to `Remove-NTFSAudit`:
   with it, the cmdlets remove only an entry that matches exactly
+- Fix `Copy-Item2`, `Move-Item2`, and `Remove-Item2`, which skipped the
+  remaining paths of `-Path` after a path that didn't exist or, for copy and
+  move, a file that already existed at the destination
+- Fix `Remove-NTFSAccess` and `Remove-NTFSAudit`, which went on with a path
+  that didn't exist, wrote a second, misleading `RemoveAceError`, and with
+  `-PassThru` stopped with a `NullReferenceException`
+- Fix `-PassThru` of `Enable-NTFSAccessInheritance`,
+  `Disable-NTFSAccessInheritance`, `Enable-NTFSAuditInheritance`,
+  `Disable-NTFSAuditInheritance`, and `Set-NTFSInheritance`, which returned
+  the unchanged state of an item also when the change failed, so that the
+  inheritance looked disabled
+  ([#74](https://github.com/raandree/NTFSSecurity/issues/74))
+- Fix the error of `New-NTFSHardLink` for a missing `-Target`, which said
+  that the target path existed
+- Fix `Get-FileHash2`, which wrote a result for a file that it couldn't
+  read, with the hash of the previous file
+- Fix `-PassThru` of `Add-NTFSAccess`, `Add-NTFSAudit`, `Remove-NTFSAccess`,
+  and `Remove-NTFSAudit`, which returned the unchanged entries of an item
+  also when the change failed
+- Fix the cmdlets that take ownership of an item to repeat an operation that
+  was denied: when the second attempt failed as well, the account that ran
+  the cmdlet stayed the owner of the item; now the previous owner is restored
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

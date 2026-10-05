@@ -141,7 +141,7 @@ Numbered as agreed with the maintainer; each is documented on its page.
 - Review of group B: no Blocker or Major; three Minor findings fixed, the
   rest are listed in the PR description.
 
-#### C: Error handling
+#### C: Error handling (fixed on `ai/defects-c`, not merged)
 
 - (18) `Copy-Item2`, `Move-Item2`, `Remove-Item2`: one failing path skips
   the rest of `-Path` (`return` instead of `continue`).
@@ -150,6 +150,9 @@ Numbered as agreed with the maintainer; each is documented on its page.
 - (20) The inheritance cmdlets write `-PassThru` output in `finally`, even
   after a failure.
 - (21) `New-NTFSHardLink` says the target path exists when it doesn't.
+- Review of group C: the add and remove cmdlets also wrote `-PassThru`
+  after a failed change, and a failed retry after taking ownership left the
+  owner changed; `BaseCmdlet.InvokeAsOwner` now restores it on every path.
 
 #### D: Metadata and cosmetics
 

@@ -179,7 +179,7 @@ By default this cmdlet returns nothing. With `-PassThru` it returns an `Alphaleo
 
 The module defines the aliases `rm2` and `del2` for this cmdlet.
 
-A path that does not exist causes the error `FileNotFound`, and a deletion that the file system rejects causes a `DeleteError`. In both cases the cmdlet skips the remaining paths that were passed in the same call. Items that arrive one by one through the pipeline are not affected, because each of them is processed separately.
+A path that does not exist causes the error `FileNotFound`, and a deletion that the file system rejects causes a `DeleteError`. In both cases the cmdlet continues with the next path. Before 5.0.0, a path that did not exist made the cmdlet skip the remaining paths that were passed in the same call.
 
 ## RELATED LINKS
 

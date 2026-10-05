@@ -39,11 +39,11 @@ namespace NTFSSecurity
 
         protected override void ProcessRecord()
         {
-            string hash = string.Empty;
-            FileSystemInfo item = null;
-
             foreach (var path in paths)
             {
+                string hash = null;
+                FileSystemInfo item = null;
+
                 try
                 {
                     item = GetFileSystemInfo2(path) as FileInfo;
@@ -68,23 +68,21 @@ namespace NTFSSecurity
                 {
                     try
                     {
-                        var ownerInfo = FileSystemOwner.GetOwner(item);
-                        var previousOwner = ownerInfo.Owner;
-
-                        FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
-
-                        hash = ((FileInfo)item).GetHash(algorithm);
-
-                        FileSystemOwner.SetOwner(item, previousOwner);
+                        InvokeAsOwner(item, path, () =>
+                        {
+                            hash = ((FileInfo)item).GetHash(algorithm);
+                        });
                     }
                     catch (Exception ex2)
                     {
                         WriteError(new ErrorRecord(ex2, "GetHashError", ErrorCategory.WriteError, path));
+                        continue;
                     }
                 }
                 catch (Exception ex)
                 {
                     WriteError(new ErrorRecord(ex, "GetHashError", ErrorCategory.WriteError, path));
+                    continue;
                 }
 
                 var result = new PSObject(item);

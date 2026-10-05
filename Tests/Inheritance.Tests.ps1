@@ -53,6 +53,60 @@ Describe 'Get-NTFSInheritance' {
     }
 }
 
+Describe 'Inheritance cmdlets with -PassThru' {
+    BeforeDiscovery {
+        # With the Backup privilege, Windows may grant reading the security descriptor despite a deny entry.
+        $canBypassDeny = Test-PrivilegeHeld -Name 'SeBackupPrivilege'
+    }
+
+    # Before 5.0.0, the cmdlets wrote the -PassThru object in a finally block, also after a failure (#74).
+    It '<_> should return nothing when the audit change fails' -Skip:$canChangeAudit -ForEach @(
+        'Enable-NTFSAuditInheritance', 'Disable-NTFSAuditInheritance'
+    ) {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'PassThru'
+
+        $result = @(& $_ -Path $file -PassThru -ErrorVariable inheritanceErrors -ErrorAction SilentlyContinue)
+
+        $inheritanceErrors | Should -Not -BeNullOrEmpty
+        $result | Should -BeNullOrEmpty
+    }
+
+    It 'Set-NTFSInheritance should return nothing when the audit change fails' -Skip:$canChangeAudit {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'PassThru'
+
+        $result = @(Set-NTFSInheritance -Path $file -AuditInheritanceEnabled $false -PassThru -ErrorVariable inheritanceErrors -ErrorAction SilentlyContinue)
+
+        $inheritanceErrors | Should -Not -BeNullOrEmpty
+        $result | Should -BeNullOrEmpty
+    }
+
+    It '<_> should write an error and return nothing when the security descriptor cannot be read' -Skip:$canBypassDeny -ForEach @(
+        'Enable-NTFSAccessInheritance', 'Disable-NTFSAccessInheritance'
+    ) {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Denied'
+        Block-TestReadPermission -Sandbox $sandbox -Path $file
+
+        $result = @(& $_ -Path $file -PassThru -ErrorVariable inheritanceErrors -ErrorAction SilentlyContinue)
+
+        $inheritanceErrors | Should -HaveCount 1
+        $inheritanceErrors[0].FullyQualifiedErrorId | Should -BeLike 'ModifySdError,*'
+        $result | Should -BeNullOrEmpty
+    }
+
+    It '<_> should write a read error and return nothing for a path that does not exist' -ForEach @(
+        'Enable-NTFSAccessInheritance', 'Disable-NTFSAccessInheritance',
+        'Enable-NTFSAuditInheritance', 'Disable-NTFSAuditInheritance'
+    ) {
+        $missing = Join-Path -Path $sandbox -ChildPath 'Missing.txt'
+
+        $result = @(& $_ -Path $missing -PassThru -ErrorVariable inheritanceErrors -ErrorAction SilentlyContinue)
+
+        $inheritanceErrors | Should -HaveCount 1
+        $inheritanceErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadFileError,*'
+        $result | Should -BeNullOrEmpty
+    }
+}
+
 Describe 'Set-NTFSInheritance' {
     Context 'When -AccessInheritanceEnabled or -AuditInheritanceEnabled is omitted' {
         BeforeEach {

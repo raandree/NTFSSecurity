@@ -76,16 +76,12 @@ namespace NTFSSecurity
                     {
                         try
                         {
-                            var ownerInfo = FileSystemOwner.GetOwner(item);
-                            var previousOwner = ownerInfo.Owner;
-
-                            FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
-
-                            FileSystemAccessRule2.RemoveFileSystemAccessRuleAll(item);
-                            if (disableInheritance)
-                                FileSystemInheritanceInfo.DisableAccessInheritance(item, true);
-
-                            FileSystemOwner.SetOwner(item, previousOwner);
+                            InvokeAsOwner(item, path, () =>
+                            {
+                                FileSystemAccessRule2.RemoveFileSystemAccessRuleAll(item);
+                                if (disableInheritance)
+                                    FileSystemInheritanceInfo.DisableAccessInheritance(item, true);
+                            });
                         }
                         catch (Exception ex2)
                         {

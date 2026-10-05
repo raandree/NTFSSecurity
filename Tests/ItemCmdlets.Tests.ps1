@@ -80,6 +80,44 @@ Describe 'Get-ChildItem2' {
     }
 }
 
+Describe 'Copy-Item2, Move-Item2, and Remove-Item2 with several paths' {
+    BeforeEach {
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'Several' -Directory
+        $missing = Join-Path -Path $folder -ChildPath 'Missing.txt'
+        $first = Join-Path -Path $folder -ChildPath 'First.txt'
+        $second = Join-Path -Path $folder -ChildPath 'Second.txt'
+        $destination = Join-Path -Path $folder -ChildPath 'Destination'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $missing, $first, $second, $destination
+        Set-Content -LiteralPath $first -Value 'First'
+        Set-Content -LiteralPath $second -Value 'Second'
+        New-Item -ItemType Directory -Path $destination | Out-Null
+    }
+
+    # Before 5.0.0, the cmdlets stopped processing -Path at the first failing path.
+    It 'Remove-Item2 should continue after a path that does not exist' {
+        Remove-Item2 -Path $missing, $first -ErrorVariable itemErrors -ErrorAction SilentlyContinue
+
+        $itemErrors | Should -HaveCount 1
+        $first | Should -Not -Exist
+    }
+
+    It '<_> should continue after a path that does not exist' -ForEach @('Copy-Item2', 'Move-Item2') {
+        & $_ -Path $missing, $first -Destination $destination -ErrorVariable itemErrors -ErrorAction SilentlyContinue
+
+        $itemErrors | Should -HaveCount 1
+        Join-Path -Path $destination -ChildPath 'First.txt' | Should -Exist
+    }
+
+    It '<_> should continue after a file that exists at the destination' -ForEach @('Copy-Item2', 'Move-Item2') {
+        Set-Content -LiteralPath (Join-Path -Path $destination -ChildPath 'First.txt') -Value 'Existing'
+
+        & $_ -Path $first, $second -Destination $destination -ErrorVariable itemErrors -ErrorAction SilentlyContinue
+
+        $itemErrors | Should -HaveCount 1
+        Join-Path -Path $destination -ChildPath 'Second.txt' | Should -Exist
+    }
+}
+
 Describe 'Copy-Item2' {
     Context 'When -Path is a folder with files and subfolders' {
         BeforeAll {

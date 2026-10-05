@@ -89,14 +89,10 @@ namespace NTFSSecurity
                     {
                         try
                         {
-                            var ownerInfo = FileSystemOwner.GetOwner(item);
-                            var previousOwner = ownerInfo.Owner;
-
-                            FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
-
-                            SetInheritanceState(item);
-
-                            FileSystemOwner.SetOwner(item, previousOwner);
+                            InvokeAsOwner(item, path, () =>
+                            {
+                                SetInheritanceState(item);
+                            });
                         }
                         catch (Exception ex2)
                         {
@@ -109,12 +105,11 @@ namespace NTFSSecurity
                         WriteError(new ErrorRecord(ex, "ModifySdError", ErrorCategory.WriteError, path));
                         continue;
                     }
-                    finally
+
+                    // Only after a successful change, so that a failure doesn't report the unchanged state
+                    if (passThru)
                     {
-                        if (passThru)
-                        {
-                            WriteObject(FileSystemInheritanceInfo.GetFileSystemInheritanceInfo(item));
-                        }
+                        WriteObject(FileSystemInheritanceInfo.GetFileSystemInheritanceInfo(item));
                     }
                 }
             }

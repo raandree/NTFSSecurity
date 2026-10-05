@@ -712,7 +712,7 @@
           <maml:name>Security2.FileSystemAccessRule2</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>With `-PassThru`, the cmdlet writes all access control entries of every processed item, explicit and inherited. Without `-PassThru` it writes nothing.</maml:para>
+          <maml:para>With `-PassThru`, the cmdlet writes all access control entries, explicit and inherited, of every item it changed; an item it could not change produces only an error. Before 5.0.0, `-PassThru` also wrote the unchanged entries of such an item. Without `-PassThru` it writes nothing.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -1493,7 +1493,7 @@
           <maml:name>Security2.FileSystemAuditRule2</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the cmdlet writes all audit entries of the item or the security descriptor, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects. Before 5.0.0, the `SecurityDescriptor` sets wrote the access entries of the descriptor instead.</maml:para>
+          <maml:para>Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the cmdlet writes all audit entries of the item or the security descriptor, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects. Before 5.0.0, the `SecurityDescriptor` sets wrote the access entries of the descriptor instead. An item whose audit entries could not be changed produces only an error; before 5.0.0, `-PassThru` also wrote its unchanged entries.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -1501,7 +1501,7 @@
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>Writing the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it, the cmdlet writes a non-terminating `AddAceError` whose message states that a required privilege is not held by the client, and the item is left unchanged.</maml:para>
-        <maml:para>If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.</maml:para>
+        <maml:para>If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet restores the previous owner and writes an error. Before 5.0.0, the account that ran the cmdlet stayed the owner of the item in that case.</maml:para>
         <maml:para>`-Path` or `-SecurityDescriptor`, `-Account`, and `-AccessRights` are positional parameters at positions 1, 2, and 3, like in `Remove-NTFSAudit`. Before 5.0.0, `-Account` and `-AccessRights` were both declared at position 2, so a command that passed them by position failed.</maml:para>
         <maml:para>An audit entry alone does not create events. Windows writes the events to the security log only while the "Audit object access" policy, or the corresponding "Audit File System" advanced audit policy, is enabled for success, failure, or both. That policy is a Windows setting and is not managed by this module.</maml:para>
       </maml:alert>
@@ -1913,7 +1913,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>Reading and writing the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without that privilege the cmdlet reads the security descriptor without its SACL, finds no audit entries to remove, and finishes without an error although nothing was changed. `-DisableInheritance` fails in that situation with a `ClearAclError` whose message states that a required privilege is not held by the client.</maml:para>
-        <maml:para>If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.</maml:para>
+        <maml:para>If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet restores the previous owner and writes an error. Before 5.0.0, the account that ran the cmdlet stayed the owner of the item in that case.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -2174,7 +2174,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
       <maml:alert>
         <maml:para>`Copy-Item2` copies through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it handles source and destination paths that exceed the 260-character `MAX_PATH` limit of the built-in `Copy-Item` cmdlet.</maml:para>
         <maml:para>Before 5.0.0, copying a folder that contained files failed with a `CopyError` that reported a `DirectoryNotFoundException` for the first file in the folder.</maml:para>
-        <maml:para>If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and skips the remaining paths that were passed in the same call. Items that arrive one by one through the pipeline are not affected, because each of them is processed separately.</maml:para>
+        <maml:para>If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -2413,6 +2413,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <maml:para>Blocking access inheritance requires permission to change the DACL of the item, which the owner of an item always has. If the descriptor cannot be opened, the cmdlet takes ownership of the item, applies the change, and sets the previous owner back. That fallback only succeeds when the account can take ownership of the item and restore the original owner; otherwise the cmdlet writes an error and continues with the next item.</maml:para>
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
+        <maml:para>Before 5.0.0, `-PassThru` returned the unchanged state of an item also when the change failed, and stopped the command when the item could not be read.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -2658,6 +2659,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <maml:para>If the descriptor cannot be opened because the account has no permission to the item, the cmdlet takes ownership of the item, applies the change, and sets the previous owner back. That fallback only succeeds when the account can take ownership of the item and restore the original owner; a missing Security privilege is not an access problem and is not repaired by it.</maml:para>
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
+        <maml:para>Before 5.0.0, `-PassThru` returned the unchanged state of an item also when the change failed, and stopped the command when the item could not be read.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -3028,6 +3030,7 @@ PS C:\&gt; Get-Privileges | Where-Object { $_.Privilege -in 'Backup', 'Restore',
         <maml:para>Restoring access inheritance requires permission to change the DACL of the item, which the owner of an item always has. If the descriptor cannot be opened, the cmdlet takes ownership of the item, applies the change, and sets the previous owner back. That fallback only succeeds when the account can take ownership of the item and restore the original owner; otherwise the cmdlet writes an error and continues with the next item.</maml:para>
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
+        <maml:para>Before 5.0.0, `-PassThru` returned the unchanged state of an item also when the change failed, and stopped the command when the item could not be read.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -3273,6 +3276,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <maml:para>If the descriptor cannot be opened because the account has no permission to the item, the cmdlet takes ownership of the item, applies the change, and sets the previous owner back. That fallback only succeeds when the account can take ownership of the item and restore the original owner; a missing Security privilege is not an access problem and is not repaired by it.</maml:para>
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
+        <maml:para>Before 5.0.0, `-PassThru` returned the unchanged state of an item also when the change failed, and stopped the command when the item could not be read.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -4146,10 +4150,10 @@ PS C:\&gt; Disable-Privileges</dev:code>
     <maml:alertSet>
       <maml:alert>
         <maml:para>The cmdlet works only in Windows PowerShell. In PowerShell 7, it fails for every algorithm with the error `Could not load type 'System.Security.Cryptography.RIPEMD160'`, because .NET no longer includes the RIPEMD-160 implementation that the cmdlet references. In PowerShell 7, use the built-in `Get-FileHash` cmdlet instead.</maml:para>
-        <maml:para>If the file cannot be opened because access is denied, the cmdlet takes ownership of the file with the account that runs it, calculates the hash, and restores the previous owner afterward. That fallback fails with a `GetHashError` when the account is not allowed to change the owner of the file.</maml:para>
+        <maml:para>If the file cannot be opened because access is denied, the cmdlet takes ownership of the file with the account that runs it, calculates the hash, and restores the previous owner afterward. That fallback fails with a `GetHashError` when the account is not allowed to change the owner of the file. A file that cannot be read produces a `GetHashError` and no result.</maml:para>
         <maml:para>The hash is returned as an uppercase hexadecimal string without separators, which differs from the lowercase output of some other hashing tools. Compare hash values case-insensitively.</maml:para>
         <maml:para>`MACTripleDES` is a keyed message authentication code that is created with a key that is generated for each call, so its result is not reproducible across invocations and is not suitable for comparing files.</maml:para>
-        <maml:para>Before 5.0.0, a folder in a `-Path` array stopped the processing of that array, so the files that followed the folder were not hashed.</maml:para>
+        <maml:para>Before 5.0.0, a folder in a `-Path` array stopped the processing of that array, so the files that followed the folder were not hashed, and a file that could not be read got a result with the hash of the previous file.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -6945,7 +6949,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <maml:alert>
         <maml:para>`Move-Item2` moves through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it handles source and destination paths that exceed the 260-character `MAX_PATH` limit of the built-in `Move-Item` cmdlet.</maml:para>
         <maml:para>The cmdlet chooses between two mutually exclusive move options. Without `-Force` it moves with `CopyAllowed`, which permits a file to cross volume boundaries because Windows then copies and deletes it. With `-Force` it moves with `ReplaceExisting`, which overwrites the destination but does not request `CopyAllowed`, so a move across volumes can fail when `-Force` is specified.</maml:para>
-        <maml:para>If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and skips the remaining paths that were passed in the same call. Items that arrive one by one through the pipeline are not affected, because each of them is processed separately.</maml:para>
+        <maml:para>If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -7131,6 +7135,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <maml:para>Windows supports hard links only for files on the same NTFS volume. A link that points to a file on another volume, or a target on a file system that does not implement hard links, cannot be created.</maml:para>
         <maml:para>The cmdlet does not overwrite anything. If `-Path` already exists, or if `-Target` is missing or is a folder, the cmdlet reports an error and leaves the file system unchanged.</maml:para>
         <maml:para>Because all names of a file share the same data, the number of hard links is a property of the file, not of an individual name. Use `Get-NTFSHardLink` to list them, and delete a link with `Remove-Item2` or `Remove-Item`, which removes only that name as long as other names remain.</maml:para>
+        <maml:para>Before 5.0.0, the error for a missing `-Target` said "The target path exist", the opposite of the cause.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -7551,7 +7556,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <maml:alert>
         <maml:para>`Remove-Item2` deletes through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it reaches items whose path exceeds the 260-character `MAX_PATH` limit of the built-in `Remove-Item` cmdlet. Deletion is permanent; the cmdlet does not use the Recycle Bin.</maml:para>
         <maml:para>The module defines the aliases `rm2` and `del2` for this cmdlet.</maml:para>
-        <maml:para>A path that does not exist causes the error `FileNotFound`, and a deletion that the file system rejects causes a `DeleteError`. In both cases the cmdlet skips the remaining paths that were passed in the same call. Items that arrive one by one through the pipeline are not affected, because each of them is processed separately.</maml:para>
+        <maml:para>A path that does not exist causes the error `FileNotFound`, and a deletion that the file system rejects causes a `DeleteError`. In both cases the cmdlet continues with the next path. Before 5.0.0, a path that did not exist made the cmdlet skip the remaining paths that were passed in the same call.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -8375,7 +8380,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           <maml:name>Security2.FileSystemAccessRule2</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>With `-PassThru`, the cmdlet writes all access control entries of every processed item, explicit and inherited. Without `-PassThru` it writes nothing.</maml:para>
+          <maml:para>With `-PassThru`, the cmdlet writes all access control entries, explicit and inherited, of every item it changed; an item it could not change produces only an error. Before 5.0.0, `-PassThru` also wrote the unchanged entries of such an item. Without `-PassThru` it writes nothing.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -8385,6 +8390,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <maml:para>If the ACL of an item cannot be written because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.</maml:para>
         <maml:para>Removing rights from an entry that does not exist is not an error; the cmdlet leaves the ACL unchanged.</maml:para>
         <maml:para>Before 5.0.0, the `-RemoveSpecific` switch was missing, although version 4.1 had introduced it.</maml:para>
+        <maml:para>A path that does not exist produces the non-terminating error `ReadFileError`, and the cmdlet continues with the next path. Before 5.0.0, the cmdlet also wrote a misleading `RemoveAceError` for that path, and with `-PassThru` it stopped with a `NullReferenceException`.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -9213,7 +9219,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           <maml:name>Security2.FileSystemAuditRule2</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the cmdlet writes all audit entries of the item or the security descriptor, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects. Before 5.0.0, the `Path` sets wrote the access entries of the item instead.</maml:para>
+          <maml:para>Without `-PassThru` the cmdlet writes nothing. With `-PassThru` the cmdlet writes all audit entries of the item or the security descriptor, explicit and inherited ones, as `Security2.FileSystemAuditRule2` objects. Before 5.0.0, the `Path` sets wrote the access entries of the item instead. An item whose audit entries could not be changed produces only an error; before 5.0.0, `-PassThru` also wrote its unchanged entries.</maml:para>
         </maml:description>
       </command:returnValue>
     </command:returnValues>
@@ -9221,9 +9227,10 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>Reading and writing the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it, the cmdlet writes a non-terminating `RemoveAceError` whose message states that a required privilege is not held by the client, and the item is left unchanged.</maml:para>
-        <maml:para>If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet writes an error, and the ownership change is not rolled back.</maml:para>
+        <maml:para>If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet restores the previous owner and writes an error. Before 5.0.0, the account that ran the cmdlet stayed the owner of the item in that case.</maml:para>
         <maml:para>The cmdlet reports no error when no entry matches the supplied values. Compare the result with `Get-NTFSAudit` to confirm that the entry is gone.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet had no `-RemoveSpecific` switch.</maml:para>
+        <maml:para>A path that does not exist produces the non-terminating error `ReadFileError`, and the cmdlet continues with the next path. Before 5.0.0, the cmdlet also wrote a misleading `RemoveAceError` for that path, and with `-PassThru` it stopped with a `NullReferenceException`.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -9516,6 +9523,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
         <maml:para>Before 5.0.0, omitting `-AccessInheritanceEnabled` or `-AuditInheritanceEnabled` could fail with the error "Nullable object must have a value".</maml:para>
         <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
+        <maml:para>Before 5.0.0, `-PassThru` returned the unchanged state of an item also when the change failed, and stopped the command when the item could not be read.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>

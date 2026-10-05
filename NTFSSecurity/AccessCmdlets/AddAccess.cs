@@ -138,23 +138,21 @@ namespace NTFSSecurity
                     {
                         try
                         {
-                            var ownerInfo = FileSystemOwner.GetOwner(item);
-                            var previousOwner = ownerInfo.Owner;
-
-                            FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
-
-                            FileSystemAccessRule2.AddFileSystemAccessRule(item, account.ToList(), accessRights, accessType, inheritanceFlags, propagationFlags);
-
-                            FileSystemOwner.SetOwner(item, previousOwner);
+                            InvokeAsOwner(item, path, () =>
+                            {
+                                FileSystemAccessRule2.AddFileSystemAccessRule(item, account.ToList(), accessRights, accessType, inheritanceFlags, propagationFlags);
+                            });
                         }
                         catch (Exception ex2)
                         {
                             WriteError(new ErrorRecord(ex2, "AddAceError", ErrorCategory.WriteError, path));
+                            continue;
                         }
                     }
                     catch (Exception ex)
                     {
                         WriteError(new ErrorRecord(ex, "AddAceError", ErrorCategory.WriteError, path));
+                        continue;
                     }
 
                     if (passThru == true)

@@ -199,7 +199,8 @@ state.
 
 When reading or changing an item fails with an access-denied error, most of
 these cmdlets make the current user the owner of the item, retry, and then
-restore the previous owner. This requires the privileges above.
+restore the previous owner, also when the retry fails. Before 5.0.0, a failed
+retry left the current user as the owner. This requires the privileges above.
 
 Reading or changing audit entries always requires the Security privilege.
 Without it, the audit cmdlets fail, and `Get-NTFSEffectiveAccess` warns that
