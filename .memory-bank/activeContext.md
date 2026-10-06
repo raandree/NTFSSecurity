@@ -9,24 +9,27 @@ source: current task evidence
 
 ## Current focus
 
-5.0.0-rc4 is released and recorded. Next is 5.0.0, when the maintainer
-decides; then the repository is archived in favor of WindowsAccessControl
-(Decision 18). Issue #34 is open with Bug and Help Wanted; a user there
-planned to test 5.0.0-rc3 against an IBM ESS file server.
+Live tests of 5.0.0-rc4 in a lab, which the maintainer decided on
+2026-10-06 to run before 5.0.0. He continues on another workstation that
+has his lab script. 5.0.0 waits for these results and for the tester
+feedback in #34; then the repository is archived in favor of
+WindowsAccessControl (Decision 18).
 
 ## Evidence
 
-- 2026-10-06: the tag `5.0.0-rc4` on `01d9264`, the merge commit of #113,
-  published the prerelease to the PowerShell Gallery and to GitHub. The
-  Gallery package and `NTFSSecurity.zip` hold identical module files; the
-  package imports as 5.0.0-rc4 in both editions and passes the smoke tests
-  of #41 and #34. CI passed for #113 and on `master`.
-- The rc4 replies are posted: #41, #108, #109, and #111 are closed as
-  completed, #90 and #107 got WontFix and are closed as not planned. The
-  findings that the rc4 review deferred are listed in #113.
-- Without the Security privilege, the tests that change the audit entries
-  of a descriptor from `Get-NTFSSecurityDescriptor` skip; a basic-user run
-  fails only the `Enable-Privileges -PassThru` count test (techContext).
+- 2026-10-06: 5.0.0-rc4 is published from the tag `5.0.0-rc4` on
+  `01d9264`, the merge commit of #113, and verified from the Gallery
+  package in both editions; its issues are closed (progress).
+- The Pester tests run only on standalone machines against local NTFS
+  folders, with local and well-known accounts. No test uses a UNC path, a
+  share, a domain account, or `Get-NTFSEffectiveAccess -ServerName`, which
+  calls `AuthzInitializeRemoteResourceManager` over RPC. 5.0.0 changed no
+  code that is specific to domains or SMB.
+- In #34, the tester wrote on 2026-10-06 that the owner problem also exists
+  on their IBM ESS system, and that he reports rc3 results against both
+  their file servers on 2026-10-07. No lab reproduces IBM ESS.
+- The second workstation has Hyper-V and AutomatedLab 5.61, but no
+  LabSources folder, ISO, or lab.
 - Hand commands to the maintainer as fenced code blocks at the end of the
   reply, and end the turn there; never put them in the question dialog,
   which also covers a reply before it. A pull request names an issue
@@ -34,5 +37,19 @@ planned to test 5.0.0-rc3 against an IBM ESS file server.
 
 ## Next step
 
-Before 5.0.0, read #34 for feedback from the tester. Then release 5.0.0 as
-`progress.md` describes.
+Build the lab with the maintainer's script: a domain controller, a file
+server with a share, and a client. From the client, run live tests against
+5.0.0-rc2 as the baseline and 5.0.0-rc4, in Windows PowerShell 5.1 and
+PowerShell 7:
+
+1. #34 over SMB: a domain user who isn't an admin on the file server, with
+   Full Control on a share folder owned by Administrators, runs the access
+   and inheritance cmdlets on its UNC path. rc2 should fail with (1307);
+   rc4 should succeed and keep the owner.
+2. The audit cmdlets over SMB, where the file server, not the client,
+   checks the Security privilege: as a user with and without it there.
+3. `Get-NTFSEffectiveAccess` for domain accounts with nested groups, and
+   with `-ServerName`.
+4. `Get-NTFSOrphanedAccess` with the entry of a deleted domain account.
+
+Then, with the #34 feedback, release 5.0.0 as `progress.md` describes.

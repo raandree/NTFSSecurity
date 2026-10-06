@@ -70,8 +70,9 @@ soon; its users move to WindowsAccessControl (Decision 18).
 
 ## Open work
 
-1. Release 5.0.0 through CI (Decision 12) when the maintainer decides:
-   remove the label, date `[Unreleased]` as `[5.0.0]`, add `5.0.0-rc4` to
+1. Release 5.0.0 through CI (Decision 12) after the live tests in a lab
+   (`activeContext.md`) and the tester feedback in #34: remove the label,
+   date `[Unreleased]` as `[5.0.0]`, add `5.0.0-rc4` to
    `$publishedVersions`, and tag `5.0.0` (steps in
    `Docs/Contributing/05-Releasing.md`). #34 stays open with Bug and Help
    Wanted until a tester with a file server that refuses the owner
