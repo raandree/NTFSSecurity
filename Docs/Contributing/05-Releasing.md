@@ -39,7 +39,12 @@ Renew the API key before it expires, and update the secret.
   are the section `## [5.0.0] - <date>` of `CHANGELOG.md`.
 
 The tests in `Tests\Release.Tests.ps1` check that `CHANGELOG.md` has the
-release notes for the version of the module manifest.
+release notes for the version of the module manifest and test the release
+scripts. The tests in `Tests\Repository.Tests.ps1` check the release metadata:
+the description that the PowerShell Gallery shows, that the version isn't one
+that the Gallery already has, and that `Docs/README.md` names no prerelease
+version. Name a prerelease only in `CHANGELOG.md`, because the documentation
+home outlives it.
 
 ## Publish a prerelease
 

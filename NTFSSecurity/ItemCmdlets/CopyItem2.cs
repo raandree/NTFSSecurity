@@ -88,7 +88,20 @@ namespace NTFSSecurity
                     actualDestination = destination;
                 }
 
-                if (!force & File.Exists(actualDestination))
+                var destinationExists = !force && File.Exists(actualDestination);
+
+                // Report a conflict only for an operation that runs; -WhatIf names it in a verbose message (#108).
+                if (!ShouldProcess(resolvedPath, item is FileInfo ? "Copy File" : "Copy Directory"))
+                {
+                    if (destinationExists)
+                    {
+                        WriteVerbose(string.Format("The destination '{0}' already exists; without -Force, the copy would fail", actualDestination));
+                    }
+
+                    continue;
+                }
+
+                if (destinationExists)
                 {
                     WriteError(new ErrorRecord(new AlreadyExistsException(), "DestinationFileAlreadyExists", ErrorCategory.ResourceExists, actualDestination));
                     continue;
@@ -96,33 +109,24 @@ namespace NTFSSecurity
 
                 try
                 {
-                    var processed = false;
                     FileSystemInfo copy = null;
 
                     if (item is FileInfo)
                     {
-                        if (ShouldProcess(resolvedPath, "Copy File"))
-                        {
-                            copy = ((FileInfo)item).CopyTo(actualDestination, force ? CopyOptions.None : CopyOptions.FailIfExists, PathFormat.RelativePath);
-                            WriteVerbose(string.Format("File '{0}' copied to '{1}'", resolvedPath, actualDestination));
-                            processed = true;
-                        }
+                        copy = ((FileInfo)item).CopyTo(actualDestination, force ? CopyOptions.None : CopyOptions.FailIfExists, PathFormat.RelativePath);
+                        WriteVerbose(string.Format("File '{0}' copied to '{1}'", resolvedPath, actualDestination));
                     }
                     else
                     {
-                        if (ShouldProcess(resolvedPath, "Copy Directory"))
-                        {
-                            // AlphaFS 2.2 copies into an existing folder only and otherwise fails with a
-                            // DirectoryNotFoundException for the first file.
-                            Directory.CreateDirectory(actualDestination);
-                            copy = ((DirectoryInfo)item).CopyTo(actualDestination, force ? CopyOptions.None : CopyOptions.FailIfExists, PathFormat.RelativePath);
-                            WriteVerbose(string.Format("Directory '{0}' copied to '{1}'", resolvedPath, actualDestination));
-                            processed = true;
-                        }
+                        // AlphaFS 2.2 copies into an existing folder only and otherwise fails with a
+                        // DirectoryNotFoundException for the first file.
+                        Directory.CreateDirectory(actualDestination);
+                        copy = ((DirectoryInfo)item).CopyTo(actualDestination, force ? CopyOptions.None : CopyOptions.FailIfExists, PathFormat.RelativePath);
+                        WriteVerbose(string.Format("Directory '{0}' copied to '{1}'", resolvedPath, actualDestination));
                     }
 
                     // Write the object for the copy that CopyTo returns, not the source item.
-                    if (passThru && processed)
+                    if (passThru)
                         WriteObject(copy);
                 }
                 catch (System.IO.IOException ex)

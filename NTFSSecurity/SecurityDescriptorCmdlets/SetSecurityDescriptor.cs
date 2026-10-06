@@ -62,14 +62,7 @@ namespace NTFSSecurity
                 {
                     try
                     {
-                        var ownerInfo = FileSystemOwner.GetOwner(sd.Item);
-                        var previousOwner = ownerInfo.Owner;
-
-                        FileSystemOwner.SetOwner(sd.Item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
-
-                        sd.WriteChanges();
-
-                        FileSystemOwner.SetOwner(sd.Item, previousOwner);
+                        WriteChangesAsOwner(sd);
                     }
                     catch (Exception ex2)
                     {
@@ -80,6 +73,37 @@ namespace NTFSSecurity
                 catch (Exception ex)
                 {
                     WriteError(new ErrorRecord(ex, "WriteSdError", ErrorCategory.WriteError, sd.Item));
+                }
+            }
+        }
+
+        // Like InvokeAsOwner, takes ownership for the write and sets the previous owner back on every exit path, but not
+        // after a successful write of a descriptor that sets the owner itself, which would undo that owner.
+        private void WriteChangesAsOwner(FileSystemSecurity2 sd)
+        {
+            var setsOwner = (sd.ChangedSections & AccessControlSections.Owner) == AccessControlSections.Owner;
+            var previousOwner = FileSystemOwner.GetOwner(sd.Item).Owner;
+
+            FileSystemOwner.SetOwner(sd.Item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
+
+            var written = false;
+            try
+            {
+                sd.WriteChanges();
+                written = true;
+            }
+            finally
+            {
+                if (!(written && setsOwner))
+                {
+                    try
+                    {
+                        FileSystemOwner.SetOwner(sd.Item, previousOwner);
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteError(new ErrorRecord(ex, "RestoreOwnerError", ErrorCategory.WriteError, sd.Item));
+                    }
                 }
             }
         }

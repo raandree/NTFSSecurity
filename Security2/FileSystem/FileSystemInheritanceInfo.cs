@@ -55,41 +55,20 @@ namespace Security2
 
         public static FileSystemInheritanceInfo GetFileSystemInheritanceInfo(FileSystemInfo item)
         {
-            if (item is FileInfo)
+            bool? areAuditRulesProtected = null;
+
+            var areAccessRulesProtected = FileSystemSecurity2.GetSecurity(item, AccessControlSections.Access).AreAccessRulesProtected;
+
+            try
             {
-
-                bool? areAuditRulesProtected = null;
-
-                var areAccessRulesProtected = ((FileInfo)item).GetAccessControl(AccessControlSections.Access).AreAccessRulesProtected;
-
-                try
-                {
-                    areAuditRulesProtected = ((FileInfo)item).GetAccessControl(AccessControlSections.Audit).AreAuditRulesProtected;
-                }
-                catch (System.IO.IOException)
-                {
-                    //log that the security privilege is missing
-                }
-
-                return new FileSystemInheritanceInfo(item, !areAccessRulesProtected, !areAuditRulesProtected);
+                areAuditRulesProtected = FileSystemSecurity2.GetSecurity(item, AccessControlSections.Audit).AreAuditRulesProtected;
             }
-            else
+            catch (System.IO.IOException)
             {
-                bool? areAuditRulesProtected = null;
-
-                var areAccessRulesProtected = ((DirectoryInfo)item).GetAccessControl(AccessControlSections.Access).AreAccessRulesProtected;
-
-                try
-                {
-                    areAuditRulesProtected = ((DirectoryInfo)item).GetAccessControl(AccessControlSections.Audit).AreAuditRulesProtected;
-                }
-                catch (System.IO.IOException)
-                {
-                    //log that the security privilege is missing
-                }
-
-                return new FileSystemInheritanceInfo(item, !areAccessRulesProtected, !areAuditRulesProtected);
+                //log that the security privilege is missing
             }
+
+            return new FileSystemInheritanceInfo(item, !areAccessRulesProtected, !areAuditRulesProtected);
         }
 
         public static FileSystemInheritanceInfo GetFileSystemInheritanceInfo(FileSystemSecurity2 sd)

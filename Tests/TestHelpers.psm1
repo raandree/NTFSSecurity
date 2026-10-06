@@ -346,4 +346,5 @@ function Test-PrivilegeHeld {
 }
 
 Export-ModuleMember -Function New-TestSandbox, Assert-TestSandboxPath, Remove-TestSandbox, New-TestSandboxItem,
-    Block-TestReadPermission, Block-TestWritePermission, Set-TestOwner, Test-IsElevated, Test-PrivilegeHeld
+    Block-TestReadPermission, Block-TestWritePermission, Add-TestDenyRule, Set-TestOwner, Test-IsElevated,
+    Test-PrivilegeHeld

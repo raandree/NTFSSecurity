@@ -69,6 +69,30 @@ Describe 'Disable-Privileges' {
             $messages.Message | Should -Contain "The privileges 'TakeOwnership', 'Restore' and 'Backup' are now disabled."
         }
     }
+
+    Context 'When the access token holds only some of the privileges' {
+        # Before 5.0.0-rc4, the cmdlet also tried to disable the privileges that the access token doesn't hold, and
+        # warned for each one that it couldn't disable it. A removed privilege can't be added back, so the test removes
+        # them in a child process.
+        It 'Should not warn about the privileges that the access token does not hold' -Skip:(-not $holdsPrivileges) {
+            $script = Join-Path -Path $sandbox -ChildPath 'Disable-PartialPrivileges.ps1'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $script
+            Set-Content -LiteralPath $script -Value @'
+param ($ModulePath)
+Import-Module -Name $ModulePath -ErrorAction Stop
+$process = [System.Diagnostics.Process]::GetCurrentProcess()
+[ProcessPrivileges.ProcessExtensions]::RemovePrivilege($process, [ProcessPrivileges.Privilege]::TakeOwnership) | Out-Null
+[ProcessPrivileges.ProcessExtensions]::RemovePrivilege($process, [ProcessPrivileges.Privilege]::Security) | Out-Null
+Enable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+Disable-Privileges -WarningVariable privilegeWarnings -WarningAction SilentlyContinue
+'WARNINGS:{0}' -f @($privilegeWarnings).Count
+'@
+
+            $output = & (Get-Process -Id $PID).Path -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -ModulePath ([IO.Path]::GetFullPath($modulePath))
+
+            $output | Should -Contain 'WARNINGS:0'
+        }
+    }
 }
 
 Describe 'Inheritance cmdlets' {

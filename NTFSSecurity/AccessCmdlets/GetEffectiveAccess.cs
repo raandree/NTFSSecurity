@@ -166,10 +166,9 @@ namespace NTFSSecurity
 
             if (result.OperationFailed)
             {
-                var securityPrivilegeEnabled = securityPrivilege.Any(p => p.PrivilegeState == PrivilegeState.Enabled);
-                var message = securityPrivilegeEnabled ?
-                    string.Format("Could not get effective permissions from machine '{0}'. The error is '{1}'", serverName, result.AuthzException.Message) :
-                    string.Format("Could not get effective permissions from machine '{0}' maybe because the 'Security' privilege is not enabled which might be required. Enable the priviliges using 'Enable-Privileges'. The error was '{1}'", serverName, result.AuthzException.Message);
+                // The warning of BeginProcessing already names a missing or disabled Security privilege; the error names
+                // the cause that Windows reported (#109).
+                var message = string.Format("Could not get effective permissions from machine '{0}'. The error is '{1}'", serverName, result.AuthzException.Message);
                 WriteError(new ErrorRecord(new Exception(message, result.AuthzException), "GetEffectiveAccessError", ErrorCategory.ReadError, target));
                 return;
             }

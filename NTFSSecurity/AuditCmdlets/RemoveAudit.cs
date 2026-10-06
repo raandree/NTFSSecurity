@@ -181,6 +181,11 @@ namespace NTFSSecurity
             {
                 foreach (var sd in securityDescriptors)
                 {
+                    if (!TestAuditSection(sd))
+                    {
+                        continue;
+                    }
+
                     FileSystemAuditRule2.RemoveFileSystemAuditRule(sd, account.ToList(), accessRights, auditFlags, inheritanceFlags, propagationFlags, removeSpecific);
 
                     if (passThru == true)

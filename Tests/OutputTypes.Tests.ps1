@@ -16,7 +16,7 @@ BeforeDiscovery {
     $itemTypes = @('Alphaleonis.Win32.Filesystem.FileInfo', 'Alphaleonis.Win32.Filesystem.DirectoryInfo')
     $declaredTypes = @(
         @{ Name = 'Test-Path2'; Types = @('System.Boolean') }
-        @{ Name = 'Get-FileHash2'; Types = @('Alphaleonis.Win32.Filesystem.FileInfo') }
+        @{ Name = 'Get-FileHash2'; Types = @('Alphaleonis.Win32.Filesystem.FileInfo+Hash') }
         @{ Name = 'Add-NTFSAudit'; Types = @('Security2.FileSystemAuditRule2') }
         @{ Name = 'Remove-NTFSAudit'; Types = @('Security2.FileSystemAuditRule2') }
         @{ Name = 'Copy-Item2'; Types = $itemTypes }
@@ -47,6 +47,16 @@ AfterAll {
 Describe 'Declared output types' {
     It '<Name> should declare the type of the objects it writes' -ForEach $declaredTypes {
         @((Get-Command -Name $Name).OutputType.Name) | Should -Be $Types
+    }
+
+    # Before 5.0.0-rc4, Get-FileHash2 declared the AlphaFS FileInfo, although it writes objects with the type name
+    # that its format view uses (#111).
+    It 'Get-FileHash2 should declare the type name of the objects it writes' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Hash'
+
+        $result = Get-FileHash2 -Path $file
+
+        $result.PSObject.TypeNames[0] | Should -Be @((Get-Command -Name Get-FileHash2).OutputType.Name)[0]
     }
 }
 

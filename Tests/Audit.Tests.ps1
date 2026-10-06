@@ -99,7 +99,8 @@ Describe 'Add-NTFSAudit' {
             $positions['AccessRights'] | Should -Be 3
         }
 
-        It 'Should bind an account and access rights that are passed by position' {
+        # A descriptor from Get-NTFSSecurityDescriptor contains the audit entries only with the Security privilege.
+        It 'Should bind an account and access rights that are passed by position' -Skip:(-not $canReadAudit) {
             $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Positional'
             $sd = Get-NTFSSecurityDescriptor -Path $file
 
@@ -110,7 +111,8 @@ Describe 'Add-NTFSAudit' {
         }
     }
 
-    Context 'With -PassThru' {
+    # A descriptor from Get-NTFSSecurityDescriptor contains the audit entries only with the Security privilege.
+    Context 'With -PassThru' -Skip:(-not $canReadAudit) {
         It 'Should return the audit entries of a security descriptor, not its access entries' {
             $file = New-TestSandboxItem -Sandbox $sandbox -Name 'PassThru'
             $sd = Get-NTFSSecurityDescriptor -Path $file
@@ -222,7 +224,8 @@ Describe 'Remove-NTFSAudit' {
         }
     }
 
-    Context 'With -RemoveSpecific' {
+    # A descriptor from Get-NTFSSecurityDescriptor contains the audit entries only with the Security privilege.
+    Context 'With -RemoveSpecific' -Skip:(-not $canReadAudit) {
         BeforeEach {
             $removeFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSpecific' -Directory
             $sd = Get-NTFSSecurityDescriptor -Path $removeFolder
@@ -259,6 +262,49 @@ Describe 'Remove-NTFSAudit' {
             $result | ForEach-Object -Process { $_ | Should -BeOfType [Security2.FileSystemAuditRule2] }
             @($result | Where-Object -FilterScript { $_.Account.Sid -eq 'S-1-5-32-545' }) | Should -HaveCount 1
         }
+    }
+
+    Context 'When the item has no SACL' {
+        # An item without audit entries can have no SACL at all, and Windows denies a write without any section:
+        # (5) Access is denied. Before 5.0.0-rc4, the cmdlet failed for such an item, although there was nothing to
+        # remove.
+        It 'Should write no error' -Skip:(-not $canReadAudit) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'NoSacl'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+            $audit = New-Object -TypeName 'Security2.FileSystemSecurity2' -ArgumentList (
+                (Get-Item2 -Path $file), [System.Security.AccessControl.AccessControlSections]::Audit
+            )
+            $audit.SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit') | Should -BeNullOrEmpty
+
+            Remove-NTFSAudit -Path $file -Account 'Everyone' -AccessRights ReadData -InheritanceFlags None -PropagationFlags None -ErrorVariable removeErrors -ErrorAction SilentlyContinue
+
+            $removeErrors | Should -BeNullOrEmpty
+        }
+    }
+}
+
+Describe 'Audit cmdlets with a security descriptor without the audit entries' {
+    # Before 5.0.0-rc4, only Get-NTFSAudit reported a security descriptor that was read without the audit entries, such
+    # as without the Security privilege. The other audit cmdlets changed the missing SACL in memory and wrote no error,
+    # and -PassThru returned nothing (#109).
+    It '<Command> should write an error and leave the descriptor without audit entries' -ForEach @(
+        @{ Command = 'Add-NTFSAudit'; Parameters = @{ Account = 'Everyone'; AccessRights = 'ReadData'; PassThru = $true } }
+        @{ Command = 'Remove-NTFSAudit'; Parameters = @{ Account = 'Everyone'; AccessRights = 'ReadData'; PassThru = $true } }
+        @{ Command = 'Clear-NTFSAudit'; Parameters = @{ DisableInheritance = $true } }
+    ) {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'AccessOnly'
+        $sd = New-Object -TypeName 'Security2.FileSystemSecurity2' -ArgumentList (
+            (Get-Item2 -Path $file), [System.Security.AccessControl.AccessControlSections]::Access
+        )
+
+        $result = @(& $Command -SecurityDescriptor $sd @Parameters -ErrorVariable auditErrors -ErrorAction SilentlyContinue)
+
+        $result | Should -BeNullOrEmpty
+        $auditErrors | Should -HaveCount 1
+        $auditErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadSecurityError,*'
+        # The descriptor was read with the access entries only, not without the Security privilege.
+        $auditErrors[0].Exception.Message | Should -Not -BeLike '*because it was read without the Security privilege*'
+        $sd.SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit') | Should -BeNullOrEmpty
     }
 }
 

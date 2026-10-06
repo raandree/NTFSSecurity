@@ -302,6 +302,10 @@ When the module setting `EnablePrivileges` is `$true` (the default in the `Priva
 
 Reading and writing the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it, the cmdlet writes a non-terminating `RemoveAceError` whose message states that a required privilege is not held by the client, and the item is left unchanged.
 
+A security descriptor that was read without the Security privilege doesn't contain the audit entries. With such a descriptor, the cmdlet writes a `ReadSecurityError` and changes nothing, like `Get-NTFSAudit`; before 5.0.0, it wrote no error, and `-PassThru` returned nothing.
+
+A file or folder without audit entries can have no SACL at all. For such an item, the cmdlet writes nothing and no error; before 5.0.0, it failed with the error "(5) Access is denied".
+
 If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet restores the previous owner and writes an error. Before 5.0.0, the account that ran the cmdlet stayed the owner of the item in that case.
 
 The cmdlet reports no error when no entry matches the supplied values. Compare the result with `Get-NTFSAudit` to confirm that the entry is gone.

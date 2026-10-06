@@ -24,7 +24,7 @@ The `Copy-Item2` cmdlet copies the items in `-Path` to the location in `-Destina
 
 How `-Destination` is interpreted depends on what is already there. If the value names an existing folder, the cmdlet keeps the name of the source item and copies it into that folder. In every other case the value is the full path of the new item, which lets you copy and rename in one step. `-Destination` is resolved against the current location once, when the cmdlet starts.
 
-Without `-Force`, the cmdlet checks whether the destination file already exists and writes a `DestinationFileAlreadyExists` error instead of overwriting it. With `-Force`, an existing file is replaced. Relative paths and the `.` and `..` notations in `-Path` are resolved against the current location, and wildcard characters are not supported.
+Without `-Force`, the cmdlet checks whether the destination file already exists and writes a `DestinationFileAlreadyExists` error instead of overwriting it. With `-WhatIf`, it names an existing destination file in a verbose message instead; before 5.0.0, it wrote the error also with `-WhatIf`. With `-Force`, an existing file is replaced. Relative paths and the `.` and `..` notations in `-Path` are resolved against the current location, and wildcard characters are not supported.
 
 The cmdlet supports `-WhatIf` and `-Confirm`, and it writes nothing to the pipeline unless you specify `-PassThru $true`.
 

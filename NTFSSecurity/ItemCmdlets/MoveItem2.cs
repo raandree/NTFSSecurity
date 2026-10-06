@@ -88,7 +88,20 @@ namespace NTFSSecurity
                     actualDestination = destination;
                 }
 
-                if (!force & File.Exists(actualDestination))
+                var destinationExists = !force && File.Exists(actualDestination);
+
+                // Report a conflict only for an operation that runs; -WhatIf names it in a verbose message (#108).
+                if (!ShouldProcess(resolvedPath, item is FileInfo ? "Move File" : "Move Directory"))
+                {
+                    if (destinationExists)
+                    {
+                        WriteVerbose(string.Format("The destination '{0}' already exists; without -Force, the move would fail", actualDestination));
+                    }
+
+                    continue;
+                }
+
+                if (destinationExists)
                 {
                     WriteError(new ErrorRecord(new AlreadyExistsException(), "DestinationFileAlreadyExists", ErrorCategory.ResourceExists, actualDestination));
                     continue;
@@ -96,28 +109,18 @@ namespace NTFSSecurity
 
                 try
                 {
-                    var processed = false;
-
                     if (item is FileInfo)
                     {
-                        if (ShouldProcess(resolvedPath, "Move File"))
-                        {
-                            ((FileInfo)item).MoveTo(actualDestination, force ? MoveOptions.ReplaceExisting : MoveOptions.CopyAllowed, PathFormat.RelativePath);
-                            WriteVerbose(string.Format("File '{0}' moved to '{1}'", resolvedPath, actualDestination));
-                            processed = true;
-                        }
+                        ((FileInfo)item).MoveTo(actualDestination, force ? MoveOptions.ReplaceExisting : MoveOptions.CopyAllowed, PathFormat.RelativePath);
+                        WriteVerbose(string.Format("File '{0}' moved to '{1}'", resolvedPath, actualDestination));
                     }
                     else
                     {
-                        if (ShouldProcess(resolvedPath, "Move Directory"))
-                        {
-                            ((DirectoryInfo)item).MoveTo(actualDestination, force ? MoveOptions.ReplaceExisting : MoveOptions.CopyAllowed, PathFormat.RelativePath);
-                            WriteVerbose(string.Format("Directory '{0}' moved to '{1}'", resolvedPath, actualDestination));
-                            processed = true;
-                        }
+                        ((DirectoryInfo)item).MoveTo(actualDestination, force ? MoveOptions.ReplaceExisting : MoveOptions.CopyAllowed, PathFormat.RelativePath);
+                        WriteVerbose(string.Format("Directory '{0}' moved to '{1}'", resolvedPath, actualDestination));
                     }
 
-                    if (passThru && processed)
+                    if (passThru)
                         WriteObject(item);
                 }
                 catch (System.IO.IOException ex)
