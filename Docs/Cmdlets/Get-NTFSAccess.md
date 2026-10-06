@@ -186,7 +186,7 @@ Entries whose account cannot be translated into a name are returned with their S
 
 Before 5.0.0, after a path whose ACL could not be read, the cmdlet returned the entries of the previous item again.
 
-For the root of a drive, such as `C:\`, the cmdlets of the module read and change the root folder of the volume, like Explorer, `icacls`, and `Get-Acl`. Before 5.0.0, they read and changed the security descriptor of the drive itself, a device object with other entries.
+For the root of a drive, such as `C:\`, or of a volume, such as `\\?\Volume{GUID}\`, the cmdlets that read and change security use the root folder of the volume, like Explorer, `icacls`, and `Get-Acl`. Before 5.0.0, they read and changed the security descriptor of the drive itself, a device object with other entries.
 
 ## RELATED LINKS
 

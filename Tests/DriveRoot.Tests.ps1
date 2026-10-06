@@ -39,4 +39,15 @@ Describe 'The root folder of a drive' {
     It 'Get-NTFSOwner should return the owner of the root folder' {
         (Get-NTFSOwner -Path $root).Owner.Sid | Should -Be $acl.GetOwner($sidType).Value
     }
+
+    It 'Get-NTFSAccess should return the access entries of the root folder for the volume name, such as \\?\Volume{GUID}\' {
+        # Win32_Volume returns nothing to a user without elevation; mountvol works for every user.
+        $volume = (mountvol.exe $root /L | Out-String).Trim()
+        $volume | Should -BeLike '\\?\Volume{*}\'
+        $expected = @($acl.GetAccessRules($true, $true, $sidType) | ForEach-Object -Process { $_.IdentityReference.Value } | Sort-Object)
+
+        $entries = @(Get-NTFSAccess -Path $volume)
+
+        @($entries | ForEach-Object -Process { $_.Account.Sid } | Sort-Object) | Should -Be $expected
+    }
 }

@@ -99,7 +99,8 @@ Describe 'Add-NTFSAudit' {
             $positions['AccessRights'] | Should -Be 3
         }
 
-        It 'Should bind an account and access rights that are passed by position' {
+        # A descriptor from Get-NTFSSecurityDescriptor contains the audit entries only with the Security privilege.
+        It 'Should bind an account and access rights that are passed by position' -Skip:(-not $canReadAudit) {
             $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Positional'
             $sd = Get-NTFSSecurityDescriptor -Path $file
 
@@ -110,7 +111,8 @@ Describe 'Add-NTFSAudit' {
         }
     }
 
-    Context 'With -PassThru' {
+    # A descriptor from Get-NTFSSecurityDescriptor contains the audit entries only with the Security privilege.
+    Context 'With -PassThru' -Skip:(-not $canReadAudit) {
         It 'Should return the audit entries of a security descriptor, not its access entries' {
             $file = New-TestSandboxItem -Sandbox $sandbox -Name 'PassThru'
             $sd = Get-NTFSSecurityDescriptor -Path $file
@@ -222,7 +224,8 @@ Describe 'Remove-NTFSAudit' {
         }
     }
 
-    Context 'With -RemoveSpecific' {
+    # A descriptor from Get-NTFSSecurityDescriptor contains the audit entries only with the Security privilege.
+    Context 'With -RemoveSpecific' -Skip:(-not $canReadAudit) {
         BeforeEach {
             $removeFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSpecific' -Directory
             $sd = Get-NTFSSecurityDescriptor -Path $removeFolder
@@ -299,6 +302,8 @@ Describe 'Audit cmdlets with a security descriptor without the audit entries' {
         $result | Should -BeNullOrEmpty
         $auditErrors | Should -HaveCount 1
         $auditErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadSecurityError,*'
+        # The descriptor was read with the access entries only, not without the Security privilege.
+        $auditErrors[0].Exception.Message | Should -Not -BeLike '*because it was read without the Security privilege*'
         $sd.SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit') | Should -BeNullOrEmpty
     }
 }

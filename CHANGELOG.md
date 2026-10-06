@@ -234,10 +234,11 @@ The format is based on
 - Fix `Clear-NTFSAudit`, which finished without an error but changed nothing
   in a session without the Security privilege; it now writes an error, like
   the other audit cmdlets
-- Fix the cmdlets for the root of a drive, such as `C:\`, which read and
-  changed the security descriptor of the drive, a device object, instead of
-  that of its root folder, so that `Get-NTFSAccess` showed other entries than
-  Explorer ([#41](https://github.com/raandree/NTFSSecurity/issues/41))
+- Fix the cmdlets for the root of a drive, such as `C:\`, or of a volume,
+  such as `\\?\Volume{GUID}\`, which read and changed the security
+  descriptor of the drive, a device object, instead of that of its root
+  folder, so that `Get-NTFSAccess` showed other entries than Explorer
+  ([#41](https://github.com/raandree/NTFSSecurity/issues/41))
 - Fix `Add-NTFSAudit`, `Remove-NTFSAudit`, and `Clear-NTFSAudit` with a
   security descriptor that was read without the audit entries; they now
   write an error like `Get-NTFSAudit` instead of changing the missing entries

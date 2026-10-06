@@ -119,7 +119,16 @@ namespace Security2
         private static bool TryGetDriveRoot(FileSystemInfo item, out string root)
         {
             var fullName = item.FullName.TrimEnd('\\');
-            if (fullName.Length == 2 && fullName[1] == ':' && char.IsLetter(fullName[0]))
+
+            // A drive letter, such as C:
+            var isDriveLetter = fullName.Length == 2 && fullName[1] == ':' &&
+                ((fullName[0] >= 'A' && fullName[0] <= 'Z') || (fullName[0] >= 'a' && fullName[0] <= 'z'));
+
+            // A volume name, such as \\?\Volume{9f122b1b-858a-49bd-aec4-dfbe8978fe16}, without a folder below it
+            var isVolumeName = fullName.StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase) &&
+                fullName.EndsWith("}", StringComparison.Ordinal) && fullName.IndexOf('\\', 4) < 0;
+
+            if (isDriveLetter || isVolumeName)
             {
                 root = fullName + "\\";
                 return true;

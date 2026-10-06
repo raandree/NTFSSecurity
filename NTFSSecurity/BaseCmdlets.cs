@@ -33,7 +33,7 @@ namespace NTFSSecurity
             }
 
             var ex = new InvalidOperationException(string.Format(
-                "The security descriptor of '{0}' doesn't contain the audit entries, because it was read without the Security privilege.", sd.FullName));
+                "The security descriptor of '{0}' doesn't contain the audit entries. Read it with Get-NTFSSecurityDescriptor in a session that holds the Security privilege.", sd.FullName));
             WriteError(new ErrorRecord(ex, "ReadSecurityError", ErrorCategory.InvalidData, sd));
             return false;
         }
