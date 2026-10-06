@@ -1,5 +1,6 @@
 ﻿using Alphaleonis.Win32.Filesystem;
 using System;
+using System.Collections.Generic;
 using System.Security.AccessControl;
 
 namespace Security2
@@ -12,6 +13,10 @@ namespace Security2
         protected FileSystemSecurity sd;
         protected AccessControlSections sections;
         protected bool isFile = false;
+
+        // The SDDL form of each section as it was read or last written, so that WriteChanges writes only the
+        // sections that changed since.
+        private Dictionary<AccessControlSections, string> sectionsAsRead;
 
         public FileSystemInfo Item
         {
@@ -43,6 +48,8 @@ namespace Security2
 
                 sd = ((DirectoryInfo)this.item).GetAccessControl(sections);
             }
+
+            RememberSections();
         }
 
         public FileSystemSecurity2(FileSystemInfo item)
@@ -93,12 +100,58 @@ namespace Security2
                     }
                 }
             }
+
+            // Read together with the SACL, the inherited entries of a DACL without the auto-inherit flag lose their
+            // inherited flag when the parent folder has no SACL, and writing such a DACL back stores them as explicit
+            // entries. Read alone, the DACL keeps the flags.
+            if (HasAuditSection)
+            {
+                var accessSecurity = isFile
+                    ? (FileSystemSecurity)((FileInfo)this.item).GetAccessControl(AccessControlSections.Access)
+                    : ((DirectoryInfo)this.item).GetAccessControl(AccessControlSections.Access);
+                sd.SetSecurityDescriptorBinaryForm(accessSecurity.GetSecurityDescriptorBinaryForm(), AccessControlSections.Access);
+            }
+
+            RememberSections();
         }
 
         // Without the Security privilege, the security descriptor is read without its SACL.
         internal bool HasAuditSection
         {
             get { return (sections & AccessControlSections.Audit) == AccessControlSections.Audit; }
+        }
+
+        // An item without audit entries can have no SACL at all, also when the SACL was read.
+        internal bool HasSystemAcl
+        {
+            get { return new RawSecurityDescriptor(sd.GetSecurityDescriptorBinaryForm(), 0).SystemAcl != null; }
+        }
+
+        // The sections that differ from the ones that were read or last written.
+        internal AccessControlSections ChangedSections
+        {
+            get
+            {
+                var changed = AccessControlSections.None;
+                foreach (var section in sectionsAsRead)
+                {
+                    if (sd.GetSecurityDescriptorSddlForm(section.Key) != section.Value)
+                    {
+                        changed |= section.Key;
+                    }
+                }
+
+                return changed;
+            }
+        }
+
+        private void RememberSections()
+        {
+            sectionsAsRead = new Dictionary<AccessControlSections, string>();
+            foreach (var section in new[] { AccessControlSections.Access, AccessControlSections.Audit, AccessControlSections.Owner, AccessControlSections.Group })
+            {
+                sectionsAsRead[section] = sd.GetSecurityDescriptorSddlForm(section);
+            }
         }
 
         public FileSystemSecurity SecurityDescriptor
@@ -109,16 +162,42 @@ namespace Security2
             }
         }
 
+        // Writes the sections that the descriptor was read with. Windows can return the owner and the group with a DACL
+        // that is read alone, and writing them back fails for an owner that the user cannot assign (#34).
         public void Write()
         {
             if (isFile)
             {
-                ((FileInfo)item).SetAccessControl((FileSecurity)sd);
+                ((FileInfo)item).SetAccessControl((FileSecurity)sd, sections);
             }
             else
             {
-                ((DirectoryInfo)item).SetAccessControl((DirectorySecurity)sd);
+                ((DirectoryInfo)item).SetAccessControl((DirectorySecurity)sd, sections);
             }
+
+            RememberSections();
+        }
+
+        // Writes only the sections that changed since they were read or last written, so that, for example, an
+        // unchanged owner that the user cannot assign isn't written back (#34). Without a change, it writes nothing.
+        internal void WriteChanges()
+        {
+            var changedSections = ChangedSections;
+            if (changedSections == AccessControlSections.None)
+            {
+                return;
+            }
+
+            if (isFile)
+            {
+                ((FileInfo)item).SetAccessControl((FileSecurity)sd, changedSections);
+            }
+            else
+            {
+                ((DirectoryInfo)item).SetAccessControl((DirectorySecurity)sd, changedSections);
+            }
+
+            RememberSections();
         }
 
         public void Write(FileSystemInfo item)

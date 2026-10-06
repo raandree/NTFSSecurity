@@ -1,6 +1,7 @@
 ﻿using Security2;
 using System;
 using System.Management.Automation;
+using System.Security.AccessControl;
 
 namespace NTFSSecurity
 {
@@ -39,7 +40,18 @@ namespace NTFSSecurity
             {
                 try
                 {
-                    sd.Write();
+                    // Only the changed sections, so that an unchanged owner, for example, isn't written back (#34)
+                    var changedSections = sd.ChangedSections;
+                    if (changedSections == AccessControlSections.None)
+                    {
+                        WriteVerbose(string.Format("No section of the security descriptor of '{0}' changed since it was read or last written; nothing is written", sd.FullName));
+                    }
+                    else
+                    {
+                        WriteVerbose(string.Format("Writing the changed sections of the security descriptor of '{0}': {1}", sd.FullName, changedSections));
+                    }
+
+                    sd.WriteChanges();
 
                     if (passThru)
                     {
@@ -55,7 +67,7 @@ namespace NTFSSecurity
 
                         FileSystemOwner.SetOwner(sd.Item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
 
-                        sd.Write();
+                        sd.WriteChanges();
 
                         FileSystemOwner.SetOwner(sd.Item, previousOwner);
                     }

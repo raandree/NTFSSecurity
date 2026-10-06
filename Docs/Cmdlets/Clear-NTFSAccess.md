@@ -145,6 +145,8 @@ When the module setting `EnablePrivileges` is `$true` (the default in the `Priva
 
 If the ACL of an item cannot be written because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.
 
+In the `Path` parameter set, the cmdlet reads and writes only the DACL of the item and leaves its owner, its group, and its SACL as they are. Before 5.0.0, it also wrote the owner back, which failed with error 1307, "This security ID may not be assigned as the owner of this object", when the account may not assign that owner, such as on some file servers.
+
 ## RELATED LINKS
 
 [Add-NTFSAccess](Add-NTFSAccess.md)

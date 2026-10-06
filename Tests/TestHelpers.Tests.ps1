@@ -7,6 +7,12 @@
 )]
 param ()
 
+BeforeDiscovery {
+    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
+    # Assigning an owner other than the user or one of its groups needs the Restore privilege.
+    $canAssignAnyOwner = Test-PrivilegeHeld -Name 'SeRestorePrivilege'
+}
+
 BeforeAll {
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
 }
@@ -127,6 +133,40 @@ Describe 'Test helpers' {
 
         It 'Should not change the ACL of the target of a junction' {
             (Get-Acl -LiteralPath $target).Sddl | Should -BeExactly $targetSddl
+        }
+    }
+
+    Context 'Set-TestOwner' {
+        BeforeAll {
+            $sandbox = New-TestSandbox -Name 'Helpers'
+            $trustedInstaller = 'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'
+        }
+
+        AfterAll {
+            Remove-TestSandbox -Sandbox $sandbox
+        }
+
+        It 'Should make the account the owner of an item in the sandbox' -Skip:(-not $canAssignAnyOwner) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Owner'
+
+            Set-TestOwner -Sandbox $sandbox -Path $file -Sid $trustedInstaller
+
+            (Get-Acl -LiteralPath $file).GetOwner([System.Security.Principal.SecurityIdentifier]).Value |
+                Should -Be $trustedInstaller
+        }
+
+        It 'Should refuse an item outside the sandbox' {
+            { Set-TestOwner -Sandbox $sandbox -Path "$sandbox-Other\File.txt" -Sid $trustedInstaller } |
+                Should -Throw -ExpectedMessage 'Refusing to change*'
+        }
+
+        # icacls reports a failure on stderr, which Windows PowerShell turns into a terminating error of its own when
+        # the caller uses -ErrorAction Stop.
+        It 'Should throw its own error when icacls fails, also with -ErrorAction Stop' {
+            $missing = Join-Path -Path $sandbox -ChildPath 'Missing.txt'
+
+            { Set-TestOwner -Sandbox $sandbox -Path $missing -Sid $trustedInstaller -ErrorAction Stop } |
+                Should -Throw -ExpectedMessage 'icacls could not make*'
         }
     }
 

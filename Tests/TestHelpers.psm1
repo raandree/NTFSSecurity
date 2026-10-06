@@ -262,6 +262,49 @@ function Add-TestDenyRule {
     Set-Acl -LiteralPath $Path -AclObject $acl
 }
 
+function Set-TestOwner {
+    <#
+    .SYNOPSIS
+        Makes an account the owner of an item in the sandbox, also an account that only the Restore privilege lets
+        the user assign.
+    .DESCRIPTION
+        Runs icacls, which enables the Restore privilege in its own process, so that the privileges of the test
+        process stay as they are. Remove-TestSandbox deletes the item through the rights on its folder.
+    .PARAMETER Sid
+        The SID of the new owner, such as that of NT SERVICE\TrustedInstaller.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+        'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only writes to sandboxes.'
+    )]
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [string]
+        $Sandbox,
+
+        [Parameter(Mandatory)]
+        [string]
+        $Path,
+
+        [Parameter(Mandatory)]
+        [ValidatePattern('^S-1-\d+(-\d+)+$')]
+        [string]
+        $Sid
+    )
+
+    Assert-TestSandboxPath -Sandbox $Sandbox -Path $Path
+    # icacls reports a failure on stderr, which Windows PowerShell turns into a terminating error when the caller uses
+    # ErrorAction Stop; the exit code decides instead.
+    $ErrorActionPreference = 'Continue'
+    # icacls resolves a relative path against the working folder of the process, not the location of PowerShell.
+    $location = (Get-Location -PSProvider FileSystem).ProviderPath
+    $fullName = [IO.Path]::GetFullPath([IO.Path]::Combine($location, $Path))
+    $output = & icacls.exe $fullName /setowner "*$Sid" /Q 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "icacls could not make '$Sid' the owner of '$fullName' (exit code $LASTEXITCODE): $output"
+    }
+}
+
 function Test-IsElevated {
     <#
     .SYNOPSIS
@@ -303,4 +346,4 @@ function Test-PrivilegeHeld {
 }
 
 Export-ModuleMember -Function New-TestSandbox, Assert-TestSandboxPath, Remove-TestSandbox, New-TestSandboxItem,
-    Block-TestReadPermission, Block-TestWritePermission, Test-IsElevated, Test-PrivilegeHeld
+    Block-TestReadPermission, Block-TestWritePermission, Set-TestOwner, Test-IsElevated, Test-PrivilegeHeld

@@ -304,6 +304,8 @@ If the ACL of an item cannot be written because access is denied, the cmdlet tri
 
 Removing rights from an entry that does not exist is not an error; the cmdlet leaves the ACL unchanged.
 
+In the `Path` parameter sets, the cmdlet writes only the DACL of the item and leaves its owner, its group, and its SACL as they are. Before 5.0.0, it could also write the owner back, which failed with error 1307, "This security ID may not be assigned as the owner of this object", when the account may not assign that owner, such as on some file servers.
+
 An entry with a generic right, such as `GenericAll`, can be removed, for example by piping it from `Get-NTFSAccess`. Windows keeps generic rights in the inherit-only entries of folders. Before 5.0.0, the cmdlet failed for such an entry with the error "The value '269484032' is not valid for this usage of the type FileSystemRights".
 
 Before 5.0.0, the `-RemoveSpecific` switch was missing, although version 4.1 had introduced it.

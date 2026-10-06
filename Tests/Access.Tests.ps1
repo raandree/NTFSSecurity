@@ -10,6 +10,8 @@ BeforeDiscovery {
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
     # With the Restore privilege, Windows may grant writing the DACL despite a deny entry.
     $canBypassWriteDeny = Test-PrivilegeHeld -Name 'SeRestorePrivilege'
+    # Assigning an owner other than the user or one of its groups needs the Restore privilege.
+    $canAssignAnyOwner = Test-PrivilegeHeld -Name 'SeRestorePrivilege'
     $holdsSecurityPrivilege = Test-PrivilegeHeld -Name 'SeSecurityPrivilege'
 }
 
@@ -19,9 +21,20 @@ BeforeAll {
     Import-Module -Name $modulePath -Force -ErrorAction Stop
     $sandbox = New-TestSandbox -Name 'Access'
     Push-Location -LiteralPath $sandbox
+
+    $privateData = (Get-Module -Name NTFSSecurity).PrivateData
+    $enablePrivileges = $privateData['EnablePrivileges']
+    $sidType = [System.Security.Principal.SecurityIdentifier]
+    # An owner that the user can assign only with the Restore privilege
+    $trustedInstaller = 'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'
+
+    function Get-RestorePrivilegeState {
+        (Get-Privileges | Where-Object -Property Privilege -EQ -Value 'Restore').PrivilegeState
+    }
 }
 
 AfterAll {
+    $privateData['EnablePrivileges'] = $enablePrivileges
     Pop-Location
     Remove-TestSandbox -Sandbox $sandbox
     Remove-Module -Name NTFSSecurity -Force -ErrorAction SilentlyContinue
@@ -208,6 +221,30 @@ Describe 'Remove-NTFSAccess' {
         }
     }
 
+    Context 'When the item has an owner that the user cannot assign' {
+        BeforeAll {
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        # Before 5.0.0-rc3, the cmdlet read only the DACL, but wrote the owner that Windows returns with a DACL without
+        # the auto-inherit flag, which Windows refuses without the Restore privilege (#34). Any write of the DACL adds
+        # the flag, so the item keeps its DACL as created and has no explicit entry to remove.
+        It 'Should write no error and keep the owner' -Skip:(-not $canAssignAnyOwner) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveOtherOwner'
+            Set-TestOwner -Sandbox $sandbox -Path $file -Sid $trustedInstaller
+            Get-RestorePrivilegeState | Should -Be 'Disabled'
+
+            Remove-NTFSAccess -Path $file -Account 'Everyone' -AccessRights ReadData -ErrorVariable removeErrors -ErrorAction SilentlyContinue
+
+            $removeErrors | Should -BeNullOrEmpty
+            (Get-Acl -LiteralPath $file).GetOwner($sidType).Value | Should -Be $trustedInstaller
+        }
+    }
+
     Context 'With a generic right' {
         # Before 5.0.0, removing an entry with a generic right such as GENERIC_ALL failed with "The value '269484032' is
         # not valid", because .NET rebuilds the rule and rejects generic rights (#17). Windows keeps generic rights in
@@ -324,6 +361,52 @@ Describe 'Add-NTFSAccess' {
             $result | Should -BeNullOrEmpty
         }
     }
+
+    Context 'When the item has an owner that the user cannot assign' {
+        BeforeAll {
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        # Before 5.0.0-rc3, the cmdlet wrote the unchanged owner back. Without the Restore privilege, Windows refuses
+        # an owner that the user cannot assign, like a file server that refuses the owner (#34): (1307) This security
+        # ID may not be assigned as the owner of this object.
+        It 'Should add the entry and keep the owner' -Skip:(-not $canAssignAnyOwner) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'OtherOwner'
+            Set-TestOwner -Sandbox $sandbox -Path $file -Sid $trustedInstaller
+            Get-RestorePrivilegeState | Should -Be 'Disabled'
+
+            Add-NTFSAccess -Path $file -Account 'Everyone' -AccessRights ReadData -ErrorVariable addErrors -ErrorAction SilentlyContinue
+
+            $addErrors | Should -BeNullOrEmpty
+            $acl = Get-Acl -LiteralPath $file
+            $acl.GetOwner($sidType).Value | Should -Be $trustedInstaller
+            @($acl.GetAccessRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) |
+                Should -HaveCount 1
+        }
+    }
+
+    Context 'With inherited entries' {
+        # Before 5.0.0-rc3, the cmdlet read the DACL together with the SACL when the process held the Security
+        # privilege. When the folder has no SACL, Windows then returns the inherited entries of a DACL without the
+        # auto-inherit flag, such as that of a file in the temp folder of the user, without their inherited flag, and
+        # the cmdlet wrote them back as explicit copies.
+        It 'Should add one explicit entry and keep the inherited entries inherited' -Skip:(-not $holdsSecurityPrivilege) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Inherited'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+            $inheritedCount = @((Get-Acl -LiteralPath $file).GetAccessRules($false, $true, $sidType)).Count
+            $inheritedCount | Should -BeGreaterThan 0
+
+            Add-NTFSAccess -Path $file -Account 'Everyone' -AccessRights ReadData
+
+            $acl = Get-Acl -LiteralPath $file
+            @($acl.GetAccessRules($true, $false, $sidType)) | Should -HaveCount 1
+            @($acl.GetAccessRules($false, $true, $sidType)) | Should -HaveCount $inheritedCount
+        }
+    }
 }
 
 Describe 'Security descriptor parameter sets' {
@@ -375,6 +458,33 @@ Describe 'Clear-NTFSAccess' {
             $acl = Get-Acl -LiteralPath $file
             $acl.AreAccessRulesProtected | Should -BeTrue
             $acl.Access | Should -BeNullOrEmpty
+        }
+    }
+
+    Context 'When the item has an owner that the user cannot assign' {
+        BeforeAll {
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        # Before 5.0.0-rc3, the cmdlet wrote the unchanged owner back, which Windows refuses without the Restore
+        # privilege (#34). For a DACL without the auto-inherit flag, such as that of a new file in the temp folder of
+        # the user, Windows returns the owner even when only the DACL is read. Any write of the DACL adds the flag, so
+        # the item keeps its DACL as created.
+        It 'Should write no error and keep the owner' -Skip:(-not $canAssignAnyOwner) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'ClearOtherOwner'
+            Set-TestOwner -Sandbox $sandbox -Path $file -Sid $trustedInstaller
+            Get-RestorePrivilegeState | Should -Be 'Disabled'
+
+            Clear-NTFSAccess -Path $file -ErrorVariable clearErrors -ErrorAction SilentlyContinue
+
+            $clearErrors | Should -BeNullOrEmpty
+            $acl = Get-Acl -LiteralPath $file
+            $acl.GetOwner($sidType).Value | Should -Be $trustedInstaller
+            @($acl.GetAccessRules($true, $false, $sidType)) | Should -BeNullOrEmpty
         }
     }
 }

@@ -25,7 +25,8 @@ namespace Security2
 
         public static void RemoveFileSystemAccessRuleAll(FileSystemInfo item, List<IdentityReference2> accounts = null)
         {
-            var sd = new FileSystemSecurity2(item);
+            // Only the DACL, so that the owner isn't written back (#34) and the inherited entries keep their flag
+            var sd = new FileSystemSecurity2(item, AccessControlSections.Access);
 
             RemoveFileSystemAccessRuleAll(sd, accounts);
 

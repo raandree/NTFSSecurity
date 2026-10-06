@@ -11,6 +11,8 @@ param ()
 BeforeDiscovery {
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
     $canReadAudit = Test-PrivilegeHeld -Name 'SeSecurityPrivilege'
+    # Assigning an owner other than the user or one of its groups needs the Restore privilege.
+    $canAssignAnyOwner = Test-PrivilegeHeld -Name 'SeRestorePrivilege'
 }
 
 BeforeAll {
@@ -19,9 +21,20 @@ BeforeAll {
     Import-Module -Name $modulePath -Force -ErrorAction Stop
     $sandbox = New-TestSandbox -Name 'Audit'
     Push-Location -LiteralPath $sandbox
+
+    $privateData = (Get-Module -Name NTFSSecurity).PrivateData
+    $enablePrivileges = $privateData['EnablePrivileges']
+    $sidType = [System.Security.Principal.SecurityIdentifier]
+    # An owner that the user can assign only with the Restore privilege
+    $trustedInstaller = 'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'
+
+    function Get-RestorePrivilegeState {
+        (Get-Privileges | Where-Object -Property Privilege -EQ -Value 'Restore').PrivilegeState
+    }
 }
 
 AfterAll {
+    $privateData['EnablePrivileges'] = $enablePrivileges
     Pop-Location
     Remove-TestSandbox -Sandbox $sandbox
     Remove-Module -Name NTFSSecurity -Force -ErrorAction SilentlyContinue
@@ -121,6 +134,48 @@ Describe 'Add-NTFSAudit' {
             $result | ForEach-Object -Process { $_.InheritanceEnabled | Should -BeFalse }
         }
     }
+
+    Context 'When the item has an owner that the user cannot assign' {
+        BeforeAll {
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        # Before 5.0.0-rc3, the cmdlet wrote the unchanged owner back, which Windows refuses without the Restore
+        # privilege (#34).
+        It 'Should add the audit entry and keep the owner' -Skip:(-not ($canReadAudit -and $canAssignAnyOwner)) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'OtherOwner'
+            Set-TestOwner -Sandbox $sandbox -Path $file -Sid $trustedInstaller
+            Get-RestorePrivilegeState | Should -Be 'Disabled'
+
+            Add-NTFSAudit -Path $file -Account 'Everyone' -AccessRights ReadData -InheritanceFlags None -PropagationFlags None -ErrorVariable addErrors -ErrorAction SilentlyContinue
+
+            $addErrors | Should -BeNullOrEmpty
+            (Get-Acl -LiteralPath $file).GetOwner($sidType).Value | Should -Be $trustedInstaller
+            @(Get-NTFSAudit -Path $file -ExcludeInherited) | Should -HaveCount 1
+        }
+    }
+
+    Context 'With inherited access entries' {
+        # Before 5.0.0-rc3, the cmdlet also read and wrote the DACL. Read together with the SACL, the inherited entries
+        # of a DACL without the auto-inherit flag lose their inherited flag when the folder has no SACL, and the cmdlet
+        # wrote them back as explicit copies.
+        It 'Should leave the access entries unchanged' -Skip:(-not $canReadAudit) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Inherited'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+            $inheritedCount = @((Get-Acl -LiteralPath $file).GetAccessRules($false, $true, $sidType)).Count
+            $inheritedCount | Should -BeGreaterThan 0
+
+            Add-NTFSAudit -Path $file -Account 'Everyone' -AccessRights ReadData -InheritanceFlags None -PropagationFlags None
+
+            $acl = Get-Acl -LiteralPath $file
+            @($acl.GetAccessRules($true, $false, $sidType)) | Should -BeNullOrEmpty
+            @($acl.GetAccessRules($false, $true, $sidType)) | Should -HaveCount $inheritedCount
+        }
+    }
 }
 
 Describe 'Get-NTFSOrphanedAudit' {
@@ -203,6 +258,72 @@ Describe 'Remove-NTFSAudit' {
             $result | Should -Not -BeNullOrEmpty
             $result | ForEach-Object -Process { $_ | Should -BeOfType [Security2.FileSystemAuditRule2] }
             @($result | Where-Object -FilterScript { $_.Account.Sid -eq 'S-1-5-32-545' }) | Should -HaveCount 1
+        }
+    }
+}
+
+Describe 'Clear-NTFSAudit' {
+    Context 'When the item has an owner that the user cannot assign' {
+        BeforeAll {
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        # Before 5.0.0-rc3, the cmdlet wrote the unchanged owner back, which Windows refuses without the Restore
+        # privilege (#34).
+        It 'Should remove the audit entries and keep the owner' -Skip:(-not ($canReadAudit -and $canAssignAnyOwner)) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'ClearOtherOwner'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+            Add-NTFSAudit -Path $file -Account 'Everyone' -AccessRights ReadData -InheritanceFlags None -PropagationFlags None
+            Set-TestOwner -Sandbox $sandbox -Path $file -Sid $trustedInstaller
+            Get-RestorePrivilegeState | Should -Be 'Disabled'
+
+            Clear-NTFSAudit -Path $file -ErrorVariable clearErrors -ErrorAction SilentlyContinue
+
+            $clearErrors | Should -BeNullOrEmpty
+            (Get-Acl -LiteralPath $file).GetOwner($sidType).Value | Should -Be $trustedInstaller
+            @(Get-NTFSAudit -Path $file -ExcludeInherited) | Should -BeNullOrEmpty
+        }
+    }
+
+    Context 'When the item has no SACL' {
+        # An item without audit entries can have no SACL at all, and Windows denies a write without any section.
+        # Before 5.0.0-rc3, the cmdlet also read and wrote the DACL, and in an elevated session it wrote the inherited
+        # access entries back as explicit copies.
+        It 'Should write no error and leave the access entries unchanged' -Skip:(-not $canReadAudit) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'NoSacl'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+            $audit = New-Object -TypeName 'Security2.FileSystemSecurity2' -ArgumentList (
+                (Get-Item2 -Path $file), [System.Security.AccessControl.AccessControlSections]::Audit
+            )
+            $audit.SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit') | Should -BeNullOrEmpty
+            $inheritedCount = @((Get-Acl -LiteralPath $file).GetAccessRules($false, $true, $sidType)).Count
+
+            Clear-NTFSAudit -Path $file -ErrorVariable clearErrors -ErrorAction SilentlyContinue
+
+            $clearErrors | Should -BeNullOrEmpty
+            $acl = Get-Acl -LiteralPath $file
+            @($acl.GetAccessRules($true, $false, $sidType)) | Should -BeNullOrEmpty
+            @($acl.GetAccessRules($false, $true, $sidType)) | Should -HaveCount $inheritedCount
+        }
+    }
+
+    Context 'Without the Security privilege' {
+        # Before 5.0.0-rc3, the cmdlet read the security descriptor without its SACL, found no audit entries to remove,
+        # and finished without an error although nothing was changed; it also wrote the DACL back.
+        It 'Should write an error and leave the item unchanged' -Skip:$canReadAudit {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'NoPrivilege'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+            $sddl = (Get-Acl -LiteralPath $file).Sddl
+
+            Clear-NTFSAudit -Path $file -ErrorVariable clearErrors -ErrorAction SilentlyContinue
+
+            $clearErrors | Should -HaveCount 1
+            $clearErrors[0].FullyQualifiedErrorId | Should -BeLike 'ClearAclError,*'
+            (Get-Acl -LiteralPath $file).Sddl | Should -BeExactly $sddl
         }
     }
 }

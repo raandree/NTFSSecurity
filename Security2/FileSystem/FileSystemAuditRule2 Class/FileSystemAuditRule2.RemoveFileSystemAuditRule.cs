@@ -22,7 +22,8 @@ namespace Security2
                 else
                     sd.RemoveAuditRule(ace);
 
-                file.SetAccessControl(sd);
+                // Only the SACL, so that no other section that Windows returns with it is written back (#34)
+                file.SetAccessControl(sd, AccessControlSections.Audit);
             }
             else
             {
@@ -36,7 +37,7 @@ namespace Security2
                 else
                     sd.RemoveAuditRule(ace);
 
-                directory.SetAccessControl(sd);
+                directory.SetAccessControl(sd, AccessControlSections.Audit);
             }
         }
 
@@ -57,7 +58,7 @@ namespace Security2
 
                 sd.RemoveAuditRuleSpecific(ace);
 
-                file.SetAccessControl(sd);
+                file.SetAccessControl(sd, AccessControlSections.Audit);
             }
             else
             {
@@ -67,7 +68,7 @@ namespace Security2
 
                 sd.RemoveAuditRuleSpecific(ace);
 
-                directory.SetAccessControl(sd);
+                directory.SetAccessControl(sd, AccessControlSections.Audit);
             }
         }
 

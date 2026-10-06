@@ -10,6 +10,8 @@ param ()
 BeforeDiscovery {
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
     $canChangeAudit = Test-PrivilegeHeld -Name 'SeSecurityPrivilege'
+    # Assigning an owner other than the user or one of its groups needs the Restore privilege.
+    $canAssignAnyOwner = Test-PrivilegeHeld -Name 'SeRestorePrivilege'
 }
 
 BeforeAll {
@@ -18,9 +20,19 @@ BeforeAll {
     Import-Module -Name $modulePath -Force -ErrorAction Stop
     $sandbox = New-TestSandbox -Name 'Inheritance'
     Push-Location -LiteralPath $sandbox
+
+    $privateData = (Get-Module -Name NTFSSecurity).PrivateData
+    $enablePrivileges = $privateData['EnablePrivileges']
+    # An owner that the user can assign only with the Restore privilege
+    $trustedInstaller = 'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'
+
+    function Get-RestorePrivilegeState {
+        (Get-Privileges | Where-Object -Property Privilege -EQ -Value 'Restore').PrivilegeState
+    }
 }
 
 AfterAll {
+    $privateData['EnablePrivileges'] = $enablePrivileges
     Pop-Location
     Remove-TestSandbox -Sandbox $sandbox
     Remove-Module -Name NTFSSecurity -Force -ErrorAction SilentlyContinue
@@ -124,9 +136,7 @@ Describe 'Set-NTFSInheritance' {
         }
 
         # In memory, the kept entries stay marked as inherited; Windows stores them as explicit ones on write.
-        # The descriptor holds only the access entries. Windows marks the inherited entries of a DACL that isn't in
-        # the auto-inherit format, such as that of a file in the temp folder of the user, only when the SACL isn't
-        # read with it, and Get-NTFSSecurityDescriptor reads the SACL with the Security privilege.
+        # The descriptor holds only the access entries.
         It 'Should keep the inherited access entries of a security descriptor' {
             $file = New-TestSandboxItem -Sandbox $sandbox -Name 'KeepDescriptor'
             Assert-TestSandboxPath -Sandbox $sandbox -Path $file
@@ -261,5 +271,34 @@ Describe 'Audit inheritance switches' {
         $parameters = @{ Path = $file; $Switch = $true }
 
         { & $Command @parameters -ErrorAction SilentlyContinue } | Should -Not -Throw
+    }
+}
+
+Describe 'Access inheritance cmdlets' {
+    Context 'When the item has an owner that the user cannot assign' {
+        BeforeAll {
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        # Before 5.0.0-rc3, the cmdlets read only the DACL, but wrote the owner that Windows returns with a DACL without
+        # the auto-inherit flag, such as that of a new file in the temp folder of the user. Windows refuses that owner
+        # without the Restore privilege (#34).
+        It '<_> should write no error and keep the owner' -Skip:(-not $canAssignAnyOwner) -ForEach @(
+            'Disable-NTFSAccessInheritance', 'Enable-NTFSAccessInheritance'
+        ) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'OtherOwner'
+            Set-TestOwner -Sandbox $sandbox -Path $file -Sid $trustedInstaller
+            Get-RestorePrivilegeState | Should -Be 'Disabled'
+
+            & $_ -Path $file -ErrorVariable inheritanceErrors -ErrorAction SilentlyContinue
+
+            $inheritanceErrors | Should -BeNullOrEmpty
+            (Get-Acl -LiteralPath $file).GetOwner([System.Security.Principal.SecurityIdentifier]).Value |
+                Should -Be $trustedInstaller
+        }
     }
 }

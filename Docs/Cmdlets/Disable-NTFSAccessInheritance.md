@@ -172,6 +172,8 @@ Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was
 
 Before 5.0.0, `-PassThru` returned the unchanged state of an item also when the change failed, and stopped the command when the item could not be read.
 
+In the `Path` parameter set, the cmdlet writes only the DACL of the item and leaves its owner, its group, and its SACL as they are. Before 5.0.0, it could also write the owner back, which failed with error 1307, "This security ID may not be assigned as the owner of this object", when the account may not assign that owner, such as on some file servers.
+
 ## RELATED LINKS
 
 [Enable-NTFSAccessInheritance](Enable-NTFSAccessInheritance.md)
