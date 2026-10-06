@@ -87,15 +87,17 @@ Describe 'Release metadata' {
         }
     }
 
-    # Before 5.0.0-rc2, the description said "Windows PowerShell Module", although the module supports PowerShell 7.
+    # Before 5.0.0-rc2, the description said "Windows PowerShell Module", although the module supports PowerShell 7. Since
+    # 5.0.0-rc3, it announces that the project will be archived, for the users who see only the PowerShell Gallery.
     It 'Should have the description that the PowerShell Gallery shows for the module' {
-        $manifest.Description | Should -BeExactly 'PowerShell module for managing file and folder security on NTFS volumes'
+        $manifest.Description | Should -BeExactly ('PowerShell module for managing file and folder security on NTFS volumes. ' +
+            'NTFSSecurity will be archived; its successor is WindowsAccessControl.')
     }
 
     # The PowerShell Gallery doesn't accept a version twice. Add every published version to this list
     # (Docs/Contributing/05-Releasing.md).
     It 'Should not reuse a version that the PowerShell Gallery already has' {
-        $publishedVersions = '4.0', '4.2.2', '4.2.3', '4.2.4', '4.2.5', '4.2.6', '5.0.0-rc1'
+        $publishedVersions = '4.0', '4.2.2', '4.2.3', '4.2.4', '4.2.5', '4.2.6', '5.0.0-rc1', '5.0.0-rc2'
 
         $publishedVersions | Should -Not -Contain $version
     }
