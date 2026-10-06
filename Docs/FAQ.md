@@ -29,6 +29,17 @@ which Explorer adds for a path on a file share, and the account must be
 resolvable on the computer that runs the cmdlet. See
 [Get-NTFSEffectiveAccess](Cmdlets/Get-NTFSEffectiveAccess.md).
 
+## The root of a share loses its inherited permissions over UNC
+
+When you change the permissions of the root folder of a share through its
+UNC path, such as `\\server\share`, Windows can't reach the parent folder on
+the server to inherit from. The root folder then loses its inherited
+entries, or keeps them as explicit entries that no longer follow the parent
+folder. `icacls` and `Set-Acl` behave the same way. Change the root folder
+through its local path on the server, such as `D:\Shares\Data`, and use the
+UNC path for the folders below the root. See
+[#67](https://github.com/raandree/NTFSSecurity/issues/67).
+
 ## Get-ChildItem2 -Recurse runs in a loop through junctions
 
 A junction can point to a folder above it. Use `-SkipMountPoints` and
