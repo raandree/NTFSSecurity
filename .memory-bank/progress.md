@@ -9,12 +9,13 @@ source: repository evidence
 
 ## Current status
 
-5.0.0-rc2 is on the PowerShell Gallery and in the GitHub releases,
-published by CI from the tag `5.0.0-rc2` on `master` (`7ddda8d`) on
-2026-10-05 (Decision 12). It contains the 24 code defects of work package
-5, the issue fixes of the overnight run of 2026-10-04/05, and the CI fix
-`629f4e7`. The stable Gallery version is still 4.2.6. NTFSSecurity will be
-archived soon; its users move to WindowsAccessControl (Decision 18).
+5.0.0-rc3 is on the PowerShell Gallery and in the GitHub releases,
+published by CI from the tag `5.0.0-rc3` on `master` (`914e8da`, the merge
+of #112) on 2026-10-06 (Decision 12). It adds to 5.0.0-rc2 the fix of #34
+and of the copied inherited entries: the cmdlets write only the sections
+that they change (Decision 19). The stable Gallery version is still 4.2.6.
+NTFSSecurity will be archived soon; its users move to WindowsAccessControl
+(Decision 18).
 
 ## Recent milestones
 
@@ -42,6 +43,13 @@ archived soon; its users move to WindowsAccessControl (Decision 18).
   decided to publish 5.0.0-rc3 before 5.0.0 and to archive the project in
   favor of WindowsAccessControl (Decision 18); the README, the docs home,
   and the changelog announce it.
+- 2026-10-06: 5.0.0-rc3 (#112): the access and audit cmdlets write only
+  the section that they change, which fixes #34 and the inherited entries
+  that elevated sessions copied as explicit ones (Decision 19). #67 has its
+  cause outside the module (a share root over UNC can't re-inherit), is
+  explained in `Docs/FAQ.md`, and was closed as not planned. One
+  `security-reviewer` pass approved the branch. The PR description said
+  "fixes #34", so the merge closed #34; it was reopened for a tester.
 
 ## Stable capabilities
 
@@ -56,30 +64,32 @@ archived soon; its users move to WindowsAccessControl (Decision 18).
 
 ## Open work
 
-1. 5.0.0-rc3 first (maintainer decision of 2026-10-06): #34 and #67. Every
-   section of the security descriptor is read and written, so the owner
-   and group are written with each change, and in an elevated session
-   inherited entries are copied as explicit ones. #34 reproduces locally
-   (owner `TrustedInstaller`, no Restore privilege), so CI can test the
-   fix; #67 needs an SMB share. `fix/#34` swallows every error and needs a
-   redo. For the release: set the label `rc3` and add `5.0.0-rc2` to
-   `$publishedVersions` in `Tests/Repository.Tests.ps1`.
-2. Then release 5.0.0 through CI (Decision 12): remove the label, date
-   `[Unreleased]` as `[5.0.0]`, add `5.0.0-rc3` to `$publishedVersions`,
-   and tag `5.0.0` (steps in `Docs/Contributing/05-Releasing.md`).
-3. Issues: the open issues got their replies on 2026-10-05. Follow-up
+1. Release 5.0.0 through CI (Decision 12) when the maintainer decides:
+   remove the label, date `[Unreleased]` as `[5.0.0]`, add `5.0.0-rc3` to
+   `$publishedVersions`, and tag `5.0.0` (steps in
+   `Docs/Contributing/05-Releasing.md`). #34 stays open with Bug and Help
+   Wanted until a tester with a file server that refuses the owner
+   confirms the fix, or until 5.0.0 ships.
+2. Issues: the open issues got their replies on 2026-10-05. Follow-up
    issues for the open Minor review findings: #107 (relative path forms),
    #108 (`Copy-Item2` and `Move-Item2`), #109 (error messages), #110
    (tests), and #111 (small items); #68 tracks `-WhatIf` and `-Confirm` for
-   every cmdlet that changes security, and #34 the copied inherited
-   entries. The labels follow Decision 17; #16, #21, #45, #67, and #89
-   wait for their reporters (Needs Info). Not planned for 5.0.0: #41 (a
-   drive root reads the device object), #90 (a trailing space in a folder
-   name), and the enhancements #22, #49, #68, #77, #87.
+   every cmdlet that changes security. The labels follow Decision 17; #16,
+   #21, #45, and #89 wait for their reporters (Needs Info). Not planned for
+   5.0.0: #41 (a drive root reads the device object), #90 (a trailing space
+   in a folder name), and the enhancements #22, #49, #68, #77, #87.
+3. Review findings of rc3, not filed: an extra DACL read and four SDDL
+   snapshots on read paths, and a duplicate SACL check. Older:
+   `Remove-NTFSAudit` fails for an item without a SACL;
+   `FileSystemSecurity2.Write(FileSystemInfo)` and `Write(string)` write
+   every section; the owner retry of `Set-NTFSSecurityDescriptor` lacks a
+   `finally`; `RemoveFileSystemAccessRuleAll` and
+   `RemoveFileSystemAuditRuleAll` ignore their accounts filter, which no
+   cmdlet passes.
 4. `pwsh` 7.6.1 crashed three times during test runs on the ARM64
    workstation (x64 emulation), without module frames; none of the CI runs
    on native x64 on 2026-10-05 crashed.
 5. Optional for the maintainer: delete the AppVeyor project and revoke its
    GitHub authorization, restrict wiki editing to collaborators, ask
    `Sup3rlativ3` to delete the Read the Docs project, and delete the branch
-   `test/transfer`.
+   `test/transfer`. The branch `fix/#34` is superseded by #112.

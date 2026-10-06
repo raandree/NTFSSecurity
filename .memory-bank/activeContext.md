@@ -9,37 +9,30 @@ source: current task evidence
 
 ## Current focus
 
-5.0.0-rc3, before 5.0.0 (maintainer decision of 2026-10-06): the access and
-audit cmdlets read and write only the sections of the security descriptor
-that they change, which fixes #34 and the copied inherited entries, and #67
-is reproduced and fixed or explained. NTFSSecurity will be archived soon;
-the README and the docs point users to WindowsAccessControl (Decision 18).
-The maintainer has a handoff for rc3, outside the repository.
+5.0.0-rc3 is released and recorded. Next is 5.0.0, when the maintainer
+decides; then the repository is archived in favor of WindowsAccessControl
+(Decision 18). Issue #34 is open with Bug and Help Wanted and waits for a
+tester with a file server that refuses the owner; #67 is closed as not
+planned.
 
 ## Evidence
 
-- #34 reproduces locally with 5.0.0-rc2 (2026-10-06): on a file owned by
-  `NT SERVICE\TrustedInstaller`, with `EnablePrivileges = $false`,
-  `Add-NTFSAccess` fails with "(1307) This security ID may not be assigned
-  as the owner of this object" (`AddAceError`), because it writes the
-  unchanged owner back; `icacls /grant` and `Remove-NTFSAccess`, which
-  write only the DACL, succeed, and with the Restore privilege enabled
-  `Add-NTFSAccess` succeeds. A test can therefore run in CI without a file
-  server.
-- Elevated, `Add-NTFSAccess` and `Add-NTFSAudit` read the DACL together
-  with the SACL. For a DACL without the auto-inherit flag, Windows then
-  returns the inherited entries without their inherited flag, and the
-  write stores them as explicit copies (found 2026-10-05).
-- `new FileSystemSecurity2(item)` reads all sections it can, and `Write()`
-  writes what the descriptor holds. Callers that write: adding access or
-  audit entries, removing all entries of an account, and
-  `Set-NTFSSecurityDescriptor` for a descriptor from
-  `Get-NTFSSecurityDescriptor`. Removing a single entry and the inheritance
-  cmdlets already read and write one section.
-- 5.0.0-rc2 is published (2026-10-05); CI on `master` passed; the issues
-  are answered, labeled (Decision 17), and tracked as #107 to #111.
+- 2026-10-06: the tag `5.0.0-rc3` on `914e8da`, the merge commit of #112,
+  published the prerelease to the PowerShell Gallery and to GitHub. The
+  Gallery package and `NTFSSecurity.zip` hold identical module files and
+  import as 5.0.0-rc3 in both editions; CI passed for #112 and on `master`.
+- The replies to #34 and #67 are posted. The merge of #112 closed #34,
+  because the PR description said "fixes #34"; the maintainer reopened it.
+- The cmdlets write only the sections that they change (Decision 19); the
+  manifest `Description` announces the archive (Decision 18).
+- Hand commands to the maintainer as fenced code blocks at the end of the
+  reply, and end the turn there; never put them in the question dialog,
+  which also covers a reply before it. A pull request names an issue
+  without a closing keyword unless the merge should close it (techContext).
+  A handoff outside the repository fixes the hand-over in the user-level
+  Customizations.
 
 ## Next step
 
-Implement 5.0.0-rc3 test-first on a topic branch, starting with a failing
-test for #34 that uses the reproduction above.
+Before 5.0.0, read #34 for feedback from a tester. Then release 5.0.0 as
+`progress.md` describes.

@@ -55,8 +55,6 @@ source: repository evidence
   `https://www.powershellgallery.com/api/v2/package/MarkdownLinkCheck/0.2.0`
   into `$env:TEMP`, extract it, and import it by path.
 - The first workstation is ARM64; PowerShell 7 runs as x64 under emulation.
-  Python 3.12.10 (ARM64) is installed per user with winget, the
-  maintainer's choice for an MkDocs check that Decision 9 made unnecessary.
 - The NuGet cache (`~\.nuget\packages`) holds every build dependency: copy
   `alphafs\2.2.1`, `system.management.automation.dll\10.0.10586`, and
   `microsoft.netframework.referenceassemblies.net452\1.0.3` into
@@ -74,7 +72,7 @@ source: repository evidence
 
 ## Constraints
 
-- `ModuleVersion` on `master` is `5.0.0` with the prerelease label `rc2`.
+- `ModuleVersion` on `master` is `5.0.0` with the prerelease label `rc3`.
   The latest stable tag and Gallery release is `4.2.6`. The manifest
   requires PowerShell 5.1 and .NET Framework 4.5.2, uses `RootModule`, and
   lists exactly 36 cmdlets; `Test-ModuleManifest` passes in Windows
@@ -84,24 +82,19 @@ source: repository evidence
   5.0.0 prerelease.
 - PowerShell Gallery versions (publish dates): 4.0.0 (2015-08-19), 4.2.2
   (2016-05-18), 4.2.3 (2016-05-19), 4.2.4 (2018-08-13), 4.2.5 (2019-07-11),
-  4.2.6 (2019-07-12), none with release notes; 5.0.0-rc1 (2026-10-04) and
-  5.0.0-rc2 (2026-10-05), published by CI. Older versions were released
-  on CodePlex only, and their dates are lost. The git history starts on
-  2016-10-10, when the project moved from CodePlex.
-- Releases up to 4.2.6 had no script and no CI deployment: the Gallery
-  DLLs are Debug builds (`DebuggableAttribute` 263), the nuspec comes from
-  `Publish-Module`, the package holds the whole output folder (`.pdb`,
-  `AlphaFS.xml`, 7 MB `System.Management.Automation.dll`), and tags carry
-  the previous version. From 5.0.0 on, CI publishes on a version tag
-  (Decision 12). GitHub releases attach `NTFSSecurity.zip`.
+  4.2.6 (2019-07-12), none with release notes; 5.0.0-rc1 (2026-10-04),
+  5.0.0-rc2 (2026-10-05), and 5.0.0-rc3 (2026-10-06), published by CI.
+  Older versions were released on CodePlex only, and their dates are lost.
+  The git history starts on 2016-10-10, when the project moved from
+  CodePlex.
+- Releases up to 4.2.6 were Debug builds published by hand, with the whole
+  output folder; their tags carry the previous version. From 5.0.0 on, CI
+  publishes on a version tag (Decision 12). GitHub releases attach
+  `NTFSSecurity.zip`.
 - CI: GitHub Actions on pull requests and pushes to `master` (Decision 11).
-  AppVeyor no longer reports on `master` (checked on `4f9f7cc`). The Read
-  the Docs project `ntfssecurity` (maintainer `Sup3rlativ3`) and a second
-  AppVeyor project are attached to the fork `Sup3rlativ3/NTFSSecurity`,
-  which no longer exists (GitHub 404, 2026-10-04). That site still serves
-  pages from 2020 and isn't used (Decision 9).
-- `Get-FileHash2` fails in PowerShell 7; all other cmdlets passed a smoke
-  test in PowerShell 7.6.
+  AppVeyor no longer reports on `master`. The Read the Docs project
+  `ntfssecurity` and a second AppVeyor project belong to the deleted fork
+  `Sup3rlativ3/NTFSSecurity` and aren't used (Decision 9).
 - `CHANGELOG.md` lists user-visible changes only; CI and build-only changes
   get no entry
   ([Decision 7](decisions/0007-changelog-user-visible-only.md)).
@@ -113,9 +106,13 @@ source: repository evidence
   inside an agent command has no effect (verified 2026-10-04). The hook
   matches the whole command text, so a commit message that quotes such a
   command is blocked too. Prepare the commands and descriptions; the
-  maintainer runs them. Give each command as one line, or as a script with
-  `-WhatIf`: the agent's question dialog renders Markdown, which joins the
-  lines of a block, and PowerShell then rejects all of it. Simulated `gh`
+  maintainer runs them. Hand over each command as its own fenced code block
+  at the end of the reply, which the chat shows with a copy button, and end
+  the turn there; the maintainer reports back in the chat. The question
+  dialog joins the lines of its text, has no copy button, and covers the
+  reply before it (maintainer, 2026-10-06). A pull request description
+  names an issue without a closing keyword (fixes, closes, resolves) unless
+  the merge should close it: "fixes #34" in #112 closed #34. Simulated `gh`
   commands in offline tests must print what the real ones print, such as
   the URL of a new comment.
 
@@ -161,6 +158,10 @@ source: repository evidence
   PowerShell 5.1: the launcher starts `pwsh`, and its payload runs
   `powershell.exe -NoProfile -EncodedCommand` with Pester imported by full
   path. A run without `bin\Release\en-US` must fail.
+- Tests that run only without a privilege skip in CI and in an elevated
+  session. Run them as a basic user with `runas /trustlevel:0x20000`, and
+  give Windows PowerShell its own `PSModulePath`; that token holds one
+  privilege, so the `Enable-Privileges -PassThru` count test fails there.
 - Markdown lint: `npx markdownlint-cli2` with `MD013` limited to prose
   (tables, code, and headings excluded) on the conceptual pages; for
   `CHANGELOG.md` also `MD024` with `siblings_only: true`, because every

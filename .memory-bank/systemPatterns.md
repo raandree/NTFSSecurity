@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-05
+last-verified: 2026-10-06
 owner: active-agent
 source: repository evidence
 ---
@@ -65,6 +65,7 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 | 16 | [Fix only reproducible bugs](decisions/0016-fix-reproducible-bugs-only.md) |
 | 17 | [Issue labels](decisions/0017-issue-labels.md) |
 | 18 | [NTFSSecurity will be archived](decisions/0018-archive-for-windowsaccesscontrol.md) |
+| 19 | [Cmdlets write only the sections that they change](decisions/0019-write-only-changed-sections.md) |
 
 ## Patterns
 
@@ -88,9 +89,9 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 - A test that changes files, links, or security descriptors uses
   `Tests\TestHelpers.psm1`: its own sandbox, `Assert-TestSandboxPath`
   before each change, `Remove-TestSandbox`. Cases that need a privilege
-  skip with `Test-PrivilegeHeld` and run in CI (elevated);
-  `Block-TestReadPermission` and `Block-TestWritePermission` make a read or
-  a write fail without elevation.
+  skip with `Test-PrivilegeHeld` and run in CI (elevated). `Block-Test*`
+  make a read or a write fail without elevation; `Set-TestOwner` with
+  `EnablePrivileges = $false` reproduces an owner the user can't assign.
 - `Get-Help -Online` tests run only in Windows PowerShell, which honors the
   hook `BypassOnlineHelpRetrieval`. `Manifest.Tests.ps1` and
   `Release.Tests.ps1` check the manifest, the version (Decision 10), the
