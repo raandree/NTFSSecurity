@@ -288,6 +288,8 @@ When the module setting `EnablePrivileges` is `$true` (the default in the `Priva
 
 Writing the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it, the cmdlet writes a non-terminating `AddAceError` whose message states that a required privilege is not held by the client, and the item is left unchanged.
 
+A security descriptor that was read without the Security privilege doesn't contain the audit entries. With such a descriptor, the cmdlet writes a `ReadSecurityError` and changes nothing, like `Get-NTFSAudit`; before 5.0.0, it added the entry to the missing audit entries in memory and wrote no error.
+
 If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet restores the previous owner and writes an error. Before 5.0.0, the account that ran the cmdlet stayed the owner of the item in that case.
 
 In the `Path` parameter sets, the cmdlet reads and writes only the SACL of the item and leaves its owner, its group, and its DACL as they are. Before 5.0.0, it also wrote the owner and the DACL back, which failed with error 1307, "This security ID may not be assigned as the owner of this object", when the account may not assign that owner, such as on some file servers. In an elevated session, it could also store the inherited access entries of the item as explicit entries.

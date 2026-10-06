@@ -99,6 +99,11 @@ namespace NTFSSecurity
             {
                 foreach (var sd in securityDescriptors)
                 {
+                    if (!TestAuditSection(sd))
+                    {
+                        continue;
+                    }
+
                     FileSystemAuditRule2.RemoveFileSystemAuditRuleAll(sd);
                     if (disableInheritance)
                         FileSystemInheritanceInfo.DisableAuditInheritance(sd, true);

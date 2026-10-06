@@ -33,71 +33,35 @@ namespace Security2
         public FileSystemSecurity2(FileSystemInfo item, AccessControlSections sections)
         {
             this.sections = sections;
+            this.item = item;
+            isFile = item is FileInfo;
 
-            if (item is FileInfo)
-            {
-                this.item = (FileInfo)item;
-
-                sd = ((FileInfo)this.item).GetAccessControl(sections);
-
-                isFile = true;
-            }
-            else
-            {
-                this.item = (DirectoryInfo)item;
-
-                sd = ((DirectoryInfo)this.item).GetAccessControl(sections);
-            }
+            sd = GetSecurity(item, sections);
 
             RememberSections();
         }
 
         public FileSystemSecurity2(FileSystemInfo item)
         {
-            if (item is FileInfo)
-            {
-                this.item = (FileInfo)item;
-                try
-                {
-                    sd = ((FileInfo)this.item).GetAccessControl(AccessControlSections.All);
-                    sections = AccessControlSections.All;
-                }
-                catch
-                {
-                    try
-                    {
-                        sd = ((FileInfo)this.item).GetAccessControl(AccessControlSections.Access | AccessControlSections.Owner | AccessControlSections.Group);
-                        sections = AccessControlSections.Access | AccessControlSections.Owner | AccessControlSections.Group;
-                    }
-                    catch
-                    {
-                        sd = ((FileInfo)this.item).GetAccessControl(AccessControlSections.Access);
-                        sections = AccessControlSections.Access;
-                    }
-                }
+            this.item = item;
+            isFile = item is FileInfo;
 
-                isFile = true;
-            }
-            else
+            try
             {
-                this.item = (DirectoryInfo)item;
+                sd = GetSecurity(item, AccessControlSections.All);
+                sections = AccessControlSections.All;
+            }
+            catch
+            {
                 try
                 {
-                    sd = ((DirectoryInfo)this.item).GetAccessControl(AccessControlSections.All);
-                    sections = AccessControlSections.All;
+                    sd = GetSecurity(item, AccessControlSections.Access | AccessControlSections.Owner | AccessControlSections.Group);
+                    sections = AccessControlSections.Access | AccessControlSections.Owner | AccessControlSections.Group;
                 }
                 catch
                 {
-                    try
-                    {
-                        sd = ((DirectoryInfo)this.item).GetAccessControl(AccessControlSections.Access | AccessControlSections.Owner | AccessControlSections.Group);
-                        sections = AccessControlSections.Access | AccessControlSections.Owner | AccessControlSections.Group;
-                    }
-                    catch
-                    {
-                        sd = ((DirectoryInfo)this.item).GetAccessControl(AccessControlSections.Access);
-                        sections = AccessControlSections.Access;
-                    }
+                    sd = GetSecurity(item, AccessControlSections.Access);
+                    sections = AccessControlSections.Access;
                 }
             }
 
@@ -106,13 +70,63 @@ namespace Security2
             // entries. Read alone, the DACL keeps the flags.
             if (HasAuditSection)
             {
-                var accessSecurity = isFile
-                    ? (FileSystemSecurity)((FileInfo)this.item).GetAccessControl(AccessControlSections.Access)
-                    : ((DirectoryInfo)this.item).GetAccessControl(AccessControlSections.Access);
+                var accessSecurity = GetSecurity(item, AccessControlSections.Access);
                 sd.SetSecurityDescriptorBinaryForm(accessSecurity.GetSecurityDescriptorBinaryForm(), AccessControlSections.Access);
             }
 
             RememberSections();
+        }
+
+        // For the root of a drive, the methods of DirectoryInfo read and write the security descriptor of the volume,
+        // a device object, instead of that of its root folder (#41). The methods that take the path keep the trailing
+        // backslash and reach the root folder.
+        internal static FileSystemSecurity GetSecurity(FileSystemInfo item, AccessControlSections sections)
+        {
+            var file = item as FileInfo;
+            if (file != null)
+            {
+                return file.GetAccessControl(sections);
+            }
+
+            string root;
+            if (TryGetDriveRoot(item, out root))
+            {
+                return Directory.GetAccessControl(root, sections);
+            }
+
+            return ((DirectoryInfo)item).GetAccessControl(sections);
+        }
+
+        internal static void SetSecurity(FileSystemInfo item, FileSystemSecurity security, AccessControlSections sections)
+        {
+            var file = item as FileInfo;
+            if (file != null)
+            {
+                file.SetAccessControl((FileSecurity)security, sections);
+                return;
+            }
+
+            string root;
+            if (TryGetDriveRoot(item, out root))
+            {
+                Directory.SetAccessControl(root, (DirectorySecurity)security, sections);
+                return;
+            }
+
+            ((DirectoryInfo)item).SetAccessControl((DirectorySecurity)security, sections);
+        }
+
+        private static bool TryGetDriveRoot(FileSystemInfo item, out string root)
+        {
+            var fullName = item.FullName.TrimEnd('\\');
+            if (fullName.Length == 2 && fullName[1] == ':' && char.IsLetter(fullName[0]))
+            {
+                root = fullName + "\\";
+                return true;
+            }
+
+            root = null;
+            return false;
         }
 
         // Without the Security privilege, the security descriptor is read without its SACL.
@@ -166,14 +180,7 @@ namespace Security2
         // that is read alone, and writing them back fails for an owner that the user cannot assign (#34).
         public void Write()
         {
-            if (isFile)
-            {
-                ((FileInfo)item).SetAccessControl((FileSecurity)sd, sections);
-            }
-            else
-            {
-                ((DirectoryInfo)item).SetAccessControl((DirectorySecurity)sd, sections);
-            }
+            SetSecurity(item, sd, sections);
 
             RememberSections();
         }
@@ -188,28 +195,15 @@ namespace Security2
                 return;
             }
 
-            if (isFile)
-            {
-                ((FileInfo)item).SetAccessControl((FileSecurity)sd, changedSections);
-            }
-            else
-            {
-                ((DirectoryInfo)item).SetAccessControl((DirectorySecurity)sd, changedSections);
-            }
+            SetSecurity(item, sd, changedSections);
 
             RememberSections();
         }
 
+        // Writes the sections that the descriptor was read with to another item, like Write().
         public void Write(FileSystemInfo item)
         {
-            if (item is FileInfo)
-            {
-                ((FileInfo)item).SetAccessControl((FileSecurity)sd);
-            }
-            else
-            {
-                ((DirectoryInfo)item).SetAccessControl((DirectorySecurity)sd);
-            }
+            SetSecurity(item, sd, sections);
         }
 
         public void Write(string path)

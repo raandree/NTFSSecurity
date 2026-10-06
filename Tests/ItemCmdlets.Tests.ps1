@@ -197,6 +197,28 @@ Describe 'Copy-Item2, Move-Item2, and Remove-Item2 with several paths' {
         $result | Should -BeNullOrEmpty
         $first | Should -Exist
     }
+
+    # Before 5.0.0-rc4, an existing destination file produced a real error also with -WhatIf, which only previews the
+    # operation, so -WhatIf -ErrorAction Stop stopped the preview (#108).
+    It '<_> should write no error with -WhatIf when the destination file exists' -ForEach @('Copy-Item2', 'Move-Item2') {
+        $existing = Join-Path -Path $destination -ChildPath 'First.txt'
+        Set-Content -LiteralPath $existing -Value 'Existing'
+
+        & $_ -Path $first -Destination $destination -WhatIf -ErrorVariable itemErrors -ErrorAction SilentlyContinue
+
+        $itemErrors | Should -BeNullOrEmpty
+        $first | Should -Exist
+        Get-Content -LiteralPath $existing | Should -Be 'Existing'
+    }
+
+    It '<_> should name the existing destination file in a verbose message with -WhatIf' -ForEach @('Copy-Item2', 'Move-Item2') {
+        $existing = Join-Path -Path $destination -ChildPath 'First.txt'
+        Set-Content -LiteralPath $existing -Value 'Existing'
+
+        $messages = & $_ -Path $first -Destination $destination -WhatIf -Verbose -ErrorAction SilentlyContinue 4>&1
+
+        @($messages | Where-Object -FilterScript { "$_" -like "*'$existing' already exists*" }) | Should -HaveCount 1
+    }
 }
 
 Describe 'Copy-Item2' {

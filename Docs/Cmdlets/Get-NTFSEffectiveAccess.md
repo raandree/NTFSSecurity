@@ -180,7 +180,7 @@ One object per item, with the calculated rights in `AccessRights` and the accoun
 
 When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.
 
-Reading effective access needs the Security privilege. In a session that does not hold it, the cmdlet warns before it starts and the calculation may fail with an error. Use `Enable-Privileges` in an elevated session to enable the privilege, and `Get-Privileges` to see which privileges the session holds.
+Reading effective access needs the Security privilege. In a session that does not hold it, the cmdlet warns before it starts and the calculation may fail with an error. Use `Enable-Privileges` in an elevated session to enable the privilege, and `Get-Privileges` to see which privileges the session holds. When the calculation fails, the error names the cause that Windows reported, such as a security descriptor without an owner; before 5.0.0, it blamed a missing Security privilege whenever the privilege wasn't enabled.
 
 Before 5.0.0, `-ExcludeNoneAccessEntries` had no effect, and the cmdlet returned nothing without `-Path` or for `-SecurityDescriptor`.
 

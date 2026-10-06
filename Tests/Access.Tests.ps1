@@ -104,6 +104,33 @@ Describe 'Get-NTFSEffectiveAccess' {
         $result | Should -HaveCount 1
         $result[0].FullName | Should -Be $effectiveFile
     }
+
+    Context 'When the effective access cannot be calculated' {
+        BeforeAll {
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        # Before 5.0.0-rc4, the cmdlet blamed a missing Security privilege for every failure while the privilege
+        # wasn't enabled (#109). A security descriptor without an owner is such a failure: the DACL of the file has the
+        # auto-inherit flag since Set-Acl wrote it, so Windows returns no owner when only the DACL is read.
+        It 'Should name the cause in the error, not the Security privilege' {
+            (Get-Privileges | Where-Object -Property Privilege -EQ -Value 'Security').PrivilegeState | Should -Not -Be 'Enabled'
+            $sd = New-Object -TypeName 'Security2.FileSystemSecurity2' -ArgumentList (
+                (Get-Item2 -Path $effectiveFile), [System.Security.AccessControl.AccessControlSections]::Access
+            )
+            $sd.SecurityDescriptor.GetOwner($sidType) | Should -BeNullOrEmpty
+
+            Get-NTFSEffectiveAccess -SecurityDescriptor $sd -ErrorVariable accessErrors -ErrorAction SilentlyContinue -WarningAction SilentlyContinue | Out-Null
+
+            $accessErrors | Should -HaveCount 1
+            $accessErrors[0].FullyQualifiedErrorId | Should -BeLike 'GetEffectiveAccessError,*'
+            $accessErrors[0].Exception.Message | Should -Not -BeLike '*privilege*'
+        }
+    }
 }
 
 Describe 'Get-NTFSOrphanedAccess' {

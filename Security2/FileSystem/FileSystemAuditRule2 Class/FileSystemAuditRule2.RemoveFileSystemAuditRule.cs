@@ -8,37 +8,18 @@ namespace Security2
     {
         public static void RemoveFileSystemAuditRule(FileSystemInfo item, IdentityReference2 account, FileSystemRights2 rights, AuditFlags type, InheritanceFlags inheritanceFlags, PropagationFlags propagationFlags, bool removeSpecific = false)
         {
-            FileSystemAuditRule ace = null;
+            // Only the SACL, so that no other section that Windows returns with it is written back (#34)
+            var sd = new FileSystemSecurity2(item, AccessControlSections.Audit);
 
-            if (item is FileInfo)
+            // An item without audit entries can have no SACL at all. Then there is nothing to remove, and Windows denies
+            // a write without any section: (5) Access is denied.
+            if (!sd.HasSystemAcl)
             {
-                var file = (FileInfo)item;
-                var sd = file.GetAccessControl(AccessControlSections.Audit);
-
-                ace = (FileSystemAuditRule)sd.AuditRuleFactory(account, (int)rights, false, inheritanceFlags, propagationFlags, type);
-
-                if (removeSpecific)
-                    sd.RemoveAuditRuleSpecific(ace);
-                else
-                    sd.RemoveAuditRule(ace);
-
-                // Only the SACL, so that no other section that Windows returns with it is written back (#34)
-                file.SetAccessControl(sd, AccessControlSections.Audit);
+                return;
             }
-            else
-            {
-                DirectoryInfo directory = (DirectoryInfo)item;
 
-                var sd = directory.GetAccessControl(AccessControlSections.Audit);
-
-                ace = (FileSystemAuditRule)sd.AuditRuleFactory(account, (int)rights, false, inheritanceFlags, propagationFlags, type);
-                if (removeSpecific)
-                    sd.RemoveAuditRuleSpecific(ace);
-                else
-                    sd.RemoveAuditRule(ace);
-
-                directory.SetAccessControl(sd, AccessControlSections.Audit);
-            }
+            RemoveFileSystemAuditRule(sd, account, rights, type, inheritanceFlags, propagationFlags, removeSpecific);
+            sd.Write();
         }
 
         public static void RemoveFileSystemAuditRule(FileSystemInfo item, List<IdentityReference2> accounts, FileSystemRights2 rights, AuditFlags type, InheritanceFlags inheritanceFlags, PropagationFlags propagationFlags, bool removeSpecific = false)
@@ -51,25 +32,14 @@ namespace Security2
 
         public static void RemoveFileSystemAuditRule(FileSystemInfo item, FileSystemAuditRule ace)
         {
-            if (item is FileInfo)
+            var sd = new FileSystemSecurity2(item, AccessControlSections.Audit);
+            if (!sd.HasSystemAcl)
             {
-                var file = (FileInfo)item;
-                var sd = file.GetAccessControl(AccessControlSections.Audit);
-
-                sd.RemoveAuditRuleSpecific(ace);
-
-                file.SetAccessControl(sd, AccessControlSections.Audit);
+                return;
             }
-            else
-            {
-                DirectoryInfo directory = (DirectoryInfo)item;
 
-                var sd = directory.GetAccessControl(AccessControlSections.Audit);
-
-                sd.RemoveAuditRuleSpecific(ace);
-
-                directory.SetAccessControl(sd, AccessControlSections.Audit);
-            }
+            sd.SecurityDescriptor.RemoveAuditRuleSpecific(ace);
+            sd.Write();
         }
 
         public static void RemoveFileSystemAuditRule(string path, IdentityReference2 account, FileSystemRights2 rights, AuditFlags type, InheritanceFlags inheritanceFlags, PropagationFlags propagationFlags, bool removeSpecific = false)

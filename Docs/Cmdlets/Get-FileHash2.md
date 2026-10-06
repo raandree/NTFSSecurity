@@ -111,9 +111,9 @@ You can supply the `-Algorithm` value through a pipeline object that has an `Alg
 
 ## OUTPUTS
 
-### Alphaleonis.Win32.Filesystem.FileInfo
+### Alphaleonis.Win32.Filesystem.FileInfo+Hash
 
-For every hashed file, the cmdlet writes the file object of that file, decorated with the type name `Alphaleonis.Win32.Filesystem.FileInfo+Hash` and extended with the `Hash` and `Algorithm` note properties, so all regular file properties such as `FullName`, `Name`, and `Length` remain available.
+For every hashed file, the cmdlet writes the file object of that file, decorated with the type name `Alphaleonis.Win32.Filesystem.FileInfo+Hash` and extended with the `Hash` and `Algorithm` note properties, so all regular file properties such as `FullName`, `Name`, and `Length` remain available. Before 5.0.0, the cmdlet declared `Alphaleonis.Win32.Filesystem.FileInfo` as its output type.
 
 ## NOTES
 

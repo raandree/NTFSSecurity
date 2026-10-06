@@ -165,6 +165,11 @@ namespace NTFSSecurity
             {
                 foreach (var sd in securityDescriptors)
                 {
+                    if (!TestAuditSection(sd))
+                    {
+                        continue;
+                    }
+
                     FileSystemAuditRule2.AddFileSystemAuditRule(sd, account.ToList(), accessRights, auditFlags, inheritanceFlags, propagationFlags);
 
                     if (passThru == true)

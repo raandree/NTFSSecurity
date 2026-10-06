@@ -23,6 +23,21 @@ namespace NTFSSecurity
             base.ProcessRecord();
         }
 
+        // A security descriptor that was read without its audit entries, such as without the Security privilege, has
+        // nothing for the audit cmdlets to read or change. They report it the same way (#109).
+        internal bool TestAuditSection(FileSystemSecurity2 sd)
+        {
+            if (sd.HasAuditSection)
+            {
+                return true;
+            }
+
+            var ex = new InvalidOperationException(string.Format(
+                "The security descriptor of '{0}' doesn't contain the audit entries, because it was read without the Security privilege.", sd.FullName));
+            WriteError(new ErrorRecord(ex, "ReadSecurityError", ErrorCategory.InvalidData, sd));
+            return false;
+        }
+
         #region GetFileSystemInfo
         protected System.IO.FileSystemInfo GetFileSystemInfo(string path)
         {
@@ -262,16 +277,16 @@ namespace NTFSSecurity
             privileges = (new PrivilegeControl()).GetPrivileges();
 
             if (!TryEnablePrivilege(Privilege.TakeOwnership))
-                WriteDebug("The privilige 'TakeOwnership' could not be enabled. Make sure your user account does have this privilige");
+                WriteDebug("The privilege 'TakeOwnership' could not be enabled. Make sure your user account does have this privilege");
 
             if (!TryEnablePrivilege(Privilege.Restore))
-                WriteDebug("The privilige 'Restore' could not be enabled. Make sure your user account does have this privilige");
+                WriteDebug("The privilege 'Restore' could not be enabled. Make sure your user account does have this privilege");
 
             if (!TryEnablePrivilege(Privilege.Backup))
-                WriteDebug("The privilige 'Backup' could not be enabled. Make sure your user account does have this privilige");
+                WriteDebug("The privilege 'Backup' could not be enabled. Make sure your user account does have this privilege");
 
             if (!TryEnablePrivilege(Privilege.Security))
-                WriteDebug("The privilige 'Security' could not be enabled. Make sure your user account does have this privilige");
+                WriteDebug("The privilege 'Security' could not be enabled. Make sure your user account does have this privilege");
 
             if (!quite)
             {
@@ -298,28 +313,17 @@ namespace NTFSSecurity
             // Refreshes the field that DisablePrivilege reads; it is null when BeginProcessing enabled nothing.
             privileges = privControl.GetPrivileges();
 
-            if (privileges.Where(p => p.Privilege == Privilege.TakeOwnership) != null)
-                if (!TryDisablePrivilege(Privilege.TakeOwnership))
-                    WriteWarning("The privilige 'TakeOwnership' could not be disabled.");
-                else
-                    WriteDebug("The privilige 'TakeOwnership' was disabled.");
+            // Only the privileges that the access token holds; disabling another one fails.
+            foreach (var privilege in new[] { Privilege.TakeOwnership, Privilege.Restore, Privilege.Backup, Privilege.Security })
+            {
+                if (!privileges.Any(p => p.Privilege == privilege))
+                    continue;
 
-            if (privileges.Where(p => p.Privilege == Privilege.Restore) != null)
-                if (!TryDisablePrivilege(Privilege.Restore))
-                    WriteWarning("The privilige 'Restore' could not be disabled.");
+                if (!TryDisablePrivilege(privilege))
+                    WriteWarning(string.Format("The privilege '{0}' could not be disabled.", privilege));
                 else
-                    WriteDebug("The privilige 'Restore' was disabled.");
-
-            if (privileges.Where(p => p.Privilege == Privilege.Backup) != null)
-                if (!TryDisablePrivilege(Privilege.Backup))
-                    WriteWarning("The privilige 'Backup' could not be disabled.");
-                else
-                    WriteDebug("The privilige 'Backup' was disabled.");
-
-            if (!TryDisablePrivilege(Privilege.Security))
-                WriteWarning("The privilige 'Security' could not be disabled.");
-            else
-                WriteDebug("The privilige 'Security' was disabled.");
+                    WriteDebug(string.Format("The privilege '{0}' was disabled.", privilege));
+            }
         }
 
         // These overloads hide the single-argument methods of Cmdlet, so a message without arguments must not be

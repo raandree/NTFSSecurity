@@ -180,4 +180,57 @@ Describe 'Set-NTFSSecurityDescriptor' {
                 Should -Contain "No section of the security descriptor of '$($sd.FullName)' changed since it was read or last written; nothing is written"
         }
     }
+
+    Context 'When the write is denied until the cmdlet takes ownership' {
+        BeforeAll {
+            $privateData['EnablePrivileges'] = $false
+            $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        # Before 5.0.0-rc4, the cmdlet set the previous owner back after the write, which undid an owner that the
+        # descriptor set, and failed for a previous owner that the user can't assign. The deny entry for the user stops
+        # the first write; as the owner, the user may change the permissions.
+        It 'Should keep the owner that the descriptor sets when the write succeeds' -Skip:(-not $canAssignAnyOwner) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'RetryOwner'
+            Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ $currentUser = 'ChangePermissions' }
+            Set-TestOwner -Sandbox $sandbox -Path $file -Sid $trustedInstaller
+            Get-RestorePrivilegeState | Should -Be 'Disabled'
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+            Add-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData
+            $sd.SecurityDescriptor.SetOwner((New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList 'S-1-5-32-544'))
+
+            Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorVariable setErrors -ErrorAction SilentlyContinue
+
+            $setErrors | Should -BeNullOrEmpty
+            (Get-Acl -LiteralPath $file).GetOwner($sidType).Value | Should -Be 'S-1-5-32-544'
+        }
+    }
+}
+
+Describe 'FileSystemSecurity2.Write with another item' {
+    # Before 5.0.0-rc4, Write wrote every section that the descriptor held to the other item, also the owner that
+    # Windows returns with a DACL without the auto-inherit flag, which fails for an owner that the user can't assign.
+    It 'Should write only the sections that were read, given the item as <_>' -Skip:(-not $canAssignAnyOwner) -ForEach @(
+        'FileSystemInfo', 'String'
+    ) {
+        $source = New-TestSandboxItem -Sandbox $sandbox -Name 'Source'
+        $target = New-TestSandboxItem -Sandbox $sandbox -Name 'Target'
+        Set-TestOwner -Sandbox $sandbox -Path $source -Sid $trustedInstaller
+        $targetOwner = (Get-Acl -LiteralPath $target).GetOwner($sidType).Value
+        Get-RestorePrivilegeState | Should -Be 'Disabled'
+        $sd = New-Object -TypeName 'Security2.FileSystemSecurity2' -ArgumentList (
+            (Get-Item2 -Path $source), [System.Security.AccessControl.AccessControlSections]::Access
+        )
+        $sd.SecurityDescriptor.GetOwner($sidType).Value | Should -Be $trustedInstaller
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $target
+        $destination = if ($_ -eq 'String') { $target } else { Get-Item2 -Path $target }
+
+        { $sd.Write($destination) } | Should -Not -Throw
+
+        (Get-Acl -LiteralPath $target).GetOwner($sidType).Value | Should -Be $targetOwner
+    }
 }

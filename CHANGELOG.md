@@ -234,5 +234,36 @@ The format is based on
 - Fix `Clear-NTFSAudit`, which finished without an error but changed nothing
   in a session without the Security privilege; it now writes an error, like
   the other audit cmdlets
+- Fix the cmdlets for the root of a drive, such as `C:\`, which read and
+  changed the security descriptor of the drive, a device object, instead of
+  that of its root folder, so that `Get-NTFSAccess` showed other entries than
+  Explorer ([#41](https://github.com/raandree/NTFSSecurity/issues/41))
+- Fix `Add-NTFSAudit`, `Remove-NTFSAudit`, and `Clear-NTFSAudit` with a
+  security descriptor that was read without the audit entries; they now
+  write an error like `Get-NTFSAudit` instead of changing the missing entries
+  without one ([#109](https://github.com/raandree/NTFSSecurity/issues/109))
+- Fix `Get-NTFSEffectiveAccess`, which blamed a missing Security privilege
+  for every failure while the privilege wasn't enabled; the error now names
+  the cause that Windows reported
+  ([#109](https://github.com/raandree/NTFSSecurity/issues/109))
+- Fix `Copy-Item2` and `Move-Item2`, which wrote an error with `-WhatIf` when
+  the destination file existed, so that `-WhatIf -ErrorAction Stop` stopped
+  the preview; they now name the existing file in a verbose message
+  ([#108](https://github.com/raandree/NTFSSecurity/issues/108))
+- Fix `Remove-NTFSAudit`, which failed with "(5) Access is denied" for a file
+  or folder without audit entries
+- Fix `Set-NTFSSecurityDescriptor`, which set the previous owner back after it
+  had taken ownership to write a descriptor that sets a new owner, so that
+  the new owner was lost or the write failed with error 1307
+- Fix the `Write` method of a `Security2.FileSystemSecurity2` object for
+  another item, which wrote every section of the descriptor, also an owner
+  that Windows returns with the DACL; it now writes the sections that the
+  descriptor was read with
+  ([#34](https://github.com/raandree/NTFSSecurity/issues/34))
+- Fix `Disable-Privileges`, which warned that it couldn't disable the
+  privileges that the access token doesn't hold, and the declared output type
+  of `Get-FileHash2`, which named the AlphaFS `FileInfo` instead of the type
+  name of its objects
+  ([#111](https://github.com/raandree/NTFSSecurity/issues/111))
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

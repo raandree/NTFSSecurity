@@ -144,6 +144,8 @@ Reading and writing the SACL requires the Security privilege (`SeSecurityPrivile
 
 In the `Path` parameter set, the cmdlet reads and writes only the SACL of the item and leaves its owner, its group, and its DACL as they are; it writes nothing for an item without a SACL. Before 5.0.0, it also wrote the owner back, which failed with error 1307, "This security ID may not be assigned as the owner of this object", when the account may not assign that owner, such as on some file servers.
 
+A security descriptor that was read without the Security privilege doesn't contain the audit entries. With such a descriptor, the cmdlet writes a `ReadSecurityError` and changes nothing, like `Get-NTFSAudit`; before 5.0.0, it wrote no error.
+
 If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet restores the previous owner and writes an error. Before 5.0.0, the account that ran the cmdlet stayed the owner of the item in that case.
 
 ## RELATED LINKS

@@ -170,6 +170,32 @@ Describe 'Test helpers' {
         }
     }
 
+    Context 'Add-TestDenyRule' {
+        BeforeAll {
+            $sandbox = New-TestSandbox -Name 'Helpers'
+        }
+
+        AfterAll {
+            Remove-TestSandbox -Sandbox $sandbox
+        }
+
+        It 'Should add a deny entry to an item in the sandbox' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Deny'
+
+            Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ 'S-1-5-32-546' = 'ReadData' }
+
+            $rules = @((Get-Acl -LiteralPath $file).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-32-546' })
+            $rules | Should -HaveCount 1
+            $rules[0].AccessControlType | Should -Be 'Deny'
+        }
+
+        It 'Should refuse an item outside the sandbox' {
+            { Add-TestDenyRule -Sandbox $sandbox -Path "$sandbox-Other\File.txt" -Rights @{ 'S-1-5-32-546' = 'ReadData' } } |
+                Should -Throw -ExpectedMessage 'Refusing to change*'
+        }
+    }
+
     Context 'Test-IsElevated and Test-PrivilegeHeld' {
         It 'Should tell whether the process is elevated' {
             Test-IsElevated | Should -BeOfType [bool]

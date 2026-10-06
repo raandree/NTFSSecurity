@@ -52,31 +52,14 @@ namespace Security2
             if (type == AccessControlType.Allow)
                 rights = rights | FileSystemRights2.Synchronize;
 
-            FileSystemAccessRule ace = null;
+            // Only the DACL: Windows can return the owner with it, and writing that back fails for an owner that the user
+            // cannot assign (#34).
+            var sd = new FileSystemSecurity2(item, AccessControlSections.Access);
 
-            if (item as FileInfo != null)
-            {
-                var file = (FileInfo)item;
-                var sd = file.GetAccessControl(AccessControlSections.Access);
+            var ace = (FileSystemAccessRule)sd.SecurityDescriptor.AccessRuleFactory(account, (int)rights, false, inheritanceFlags, propagationFlags, type);
+            RemoveRule(sd.SecurityDescriptor, ace, removeSpecific);
 
-                ace = (FileSystemAccessRule)sd.AccessRuleFactory(account, (int)rights, false, inheritanceFlags, propagationFlags, type);
-                RemoveRule(sd, ace, removeSpecific);
-
-                // Only the DACL: Windows can return the owner with it, and writing that back fails for an owner that the
-                // user cannot assign (#34).
-                file.SetAccessControl(sd, AccessControlSections.Access);
-            }
-            else
-            {
-                DirectoryInfo directory = (DirectoryInfo)item;
-
-                var sd = directory.GetAccessControl(AccessControlSections.Access);
-
-                ace = (FileSystemAccessRule)sd.AccessRuleFactory(account, (int)rights, false, inheritanceFlags, propagationFlags, type);
-                RemoveRule(sd, ace, removeSpecific);
-
-                directory.SetAccessControl(sd, AccessControlSections.Access);
-            }
+            sd.Write();
         }
 
         public static void RemoveFileSystemAccessRule(FileSystemInfo item, List<IdentityReference2> accounts, FileSystemRights2 rights, AccessControlType type, InheritanceFlags inheritanceFlags, PropagationFlags propagationFlags, bool removeSpecific = false)
@@ -117,25 +100,11 @@ namespace Security2
 
         public static void RemoveFileSystemAccessRule(FileSystemInfo item, FileSystemAccessRule ace, bool removeSpecific = false)
         {
-            if (item as FileInfo != null)
-            {
-                var file = (FileInfo)item;
-                var sd = file.GetAccessControl(AccessControlSections.Access);
+            var sd = new FileSystemSecurity2(item, AccessControlSections.Access);
 
-                RemoveRule(sd, ace, removeSpecific);
+            RemoveRule(sd.SecurityDescriptor, ace, removeSpecific);
 
-                file.SetAccessControl(sd, AccessControlSections.Access);
-            }
-            else
-            {
-                DirectoryInfo directory = (DirectoryInfo)item;
-
-                var sd = directory.GetAccessControl(AccessControlSections.Access);
-
-                RemoveRule(sd, ace, removeSpecific);
-
-                directory.SetAccessControl(sd, AccessControlSections.Access);
-            }
+            sd.Write();
         }
 
         public static FileSystemAccessRule2 RemoveFileSystemAccessRule(FileSystemSecurity2 sd, IdentityReference2 account, FileSystemRights2 rights, AccessControlType type, InheritanceFlags inheritanceFlags, PropagationFlags propagationFlags, bool removeSpecific = false)
