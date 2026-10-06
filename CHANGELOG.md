@@ -68,6 +68,10 @@ The format is based on
 
 ### Deprecated
 
+- Deprecate NTFSSecurity as a whole: the project will be archived soon.
+  Move to
+  [WindowsAccessControl](https://github.com/raandree/WindowsAccessControl),
+  which is also on the PowerShell Gallery
 - Deprecate the `-PassThur` alias of `Remove-Item2`; use `-PassThru`
 - Deprecate the `MACTripleDES` value of `Get-FileHash2 -Algorithm`: it uses
   a random key, so its result differs on every call; the cmdlet now warns

@@ -1,5 +1,11 @@
 # NTFSSecurity
 
+> [!IMPORTANT]
+> NTFSSecurity will be archived soon. Please move to
+> [WindowsAccessControl](https://github.com/raandree/WindowsAccessControl),
+> which is also on the PowerShell Gallery:
+> `Install-Module -Name WindowsAccessControl`.
+
 A PowerShell module for managing the permissions, audit settings,
 inheritance, and ownership of files and folders on NTFS volumes.
 
