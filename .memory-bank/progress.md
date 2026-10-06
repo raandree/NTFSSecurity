@@ -60,7 +60,8 @@ published by CI from the tag `5.0.0-rc2` on `master` (`7ddda8d`) on
    #108 (`Copy-Item2` and `Move-Item2`), #109 (error messages), #110
    (tests), and #111 (small items); #68 tracks `-WhatIf` and `-Confirm` for
    every cmdlet that changes security, and #34 the copied inherited
-   entries.
+   entries. The labels follow Decision 17; #16, #21, #45, #67, and #89
+   wait for their reporters (Needs Info).
 3. 5.0.0-rc3, if a file server that refuses to assign the owner is
    available for a test: #34 and #67. Every section of the security
    descriptor is read and written, so the owner and group are written with

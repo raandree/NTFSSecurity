@@ -37,7 +37,7 @@ for #34 and #67.
   the merges got their replies, 16 of them were closed (as completed when
   answered or already fixed, as not planned when not reproducible or won't
   fix), and the follow-up issues #107 to #111 were created; 18 issues are
-  open.
+  open. On 2026-10-06 the issues got their labels by Decision 17.
 - Found while fixing the CI: elevated, `Add-NTFSAccess` and `Add-NTFSAudit`
   read the DACL together with the SACL, so the inherited entries of a DACL
   without the auto-inherit flag come back as explicit entries, and the write
