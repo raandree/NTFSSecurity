@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-05
+last-verified: 2026-10-06
 owner: active-agent
 source: repository evidence
 ---
@@ -13,7 +13,8 @@ source: repository evidence
 published by CI from the tag `5.0.0-rc2` on `master` (`7ddda8d`) on
 2026-10-05 (Decision 12). It contains the 24 code defects of work package
 5, the issue fixes of the overnight run of 2026-10-04/05, and the CI fix
-`629f4e7`. The stable Gallery version is still 4.2.6.
+`629f4e7`. The stable Gallery version is still 4.2.6. NTFSSecurity will be
+archived soon; its users move to WindowsAccessControl (Decision 18).
 
 ## Recent milestones
 
@@ -37,6 +38,10 @@ published by CI from the tag `5.0.0-rc2` on `master` (`7ddda8d`) on
   attempts of the release run before they started. Repository hardening is
   optional (Decision 14); the merge rule and the maintainer's rule for
   fixes are Decisions 15 and 16.
+- 2026-10-06: the issues got their labels (Decision 17). The maintainer
+  decided to publish 5.0.0-rc3 before 5.0.0 and to archive the project in
+  favor of WindowsAccessControl (Decision 18); the README, the docs home,
+  and the changelog announce it.
 
 ## Stable capabilities
 
@@ -51,24 +56,26 @@ published by CI from the tag `5.0.0-rc2` on `master` (`7ddda8d`) on
 
 ## Open work
 
-1. Test 5.0.0-rc2, then release 5.0.0 through CI (Decision 12): remove the
-   label, date `[Unreleased]` as `[5.0.0]`, add `5.0.0-rc2` to
-   `$publishedVersions` in `Tests/Repository.Tests.ps1`, and tag `5.0.0`
-   (steps in `Docs/Contributing/05-Releasing.md`).
-2. Issues: the open issues got their replies on 2026-10-05. Follow-up
+1. 5.0.0-rc3 first (maintainer decision of 2026-10-06): #34 and #67. Every
+   section of the security descriptor is read and written, so the owner
+   and group are written with each change, and in an elevated session
+   inherited entries are copied as explicit ones. #34 reproduces locally
+   (owner `TrustedInstaller`, no Restore privilege), so CI can test the
+   fix; #67 needs an SMB share. `fix/#34` swallows every error and needs a
+   redo. For the release: set the label `rc3` and add `5.0.0-rc2` to
+   `$publishedVersions` in `Tests/Repository.Tests.ps1`.
+2. Then release 5.0.0 through CI (Decision 12): remove the label, date
+   `[Unreleased]` as `[5.0.0]`, add `5.0.0-rc3` to `$publishedVersions`,
+   and tag `5.0.0` (steps in `Docs/Contributing/05-Releasing.md`).
+3. Issues: the open issues got their replies on 2026-10-05. Follow-up
    issues for the open Minor review findings: #107 (relative path forms),
    #108 (`Copy-Item2` and `Move-Item2`), #109 (error messages), #110
    (tests), and #111 (small items); #68 tracks `-WhatIf` and `-Confirm` for
    every cmdlet that changes security, and #34 the copied inherited
    entries. The labels follow Decision 17; #16, #21, #45, #67, and #89
-   wait for their reporters (Needs Info).
-3. 5.0.0-rc3, if a file server that refuses to assign the owner is
-   available for a test: #34 and #67. Every section of the security
-   descriptor is read and written, so the owner and group are written with
-   each change, and in an elevated session inherited entries are copied as
-   explicit ones; `fix/#34` swallows every error and needs a redo. After
-   5.0.0: #41 (a drive root reads the device object) and #90 (a trailing
-   space in a folder name). Enhancements: #22, #49, #68, #77, #87.
+   wait for their reporters (Needs Info). Not planned for 5.0.0: #41 (a
+   drive root reads the device object), #90 (a trailing space in a folder
+   name), and the enhancements #22, #49, #68, #77, #87.
 4. `pwsh` 7.6.1 crashed three times during test runs on the ARM64
    workstation (x64 emulation), without module frames; none of the CI runs
    on native x64 on 2026-10-05 crashed.

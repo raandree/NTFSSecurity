@@ -64,6 +64,7 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 | 15 | [Merge stacked pull requests in order with merge commits](decisions/0015-merge-stacks-with-merge-commits.md) |
 | 16 | [Fix only reproducible bugs](decisions/0016-fix-reproducible-bugs-only.md) |
 | 17 | [Issue labels](decisions/0017-issue-labels.md) |
+| 18 | [NTFSSecurity will be archived](decisions/0018-archive-for-windowsaccesscontrol.md) |
 
 ## Patterns
 
