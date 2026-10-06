@@ -157,4 +157,27 @@ Describe 'Set-NTFSSecurityDescriptor' {
             (Get-Acl -LiteralPath $file).GetOwner($sidType).Value | Should -Be $trustedInstaller
         }
     }
+
+    Context 'With -Verbose' {
+        It 'Should name the sections that it writes' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'VerboseChanged'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+            Add-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData
+
+            $messages = Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -Verbose 4>&1
+
+            $messages.Message | Should -Contain "Writing the changed sections of the security descriptor of '$($sd.FullName)': Access"
+        }
+
+        It 'Should say that it writes nothing for an unchanged descriptor' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'VerboseUnchanged'
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+
+            $messages = Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -Verbose 4>&1
+
+            $messages.Message |
+                Should -Contain "No section of the security descriptor of '$($sd.FullName)' changed since it was read or last written; nothing is written"
+        }
+    }
 }

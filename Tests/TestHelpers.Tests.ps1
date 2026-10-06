@@ -159,6 +159,15 @@ Describe 'Test helpers' {
             { Set-TestOwner -Sandbox $sandbox -Path "$sandbox-Other\File.txt" -Sid $trustedInstaller } |
                 Should -Throw -ExpectedMessage 'Refusing to change*'
         }
+
+        # icacls reports a failure on stderr, which Windows PowerShell turns into a terminating error of its own when
+        # the caller uses -ErrorAction Stop.
+        It 'Should throw its own error when icacls fails, also with -ErrorAction Stop' {
+            $missing = Join-Path -Path $sandbox -ChildPath 'Missing.txt'
+
+            { Set-TestOwner -Sandbox $sandbox -Path $missing -Sid $trustedInstaller -ErrorAction Stop } |
+                Should -Throw -ExpectedMessage 'icacls could not make*'
+        }
     }
 
     Context 'Test-IsElevated and Test-PrivilegeHeld' {

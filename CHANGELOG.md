@@ -68,9 +68,10 @@ The format is based on
 - Write only the sections of a security descriptor that changed since it
   was read in `Set-NTFSSecurityDescriptor`, such as the DACL after
   `Add-NTFSAccess -SecurityDescriptor`; a descriptor without changes writes
-  nothing. The cmdlet wrote every section that `Get-NTFSSecurityDescriptor`
-  had read, also an unchanged owner, which failed with error 1307 where the
-  account may not assign that owner
+  nothing, and `-Verbose` names the sections that the cmdlet writes. The
+  cmdlet wrote every section that `Get-NTFSSecurityDescriptor` had read,
+  also an unchanged owner, which failed with error 1307 where the account
+  may not assign that owner
   ([#34](https://github.com/raandree/NTFSSecurity/issues/34))
 
 ### Deprecated

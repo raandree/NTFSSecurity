@@ -2427,6 +2427,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
         <maml:para>Before 5.0.0, `-PassThru` returned the unchanged state of an item also when the change failed, and stopped the command when the item could not be read.</maml:para>
+        <maml:para>In the `Path` parameter set, the cmdlet writes only the DACL of the item and leaves its owner, its group, and its SACL as they are. Before 5.0.0, it could also write the owner back, which failed with error 1307, "This security ID may not be assigned as the owner of this object", when the account may not assign that owner, such as on some file servers.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -3044,6 +3045,7 @@ PS C:\&gt; Get-Privileges | Where-Object { $_.Privilege -in 'Backup', 'Restore',
         <maml:para>A path that does not exist produces a non-terminating error and the cmdlet continues with the remaining paths.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
         <maml:para>Before 5.0.0, `-PassThru` returned the unchanged state of an item also when the change failed, and stopped the command when the item could not be read.</maml:para>
+        <maml:para>In the `Path` parameter set, the cmdlet writes only the DACL of the item and leaves its owner, its group, and its SACL as they are. Before 5.0.0, it could also write the owner back, which failed with error 1307, "This security ID may not be assigned as the owner of this object", when the account may not assign that owner, such as on some file servers.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -9557,6 +9559,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <maml:para>Before 5.0.0, omitting `-AccessInheritanceEnabled` or `-AuditInheritanceEnabled` could fail with the error "Nullable object must have a value".</maml:para>
         <maml:para>Before 5.0.0, the cmdlet enabled the privileges even when `EnablePrivileges` was `$false`, and left them enabled.</maml:para>
         <maml:para>Before 5.0.0, `-PassThru` returned the unchanged state of an item also when the change failed, and stopped the command when the item could not be read.</maml:para>
+        <maml:para>In the `Path` parameter set, the cmdlet writes only the section that it changes, the DACL or the SACL, and leaves the owner and the group of the item as they are. Before 5.0.0, a change of the access inheritance could also write the owner back, which failed with error 1307, "This security ID may not be assigned as the owner of this object", when the account may not assign that owner, such as on some file servers.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -9875,7 +9878,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     </command:details>
     <maml:description>
       <maml:para>The `Set-NTFSSecurityDescriptor` cmdlet writes a `Security2.FileSystemSecurity2` object to the file system. It is the final step of the security descriptor workflow: `Get-NTFSSecurityDescriptor` reads a descriptor into memory, cmdlets such as `Add-NTFSAccess`, `Remove-NTFSAccess`, `Set-NTFSOwner`, and `Disable-NTFSAccessInheritance` change that copy through their `-SecurityDescriptor` parameter, and this cmdlet applies all of those changes in a single write.</maml:para>
-      <maml:para>Each descriptor remembers the item it was read from, and the cmdlet writes it back to exactly that item. There is no parameter that redirects the write to a different path. The cmdlet writes only the sections of the descriptor that changed since it was read, such as the DACL after `Add-NTFSAccess`, and leaves the other sections of the item as they are, so a descriptor that you did not change writes nothing. Before 5.0.0, the cmdlet wrote every section that it had read, also an unchanged owner, which failed with error 1307, "This security ID may not be assigned as the owner of this object", when the account may not assign that owner, such as on some file servers.</maml:para>
+      <maml:para>Each descriptor remembers the item it was read from, and the cmdlet writes it back to exactly that item. There is no parameter that redirects the write to a different path. The cmdlet writes only the sections of the descriptor that changed since it was read or last written, such as the DACL after `Add-NTFSAccess`, and leaves the other sections of the item as they are, so a descriptor that you did not change writes nothing. With `-Verbose`, the cmdlet names the sections that it writes, or says that it writes nothing. Before 5.0.0, the cmdlet wrote every section that it had read, also an unchanged owner, which failed with error 1307, "This security ID may not be assigned as the owner of this object", when the account may not assign that owner, such as on some file servers.</maml:para>
       <maml:para>The cmdlet produces no output unless you use `-PassThru`, which reads the item again after the write and returns a new `FileSystemSecurity2` object that reflects what is now stored on disk. Descriptors can be passed as an array or through the pipeline, and each one is processed on its own.</maml:para>
       <maml:para>When the write fails because access is denied, the cmdlet takes ownership of the item with the account of the current session, writes the descriptor, and restores the previous owner. If that fails as well, it writes a non-terminating error and continues with the next descriptor. Windows checks each section separately: changing the access control list requires the Change Permissions right on the item, changing the owner requires the Take Ownership right or the Take Ownership privilege, assigning ownership to another account requires the Restore privilege, and writing audit entries requires the Security privilege.</maml:para>
     </maml:description>

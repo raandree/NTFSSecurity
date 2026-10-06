@@ -293,6 +293,9 @@ function Set-TestOwner {
     )
 
     Assert-TestSandboxPath -Sandbox $Sandbox -Path $Path
+    # icacls reports a failure on stderr, which Windows PowerShell turns into a terminating error when the caller uses
+    # ErrorAction Stop; the exit code decides instead.
+    $ErrorActionPreference = 'Continue'
     # icacls resolves a relative path against the working folder of the process, not the location of PowerShell.
     $location = (Get-Location -PSProvider FileSystem).ProviderPath
     $fullName = [IO.Path]::GetFullPath([IO.Path]::Combine($location, $Path))
