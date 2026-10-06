@@ -15,7 +15,9 @@ source: repository evidence
   interop), `PrivilegeControl` and `ProcessPrivileges` (token privileges),
   `Log`, `TestClient`, `NTFSSecurityTest` (MSTest, minimal coverage).
 - NuGet (`packages.config`): AlphaFS 2.2.x for long paths;
-  `System.Management.Automation.dll` 10.0.10586.0.
+  `System.Management.Automation.dll` 10.0.10586.0. For a drive or volume
+  root, AlphaFS `DirectoryInfo` reaches the device object, while
+  `Directory.Get/SetAccessControl('C:\')` reaches the root folder (#41).
 - Module: `NTFSSecurity.psd1` loads `NTFSSecurity.psm1` (aliases `dir2`,
   `gi2`, `rm2`, `del2`), `NTFSSecurity.Init.ps1` (Add-Type of the helper
   assemblies, prepends `NTFSSecurity.format.ps1xml`), and `NTFSSecurity.dll`.
@@ -24,10 +26,8 @@ source: repository evidence
   Cmdlet pages are platyPS 0.14 markdown (schema 2.0.0) in `Docs/Cmdlets`.
 - Help: `NTFSSecurity\en-US\NTFSSecurity.dll-Help.xml`, generated from
   `Docs/Cmdlets` and committed (Decision 8).
-- Tests: Pester 5 tests in `Tests`: `Help.Tests.ps1` (help of every
-  cmdlet), `Manifest.Tests.ps1` (manifest and versions, Decision 10), and
-  `Remove-Item2.Tests.ps1` (`-PassThur` alias) against the Release build;
-  `Wiki.Tests.ps1` (wiki conversion) without a build.
+- Tests: Pester 5 in `Tests`, one file per area, against the Release
+  build; `Wiki.Tests.ps1` (wiki conversion) runs without a build.
 - CI: GitHub Actions, `.github/workflows/ci.yml` with the scripts in
   `.github/scripts` (Decision 11).
 
@@ -72,7 +72,7 @@ source: repository evidence
 
 ## Constraints
 
-- `ModuleVersion` on `master` is `5.0.0` with the prerelease label `rc3`.
+- `ModuleVersion` on `master` is `5.0.0` with the prerelease label `rc4`.
   The latest stable tag and Gallery release is `4.2.6`. The manifest
   requires PowerShell 5.1 and .NET Framework 4.5.2, uses `RootModule`, and
   lists exactly 36 cmdlets; `Test-ModuleManifest` passes in Windows
@@ -83,18 +83,16 @@ source: repository evidence
 - PowerShell Gallery versions (publish dates): 4.0.0 (2015-08-19), 4.2.2
   (2016-05-18), 4.2.3 (2016-05-19), 4.2.4 (2018-08-13), 4.2.5 (2019-07-11),
   4.2.6 (2019-07-12), none with release notes; 5.0.0-rc1 (2026-10-04),
-  5.0.0-rc2 (2026-10-05), and 5.0.0-rc3 (2026-10-06), published by CI.
-  Older versions were released on CodePlex only, and their dates are lost.
-  The git history starts on 2016-10-10, when the project moved from
+  5.0.0-rc2 (2026-10-05), 5.0.0-rc3 and 5.0.0-rc4 (2026-10-06), published
+  by CI. Older versions were released on CodePlex only, and their dates are
+  lost. The git history starts on 2016-10-10, when the project moved from
   CodePlex.
 - Releases up to 4.2.6 were Debug builds published by hand, with the whole
   output folder; their tags carry the previous version. From 5.0.0 on, CI
   publishes on a version tag (Decision 12). GitHub releases attach
   `NTFSSecurity.zip`.
-- CI: GitHub Actions on pull requests and pushes to `master` (Decision 11).
-  AppVeyor no longer reports on `master`. The Read the Docs project
-  `ntfssecurity` and a second AppVeyor project belong to the deleted fork
-  `Sup3rlativ3/NTFSSecurity` and aren't used (Decision 9).
+- CI: GitHub Actions on pull requests, pushes to `master`, and version tags
+  (Decision 11); AppVeyor and Read the Docs aren't used (Decision 9).
 - `CHANGELOG.md` lists user-visible changes only; CI and build-only changes
   get no entry
   ([Decision 7](decisions/0007-changelog-user-visible-only.md)).

@@ -9,13 +9,12 @@ source: repository evidence
 
 ## Current status
 
-5.0.0-rc3 is on the PowerShell Gallery and in the GitHub releases,
-published by CI from the tag `5.0.0-rc3` on `master` (`914e8da`, the merge
-of #112) on 2026-10-06 (Decision 12). It adds to 5.0.0-rc2 the fix of #34
-and of the copied inherited entries: the cmdlets write only the sections
-that they change (Decision 19). The stable Gallery version is still 4.2.6.
-NTFSSecurity will be archived soon; its users move to WindowsAccessControl
-(Decision 18).
+5.0.0-rc4 is on the PowerShell Gallery and in the GitHub releases,
+published by CI from the tag `5.0.0-rc4` on `master` (`01d9264`, the merge
+of #113) on 2026-10-06 (Decision 12). It adds to 5.0.0-rc3 the fixes of the
+issues #41, #108, #109, and #111 and of the leftovers of the rc3 review.
+The stable Gallery version is still 4.2.6. NTFSSecurity will be archived
+soon; its users move to WindowsAccessControl (Decision 18).
 
 ## Recent milestones
 
@@ -50,6 +49,13 @@ NTFSSecurity will be archived soon; its users move to WindowsAccessControl
   explained in `Docs/FAQ.md`, and was closed as not planned. One
   `security-reviewer` pass approved the branch. The PR description said
   "fixes #34", so the merge closed #34; it was reopened for a tester.
+- 2026-10-06: 5.0.0-rc4 (#113), test-first: drive and volume roots read
+  and change their root folder, not the device (#41); the audit cmdlets
+  reject a descriptor without the audit entries (#109); `-WhatIf` previews
+  `Copy-Item2` and `Move-Item2` despite an existing destination (#108);
+  small items (#111). One `security-reviewer` pass approved it; its Minor
+  findings R1, R2, R6, and R8 were fixed before the merge. #41, #108,
+  #109, and #111 closed as completed, #90 and #107 as not planned.
 
 ## Stable capabilities
 
@@ -65,31 +71,25 @@ NTFSSecurity will be archived soon; its users move to WindowsAccessControl
 ## Open work
 
 1. Release 5.0.0 through CI (Decision 12) when the maintainer decides:
-   remove the label, date `[Unreleased]` as `[5.0.0]`, add `5.0.0-rc3` to
+   remove the label, date `[Unreleased]` as `[5.0.0]`, add `5.0.0-rc4` to
    `$publishedVersions`, and tag `5.0.0` (steps in
    `Docs/Contributing/05-Releasing.md`). #34 stays open with Bug and Help
    Wanted until a tester with a file server that refuses the owner
    confirms the fix, or until 5.0.0 ships.
-2. Issues: the open issues got their replies on 2026-10-05. Follow-up
-   issues for the open Minor review findings: #107 (relative path forms),
-   #108 (`Copy-Item2` and `Move-Item2`), #109 (error messages), #110
-   (tests), and #111 (small items); #68 tracks `-WhatIf` and `-Confirm` for
-   every cmdlet that changes security. The labels follow Decision 17; #16,
-   #21, #45, and #89 wait for their reporters (Needs Info). Not planned for
-   5.0.0: #41 (a drive root reads the device object), #90 (a trailing space
-   in a folder name), and the enhancements #22, #49, #68, #77, #87.
-3. Review findings of rc3, not filed: an extra DACL read and four SDDL
-   snapshots on read paths, and a duplicate SACL check. Older:
-   `Remove-NTFSAudit` fails for an item without a SACL;
-   `FileSystemSecurity2.Write(FileSystemInfo)` and `Write(string)` write
-   every section; the owner retry of `Set-NTFSSecurityDescriptor` lacks a
-   `finally`; `RemoveFileSystemAccessRuleAll` and
-   `RemoveFileSystemAuditRuleAll` ignore their accounts filter, which no
-   cmdlet passes.
+2. Issues: #110 (tests) is the open follow-up of the review findings; #68
+   tracks `-WhatIf` and `-Confirm` for every cmdlet that changes security.
+   The labels follow Decision 17; #16, #21, #45, and #89 wait for their
+   reporters (Needs Info). Not planned for 5.0.0: the enhancements #22,
+   #49, #68, #77, #87.
+3. Review findings, not filed: of rc3, an extra DACL read and four SDDL
+   snapshots on read paths, and a duplicate SACL check; of rc4, R3 to R5,
+   R7, and five older defects, listed in the description of #113, among
+   them the accounts filter that `RemoveFileSystemAccessRuleAll` and
+   `RemoveFileSystemAuditRuleAll` ignore, which no cmdlet passes.
 4. `pwsh` 7.6.1 crashed three times during test runs on the ARM64
    workstation (x64 emulation), without module frames; none of the CI runs
    on native x64 on 2026-10-05 crashed.
 5. Optional for the maintainer: delete the AppVeyor project and revoke its
    GitHub authorization, restrict wiki editing to collaborators, ask
    `Sup3rlativ3` to delete the Read the Docs project, and delete the branch
-   `test/transfer`. The branch `fix/#34` is superseded by #112.
+   `test/transfer`.
