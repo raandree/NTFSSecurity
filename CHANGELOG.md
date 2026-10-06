@@ -65,13 +65,21 @@ The format is based on
   `Get-ChildItem`, which made the import fail in Windows PowerShell when
   another module had added a `Size` member; use `LengthOnDisk`
   ([#82](https://github.com/raandree/NTFSSecurity/issues/82))
+- Write only the sections of a security descriptor that changed since it
+  was read in `Set-NTFSSecurityDescriptor`, such as the DACL after
+  `Add-NTFSAccess -SecurityDescriptor`; a descriptor without changes writes
+  nothing. The cmdlet wrote every section that `Get-NTFSSecurityDescriptor`
+  had read, also an unchanged owner, which failed with error 1307 where the
+  account may not assign that owner
+  ([#34](https://github.com/raandree/NTFSSecurity/issues/34))
 
 ### Deprecated
 
 - Deprecate NTFSSecurity as a whole: the project will be archived soon.
   Move to
   [WindowsAccessControl](https://github.com/raandree/WindowsAccessControl),
-  which is also on the PowerShell Gallery
+  which is also on the PowerShell Gallery. The description of NTFSSecurity
+  in the PowerShell Gallery says so as well
 - Deprecate the `-PassThur` alias of `Remove-Item2`; use `-PassThru`
 - Deprecate the `MACTripleDES` value of `Get-FileHash2 -Algorithm`: it uses
   a random key, so its result differs on every call; the cmdlet now warns
@@ -209,5 +217,21 @@ The format is based on
   `Set-NTFSInheritance -AuditInheritanceEnabled`, which failed with "Access
   is denied" for a file or folder without audit entries, also in an elevated
   session with the Security privilege
+- Fix `Add-NTFSAccess`, `Remove-NTFSAccess`, `Clear-NTFSAccess`,
+  `Add-NTFSAudit`, `Clear-NTFSAudit`, `Enable-NTFSAccessInheritance`,
+  `Disable-NTFSAccessInheritance`, and `Set-NTFSInheritance`, which wrote the
+  owner of an item back with the entries they changed; where the account may
+  not assign that owner, such as on some file servers, they failed with
+  "(1307) This security ID may not be assigned as the owner of this object".
+  They now write only the DACL or the SACL
+  ([#34](https://github.com/raandree/NTFSSecurity/issues/34))
+- Fix `Add-NTFSAccess`, `Add-NTFSAudit`, and `Clear-NTFSAudit`, which in an
+  elevated session could store the inherited access entries of an item as
+  explicit entries, and `Get-NTFSSecurityDescriptor`, which could return
+  them without their inherited flag, so that `Set-NTFSSecurityDescriptor`
+  stored them as explicit entries as well
+- Fix `Clear-NTFSAudit`, which finished without an error but changed nothing
+  in a session without the Security privilege; it now writes an error, like
+  the other audit cmdlets
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

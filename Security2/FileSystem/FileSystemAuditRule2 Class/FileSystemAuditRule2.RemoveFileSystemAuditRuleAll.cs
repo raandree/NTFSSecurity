@@ -25,11 +25,17 @@ namespace Security2
 
         public static void RemoveFileSystemAuditRuleAll(FileSystemInfo item, List<IdentityReference2> accounts = null)
         {
-            var sd = new FileSystemSecurity2(item);
+            // Only the SACL, so that neither the owner (#34) nor the DACL is written back
+            var sd = new FileSystemSecurity2(item, AccessControlSections.Audit);
 
             RemoveFileSystemAuditRuleAll(sd, accounts);
 
-            sd.Write();
+            // An item without audit entries can have no SACL at all. Then there is nothing to remove, and Windows denies
+            // a write without any section: (5) Access is denied.
+            if (sd.HasSystemAcl)
+            {
+                sd.Write();
+            }
         }
     }
 }

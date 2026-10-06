@@ -32,7 +32,8 @@ namespace Security2
             if (type == AccessControlType.Allow)
                 rights = rights | FileSystemRights2.Synchronize;
 
-            var sd = new FileSystemSecurity2(item);
+            // Only the DACL, so that the owner isn't written back (#34) and the inherited entries keep their flag
+            var sd = new FileSystemSecurity2(item, AccessControlSections.Access);
 
             var ace = AddFileSystemAccessRule(sd, account, rights, type, inheritanceFlags, propagationFlags);
 

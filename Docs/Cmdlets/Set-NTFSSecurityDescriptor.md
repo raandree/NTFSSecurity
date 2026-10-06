@@ -21,7 +21,7 @@ Set-NTFSSecurityDescriptor [-SecurityDescriptor] <FileSystemSecurity2[]> [-PassT
 
 The `Set-NTFSSecurityDescriptor` cmdlet writes a `Security2.FileSystemSecurity2` object to the file system. It is the final step of the security descriptor workflow: `Get-NTFSSecurityDescriptor` reads a descriptor into memory, cmdlets such as `Add-NTFSAccess`, `Remove-NTFSAccess`, `Set-NTFSOwner`, and `Disable-NTFSAccessInheritance` change that copy through their `-SecurityDescriptor` parameter, and this cmdlet applies all of those changes in a single write.
 
-Each descriptor remembers the item it was read from, and the cmdlet writes it back to exactly that item. There is no parameter that redirects the write to a different path, and writing a descriptor that you did not change simply re-applies its current content.
+Each descriptor remembers the item it was read from, and the cmdlet writes it back to exactly that item. There is no parameter that redirects the write to a different path. The cmdlet writes only the sections of the descriptor that changed since it was read, such as the DACL after `Add-NTFSAccess`, and leaves the other sections of the item as they are, so a descriptor that you did not change writes nothing. Before 5.0.0, the cmdlet wrote every section that it had read, also an unchanged owner, which failed with error 1307, "This security ID may not be assigned as the owner of this object", when the account may not assign that owner, such as on some file servers.
 
 The cmdlet produces no output unless you use `-PassThru`, which reads the item again after the write and returns a new `FileSystemSecurity2` object that reflects what is now stored on disk. Descriptors can be passed as an array or through the pipeline, and each one is processed on its own.
 

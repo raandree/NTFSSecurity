@@ -62,7 +62,9 @@ namespace Security2
                 ace = (FileSystemAccessRule)sd.AccessRuleFactory(account, (int)rights, false, inheritanceFlags, propagationFlags, type);
                 RemoveRule(sd, ace, removeSpecific);
 
-                file.SetAccessControl(sd);
+                // Only the DACL: Windows can return the owner with it, and writing that back fails for an owner that the
+                // user cannot assign (#34).
+                file.SetAccessControl(sd, AccessControlSections.Access);
             }
             else
             {
@@ -73,7 +75,7 @@ namespace Security2
                 ace = (FileSystemAccessRule)sd.AccessRuleFactory(account, (int)rights, false, inheritanceFlags, propagationFlags, type);
                 RemoveRule(sd, ace, removeSpecific);
 
-                directory.SetAccessControl(sd);
+                directory.SetAccessControl(sd, AccessControlSections.Access);
             }
         }
 
@@ -122,7 +124,7 @@ namespace Security2
 
                 RemoveRule(sd, ace, removeSpecific);
 
-                file.SetAccessControl(sd);
+                file.SetAccessControl(sd, AccessControlSections.Access);
             }
             else
             {
@@ -132,7 +134,7 @@ namespace Security2
 
                 RemoveRule(sd, ace, removeSpecific);
 
-                directory.SetAccessControl(sd);
+                directory.SetAccessControl(sd, AccessControlSections.Access);
             }
         }
 

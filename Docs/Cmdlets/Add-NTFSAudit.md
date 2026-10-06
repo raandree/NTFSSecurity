@@ -290,6 +290,8 @@ Writing the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage
 
 If the security descriptor cannot be read or written because access is denied, the cmdlet takes ownership of the item, repeats the operation, and restores the previous owner. If the second attempt fails as well, the cmdlet restores the previous owner and writes an error. Before 5.0.0, the account that ran the cmdlet stayed the owner of the item in that case.
 
+In the `Path` parameter sets, the cmdlet reads and writes only the SACL of the item and leaves its owner, its group, and its DACL as they are. Before 5.0.0, it also wrote the owner and the DACL back, which failed with error 1307, "This security ID may not be assigned as the owner of this object", when the account may not assign that owner, such as on some file servers. In an elevated session, it could also store the inherited access entries of the item as explicit entries.
+
 `-Path` or `-SecurityDescriptor`, `-Account`, and `-AccessRights` are positional parameters at positions 1, 2, and 3, like in `Remove-NTFSAudit`. Before 5.0.0, `-Account` and `-AccessRights` were both declared at position 2, so a command that passed them by position failed.
 
 An audit entry alone does not create events. Windows writes the events to the security log only while the "Audit object access" policy, or the corresponding "Audit File System" advanced audit policy, is enabled for success, failure, or both. That policy is a Windows setting and is not managed by this module.

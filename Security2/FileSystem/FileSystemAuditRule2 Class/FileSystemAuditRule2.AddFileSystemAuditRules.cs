@@ -26,7 +26,8 @@ namespace Security2
 
         public static FileSystemAuditRule2 AddFileSystemAuditRule(FileSystemInfo item, IdentityReference2 account, FileSystemRights2 rights, AuditFlags type, InheritanceFlags inheritanceFlags, PropagationFlags propagationFlags)
         {
-            var sd = new FileSystemSecurity2(item);
+            // Only the SACL, so that neither the owner (#34) nor the DACL is written back
+            var sd = new FileSystemSecurity2(item, AccessControlSections.Audit);
 
             var ace = AddFileSystemAuditRule(sd, account, rights, type, inheritanceFlags, propagationFlags);
 

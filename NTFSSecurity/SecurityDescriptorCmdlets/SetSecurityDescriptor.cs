@@ -39,7 +39,8 @@ namespace NTFSSecurity
             {
                 try
                 {
-                    sd.Write();
+                    // Only the changed sections, so that an unchanged owner, for example, isn't written back (#34)
+                    sd.WriteChanges();
 
                     if (passThru)
                     {
@@ -55,7 +56,7 @@ namespace NTFSSecurity
 
                         FileSystemOwner.SetOwner(sd.Item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
 
-                        sd.Write();
+                        sd.WriteChanges();
 
                         FileSystemOwner.SetOwner(sd.Item, previousOwner);
                     }
