@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-04
+last-verified: 2026-10-07
 owner: active-agent
 source: repository evidence
 ---
@@ -69,10 +69,23 @@ source: repository evidence
   same way, its folder first on `$env:PSModulePath` of the test process.
   The GitHub CLI is in `C:\Program Files\GitHub CLI`, outside the PATH of
   sessions started before its installation.
+- The third workstation (`ExHost`, a Windows Server 2025 VM, x64, used since
+  2026-10-07) runs the agent session elevated and hosts the AutomatedLab lab
+  `WindowsAccessControlLab` (Decision 20) with Hyper-V and AutomatedLab
+  5.61.704. It has no NuGet cache, platyPS, or GitHub CLI: check each
+  nuget.org package against the SHA-512 `packageHash` of its catalog entry
+  (`https://api.nuget.org/v3/registration5-semver1/<id>/<version>.json`,
+  then `catalogEntry`), and each Gallery package against `PackageHash` of
+  `api/v2/Packages(Id='<id>',Version='<version>')`. Pester 5.7.1 is in
+  `V:\Git\WindowsAccessControl\output\RequiredModules`; read issues and pull
+  requests through the GitHub REST API. The lab domains `a.forest1.net` and
+  `b.forest1.net` had a maximum password age of 42 days, so the password of
+  `install` expired on 2026-09-15 and AutomatedLab got access denied; it
+  never expires since 2026-10-07, as in `forest1.net`.
 
 ## Constraints
 
-- `ModuleVersion` on `master` is `5.0.0` with the prerelease label `rc4`.
+- `ModuleVersion` is `5.0.0` with the prerelease label `rc5`.
   The latest stable tag and Gallery release is `4.2.6`. The manifest
   requires PowerShell 5.1 and .NET Framework 4.5.2, uses `RootModule`, and
   lists exactly 36 cmdlets; `Test-ModuleManifest` passes in Windows
@@ -108,7 +121,9 @@ source: repository evidence
   at the end of the reply, which the chat shows with a copy button, and end
   the turn there; the maintainer reports back in the chat. The question
   dialog joins the lines of its text, has no copy button, and covers the
-  reply before it (maintainer, 2026-10-06). A pull request description
+  reply before it (maintainer, 2026-10-06). A long question also hides its
+  choices, so that it can't be answered: keep it to a few short sentences
+  (2026-10-07). A pull request description
   names an issue without a closing keyword (fixes, closes, resolves) unless
   the merge should close it: "fixes #34" in #112 closed #34. Simulated `gh`
   commands in offline tests must print what the real ones print, such as
@@ -160,6 +175,12 @@ source: repository evidence
   session. Run them as a basic user with `runas /trustlevel:0x20000`, and
   give Windows PowerShell its own `PSModulePath`; that token holds one
   privilege, so the `Enable-Privileges -PassThru` count test fails there.
+- Live tests (Decision 20): in an elevated Windows PowerShell 5.1 session
+  on the lab host, `Tests\Lab\Invoke-NTFSSecurityLabTest.ps1` with
+  `-Version` for Gallery packages or `-ModulePath` for a build; it writes
+  the results to `$env:TEMP\NTFSSecurityLab\Results`. A run of two versions
+  in both editions takes about 30 minutes; `-RemoveFixture` removes its
+  accounts, share, and folders from the lab.
 - Markdown lint: `npx markdownlint-cli2` with `MD013` limited to prose
   (tables, code, and headings excluded) on the conceptual pages; for
   `CHANGELOG.md` also `MD024` with `siblings_only: true`, because every

@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-06
+last-verified: 2026-10-07
 owner: active-agent
 source: repository evidence
 ---
@@ -13,8 +13,11 @@ source: repository evidence
 published by CI from the tag `5.0.0-rc4` on `master` (`01d9264`, the merge
 of #113) on 2026-10-06 (Decision 12). It adds to 5.0.0-rc3 the fixes of the
 issues #41, #108, #109, and #111 and of the leftovers of the rc3 review.
-The stable Gallery version is still 4.2.6. NTFSSecurity will be archived
-soon; its users move to WindowsAccessControl (Decision 18).
+5.0.0-rc5 is prepared on the branch `ai/release-5.0.0-rc5`: the live tests
+in a lab (Decision 20) and the fix of `Get-NTFSEffectiveAccess -ServerName`
+that they found. The stable Gallery version is still 4.2.6. NTFSSecurity
+will be archived soon; its users move to WindowsAccessControl
+(Decision 18).
 
 ## Recent milestones
 
@@ -56,6 +59,15 @@ soon; its users move to WindowsAccessControl (Decision 18).
   small items (#111). One `security-reviewer` pass approved it; its Minor
   findings R1, R2, R6, and R8 were fixed before the merge. #41, #108,
   #109, and #111 closed as completed, #90 and #107 as not planned.
+- 2026-10-07: live tests in the lab of WindowsAccessControl (Decision 20)
+  against 5.0.0-rc2 and 5.0.0-rc4 in both editions: rc2 fails #34 over SMB
+  with error 1307 for `Add-NTFSAccess`, `Clear-NTFSAccess`, and
+  `Set-NTFSSecurityDescriptor`; rc4 passes the four cases, except
+  `Get-NTFSEffectiveAccess -ServerName` with a computer that can't be
+  reached, which returned no access since before rc1. The maintainer chose
+  to fix it test-first in 5.0.0-rc5; the branch build passes all live tests
+  and the suite. One `security-reviewer` pass approved it with minor
+  findings (`activeContext.md`).
 
 ## Stable capabilities
 
@@ -70,9 +82,10 @@ soon; its users move to WindowsAccessControl (Decision 18).
 
 ## Open work
 
-1. Release 5.0.0 through CI (Decision 12) after the live tests in a lab
-   (`activeContext.md`) and the tester feedback in #34: remove the label,
-   date `[Unreleased]` as `[5.0.0]`, add `5.0.0-rc4` to
+1. Publish 5.0.0-rc5 (merge, then tag), check its package in the lab with
+   `Tests\Lab\Invoke-NTFSSecurityLabTest.ps1 -Version 5.0.0-rc5`, and then
+   release 5.0.0 through CI (Decision 12) with the tester feedback in #34:
+   remove the label, date `[Unreleased]` as `[5.0.0]`, add `5.0.0-rc5` to
    `$publishedVersions`, and tag `5.0.0` (steps in
    `Docs/Contributing/05-Releasing.md`). #34 stays open with Bug and Help
    Wanted until a tester with a file server that refuses the owner
@@ -86,7 +99,12 @@ soon; its users move to WindowsAccessControl (Decision 18).
    snapshots on read paths, and a duplicate SACL check; of rc4, R3 to R5,
    R7, and five older defects, listed in the description of #113, among
    them the accounts filter that `RemoveFileSystemAccessRuleAll` and
-   `RemoveFileSystemAuditRuleAll` ignore, which no cmdlet passes.
+   `RemoveFileSystemAuditRuleAll` ignore, which no cmdlet passes; of rc5,
+   the bare `catch` in `Win32.GetEffectiveAccess`, the unchecked
+   `AUTHZ_ACCESS_REPLY.Error`, a fallback warning without the server name,
+   and hardening of the lab controller (guards in the setup blocks,
+   interpolated `-EncodedCommand` paths, CredSSP by IP address, the
+   password string in memory, disabling the role accounts after a run).
 4. `pwsh` 7.6.1 crashed three times during test runs on the ARM64
    workstation (x64 emulation), without module frames; none of the CI runs
    on native x64 on 2026-10-05 crashed.
