@@ -5,7 +5,7 @@
 .DESCRIPTION
     Imports Pester 5.7.1, runs the tests against the module build in NTFSSecurity\bin\Release, writes the result
     file in the NUnit format, and adds the counts and the failed tests to the job summary of GitHub Actions. Fails if
-    a test or a test file fails.
+    a test or a test file fails. The live tests in Tests\Lab need a lab and don't run here.
 
 .PARAMETER ResultPath
     Specifies the path of the result file.
@@ -39,8 +39,11 @@ if ($resultFolder -and -not (Test-Path -LiteralPath $resultFolder)) {
     New-Item -ItemType Directory -Path $resultFolder | Out-Null
 }
 
+$testsPath = (Resolve-Path -LiteralPath (Join-Path -Path $PSScriptRoot -ChildPath '..\..\Tests')).ProviderPath
 $configuration = New-PesterConfiguration
-$configuration.Run.Path = Join-Path -Path $PSScriptRoot -ChildPath '..\..\Tests'
+$configuration.Run.Path = $testsPath
+# The live tests in Tests\Lab need a lab (Tests\Lab\README.md). Pester matches the full path of each test file.
+$configuration.Run.ExcludePath = '{0}\Lab\*' -f [WildcardPattern]::Escape($testsPath)
 $configuration.Run.PassThru = $true
 $configuration.Output.Verbosity = 'Detailed'
 $configuration.TestResult.Enabled = $true
