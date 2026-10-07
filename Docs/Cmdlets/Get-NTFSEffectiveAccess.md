@@ -182,7 +182,7 @@ When the module setting `EnablePrivileges` is `$true` (the default in the `Priva
 
 Reading effective access needs the Security privilege. In a session that does not hold it, the cmdlet warns before it starts and the calculation may fail with an error. Use `Enable-Privileges` in an elevated session to enable the privilege, and `Get-Privileges` to see which privileges the session holds. When the calculation fails, the error names the cause that Windows reported, such as a security descriptor without an owner; before 5.0.0, it blamed a missing Security privilege whenever the privilege wasn't enabled.
 
-Before 5.0.0, `-ExcludeNoneAccessEntries` had no effect, and the cmdlet returned nothing without `-Path` or for `-SecurityDescriptor`.
+Before 5.0.0, `-ExcludeNoneAccessEntries` had no effect, and the cmdlet returned nothing without `-Path` or for `-SecurityDescriptor`. When the computer of `-ServerName` couldn't be reached, the cmdlet warned that it had calculated the result on this computer, but returned no access instead of that result.
 
 ## RELATED LINKS
 

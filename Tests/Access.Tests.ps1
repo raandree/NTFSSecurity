@@ -131,6 +131,24 @@ Describe 'Get-NTFSEffectiveAccess' {
             $accessErrors[0].Exception.Message | Should -Not -BeLike '*Enable-Privileges*'
         }
     }
+
+    Context 'When the computer of -ServerName cannot be reached' {
+        # Before 5.0.0-rc5, the cmdlet returned no access when the computer couldn't be reached, although it warned that
+        # it had calculated the result on this computer. Windows reports a computer that it can't resolve or reach with
+        # the error RPC server unavailable; the name ends in .invalid, which no DNS server resolves (RFC 2606).
+        It 'Should return the result of this computer and warn' {
+            $expected = Get-NTFSEffectiveAccess -Path $effectiveFile -WarningAction SilentlyContinue -ErrorAction Stop
+            [long] $expected.AccessRights | Should -BeGreaterThan ([long] [Security2.FileSystemRights2]::Synchronize)
+
+            $result = @(Get-NTFSEffectiveAccess -Path $effectiveFile -ServerName 'ntfssecurity-test.invalid' -WarningVariable accessWarnings -WarningAction SilentlyContinue -ErrorVariable accessErrors -ErrorAction SilentlyContinue)
+
+            $accessErrors | Should -BeNullOrEmpty
+            $result | Should -HaveCount 1
+            $result[0].AccessRights | Should -Be $expected.AccessRights
+            $accessWarnings.Message | Should -Contain ('The effective rights can only be computed based on group membership on this computer. ' +
+                'For more accurate results, calculate effective access rights on the target computer')
+        }
+    }
 }
 
 Describe 'Get-NTFSOrphanedAccess' {
