@@ -112,14 +112,14 @@ namespace NTFSSecurity
             {
                 path = GetCurrentLocation();
             }
-            else if (path.StartsWith(".."))
+            else if (path == ".." || path.StartsWith("..\\"))
             {
                 var currentLocation = GetCurrentLocation();
                 path = System.IO.Path.Combine(
                     string.Join("\\", currentLocation.Split('\\').Take(currentLocation.Split('\\').Count() - path.Split('\\').Count(s => s == "..")).ToArray()),
                     string.Join("\\", path.Split('\\').Where(e => e != "..").ToArray()));
             }
-            else if (path.StartsWith("."))
+            else if (path.StartsWith(".\\") || path.StartsWith("./"))
             {
                 //combine . and .\path\subpath
                 path = System.IO.Path.Combine(GetCurrentLocation(), path.Substring(2));

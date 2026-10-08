@@ -312,5 +312,9 @@ The format is based on
 - Fix `Get-NTFSOrphanedAccess`, which reported an item that it couldn't
   read as an `AddAceError`; it now writes a `ReadSecurityError`, like
   `Get-NTFSAccess`
+- Fix every cmdlet for a relative path that starts with a dot but not with
+  `.\`, such as `.gitignore`: the cmdlets dropped its first two characters
+  and read, changed, or removed the item with the shorter name, such as
+  `itignore`, when one existed
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

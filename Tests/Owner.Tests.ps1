@@ -106,6 +106,64 @@ Describe 'Current location' {
     }
 }
 
+# Before 5.0.0-rc6, a relative path that started with a dot, but not with .\, lost its first two characters: a command
+# on .Dotfile read or changed the item otfile in the same folder when one existed.
+Describe 'Relative paths that start with a dot' {
+    BeforeAll {
+        $dotFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'Dot' -Directory
+        Push-Location -LiteralPath $dotFolder
+        # The names that the defect made of the paths
+        foreach ($name in '.Dotfile', '..Dotfile', 'otfile', 'Dotfile') {
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $name
+            Set-Content -LiteralPath $name -Value $name
+        }
+    }
+
+    AfterAll {
+        Pop-Location
+    }
+
+    It 'Should resolve <Path> to the item <Expected> of the current location' -ForEach @(
+        @{ Path = '.Dotfile'; Expected = '.Dotfile' }
+        @{ Path = '..Dotfile'; Expected = '..Dotfile' }
+        @{ Path = '.\.Dotfile'; Expected = '.Dotfile' }
+        @{ Path = './.Dotfile'; Expected = '.Dotfile' }
+        @{ Path = '..\{0}\.Dotfile'; Expected = '.Dotfile' }
+    ) {
+        # {0} is the name of the current folder.
+        $relative = $Path -f (Split-Path -Path $dotFolder -Leaf)
+
+        $result = Get-NTFSOwner -Path $relative -ErrorAction Stop
+
+        $result.FullName | Should -Be (Join-Path -Path $dotFolder -ChildPath $Expected)
+    }
+
+    It 'Remove-Item2 should remove the item that the path names, not another item' {
+        foreach ($name in '.RemoveMe', 'emoveMe') {
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $name
+            Set-Content -LiteralPath $name -Value $name
+        }
+
+        Remove-Item2 -Path '.RemoveMe' -ErrorAction Stop
+
+        Join-Path -Path $dotFolder -ChildPath '.RemoveMe' | Should -Not -Exist
+        Join-Path -Path $dotFolder -ChildPath 'emoveMe' | Should -Exist
+    }
+
+    It 'Copy-Item2 should copy to the destination that the path names, not over another item' {
+        foreach ($name in 'CopySource', 'opyTarget') {
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $name
+            Set-Content -LiteralPath $name -Value $name
+        }
+        Assert-TestSandboxPath -Sandbox $sandbox -Path '.CopyTarget'
+
+        Copy-Item2 -Path 'CopySource' -Destination '.CopyTarget' -Force -ErrorAction Stop
+
+        Get-Content -LiteralPath (Join-Path -Path $dotFolder -ChildPath '.CopyTarget') | Should -Be 'CopySource'
+        Get-Content -LiteralPath (Join-Path -Path $dotFolder -ChildPath 'opyTarget') | Should -Be 'opyTarget'
+    }
+}
+
 Describe 'File and folder objects as arguments' {
     # Before 5.0.0, Windows PowerShell bound a folder object that was passed by position as its name, which the
     # cmdlets resolved against the current location (#88).
