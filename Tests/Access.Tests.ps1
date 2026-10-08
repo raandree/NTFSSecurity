@@ -326,6 +326,41 @@ Describe 'Get-NTFSSimpleAccess' {
             @($result | Where-Object -Property FullName -EQ -Value $child).Identity.Sid | Should -Be 'S-1-5-21-1-2-3-3101'
         }
 
+        # Before 5.0.0-rc7, a folder whose parent folder the cmdlet hadn't reported was left out of the result, so the
+        # entries of the parent here were missing.
+        It 'Should report all entries of a folder whose parent folder it did not report' {
+            $childAlone = @(Get-NTFSSimpleAccess -Path $child -IncludeRootFolder:$false -ErrorAction Stop)
+            $parentAlone = @(Get-NTFSSimpleAccess -Path $parent -IncludeRootFolder:$false -ErrorAction Stop)
+            $parentAlone | Should -Not -BeNullOrEmpty
+
+            $result = @(Get-NTFSSimpleAccess -Path $child, $parent -IncludeRootFolder:$false -ErrorAction Stop)
+
+            @($result | Where-Object -Property FullName -EQ -Value $child) | Should -HaveCount $childAlone.Count
+            @($result | Where-Object -Property FullName -EQ -Value $parent) | Should -HaveCount $parentAlone.Count
+        }
+
+        # Before 5.0.0-rc7, a folder that came after its parent folder a second time failed with a ReadError, "An item
+        # with the same key has already been added."
+        It 'Should compare a folder that it gets twice with its parent folder both times' {
+            $result = @(Get-NTFSSimpleAccess -Path $parent, $child, $child -IncludeRootFolder:$false -ErrorVariable simpleErrors -ErrorAction SilentlyContinue)
+
+            $simpleErrors | Should -BeNullOrEmpty
+            $childEntries = @($result | Where-Object -Property FullName -EQ -Value $child)
+            $childEntries | Should -HaveCount 2
+            $childEntries | ForEach-Object -Process { $_.Identity.Sid | Should -Be 'S-1-5-21-1-2-3-3101' }
+        }
+
+        # Before 5.0.0-rc7, a drive root after the first path was left out as well, because it has no parent folder;
+        # after another folder whose parent was reported, it was compared with that unrelated parent.
+        It 'Should report all entries of a drive root, which has no parent folder' {
+            $root = [IO.Path]::GetPathRoot($child)
+
+            $result = @(Get-NTFSSimpleAccess -Path $child, $root -IncludeRootFolder:$false -ErrorVariable simpleErrors -ErrorAction SilentlyContinue)
+
+            $simpleErrors | Should -BeNullOrEmpty
+            @($result | Where-Object -Property FullName -EQ -Value $root) | Should -Not -BeNullOrEmpty
+        }
+
         It 'Should report the parent folder of the first path first by default' {
             $result = @(Get-NTFSSimpleAccess -Path $child -ErrorAction Stop)
 
