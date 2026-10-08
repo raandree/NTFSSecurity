@@ -339,5 +339,11 @@ The format is based on
   drive root with the parent folder of the folder before it; such folders
   are now reported with all of their entries. A folder that came after its
   parent folder a second time failed with a `ReadError`
+- Fix `Move-Item2` for a folder on another volume, which Windows can't
+  move: the cmdlet copied and deleted it instead, so that an empty folder
+  was deleted without being created at the destination, and a folder with
+  files failed with an error that named one of its files. It now writes a
+  `MoveError` that names the folder and the destination, and leaves the
+  folder in place
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

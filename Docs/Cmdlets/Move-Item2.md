@@ -24,7 +24,7 @@ The `Move-Item2` cmdlet moves the items in `-Path` to the location in `-Destinat
 
 How `-Destination` is interpreted depends on what is already there. If the value names an existing folder, the cmdlet keeps the name of the source item and moves it into that folder. In every other case the value is the full path of the new item, which lets you move and rename in one step, or rename an item in place. `-Destination` is resolved against the current location once, when the cmdlet starts.
 
-Without `-Force`, the cmdlet checks whether a file or folder already exists at the destination and writes a `DestinationFileAlreadyExists` error instead of overwriting it; the move itself then runs with the `CopyAllowed` option, which allows a file to move to a different volume. With `-WhatIf`, the cmdlet names an existing destination in a verbose message instead; before 5.0.0, it wrote the error also with `-WhatIf`. With `-Force`, the move runs with the `ReplaceExisting` option and overwrites an existing destination item. The folder that is to contain the moved item must exist; otherwise the cmdlet writes an error that names that folder, or, with `-WhatIf`, a verbose message.
+Without `-Force`, the cmdlet checks whether a file or folder already exists at the destination and writes a `DestinationFileAlreadyExists` error instead of overwriting it; a file then moves with the `CopyAllowed` option, which allows it to move to a different volume. With `-WhatIf`, the cmdlet names an existing destination in a verbose message instead; before 5.0.0, it wrote the error also with `-WhatIf`. With `-Force`, the move runs with the `ReplaceExisting` option and overwrites an existing destination item. The folder that is to contain the moved item must exist; otherwise the cmdlet writes an error that names that folder, or, with `-WhatIf`, a verbose message.
 
 The cmdlet supports `-WhatIf` and `-Confirm`, and it writes nothing to the pipeline unless you specify `-PassThru $true`.
 
@@ -190,9 +190,11 @@ With `-PassThru $true` the cmdlet returns a folder object for each folder that i
 
 Before 5.0.0, `-PassThru` also wrote the item when `-WhatIf` or a declined confirmation skipped the operation.
 
-The cmdlet chooses between two mutually exclusive move options. Without `-Force` it moves with `CopyAllowed`, which permits a file to cross volume boundaries because Windows then copies and deletes it. With `-Force` it moves with `ReplaceExisting`, which overwrites the destination but does not request `CopyAllowed`, so a move across volumes can fail when `-Force` is specified. A folder can't move to another volume: the cmdlet writes a `MoveError` and leaves the folder in place, so copy it with `Copy-Item2` and remove it with `Remove-Item2` instead.
+The cmdlet chooses between two mutually exclusive move options for a file. Without `-Force` it moves a file with `CopyAllowed`, which permits the file to cross volume boundaries because Windows then copies and deletes it. With `-Force` it moves with `ReplaceExisting`, which overwrites the destination but does not request `CopyAllowed`, so a file can't move to another volume when `-Force` is specified: the cmdlet writes the `MoveError` of Windows, "(17) The system cannot move the file to a different disk drive". A folder can't move to another volume at all: the cmdlet writes a `MoveError` with the category `InvalidOperation` that names the folder and the destination, and it leaves the folder in place, so copy it with `Copy-Item2` and remove it with `Remove-Item2` instead.
 
 If a path in `-Path` does not exist, a file or folder exists at the destination and `-Force` is missing, or the folder that is to contain the moved item does not exist, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call. Before 5.0.0, it also reported an existing destination folder as a `MoveError`, and a missing destination folder as a `DirectoryNotFoundException` that named the source item ([#21](https://github.com/raandree/NTFSSecurity/issues/21)).
+
+Before 5.0.0-rc7, a folder moved with `CopyAllowed` as well, so a move to another volume copied and deleted it: an empty folder was deleted without being created at the destination, and a folder with files failed with an error that named one of its files.
 
 ## RELATED LINKS
 

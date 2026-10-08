@@ -130,12 +130,29 @@ namespace NTFSSecurity
                     }
                     else
                     {
-                        ((DirectoryInfo)item).MoveTo(actualDestination, force ? MoveOptions.ReplaceExisting : MoveOptions.CopyAllowed, PathFormat.RelativePath);
+                        // Without CopyAllowed, so that Windows refuses a move to another volume, which it can't do for a
+                        // folder. Before 5.0.0-rc7, AlphaFS emulated such a move by copying and deleting: an empty folder
+                        // was deleted without being created at the destination, and a folder with files failed with an
+                        // error that named one of its files.
+                        ((DirectoryInfo)item).MoveTo(actualDestination, force ? MoveOptions.ReplaceExisting : MoveOptions.None, PathFormat.RelativePath);
                         WriteVerbose(string.Format("Directory '{0}' moved to '{1}'", resolvedPath, actualDestination));
                     }
 
                     if (passThru)
                         WriteObject(item);
+                }
+                catch (NotSameDeviceException ex)
+                {
+                    // A file gets here only with -Force, which moves without CopyAllowed; it keeps the error of Windows.
+                    if (item is DirectoryInfo)
+                    {
+                        var message = string.Format("The folder '{0}' can't move to another volume, '{1}'. Copy it with Copy-Item2, then remove it with Remove-Item2.", resolvedPath, actualDestination);
+                        WriteError(new ErrorRecord(new System.IO.IOException(message, ex), "MoveError", ErrorCategory.InvalidOperation, resolvedPath));
+                    }
+                    else
+                    {
+                        WriteError(new ErrorRecord(ex, "MoveError", ErrorCategory.InvalidData, resolvedPath));
+                    }
                 }
                 catch (System.IO.IOException ex)
                 {
