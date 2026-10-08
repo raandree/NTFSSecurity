@@ -141,7 +141,8 @@ and record the evidence in this folder:
 5. Remove the fixture with `-RemoveFixture` and check that its accounts,
    share, folders, group memberships, and profiles are gone.
 
-Records: [5.0.0-rc6](Acceptance-2026-10-08-5.0.0-rc6.md).
+Records: [5.0.0-rc6](Acceptance-2026-10-08-5.0.0-rc6.md),
+[5.0.0-rc7](Acceptance-2026-10-08-5.0.0-rc7.md).
 
 ## Files
 
