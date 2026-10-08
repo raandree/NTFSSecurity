@@ -266,5 +266,8 @@ The format is based on
   of `Get-FileHash2`, which named the AlphaFS `FileInfo` instead of the type
   name of its objects
   ([#111](https://github.com/raandree/NTFSSecurity/issues/111))
+- Fix `Get-NTFSEffectiveAccess`, which returned no access when the computer
+  of `-ServerName` couldn't be reached, although it warned that it had
+  calculated the result on this computer; it now returns that result
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

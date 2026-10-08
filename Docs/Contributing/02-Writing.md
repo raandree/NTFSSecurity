@@ -127,6 +127,10 @@ Before you open a pull request, check the following:
   Invoke-Pester -Path .\Tests -Output Detailed
   ```
 
+  The [live tests](../../Tests/Lab/README.md) in `Tests\Lab` need a lab with
+  a file server and domain accounts. Without one, they skip all their tests,
+  and the CI workflow doesn't run them.
+
 - All links work. The CI workflow checks them with `Get-MarkdownLink` from
   the MarkdownLinkCheck module:
 

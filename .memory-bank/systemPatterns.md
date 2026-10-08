@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-06
+last-verified: 2026-10-07
 owner: active-agent
 source: repository evidence
 ---
@@ -66,6 +66,7 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 | 17 | [Issue labels](decisions/0017-issue-labels.md) |
 | 18 | [NTFSSecurity will be archived](decisions/0018-archive-for-windowsaccesscontrol.md) |
 | 19 | [Cmdlets write only the sections that they change](decisions/0019-write-only-changed-sections.md) |
+| 20 | [Live tests in a lab live in Tests\Lab](decisions/0020-live-tests-in-tests-lab.md) |
 
 ## Patterns
 
@@ -96,3 +97,10 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
   hook `BypassOnlineHelpRetrieval`. `Manifest.Tests.ps1` and
   `Release.Tests.ps1` check the manifest, the version (Decision 10), the
   release notes, and the packages.
+- The live tests in `Tests\Lab` (Decision 20) run as domain accounts in a
+  lab: on the client over SMB, then on the file server, which checks what
+  the client runs left. They read and write descriptors as Windows stores
+  them with `GetFileSecurity` and `SetFileSecurity`, because
+  `GetNamedSecurityInfo` converts a DACL without the auto-inherit flag and
+  returns its owner. The expected effective rights come from the S4U tokens
+  of the file server and the client, like the Effective Access tab.

@@ -173,7 +173,9 @@ namespace Security2
             {
                 int error = Marshal.GetLastWin32Error();
 
-                if (error != Win32Error.EPT_S_NOT_REGISTERED) //if not RPC server unavailable
+                // The computer can't be resolved or reached (RPC server unavailable), or it doesn't offer the remote
+                // interface (endpoint not registered); the local authorization manager calculates the result instead.
+                if (error != Win32Error.EPT_S_NOT_REGISTERED && error != Win32Error.RPC_S_SERVER_UNAVAILABLE)
                 {
                     throw new Win32Exception(error);
                 }
