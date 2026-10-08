@@ -61,6 +61,49 @@ BeforeDiscovery {
             @{ Folder = "Case2\$auditRole\RemoveAudit"; Count = [int](-not $mayWrite) }
         }
     )
+
+    # Case 5: only the administrators of the file server hold the Restore privilege there, which assigning an owner
+    # other than the account itself needs.
+    $ownerCases = @(
+        @{ OwnerRole = 'Admin'; Description = 'an administrator of the file server and the client'; MayAssign = $true }
+        @{ OwnerRole = 'ServerAdmin'; Description = 'an administrator of the file server only'; MayAssign = $true }
+        @{ OwnerRole = 'Delegate'; Description = 'the delegated account, an administrator of the client only'; MayAssign = $false }
+    )
+    $ownerExpectations = @(
+        foreach ($ownerCase in $ownerCases) {
+            @{ Folder = "Case5\$($ownerCase.OwnerRole)\GetOwner"; Owner = 'Administrators' }
+            @{ Folder = "Case5\$($ownerCase.OwnerRole)\TakeOwnership"; Owner = $ownerCase.OwnerRole }
+            @{ Folder = "Case5\$($ownerCase.OwnerRole)\AssignOwner"; Owner = if ($ownerCase.MayAssign) { 'Subject' } else { 'Administrators' } }
+        }
+    )
+
+    # Case 6: the state of the SACL that each folder has after the runs. The folders inherit one audit entry; the
+    # administrators of the file server change them, the delegated account changes nothing.
+    $auditInheritanceExpectations = @(
+        foreach ($auditRole in 'Admin', 'ServerAdmin', 'Delegate') {
+            $mayWrite = $auditRole -ne 'Delegate'
+            @{ Folder = "Case6\$auditRole\DisableAuditInheritance"; Protected = $mayWrite; Explicit = [int]$mayWrite; Inherited = [int](-not $mayWrite) }
+            @{ Folder = "Case6\$auditRole\EnableAuditInheritance"; Protected = -not $mayWrite; Explicit = 0; Inherited = [int]$mayWrite }
+            @{ Folder = "Case6\$auditRole\ClearAudit"; Protected = $false; Explicit = [int](-not $mayWrite); Inherited = 1 }
+            @{ Folder = "Case6\$auditRole\GetInheritance"; Protected = $false; Explicit = 0; Inherited = 1 }
+        }
+    )
+    $ownedFolders += @(
+        foreach ($auditRole in 'Admin', 'ServerAdmin', 'Delegate') {
+            foreach ($operation in 'DisableAuditInheritance', 'EnableAuditInheritance', 'ClearAudit', 'GetInheritance') {
+                @{ Folder = "Case6\$auditRole\$operation" }
+            }
+        }
+    )
+
+    # Case 9: the accounts of other domains and forests that the script created, if any.
+    $foreignAccounts = @(
+        if ($configured) {
+            foreach ($account in (Get-Content -LiteralPath $ConfigurationPath -Raw | ConvertFrom-Json).ForeignAccounts) {
+                @{ Name = $account.Name; Sid = $account.Sid; Rights = $account.Rights; EffectiveRights = [long]$account.EffectiveRights }
+            }
+        }
+    )
 }
 
 BeforeAll {
@@ -377,6 +420,23 @@ Describe 'Get-NTFSEffectiveAccess for a domain account on a share folder' -Tag '
     }
 }
 
+Describe 'Get-NTFSEffectiveAccess as an account that is not an administrator of the file server' -Tag 'Delegate' -Skip:(-not $configured) {
+    # The cmdlet page: the authorization manager of a computer answers only its administrators and the members of its
+    # group Access Control Assistance Operators. The error must name the denial; no access instead of an error would be
+    # a wrong result.
+    It 'Should write a GetEffectiveAccessError that names the denial with -ServerName, and no result' {
+        $path = Get-LabPath -RelativePath 'Case5\Delegate\GetOwner'
+
+        $result = @(Get-NTFSEffectiveAccess -Path $path -Account $configuration.Accounts.Delegate.Sid -ServerName $configuration.FileServerFqdn -WarningVariable operationWarnings -WarningAction SilentlyContinue -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        $result | Should -BeNullOrEmpty
+        $operationWarnings | Should -BeNullOrEmpty
+        @(Format-LabError -ErrorRecord $operationErrors) | Should -HaveCount 1
+        $operationErrors[0].FullyQualifiedErrorId | Should -BeLike 'GetEffectiveAccessError,*'
+        $operationErrors[0].Exception.InnerException.NativeErrorCode | Should -Be 5
+    }
+}
+
 Describe 'Get-NTFSOrphanedAccess with the entry of a deleted domain account on a share folder' -Tag 'Admin' -Skip:(-not $configured) {
     BeforeAll {
         $folder = Get-LabPath -RelativePath 'Case4\OrphanedAccess'
@@ -455,6 +515,324 @@ Describe 'Copy-Item2 and Move-Item2 with -WhatIf onto an existing file on a shar
     }
 }
 
+Describe 'Owner cmdlets on share folders' -Skip:(-not $configured) {
+    # The file server decides: taking ownership needs the Take Ownership right, which Full Control includes, and
+    # assigning another account needs the Restore privilege there. The folders start owned by Administrators.
+    foreach ($ownerCase in $ownerCases) {
+        Context 'As <Description>' -Tag $ownerCase.OwnerRole -ForEach @($ownerCase) {
+            BeforeAll {
+                $folder = Get-LabPath -RelativePath "Case5\$OwnerRole"
+                $accountSid = $configuration.Accounts.$OwnerRole.Sid
+            }
+
+            It 'Get-NTFSOwner should return Administrators' {
+                $owners = @(Get-NTFSOwner -Path (Join-Path -Path $folder -ChildPath 'GetOwner') -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+                Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+                $owners | Should -HaveCount 1
+                $owners[0].Owner.Sid | Should -Be $administrators
+            }
+
+            It 'Set-NTFSOwner should make the account itself the owner' {
+                $path = Join-Path -Path $folder -ChildPath 'TakeOwnership'
+
+                Set-NTFSOwner -Path $path -Account $accountSid -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+                Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+                Get-LabOwner -Path $path | Should -Be $accountSid
+            }
+
+            It 'Set-NTFSOwner should assign another account only with the Restore privilege of the file server' {
+                $path = Join-Path -Path $folder -ChildPath 'AssignOwner'
+
+                Set-NTFSOwner -Path $path -Account $configuration.Accounts.Subject.Sid -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+                $written = (Format-LabError -ErrorRecord $operationErrors) -join ' | '
+                if ($MayAssign) {
+                    $written | Should -BeNullOrEmpty
+                    Get-LabOwner -Path $path | Should -Be $configuration.Accounts.Subject.Sid
+                }
+                else {
+                    @(Format-LabError -ErrorRecord $operationErrors) | Should -HaveCount 1 -Because "the cmdlet wrote: $written"
+                    $operationErrors[0].FullyQualifiedErrorId | Should -BeLike 'SetOwnerError,*'
+                    Get-LabOwner -Path $path | Should -Be $administrators
+                }
+            }
+        }
+    }
+}
+
+Describe 'Audit inheritance cmdlets and Clear-NTFSAudit on share folders' -Skip:(-not $configured) {
+    # The subfolders of Case6\<role> inherit one audit entry; the role Server checks the SACLs that the runs left.
+    foreach ($auditCase in $auditSuccessCases) {
+        Context 'As <Description>' -Tag $auditCase.AuditRole -ForEach @($auditCase) {
+            BeforeAll {
+                $folder = Get-LabPath -RelativePath "Case6\$AuditRole"
+            }
+
+            It 'Disable-NTFSAuditInheritance should protect the audit entries and keep the owner' {
+                $path = Join-Path -Path $folder -ChildPath 'DisableAuditInheritance'
+
+                Disable-NTFSAuditInheritance -Path $path -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+                Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+                Get-LabOwner -Path $path | Should -Be $administrators
+                (Get-NTFSInheritance -Path $path).AuditInheritanceEnabled | Should -BeFalse
+            }
+
+            It 'Enable-NTFSAuditInheritance should let the folder inherit the audit entries and keep the owner' {
+                $path = Join-Path -Path $folder -ChildPath 'EnableAuditInheritance'
+
+                Enable-NTFSAuditInheritance -Path $path -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+                Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+                Get-LabOwner -Path $path | Should -Be $administrators
+                (Get-NTFSInheritance -Path $path).AuditInheritanceEnabled | Should -BeTrue
+            }
+
+            It 'Clear-NTFSAudit should remove the explicit audit entry, keep the inherited one, and keep the owner' {
+                $path = Join-Path -Path $folder -ChildPath 'ClearAudit'
+
+                Clear-NTFSAudit -Path $path -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+                Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+                Get-LabOwner -Path $path | Should -Be $administrators
+                @(Get-NTFSAudit -Path $path -ExcludeInherited) | Should -BeNullOrEmpty
+                @(Get-NTFSAudit -Path $path -ExcludeExplicit) | Should -HaveCount 1
+            }
+
+            It 'Get-NTFSInheritance should report the protected DACL and the inherited audit entries' {
+                $states = @(Get-NTFSInheritance -Path (Join-Path -Path $folder -ChildPath 'GetInheritance') -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+                Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+                $states | Should -HaveCount 1
+                $states[0].AccessInheritanceEnabled | Should -BeFalse
+                $states[0].AuditInheritanceEnabled | Should -BeTrue
+            }
+        }
+    }
+
+    Context 'As the delegated account, an administrator of the client only' -Tag 'Delegate' {
+        BeforeAll {
+            $folder = Get-LabPath -RelativePath 'Case6\Delegate'
+        }
+
+        It '<Command> should write a <ErrorId> that names the missing privilege and leave the folder unchanged' -ForEach @(
+            @{ Command = 'Disable-NTFSAuditInheritance'; SubFolder = 'DisableAuditInheritance'; ErrorId = 'ModifySdError' }
+            @{ Command = 'Enable-NTFSAuditInheritance'; SubFolder = 'EnableAuditInheritance'; ErrorId = 'ModifySdError' }
+            @{ Command = 'Clear-NTFSAudit'; SubFolder = 'ClearAudit'; ErrorId = 'ClearAclError' }
+        ) {
+            $path = Join-Path -Path $folder -ChildPath $SubFolder
+            $before = (Get-LabSecurityDescriptor -Path $path).GetSddlForm('All')
+
+            & $Command -Path $path -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+            $written = (Format-LabError -ErrorRecord $operationErrors) -join ' | '
+            (Get-LabSecurityDescriptor -Path $path).GetSddlForm('All') | Should -Be $before -Because "the cmdlet wrote: $written"
+            @(Format-LabError -ErrorRecord $operationErrors) | Should -HaveCount 1 -Because "the cmdlet wrote: $written"
+            $operationErrors[0].FullyQualifiedErrorId | Should -BeLike "$ErrorId,*"
+            $operationErrors[0].Exception.Message | Should -Match 'privilege'
+        }
+
+        # The cmdlet page: without the Security privilege, AuditInheritanceEnabled is $null and no error is written.
+        It 'Get-NTFSInheritance should report the protected DACL, no audit state, and no error' {
+            $states = @(Get-NTFSInheritance -Path (Join-Path -Path $folder -ChildPath 'GetInheritance') -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+            Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+            $states | Should -HaveCount 1
+            $states[0].AccessInheritanceEnabled | Should -BeFalse
+            $states[0].AuditInheritanceEnabled | Should -BeNullOrEmpty
+        }
+    }
+}
+
+Describe 'Item cmdlets on a share folder' -Tag 'Delegate' -Skip:(-not $configured) {
+    # The delegated account fully controls the folder through its domain group.
+    BeforeAll {
+        $folder = Get-LabPath -RelativePath 'Case7\Items'
+        $source = Join-Path -Path $folder -ChildPath 'Source.txt'
+    }
+
+    It 'Get-Item2 should return the file with its path on the share' {
+        $item = @(Get-Item2 -Path $source -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        $item | Should -HaveCount 1
+        $item[0].FullName | Should -Be $source
+        $item[0].Length | Should -Be 6
+    }
+
+    It 'Test-Path2 should find the file and the folder, and not a missing item' {
+        Test-Path2 -Path $source -PathType Leaf | Should -BeTrue
+        Test-Path2 -Path (Join-Path -Path $folder -ChildPath 'Folder') -PathType Container | Should -BeTrue
+        Test-Path2 -Path (Join-Path -Path $folder -ChildPath 'Missing.txt') | Should -BeFalse
+    }
+
+    It 'Get-FileHash2 should return the hash that Get-FileHash returns' {
+        $hash = @(Get-FileHash2 -Path $source -Algorithm SHA256 -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        $hash | Should -HaveCount 1
+        $hash[0].Hash | Should -Be (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
+    }
+
+    It 'Copy-Item2 should copy a file, and a folder with its file' {
+        Copy-Item2 -Path $source -Destination (Join-Path -Path $folder -ChildPath 'Copy.txt') -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+        Copy-Item2 -Path (Join-Path -Path $folder -ChildPath 'Folder') -Destination (Join-Path -Path $folder -ChildPath 'FolderCopy') -ErrorVariable +operationErrors -ErrorAction SilentlyContinue
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        Get-Content -LiteralPath (Join-Path -Path $folder -ChildPath 'Copy.txt') -Raw | Should -Be 'Source'
+        Get-Content -LiteralPath (Join-Path -Path $folder -ChildPath 'FolderCopy\File.txt') -Raw | Should -Be 'File'
+        Get-Content -LiteralPath $source -Raw | Should -Be 'Source'
+    }
+
+    It 'Move-Item2 should move a file' {
+        $moving = Join-Path -Path $folder -ChildPath 'Move.txt'
+
+        Move-Item2 -Path $moving -Destination (Join-Path -Path $folder -ChildPath 'Moved.txt') -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        Test-Path -LiteralPath $moving | Should -BeFalse
+        Get-Content -LiteralPath (Join-Path -Path $folder -ChildPath 'Moved.txt') -Raw | Should -Be 'Move'
+    }
+
+    It 'Remove-Item2 should remove a file' {
+        $removing = Join-Path -Path $folder -ChildPath 'Remove.txt'
+
+        Remove-Item2 -Path $removing -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        Test-Path -LiteralPath $removing | Should -BeFalse
+    }
+
+    It 'Get-ChildItem2 should list the file and the folder that the tests leave in place' {
+        $names = @(Get-ChildItem2 -Path $folder -ErrorVariable operationErrors -ErrorAction SilentlyContinue).Name
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        $names | Should -Contain 'Source.txt'
+        $names | Should -Contain 'Folder'
+    }
+}
+
+Describe 'Link cmdlets on a share folder' -Tag 'Admin' -Skip:(-not $configured) {
+    BeforeAll {
+        $folder = Get-LabPath -RelativePath 'Case8\Links'
+        $target = Join-Path -Path $folder -ChildPath 'Target.txt'
+        $hardLink = Join-Path -Path $folder -ChildPath 'HardLink.txt'
+    }
+
+    It 'New-NTFSHardLink should give the file a second name' {
+        New-NTFSHardLink -Path $hardLink -Target $target -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        Get-Content -LiteralPath $hardLink -Raw | Should -Be 'Target'
+    }
+
+    # The cmdlet pages: Windows can't list the names of a file on a share, so the cmdlets write a GetHardLinkError.
+    It 'Get-NTFSHardLink should write a GetHardLinkError, because Windows cannot list the names on a share' {
+        $links = @(Get-NTFSHardLink -Path $target -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        $links | Should -BeNullOrEmpty
+        @(Format-LabError -ErrorRecord $operationErrors) | Should -HaveCount 1
+        $operationErrors[0].FullyQualifiedErrorId | Should -BeLike 'GetHardLinkError,*'
+    }
+
+    It 'New-NTFSHardLink -PassThru should create the link and write a GetHardLinkError instead of the names' {
+        $passThruLink = Join-Path -Path $folder -ChildPath 'PassThruLink.txt'
+
+        $result = @(New-NTFSHardLink -Path $passThruLink -Target $target -PassThru -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        $result | Should -BeNullOrEmpty
+        @(Format-LabError -ErrorRecord $operationErrors) | Should -HaveCount 1
+        $operationErrors[0].FullyQualifiedErrorId | Should -BeLike 'GetHardLinkError,*'
+        Get-Content -LiteralPath $passThruLink -Raw | Should -Be 'Target'
+    }
+
+    It 'New-NTFSSymbolicLink should create a link to a file and a link to a folder' {
+        New-NTFSSymbolicLink -Path (Join-Path -Path $folder -ChildPath 'FileLink.txt') -Target $target -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+        New-NTFSSymbolicLink -Path (Join-Path -Path $folder -ChildPath 'FolderLink') -Target (Join-Path -Path $folder -ChildPath 'TargetFolder') -ErrorVariable +operationErrors -ErrorAction SilentlyContinue
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'Get-NTFSSimpleAccess on share folders' -Tag 'Delegate' -Skip:(-not $configured) {
+    It 'Should report the parent folder first and for the subfolder only the entry of its own' {
+        $parent = Get-LabPath -RelativePath 'Case9\Simple'
+        $child = Join-Path -Path $parent -ChildPath 'Child'
+
+        $entries = @(Get-NTFSSimpleAccess -Path $child -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        $entries | Should -Not -BeNullOrEmpty
+        $entries[0].FullName | Should -Be $parent
+        @($entries | Where-Object -Property FullName -EQ -Value $child).Identity.Sid | Should -Be $configuration.Accounts.Subject.Sid
+    }
+}
+
+Describe 'Get-NTFSOrphanedAudit with the audit entry of a deleted domain account on a share folder' -Tag 'Admin' -Skip:(-not $configured) {
+    It 'Should return the audit entry of the deleted account with its SID' {
+        $entries = @(Get-NTFSOrphanedAudit -Path (Get-LabPath -RelativePath 'Case4\OrphanedAudit') -WarningVariable operationWarnings -WarningAction SilentlyContinue -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        $operationWarnings | Should -BeNullOrEmpty
+        $entries | Should -HaveCount 1
+        $entries[0].Account.Sid | Should -Be $configuration.Accounts.Orphan.Sid
+    }
+}
+
+Describe 'Accounts of another domain and of other forests on share folders' -Tag 'Admin' -Skip:(-not $configured -or $foreignAccounts.Count -eq 0) {
+    # Through the trusts, the client resolves the names of the accounts, and the file server creates their tokens.
+    BeforeAll {
+        $folder = Get-LabPath -RelativePath 'Case9\Foreign'
+    }
+
+    It 'Get-NTFSAccess should return the entry of <Name> with its name' -ForEach $foreignAccounts {
+        $entries = @(Get-NTFSAccess -Path $folder -ExcludeInherited -ErrorVariable operationErrors -ErrorAction SilentlyContinue |
+                Where-Object -FilterScript { $_.Account.Sid -eq $Sid })
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        $entries | Should -HaveCount 1
+        $entries[0].Account.AccountName | Should -Be $Name
+    }
+
+    It 'Get-NTFSOrphanedAccess should not report the entries of the accounts' {
+        $entries = @(Get-NTFSOrphanedAccess -Path $folder -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        $entries | Should -BeNullOrEmpty
+    }
+
+    It 'Add-NTFSAccess should add an entry for <Name> by its name' -ForEach $foreignAccounts {
+        $path = Get-LabPath -RelativePath 'Case9\ForeignAdd'
+
+        Add-NTFSAccess -Path $path -Account $Name -AccessRights ReadAndExecute -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        @(Get-LabExplicitAccessRule -Path $path -Sid $Sid) | Should -HaveCount 1
+    }
+
+    It 'Remove-NTFSAccess should remove the entry of <Name> by its name' -ForEach $foreignAccounts {
+        $path = Get-LabPath -RelativePath 'Case9\ForeignRemove'
+
+        Remove-NTFSAccess -Path $path -Account $Name -AccessRights ReadAndExecute -InheritanceFlags 'ContainerInherit, ObjectInherit' -PropagationFlags None -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        Get-LabExplicitAccessRule -Path $path -Sid $Sid | Should -BeNullOrEmpty
+    }
+
+    It 'Get-NTFSEffectiveAccess should return the rights of <Name> on the file server with -ServerName, without a warning' -ForEach $foreignAccounts {
+        $EffectiveRights | Should -BeGreaterThan 0 -Because 'the file server must create a token for the account to calculate the expected rights'
+
+        $result = @(Get-NTFSEffectiveAccess -Path $folder -Account $Name -ServerName $configuration.FileServerFqdn -WarningVariable operationWarnings -WarningAction SilentlyContinue -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        $operationWarnings | Should -BeNullOrEmpty
+        $result | Should -HaveCount 1
+        Format-LabRight -Right $result[0].AccessRights | Should -Be (Format-LabRight -Right $EffectiveRights)
+    }
+}
+
 Describe 'Security descriptors on the file server after the runs on the client' -Tag 'Server' -Skip:(-not $configured) {
     It 'Should keep Administrators as the owner of <Folder>' -ForEach $ownedFolders {
         Get-LabOwner -Path (Get-LabPath -RelativePath $Folder) | Should -Be $administrators
@@ -464,5 +842,44 @@ Describe 'Security descriptors on the file server after the runs on the client' 
         $acl = Get-Acl -LiteralPath (Get-LabPath -RelativePath $Folder) -Audit
 
         @($acl.GetAuditRules($true, $false, $sidType)).Count | Should -Be $Count
+    }
+
+    It 'Should have the owner <Owner> on <Folder>' -ForEach $ownerExpectations {
+        $expected = if ($Owner -eq 'Administrators') { $administrators } else { $configuration.Accounts.$Owner.Sid }
+
+        Get-LabOwner -Path (Get-LabPath -RelativePath $Folder) | Should -Be $expected
+    }
+
+    It 'Should have <Explicit> explicit and <Inherited> inherited audit entries on <Folder>, protected: <Protected>' -ForEach $auditInheritanceExpectations {
+        $acl = Get-Acl -LiteralPath (Get-LabPath -RelativePath $Folder) -Audit
+
+        $acl.AreAuditRulesProtected | Should -Be $Protected
+        @($acl.GetAuditRules($true, $false, $sidType)).Count | Should -Be $Explicit
+        @($acl.GetAuditRules($false, $true, $sidType)).Count | Should -Be $Inherited
+    }
+
+    It 'Should have the items that the item cmdlets left' {
+        $folder = Get-LabPath -RelativePath 'Case7\Items'
+
+        foreach ($name in 'Source.txt', 'Copy.txt', 'Moved.txt', 'FolderCopy\File.txt') {
+            Test-Path -LiteralPath (Join-Path -Path $folder -ChildPath $name) -PathType Leaf | Should -BeTrue -Because $name
+        }
+
+        foreach ($name in 'Move.txt', 'Remove.txt') {
+            Test-Path -LiteralPath (Join-Path -Path $folder -ChildPath $name) | Should -BeFalse -Because $name
+        }
+    }
+
+    It 'Should have the links that the link cmdlets created' {
+        $folder = Get-LabPath -RelativePath 'Case8\Links'
+
+        @(& fsutil.exe hardlink list (Join-Path -Path $folder -ChildPath 'Target.txt') | Where-Object -FilterScript { $_ }) | Should -HaveCount 3
+        (Get-Item -LiteralPath (Join-Path -Path $folder -ChildPath 'FileLink.txt') -Force).LinkType | Should -Be 'SymbolicLink'
+        (Get-Item -LiteralPath (Join-Path -Path $folder -ChildPath 'FolderLink') -Force).LinkType | Should -Be 'SymbolicLink'
+    }
+
+    It 'Should have the entry of <Name> that Add-NTFSAccess added, and not the one that Remove-NTFSAccess removed' -ForEach $foreignAccounts {
+        @(Get-LabExplicitAccessRule -Path (Get-LabPath -RelativePath 'Case9\ForeignAdd') -Sid $Sid) | Should -HaveCount 1
+        Get-LabExplicitAccessRule -Path (Get-LabPath -RelativePath 'Case9\ForeignRemove') -Sid $Sid | Should -BeNullOrEmpty
     }
 }

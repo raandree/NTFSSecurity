@@ -25,6 +25,11 @@
 .PARAMETER Client
     The computer that runs the tests. Its domain must be the domain of the domain controller.
 
+.PARAMETER ForeignDomainController
+    Domain controllers of other domains or forests, one per domain. The script creates the account NtfsLiveForeign in
+    each of their domains, and the tests grant it access to share folders by SID and by name. The domains need a trust
+    with the domain of the file server. Pass an empty array to leave these tests out.
+
 .PARAMETER Version
     The versions of NTFSSecurity on the PowerShell Gallery to test, such as 5.0.0-rc4.
 
@@ -75,6 +80,11 @@ param (
     [string]
     $Client = 'F1AFile1',
 
+    [Parameter()]
+    [AllowEmptyCollection()]
+    [string[]]
+    $ForeignDomainController = @('F1BDC1', 'F2DC1', 'F3DC1'),
+
     [Parameter(ParameterSetName = 'Test')]
     [ValidatePattern('^\d+\.\d+\.\d+(-[0-9A-Za-z]+)?$')]
     [string[]]
@@ -120,6 +130,9 @@ $roleAccounts = [ordered]@{
 }
 $subjectAccount = 'NtfsLiveSubject'
 $orphanAccount = 'NtfsLiveOrphan'
+$foreignAccount = 'NtfsLiveForeign'
+# The rights that the entries of the foreign accounts grant on the folder of case 9, by position
+$foreignRights = 'ReadAndExecute', 'Modify', 'Write'
 $localGroupName = 'NtfsLiveLocal'
 $groupMembers = @{
     NtfsLiveDelegates = @('NtfsLiveDelegate')
@@ -410,6 +423,40 @@ $removeOrphanScript = {
     }
 }
 
+# Runs on a domain controller of another domain or forest: the account that the tests of case 9 grant access to.
+$foreignAccountScript = {
+    param ($OrganizationalUnitName, $Name, [securestring] $Password)
+
+    $ErrorActionPreference = 'Stop'
+    Import-Module -Name ActiveDirectory
+    $domain = Get-ADDomain
+    $server = $domain.PDCEmulator
+    $path = 'OU={0},{1}' -f $OrganizationalUnitName, $domain.DistinguishedName
+    if (-not (Get-ADOrganizationalUnit -LDAPFilter "(ou=$OrganizationalUnitName)" -SearchBase $domain.DistinguishedName -SearchScope OneLevel -Server $server)) {
+        New-ADOrganizationalUnit -Name $OrganizationalUnitName -Path $domain.DistinguishedName -ProtectedFromAccidentalDeletion $false -Server $server
+    }
+
+    $user = Get-ADUser -LDAPFilter "(sAMAccountName=$Name)" -Server $server
+    if ($user -and $user.DistinguishedName -notlike "*,$path") {
+        throw "The account '$Name' exists outside '$path'."
+    }
+
+    if ($user) {
+        Set-ADAccountPassword -Identity $user -Reset -NewPassword $Password -Server $server
+        Enable-ADAccount -Identity $user -Server $server
+    }
+    else {
+        $user = New-ADUser -Name $Name -SamAccountName $Name -UserPrincipalName "$Name@$($domain.DNSRoot)" -Path $path -AccountPassword $Password -Enabled $true -PasswordNeverExpires $true -Server $server -PassThru
+    }
+
+    [pscustomobject]@{
+        DomainName        = $domain.DNSRoot
+        Name              = '{0}\{1}' -f $domain.NetBIOSName, $Name
+        UserPrincipalName = '{0}@{1}' -f $Name, $domain.DNSRoot
+        Sid               = $user.SID.Value
+    }
+}
+
 # Runs on the file server once: the local group, the members of Administrators, the share, and the tools folder.
 $fileServerSetupScript = {
     param ($ShareName, $ShareLocalPath, $PayloadPath, $LocalGroupName, $SubjectSid, $AdministratorSid, $DelegatesSid)
@@ -495,7 +542,7 @@ $clientSetupScript = {
 # Runs on the file server for each run: creates the folders of the cases below the share and returns what the
 # configuration needs. Each case and operation gets its own folder, so that the tests don't depend on each other.
 $fixtureScript = {
-    param ($HelperScript, $ShareLocalPath, $RunId, $Sid, $SubjectPrincipalName, $LongPathSegment)
+    param ($HelperScript, $ShareLocalPath, $RunId, $Sid, $SubjectPrincipalName, $LongPathSegment, $ForeignAccount)
 
     $ErrorActionPreference = 'Stop'
     . ([scriptblock]::Create($HelperScript))
@@ -521,7 +568,7 @@ $fixtureScript = {
             'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Runs in the fixture that the script confirmed.'
         )]
         param ([string] $RelativePath, [object[]] $AccessRule = @(), [switch] $Protected, [switch] $RemoveInherited,
-            [switch] $Audit, [switch] $LegacyDacl)
+            [switch] $Audit, [switch] $LegacyDacl, [switch] $InheritableAudit, [switch] $ProtectedAudit)
 
         $path = Join-Path -Path $root -ChildPath $RelativePath
         $null = New-Item -ItemType Directory -Path $path -Force
@@ -535,12 +582,26 @@ $fixtureScript = {
             $acl.AddAccessRule($rule)
         }
 
-        Set-Acl -LiteralPath $path -AclObject $acl
-        if ($Audit) {
+        # Not Set-Acl: in Windows PowerShell, it also writes an empty, protected SACL, which drops the audit entries
+        # that the folder inherits. SetAccessControl writes only the sections that changed.
+        [System.IO.Directory]::SetAccessControl($path, $acl)
+        if ($Audit -or $InheritableAudit -or $ProtectedAudit) {
             $auditAcl = Get-Acl -LiteralPath $path -Audit
             $everyone = New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList 'S-1-1-0'
-            $auditAcl.AddAuditRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList $everyone, 'Delete', 'None', 'None', 'Success'))
-            Set-Acl -LiteralPath $path -AclObject $auditAcl
+            if ($Audit) {
+                $auditAcl.AddAuditRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList $everyone, 'Delete', 'None', 'None', 'Success'))
+            }
+
+            # An entry that the subfolders created afterwards inherit
+            if ($InheritableAudit) {
+                $auditAcl.AddAuditRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList $everyone, 'Delete', 'ContainerInherit, ObjectInherit', 'None', 'Failure'))
+            }
+
+            if ($ProtectedAudit) {
+                $auditAcl.SetAuditRuleProtection($true, $false)
+            }
+
+            [System.IO.Directory]::SetAccessControl($path, $auditAcl)
         }
 
         # Set-Acl adds the auto-inherit flag, so the DACL is stored again without it at the end.
@@ -595,6 +656,11 @@ $fixtureScript = {
     # Case 4: an entry for the account that the domain controller deletes next, and a file that inherits it.
     $orphanPath = New-FixtureFolder -RelativePath 'Case4\OrphanedAccess' -AccessRule (New-AccessRule -Sid $Sid.Orphan -Rights 'Modify')
     Set-Content -LiteralPath (Join-Path -Path $orphanPath -ChildPath 'File.txt') -Value 'Orphan'
+    $orphanAuditPath = New-FixtureFolder -RelativePath 'Case4\OrphanedAudit' -AccessRule $delegatesFullControl
+    $orphanAuditAcl = Get-Acl -LiteralPath $orphanAuditPath -Audit
+    $orphanIdentity = New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList $Sid.Orphan
+    $orphanAuditAcl.AddAuditRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList $orphanIdentity, 'Delete', 'None', 'None', 'Success'))
+    [System.IO.Directory]::SetAccessControl($orphanAuditPath, $orphanAuditAcl)
 
     # A file whose path on the share is longer than 260 characters, created by PowerShell 7, which handles such paths.
     $longPath = New-FixtureFolder -RelativePath 'LongPath'
@@ -609,11 +675,68 @@ $fixtureScript = {
     Set-Content -LiteralPath (Join-Path -Path $whatIfPath -ChildPath 'Source.txt') -Value 'Source' -NoNewline
     Set-Content -LiteralPath (Join-Path -Path $whatIfPath -ChildPath 'Destination.txt') -Value 'Destination' -NoNewline
 
+    # Case 5: the owner cmdlets, and case 6: the audit inheritance cmdlets and Clear-NTFSAudit below a folder whose
+    # audit entry the subfolders inherit, on folders that Administrators own and the delegated group fully controls.
+    foreach ($role in 'Admin', 'ServerAdmin', 'Delegate') {
+        foreach ($operation in 'GetOwner', 'TakeOwnership', 'AssignOwner') {
+            $null = New-FixtureFolder -RelativePath "Case5\$role\$operation" -AccessRule $delegatesFullControl
+        }
+
+        $null = New-FixtureFolder -RelativePath "Case6\$role" -AccessRule $delegatesFullControl -InheritableAudit
+        $null = New-FixtureFolder -RelativePath "Case6\$role\DisableAuditInheritance"
+        $null = New-FixtureFolder -RelativePath "Case6\$role\EnableAuditInheritance" -ProtectedAudit
+        $null = New-FixtureFolder -RelativePath "Case6\$role\ClearAudit" -Audit
+        $null = New-FixtureFolder -RelativePath "Case6\$role\GetInheritance" -Protected
+    }
+
+    # Case 7: the item cmdlets in a folder that the delegated group fully controls.
+    $itemsPath = New-FixtureFolder -RelativePath 'Case7\Items' -AccessRule $delegatesFullControl
+    foreach ($name in 'Source', 'Move', 'Remove') {
+        Set-Content -LiteralPath (Join-Path -Path $itemsPath -ChildPath "$name.txt") -Value $name -NoNewline
+    }
+
+    $null = New-Item -ItemType Directory -Path (Join-Path -Path $itemsPath -ChildPath 'Folder')
+    Set-Content -LiteralPath (Join-Path -Path $itemsPath -ChildPath 'Folder\File.txt') -Value 'File' -NoNewline
+
+    # Case 8: the link cmdlets.
+    $linksPath = New-FixtureFolder -RelativePath 'Case8\Links' -AccessRule $delegatesFullControl
+    Set-Content -LiteralPath (Join-Path -Path $linksPath -ChildPath 'Target.txt') -Value 'Target' -NoNewline
+    $null = New-Item -ItemType Directory -Path (Join-Path -Path $linksPath -ChildPath 'TargetFolder')
+
+    # Case 9: a subfolder with an entry of its own for Get-NTFSSimpleAccess, and the accounts of other domains.
+    $null = New-FixtureFolder -RelativePath 'Case9\Simple' -AccessRule $delegatesFullControl
+    $null = New-FixtureFolder -RelativePath 'Case9\Simple\Child' -AccessRule (New-AccessRule -Sid $Sid.Subject -Rights 'Modify')
+    $foreignPath = New-FixtureFolder -RelativePath 'Case9\Foreign' -AccessRule @(
+        foreach ($account in $ForeignAccount) {
+            New-AccessRule -Sid $account.Sid -Rights $account.Rights
+        }
+    )
+    $null = New-FixtureFolder -RelativePath 'Case9\ForeignAdd' -AccessRule $delegatesFullControl
+    $null = New-FixtureFolder -RelativePath 'Case9\ForeignRemove' -AccessRule @(
+        foreach ($account in $ForeignAccount) {
+            New-AccessRule -Sid $account.Sid -Rights 'ReadAndExecute'
+        }
+    )
+
+    # The rights that the file server's own token of each foreign account gets on the folder, like case 3. A token
+    # that the file server can't create is reported as -1, which fails only the effective-access test of the account.
+    $foreignDescriptor = Get-LabSecurityDescriptor -Path $foreignPath
+    $foreignEffectiveRights = @{}
+    foreach ($account in $ForeignAccount) {
+        try {
+            $foreignEffectiveRights[$account.Sid] = Get-LabGrantedRight -Descriptor $foreignDescriptor -Sid @(Get-LabTokenSid -UserPrincipalName $account.UserPrincipalName)
+        }
+        catch {
+            $foreignEffectiveRights[$account.Sid] = -1L
+        }
+    }
+
     [pscustomobject]@{
-        ServerPath          = $root
-        FileServerRights    = $fileServerRights
-        EffectiveAccessSddl = $effectiveDescriptor.GetSddlForm('All')
-        LongPath            = $longRelativePath
+        ServerPath             = $root
+        FileServerRights       = $fileServerRights
+        EffectiveAccessSddl    = $effectiveDescriptor.GetSddlForm('All')
+        LongPath               = $longRelativePath
+        ForeignEffectiveRights = $foreignEffectiveRights
     }
 }
 
@@ -778,6 +901,21 @@ if (@($machines | ForEach-Object -Process { $_.DomainName } | Select-Object -Uni
     throw 'The domain controller, the file server, and the client must belong to one domain.'
 }
 
+foreach ($name in $ForeignDomainController) {
+    $machine = Get-LabVM -ComputerName $name
+    if (-not $machine) {
+        throw "The lab '$LabName' has no machine '$name'."
+    }
+
+    if ($machine.DomainName -eq $machines[0].DomainName) {
+        throw "The foreign domain controller '$name' must belong to another domain than the file server."
+    }
+}
+
+if (@($ForeignDomainController | ForEach-Object -Process { (Get-LabVM -ComputerName $_).DomainName } | Select-Object -Unique).Count -ne @($ForeignDomainController).Count) {
+    throw 'Each foreign domain controller must belong to a domain of its own.'
+}
+
 $helperScript = Get-Content -LiteralPath (Join-Path -Path $PSScriptRoot -ChildPath 'NTFSSecurity.LabHelpers.ps1') -Raw
 $labCommand = @{
     NoDisplay   = $true
@@ -794,6 +932,10 @@ if ($RemoveFixture) {
     $null = Invoke-LabCommand -ComputerName $FileServer -ActivityName 'Remove the share and the folders' -ScriptBlock $removeFileServerScript -ArgumentList $shareName, $shareLocalPath, $payloadPath, $localGroupName, $accountSids @labCommand
     $null = Invoke-LabCommand -ComputerName $Client -ActivityName 'Remove the members and the folder' -ScriptBlock $removeClientScript -ArgumentList $payloadPath, $accountSids @labCommand
     $null = Invoke-LabCommand -ComputerName $DomainController -ActivityName 'Remove the accounts' -ScriptBlock $removeAccountScript -ArgumentList $organizationalUnitName @labCommand
+    foreach ($computer in $ForeignDomainController) {
+        $null = Invoke-LabCommand -ComputerName $computer -ActivityName 'Remove the account of another domain' -ScriptBlock $removeAccountScript -ArgumentList $organizationalUnitName @labCommand
+    }
+
     Write-LabProgress "Removed the live tests from the lab '$LabName'."
     return
 }
@@ -837,6 +979,18 @@ foreach ($name in @($roleAccounts.Values) + $subjectAccount) {
 
 $directory = Invoke-LabCommand -ComputerName $DomainController -ActivityName 'Prepare the accounts' -ScriptBlock $accountScript -ArgumentList $organizationalUnitName, $passwords, $groupMembers @labCommand
 $sids = $directory.Sids
+$foreignAccounts = @(
+    for ($index = 0; $index -lt @($ForeignDomainController).Count; $index++) {
+        $account = Invoke-LabCommand -ComputerName $ForeignDomainController[$index] -ActivityName 'Prepare the account of another domain' -ScriptBlock $foreignAccountScript -ArgumentList $organizationalUnitName, $foreignAccount, (New-LabPassword) @labCommand
+        [pscustomobject]@{
+            DomainName        = $account.DomainName
+            Name              = $account.Name
+            UserPrincipalName = $account.UserPrincipalName
+            Sid               = $account.Sid
+            Rights            = $foreignRights[$index % $foreignRights.Count]
+        }
+    }
+)
 $localGroupSid = Invoke-LabCommand -ComputerName $FileServer -ActivityName 'Prepare the file server' -ScriptBlock $fileServerSetupScript -ArgumentList $shareName, $shareLocalPath, $payloadPath, $localGroupName, $sids[$subjectAccount], @($sids['NtfsLiveServerAdmin'], $sids['NtfsLiveAdmin']), $sids['NtfsLiveDelegates'] @labCommand
 $null = Invoke-LabCommand -ComputerName $Client -ActivityName 'Prepare the client' -ScriptBlock $clientSetupScript -ArgumentList $payloadPath, @($sids['NtfsLiveDelegate'], $sids['NtfsLiveAdmin']), @($sids['NtfsLiveServerAdmin']) @labCommand
 foreach ($computer in $Client, $FileServer) {
@@ -880,8 +1034,9 @@ foreach ($module in $modules) {
             NtfsLiveOuter     = $sids['NtfsLiveOuter']
             LocalGroup        = [string]$localGroupSid
             Orphan            = $orphan.Sid
+            Subject           = $sids[$subjectAccount]
         }
-        $fixture = Invoke-LabCommand -ComputerName $FileServer -ActivityName 'Create the folders of the run' -ScriptBlock $fixtureScript -ArgumentList $helperScript, $shareLocalPath, $runId, $fixtureSids, $subjectPrincipalName, $longPathSegments @labCommand
+        $fixture = Invoke-LabCommand -ComputerName $FileServer -ActivityName 'Create the folders of the run' -ScriptBlock $fixtureScript -ArgumentList $helperScript, $shareLocalPath, $runId, $fixtureSids, $subjectPrincipalName, $longPathSegments, $foreignAccounts @labCommand
         $null = Invoke-LabCommand -ComputerName $DomainController -ActivityName 'Delete the orphan account' -ScriptBlock $removeOrphanScript -ArgumentList $orphan.Guid @labCommand
         $oracle = Invoke-LabCommand -ComputerName $Client -ActivityName 'Calculate the rights on the client' -ScriptBlock $clientOracleScript -ArgumentList $helperScript, $fixture.EffectiveAccessSddl, $subjectPrincipalName, $orphan.Sid @labCommand
         if ($oracle.OrphanResolved) {
@@ -911,6 +1066,17 @@ foreach ($module in $modules) {
                 FileServerRights = [long]$fixture.FileServerRights
                 ClientRights     = [long]$oracle.ClientRights
             }
+            ForeignAccounts       = @(
+                foreach ($account in $foreignAccounts) {
+                    [ordered]@{
+                        Name            = $account.Name
+                        DomainName      = $account.DomainName
+                        Sid             = $account.Sid
+                        Rights          = $account.Rights
+                        EffectiveRights = [long]$fixture.ForeignEffectiveRights[$account.Sid]
+                    }
+                }
+            )
             Accounts              = [ordered]@{
                 Delegate    = [ordered]@{ Name = $credentials['Delegate'].UserName; Sid = $sids['NtfsLiveDelegate']; ClientAdministrator = $true; FileServerAdministrator = $false }
                 ServerAdmin = [ordered]@{ Name = $credentials['ServerAdmin'].UserName; Sid = $sids['NtfsLiveServerAdmin']; ClientAdministrator = $false; FileServerAdministrator = $true }
