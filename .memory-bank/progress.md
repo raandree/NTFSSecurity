@@ -12,12 +12,13 @@ source: repository evidence
 5.0.0-rc5 is on the PowerShell Gallery and in the GitHub releases,
 published by CI on 2026-10-08 from the tag `5.0.0-rc5` on `master`
 (`fcb370e`, the merge of #114; Decision 12). Phase 2 of the quality gate
-(Decision 21) is complete on the local branch `ai/release-5.0.0-rc6`: the
-candidate 5.0.0-rc6 (`acfe3af`) passed the suite in four configurations,
-one `security-reviewer` pass, and the lab acceptance. It waits for the
-maintainer to push, merge, and tag it; Phase 3 follows. The stable Gallery
-version is still 4.2.6. NTFSSecurity will be archived soon; its users move
-to WindowsAccessControl (Decision 18).
+(Decision 21) is complete: #115 (`ai/release-5.0.0-rc6`, head `be04cb7`)
+passed CI in all four configurations and waits for the maintainer to merge
+it and tag 5.0.0-rc6. The behavior changes that Phase 2 found are decided
+as assumptions for his review (Decision 22) on the local branch
+`ai/release-5.0.0-rc7`, stacked on #115. Phase 3 follows. The stable
+Gallery version is still 4.2.6. NTFSSecurity will be archived soon; its
+users move to WindowsAccessControl (Decision 18).
 
 ## Recent milestones
 
@@ -100,6 +101,15 @@ to WindowsAccessControl (Decision 18).
   measured again; the first measurements counted one of four runs). Two
   `security-reviewer` passes; the lab acceptance of `7b0781f` passed
   (`Tests/Lab/Acceptance-2026-10-08-5.0.0-rc6.md`).
+- 2026-10-08: #115 (rc6, head `be04cb7`) passed CI in all four
+  configurations. On `ai/release-5.0.0-rc7` (local), the behavior changes
+  of Phase 2 were decided as assumptions for review (Decision 22) and
+  implemented test-first, two of them breaking (the link cmdlets); new
+  defects found on the way: `Move-Item2` deleted an empty folder that it
+  moved to another volume, the link cmdlets failed for every piped object,
+  and `Get-NTFSEffectiveAccess` warned for names of this computer. One
+  `security-reviewer` pass (no Blocker or Major; its findings fixed but
+  one, declined). Suite and lab acceptance in `activeContext.md`.
 
 ## Stable capabilities
 
@@ -114,20 +124,21 @@ to WindowsAccessControl (Decision 18).
 
 ## Open work
 
-1. Quality gate before 5.0.0 (Decision 21): Phase 2 is done on the branch
-   `ai/release-5.0.0-rc6` (`activeContext.md`); the maintainer pushes it,
-   merges the pull request, and tags 5.0.0-rc6, and the live tests run
-   against the published package. Phase 3 runs the live tests on more
-   operating systems. Then release
-   5.0.0 through CI (Decision 12): remove the label, date `[Unreleased]` as
-   `[5.0.0]`, add the last prerelease to `$publishedVersions`, and tag
-   `5.0.0` (steps in `Docs/Contributing/05-Releasing.md`). #34 stays open
-   with Bug and Help Wanted until a tester with a file server that refuses
-   the owner confirms the fix, or until 5.0.0 ships.
+1. Quality gate before 5.0.0 (Decision 21): Phase 2 is done; the
+   maintainer merges #115 and tags 5.0.0-rc6, reviews the choices of
+   Decision 22 on `ai/release-5.0.0-rc7`, and publishes them as
+   5.0.0-rc7. Phase 3 runs the live tests on more operating systems. Then
+   release 5.0.0 through CI (Decision 12): remove the label, date
+   `[Unreleased]` as `[5.0.0]`, add the last prerelease to
+   `$publishedVersions`, and tag `5.0.0` (steps in
+   `Docs/Contributing/05-Releasing.md`). #34 stays open with Bug and Help
+   Wanted until a tester with a file server that refuses the owner
+   confirms the fix, or until 5.0.0 ships.
 2. Issues: the rc6 branch addresses the seven items of #110 (tests); the
    pull request names it without a closing keyword, so the maintainer
    closes it after the merge. #21 (a misleading error of `Move-Item2`) got
-   a fix in rc6 that names the missing destination folder. #68
+   a fix in rc6 that names the missing destination folder; the folder
+   moves to another volume that rc7 fixes are a different defect. #68
    tracks `-WhatIf` and `-Confirm` for every cmdlet that changes security.
    The labels follow Decision 17; #16, #21, #45, and #89 wait for their
    reporters (Needs Info). Not planned for 5.0.0: the enhancements #22,
@@ -138,32 +149,17 @@ to WindowsAccessControl (Decision 18).
    them the accounts filter that `RemoveFileSystemAccessRuleAll` and
    `RemoveFileSystemAuditRuleAll` ignore, which no cmdlet passes; of rc5,
    the bare `catch` in `Win32.GetEffectiveAccess`, the unchecked
-   `AUTHZ_ACCESS_REPLY.Error`, a fallback warning without the server name,
-   and hardening of the lab controller (guards in the setup blocks,
-   interpolated `-EncodedCommand` paths, CredSSP by IP address, the
-   password string in memory, disabling the role accounts after a run); of
-   rc6, a privilege that fails to be disabled isn't tried again by
-   `Dispose` (finding 2, not reproducible).
-4. Behavior changes found in Phase 2, for the maintainer (Decision 16):
-   `Get-NTFSOrphanedAudit` returns nothing without the Security privilege,
-   while `Get-NTFSAudit` writes `ReadSecurityError`;
-   `Get-NTFSSimpleAccess` skips a folder whose parent it didn't process;
-   `New-NTFSSymbolicLink` could create links without the privilege in
-   Developer Mode (flag `SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE`, with
-   a fallback before Windows 10 1703); `-WhatIf` names a conflict in a
-   verbose message instead of a warning (R7); the fallback warning of
-   `Get-NTFSEffectiveAccess` doesn't name the server; `Move-Item2` can't
-   move a folder to another volume; `New-NTFSHardLink` stops with a
-   terminating error for a folder, unlike `Get-NTFSHardLink` (rc6 review,
-   finding 11). Taken as an assumption in rc6, for review: `Copy-Item2`
-   no longer creates the missing folders of a destination for a folder.
-   Found by the coverage report of rc6: `-Target` of the link cmdlets is
-   optional and means the current location when it's omitted; equality of
-   entries and descriptors is the identity of the wrapped .NET object, so
-   two reads of the same entry differ for `Compare-Object` and
-   `Select-Object -Unique` (value equality would be a behavior change); 400
-   points of code that nothing calls besides the 244 lines of unused
-   classes (Phase 3).
+   `AUTHZ_ACCESS_REPLY.Error`, and hardening of the lab controller (guards
+   in the setup blocks, interpolated `-EncodedCommand` paths, CredSSP by
+   IP address, the password string in memory, disabling the role accounts
+   after a run); of rc6, a privilege that fails to be disabled isn't tried
+   again by `Dispose` (finding 2, not reproducible); of rc7, one error ID
+   for a missing path in the audit cmdlets (declined, Decision 22).
+4. Behavior changes found in Phase 2 (Decision 16): decided in Decision 22
+   as assumptions for the maintainer's review, on `ai/release-5.0.0-rc7`;
+   two of them are breaking changes of the link cmdlets. Left for Phase 3:
+   400 points of code that nothing calls besides the 244 lines of unused
+   classes.
 5. `pwsh` 7.6.1 crashed three times during test runs on the ARM64
    workstation (x64 emulation), without module frames; none of the CI runs
    on native x64 on 2026-10-05 crashed.
@@ -171,8 +167,8 @@ to WindowsAccessControl (Decision 18).
    GitHub authorization, restrict wiki editing to collaborators, ask
    `Sup3rlativ3` to delete the Read the Docs project, and delete the branch
    `test/transfer`. In the lab, delete the checkpoints
-   `ntfs-rc6-*-before-acceptance` of the six machines when they are no
-   longer needed.
+   `ntfs-rc6-*-before-acceptance` and `ntfs-rc7-*-before-acceptance` of the
+   six machines when they are no longer needed.
 7. Reachable code that no test runs (coverage report of rc6, ranked by
    impact; about 300 points): `Remove-Item2` on folders (`-Recurse`,
    `-Force`, `DeleteError`); the owner restore after taking ownership
