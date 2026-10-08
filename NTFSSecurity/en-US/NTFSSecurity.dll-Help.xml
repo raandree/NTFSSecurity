@@ -7053,15 +7053,16 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       </maml:description>
     </command:details>
     <maml:description>
-      <maml:para>The `New-NTFSHardLink` cmdlet gives an existing file an additional name. `-Path` is the new hard link that the cmdlet creates, and `-Target` is the existing file that the new link refers to. Read the command as "create Path , which points to Target ".</maml:para>
+      <maml:para>The `New-NTFSHardLink` cmdlet gives an existing file an additional name. `-Path` is the new hard link that the cmdlet creates, and `-Target` is the existing file that the new link refers to. Read the command as "create Path , which points to Target ". Both parameters are required.</maml:para>
       <maml:para>The cmdlet validates both ends before it creates the link. `-Path` must not exist yet, so the cmdlet never overwrites an existing file, and `-Target` must exist and must be a file. A folder as `-Target` is rejected, because NTFS supports hard links for files only. Relative paths are resolved against the current location.</maml:para>
+      <maml:para>To create several links, pipe objects with the properties `Path` and `Target` to the cmdlet, one link per object. For a link that it can't create, the cmdlet writes a non-terminating error and continues with the next object.</maml:para>
       <maml:para>After the link is created, both names refer to the same data on the volume. Writing through one name changes what the other name returns, and the file is only released when its last name is deleted.</maml:para>
       <maml:para>By default the cmdlet produces no output. With `-PassThru` it returns one object for every hard link that the file has after the operation, which includes the original name and the new link, not just the link that was created.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
         <maml:name>New-NTFSHardLink</maml:name>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
           <maml:name>Path</maml:name>
           <maml:description>
             <maml:para>Specifies the path of the new hard link that the cmdlet creates. The path must not exist yet, and it must be on the same NTFS volume as `-Target`. Relative paths are resolved against the current location.</maml:para>
@@ -7073,7 +7074,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
           <maml:name>Target</maml:name>
           <maml:description>
             <maml:para>Specifies the path of the existing file that the new link refers to. The target must exist and must be a file; folders are rejected, because NTFS supports hard links for files only.</maml:para>
@@ -7111,7 +7112,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         </dev:type>
         <dev:defaultValue>False</dev:defaultValue>
       </command:parameter>
-      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
+      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
         <maml:name>Path</maml:name>
         <maml:description>
           <maml:para>Specifies the path of the new hard link that the cmdlet creates. The path must not exist yet, and it must be on the same NTFS volume as `-Target`. Relative paths are resolved against the current location.</maml:para>
@@ -7123,7 +7124,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
-      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
+      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
         <maml:name>Target</maml:name>
         <maml:description>
           <maml:para>Specifies the path of the existing file that the new link refers to. The target must exist and must be a file; folders are rejected, because NTFS supports hard links for files only.</maml:para>
@@ -7142,7 +7143,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           <maml:name>System.String</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>You can pass the path of the new link and the path of the target as strings.</maml:para>
+          <maml:para>You can pass the path of the new link and the path of the target as strings, or pipe objects whose `Path` or `FullName` property names the new link and whose `Target` property names its target.</maml:para>
         </maml:description>
       </command:inputType>
     </command:inputTypes>
@@ -7168,9 +7169,10 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <maml:alert>
         <maml:para>Windows supports hard links only for files on the same NTFS volume. A link that points to a file on another volume, or a target on a file system that does not implement hard links, cannot be created.</maml:para>
         <maml:para>The cmdlet creates hard links on a network share as well, but Windows can't list the names of a file there. With `-PassThru` on a share, the cmdlet creates the link and writes a non-terminating `GetHardLinkError` with the message "The request is not supported" instead of the objects. Before 5.0.0, it stopped with a terminating error after it had created the link.</maml:para>
-        <maml:para>The cmdlet does not overwrite anything. If `-Path` already exists, or if `-Target` is missing or is a folder, the cmdlet reports an error and leaves the file system unchanged.</maml:para>
+        <maml:para>The cmdlet does not overwrite anything. If `-Path` already exists, or if `-Target` is missing or is a folder, the cmdlet writes a non-terminating `CreateHardLinkError` with the category `ResourceExists`, `ObjectNotFound`, or `InvalidArgument`, leaves the file system unchanged, and continues with the next object from the pipeline. When Windows refuses the link, such as for a target on another volume, the cmdlet writes a `CreateHardLinkError` as well.</maml:para>
         <maml:para>Because all names of a file share the same data, the number of hard links is a property of the file, not of an individual name. Use `Get-NTFSHardLink` to list them, and delete a link with `Remove-Item2` or `Remove-Item`, which removes only that name as long as other names remain.</maml:para>
         <maml:para>Before 5.0.0, the error for a missing `-Target` said "The target path exist", the opposite of the cause.</maml:para>
+        <maml:para>Before 5.0.0-rc7, `-Path` and `-Target` were optional: without `-Path`, the cmdlet failed with an index error, and without `-Target`, it used the current location, which is a folder. It stopped with a terminating error for an existing `-Path`, a missing `-Target`, a folder as `-Target`, or a link that Windows refused, and every object piped to it failed with `GetDefaultValueFailed`.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -7200,6 +7202,13 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <dev:code>PS C:\&gt; Get-NTFSHardLink -Path C:\Data\Report-2026.txt | Select-Object -ExpandProperty FullName</dev:code>
         <dev:remarks>
           <maml:para>This command lists all names of the file after the link was created, which is the same information that `-PassThru` returns.</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>--------- Example 5: Create several links from a list ---------</maml:title>
+        <dev:code>PS C:\&gt; Import-Csv -Path C:\Data\Links.csv | New-NTFSHardLink</dev:code>
+        <dev:remarks>
+          <maml:para>This command creates one hard link for each row of `Links.csv`, which has the columns `Path` and `Target`. For a row whose link it can't create, the cmdlet writes an error and continues with the next row.</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>
@@ -7236,15 +7245,16 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       </maml:description>
     </command:details>
     <maml:description>
-      <maml:para>The `New-NTFSSymbolicLink` cmdlet creates a symbolic link that redirects to another file or folder. `-Path` is the new link that the cmdlet creates, and `-Target` is the existing item that the link points to. Read the command as "create Path , which points to Target ".</maml:para>
+      <maml:para>The `New-NTFSSymbolicLink` cmdlet creates a symbolic link that redirects to another file or folder. `-Path` is the new link that the cmdlet creates, and `-Target` is the existing item that the link points to. Read the command as "create Path , which points to Target ". Both parameters are required.</maml:para>
       <maml:para>The cmdlet inspects the target first and creates a file symbolic link when the target is a file and a directory symbolic link when the target is a folder, so you do not select the link type yourself. `-Target` must exist when the link is created, and `-Path` must not exist yet, so the cmdlet never overwrites an existing item.</maml:para>
       <maml:para>Relative paths are resolved against the current location before the link is created, which means that the link always stores an absolute target path.</maml:para>
+      <maml:para>To create several links, pipe objects with the properties `Path` and `Target` to the cmdlet, one link per object. For a link that it can't create, the cmdlet writes a non-terminating error and continues with the next object.</maml:para>
       <maml:para>By default the cmdlet produces no output. With `-PassThru` it returns an object for the new link: a file object for a link to a file, and a folder object for a link to a folder.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
         <maml:name>New-NTFSSymbolicLink</maml:name>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
           <maml:name>Path</maml:name>
           <maml:description>
             <maml:para>Specifies the path of the new symbolic link that the cmdlet creates. The path must not exist yet. Relative paths are resolved against the current location.</maml:para>
@@ -7256,7 +7266,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
           <maml:name>Target</maml:name>
           <maml:description>
             <maml:para>Specifies the path of the existing file or folder that the new link points to. The target must exist when the link is created and determines whether the cmdlet creates a file symbolic link or a directory symbolic link. Relative paths are resolved against the current location, so the link stores an absolute target path.</maml:para>
@@ -7294,7 +7304,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         </dev:type>
         <dev:defaultValue>False</dev:defaultValue>
       </command:parameter>
-      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
+      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
         <maml:name>Path</maml:name>
         <maml:description>
           <maml:para>Specifies the path of the new symbolic link that the cmdlet creates. The path must not exist yet. Relative paths are resolved against the current location.</maml:para>
@@ -7306,7 +7316,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
-      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
+      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
         <maml:name>Target</maml:name>
         <maml:description>
           <maml:para>Specifies the path of the existing file or folder that the new link points to. The target must exist when the link is created and determines whether the cmdlet creates a file symbolic link or a directory symbolic link. Relative paths are resolved against the current location, so the link stores an absolute target path.</maml:para>
@@ -7325,7 +7335,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           <maml:name>System.String</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>You can pass the path of the new link and the path of the target as strings.</maml:para>
+          <maml:para>You can pass the path of the new link and the path of the target as strings, or pipe objects whose `Path` or `FullName` property names the new link and whose `Target` property names its target.</maml:para>
         </maml:description>
       </command:inputType>
     </command:inputTypes>
@@ -7351,7 +7361,9 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <maml:alert>
         <maml:para>Creating a symbolic link on Windows requires the "Create symbolic links" user right, `SeCreateSymbolicLinkPrivilege`, which is granted to the Administrators group by default. Without that right, Windows rejects the operation with error 1314, "A required privilege is not held by the client", so run the cmdlet from an elevated session or grant the right to the account. Windows Developer Mode doesn't change this: it lets accounts without that right create symbolic links only in programs that request it, such as `mklink`, and the cmdlet doesn't.</maml:para>
         <maml:para>Unlike a hard link, a symbolic link is a separate file system entry that stores a path, so it can point to an item on another volume and the link and its target can be managed independently. The cmdlet still requires the target to exist at the moment the link is created. If the target is removed later, the link remains and stops resolving.</maml:para>
+        <maml:para>If `-Path` already exists or `-Target` is missing, the cmdlet writes a non-terminating `CreateSymbolicLinkError` with the category `ResourceExists` or `ObjectNotFound`, leaves the file system unchanged, and continues with the next object from the pipeline. When Windows refuses the link, such as with error 1314 without the right to create symbolic links, the cmdlet writes a `CreateSymbolicLinkError` as well.</maml:para>
         <maml:para>Deleting a symbolic link removes the link only and leaves the target untouched. Delete a directory symbolic link as a link rather than recursively, so that the content of the target folder is not affected.</maml:para>
+        <maml:para>Before 5.0.0-rc7, `-Path` and `-Target` were optional: without `-Path`, the cmdlet failed with an index error, and without `-Target`, it created a link to the current folder. It stopped with a terminating error for an existing `-Path` or a link that Windows refused, and every object piped to it failed with `GetDefaultValueFailed`.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -7381,6 +7393,13 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <dev:code>PS C:\&gt; Test-Path2 -Path C:\Data\Current\Report.txt -PathType Leaf</dev:code>
         <dev:remarks>
           <maml:para>This command tests a path that leads through the symbolic link. It returns `$true` when the link resolves and the file exists in the target folder.</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>--------- Example 5: Create several links from a list ---------</maml:title>
+        <dev:code>PS C:\&gt; Import-Csv -Path C:\Data\Links.csv | New-NTFSSymbolicLink</dev:code>
+        <dev:remarks>
+          <maml:para>This command creates one symbolic link for each row of `Links.csv`, which has the columns `Path` and `Target`. For a row whose link it can't create, the cmdlet writes an error and continues with the next row.</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>

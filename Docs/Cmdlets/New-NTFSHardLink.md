@@ -14,14 +14,16 @@ Creates a hard link to an existing file.
 ## SYNTAX
 
 ```
-New-NTFSHardLink [[-Path] <String>] [[-Target] <String>] [-PassThru] [<CommonParameters>]
+New-NTFSHardLink [-Path] <String> [-Target] <String> [-PassThru] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 
-The `New-NTFSHardLink` cmdlet gives an existing file an additional name. `-Path` is the new hard link that the cmdlet creates, and `-Target` is the existing file that the new link refers to. Read the command as "create *Path*, which points to *Target*".
+The `New-NTFSHardLink` cmdlet gives an existing file an additional name. `-Path` is the new hard link that the cmdlet creates, and `-Target` is the existing file that the new link refers to. Read the command as "create *Path*, which points to *Target*". Both parameters are required.
 
 The cmdlet validates both ends before it creates the link. `-Path` must not exist yet, so the cmdlet never overwrites an existing file, and `-Target` must exist and must be a file. A folder as `-Target` is rejected, because NTFS supports hard links for files only. Relative paths are resolved against the current location.
+
+To create several links, pipe objects with the properties `Path` and `Target` to the cmdlet, one link per object. For a link that it can't create, the cmdlet writes a non-terminating error and continues with the next object.
 
 After the link is created, both names refer to the same data on the volume. Writing through one name changes what the other name returns, and the file is only released when its last name is deleted.
 
@@ -61,6 +63,14 @@ PS C:\> Get-NTFSHardLink -Path C:\Data\Report-2026.txt | Select-Object -ExpandPr
 
 This command lists all names of the file after the link was created, which is the same information that `-PassThru` returns.
 
+### Example 5: Create several links from a list
+
+```PowerShell
+PS C:\> Import-Csv -Path C:\Data\Links.csv | New-NTFSHardLink
+```
+
+This command creates one hard link for each row of `Links.csv`, which has the columns `Path` and `Target`. For a row whose link it can't create, the cmdlet writes an error and continues with the next row.
+
 ## PARAMETERS
 
 ### -PassThru
@@ -88,7 +98,7 @@ Type: String
 Parameter Sets: (All)
 Aliases: FullName
 
-Required: False
+Required: True
 Position: 1
 Default value: None
 Accept pipeline input: True (ByPropertyName, ByValue)
@@ -104,7 +114,7 @@ Type: String
 Parameter Sets: (All)
 Aliases:
 
-Required: False
+Required: True
 Position: 2
 Default value: None
 Accept pipeline input: True (ByPropertyName, ByValue)
@@ -118,7 +128,7 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ### System.String
 
-You can pass the path of the new link and the path of the target as strings.
+You can pass the path of the new link and the path of the target as strings, or pipe objects whose `Path` or `FullName` property names the new link and whose `Target` property names its target.
 
 ## OUTPUTS
 
@@ -136,11 +146,13 @@ Windows supports hard links only for files on the same NTFS volume. A link that 
 
 The cmdlet creates hard links on a network share as well, but Windows can't list the names of a file there. With `-PassThru` on a share, the cmdlet creates the link and writes a non-terminating `GetHardLinkError` with the message "The request is not supported" instead of the objects. Before 5.0.0, it stopped with a terminating error after it had created the link.
 
-The cmdlet does not overwrite anything. If `-Path` already exists, or if `-Target` is missing or is a folder, the cmdlet reports an error and leaves the file system unchanged.
+The cmdlet does not overwrite anything. If `-Path` already exists, or if `-Target` is missing or is a folder, the cmdlet writes a non-terminating `CreateHardLinkError` with the category `ResourceExists`, `ObjectNotFound`, or `InvalidArgument`, leaves the file system unchanged, and continues with the next object from the pipeline. When Windows refuses the link, such as for a target on another volume, the cmdlet writes a `CreateHardLinkError` as well.
 
 Because all names of a file share the same data, the number of hard links is a property of the file, not of an individual name. Use `Get-NTFSHardLink` to list them, and delete a link with `Remove-Item2` or `Remove-Item`, which removes only that name as long as other names remain.
 
 Before 5.0.0, the error for a missing `-Target` said "The target path exist", the opposite of the cause.
+
+Before 5.0.0-rc7, `-Path` and `-Target` were optional: without `-Path`, the cmdlet failed with an index error, and without `-Target`, it used the current location, which is a folder. It stopped with a terminating error for an existing `-Path`, a missing `-Target`, a folder as `-Target`, or a link that Windows refused, and every object piped to it failed with `GetDefaultValueFailed`.
 
 ## RELATED LINKS
 

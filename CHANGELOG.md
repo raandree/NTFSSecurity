@@ -77,6 +77,15 @@ The format is based on
   administrators of the named computer and the members of its group Access
   Control Assistance Operators; any other account gets the error "Access is
   denied" and no result
+- **Breaking:** require `-Path` and `-Target` in `New-NTFSHardLink` and
+  `New-NTFSSymbolicLink`. Without `-Path`, they failed with an index error;
+  without `-Target`, they used the current location, so
+  `New-NTFSSymbolicLink -Path Link` created a link to the current folder
+- **Breaking:** write a non-terminating error in `New-NTFSHardLink` and
+  `New-NTFSSymbolicLink` for a link that they can't create, such as for an
+  existing `-Path` or a missing `-Target`, and continue with the next link;
+  they stopped with a terminating error. A script that relies on the stop
+  needs `-ErrorAction Stop`
 - Name the computer in the warning of `Get-NTFSEffectiveAccess` when the
   computer of `-ServerName` can't be reached
 
@@ -345,5 +354,8 @@ The format is based on
   files failed with an error that named one of its files. It now writes a
   `MoveError` that names the folder and the destination, and leaves the
   folder in place
+- Fix `New-NTFSHardLink` and `New-NTFSSymbolicLink`, which failed with
+  `GetDefaultValueFailed` for every object piped to them, such as the rows
+  of a CSV file with the columns `Path` and `Target`
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

@@ -12,13 +12,17 @@ namespace NTFSSecurity
         private bool passThru;
         System.Reflection.MethodInfo modeMethodInfo = null;
 
-        [Parameter(Position = 1, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
+        // Required since 5.0.0-rc7. Before, an omitted -Path failed with an index error, and an omitted -Target meant the
+        // current location, so the cmdlet created a link to the current folder.
+        [Parameter(Mandatory = true, Position = 1, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
         [ValidateNotNullOrEmpty]
         [Alias("FullName")]
         [FileSystemPathTransformation]
         public string Path
         {
-            get { return paths[0]; }
+            // PowerShell reads a parameter that takes pipeline input before it binds the input. Before 5.0.0-rc7, the
+            // empty list failed that read, so every piped object failed with GetDefaultValueFailed.
+            get { return paths.Count > 0 ? paths[0] : null; }
             set
             {
                 paths.Clear();
@@ -26,7 +30,7 @@ namespace NTFSSecurity
             }
         }
 
-        [Parameter(Position = 2, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
+        [Parameter(Mandatory = true, Position = 2, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
         [ValidateNotNullOrEmpty]
         [FileSystemPathTransformation]
         public string Target
@@ -51,36 +55,47 @@ namespace NTFSSecurity
 
         protected override void ProcessRecord()
         {
-            var path = paths[0];
+            var path = GetRelativePath(paths[0]);
+            var targetPath = GetRelativePath(target);
 
-            path = GetRelativePath(path);
-            target = GetRelativePath(target);
+            // Non-terminating errors, so that the links that follow in the pipeline are created as well. Before
+            // 5.0.0-rc7, an existing path and a failure to create the link stopped the pipeline.
             FileSystemInfo targetItem = null;
-            var root = System.IO.Path.GetPathRoot(path);
-
             try
             {
-                targetItem = GetFileSystemInfo2(target);
-
-                FileSystemInfo temp;
-                if (TryGetFileSystemInfo2(path, out temp))
-                {
-                    throw new ArgumentException("The path does already exist, cannot create link");
-                }
-
-                File.CreateSymbolicLink(path, target, targetItem is FileInfo ? SymbolicLinkTarget.File : SymbolicLinkTarget.Directory);
-
-                if (passThru)
-                {
-                    if (targetItem is FileInfo)
-                        WriteObject(new FileInfo(path));
-                    else
-                        WriteObject(new DirectoryInfo(path));
-                }
+                targetItem = GetFileSystemInfo2(targetPath);
             }
             catch (System.IO.FileNotFoundException ex)
             {
                 WriteError(new ErrorRecord(ex, "CreateSymbolicLinkError", ErrorCategory.ObjectNotFound, path));
+                return;
+            }
+
+            FileSystemInfo temp;
+            if (TryGetFileSystemInfo2(path, out temp))
+            {
+                var exists = new ArgumentException("The path does already exist, cannot create link");
+                WriteError(new ErrorRecord(exists, "CreateSymbolicLinkError", ErrorCategory.ResourceExists, path));
+                return;
+            }
+
+            try
+            {
+                File.CreateSymbolicLink(path, targetPath, targetItem is FileInfo ? SymbolicLinkTarget.File : SymbolicLinkTarget.Directory);
+            }
+            // Without the right to create symbolic links: (1314) A required privilege is not held by the client.
+            catch (Exception ex)
+            {
+                WriteError(new ErrorRecord(ex, "CreateSymbolicLinkError", ex is UnauthorizedAccessException ? ErrorCategory.PermissionDenied : ErrorCategory.WriteError, path));
+                return;
+            }
+
+            if (passThru)
+            {
+                if (targetItem is FileInfo)
+                    WriteObject(new FileInfo(path));
+                else
+                    WriteObject(new DirectoryInfo(path));
             }
         }
 

@@ -122,6 +122,36 @@ Describe 'New-NTFSHardLink' {
         $link | Should -Not -Exist
     }
 
+    # Before 5.0.0-rc7, an existing -Path, a missing -Target, or a folder as -Target stopped the pipeline with a
+    # terminating error, so the links that followed weren't created.
+    It 'Should write a non-terminating error for each link that it cannot create and continue with the next one' {
+        $target = New-TestSandboxItem -Sandbox $sandbox -Name 'ContinueTarget'
+        $existing = New-TestSandboxItem -Sandbox $sandbox -Name 'ContinueExisting'
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ContinueFolder' -Directory
+        $missing = Join-Path -Path $sandbox -ChildPath 'ContinueMissing.txt'
+        $missingLink = Join-Path -Path $sandbox -ChildPath 'ContinueMissingLink.txt'
+        $folderLink = Join-Path -Path $sandbox -ChildPath 'ContinueFolderLink.txt'
+        $link = Join-Path -Path $sandbox -ChildPath 'ContinueLink.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $missing, $missingLink, $folderLink, $link
+        $requests = @(
+            [pscustomobject]@{ Path = $existing; Target = $target }
+            [pscustomobject]@{ Path = $missingLink; Target = $missing }
+            [pscustomobject]@{ Path = $folderLink; Target = $folder }
+            [pscustomobject]@{ Path = $link; Target = $target }
+        )
+
+        $requests | New-NTFSHardLink -ErrorVariable linkErrors -ErrorAction SilentlyContinue
+
+        $linkErrors | Should -HaveCount 3
+        $linkErrors | ForEach-Object -Process { $_.FullyQualifiedErrorId | Should -BeLike 'CreateHardLinkError,*' }
+        ($linkErrors | ForEach-Object -Process { $_.CategoryInfo.Category }) -join ',' | Should -Be 'ResourceExists,ObjectNotFound,InvalidArgument'
+        ($linkErrors | ForEach-Object -Process { $_.TargetObject }) -join '|' | Should -Be (($existing, $missingLink, $folderLink) -join '|')
+        $link | Should -Exist
+        $missingLink | Should -Not -Exist
+        $folderLink | Should -Not -Exist
+        Get-Content -LiteralPath $existing | Should -Be 'ContinueExisting'
+    }
+
     # Windows can't list the names of a file on a network share. Before 5.0.0-rc6, the cmdlet stopped with a
     # terminating error after it had created the link.
     It 'Should create the link on a network share and write an error for -PassThru, which cannot list the names there' -Skip:(-not $canUseAdminShare) {
@@ -309,17 +339,56 @@ Describe 'New-NTFSSymbolicLink' {
         Test-Path2 -Path $link | Should -BeFalse
     }
 
+    # Before 5.0.0-rc7, an existing -Path stopped the pipeline with a terminating error. The cmdlet checks the paths
+    # before it creates a link, so this runs without the right to create symbolic links as well.
+    It 'Should write a non-terminating error for an existing -Path and continue with the next link' {
+        $target = New-TestSandboxItem -Sandbox $sandbox -Name 'SymbolicContinueTarget'
+        $existing = New-TestSandboxItem -Sandbox $sandbox -Name 'SymbolicContinueExisting'
+        $missing = Join-Path -Path $sandbox -ChildPath 'SymbolicContinueMissing.txt'
+        $link = Join-Path -Path $sandbox -ChildPath 'SymbolicContinueLink.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $missing, $link
+        $requests = @(
+            [pscustomobject]@{ Path = $existing; Target = $target }
+            [pscustomobject]@{ Path = $link; Target = $missing }
+        )
+
+        $requests | New-NTFSSymbolicLink -ErrorVariable linkErrors -ErrorAction SilentlyContinue
+
+        $linkErrors | Should -HaveCount 2
+        $linkErrors | ForEach-Object -Process { $_.FullyQualifiedErrorId | Should -BeLike 'CreateSymbolicLinkError,*' }
+        ($linkErrors | ForEach-Object -Process { $_.CategoryInfo.Category }) -join ',' | Should -Be 'ResourceExists,ObjectNotFound'
+        (Get-Item -LiteralPath $existing -Force).LinkType | Should -BeNullOrEmpty
+        Test-Path2 -Path $link | Should -BeFalse
+    }
+
     # Windows rejects the link with error 1314 without the "Create symbolic links" user right. Its message is
-    # localized, so the test compares the HRESULT of that error.
-    It 'Should fail and create no link without the right to create symbolic links' -Skip:$canCreateSymbolicLinks {
+    # localized, so the test compares the HRESULT of that error. Before 5.0.0-rc7, the error was terminating.
+    It 'Should write a non-terminating error and create no link without the right to create symbolic links' -Skip:$canCreateSymbolicLinks {
         $target = New-TestSandboxItem -Sandbox $sandbox -Name 'SymbolicNoRight'
         $link = Join-Path -Path $sandbox -ChildPath 'SymbolicNoRight.txt'
         Assert-TestSandboxPath -Sandbox $sandbox -Path $link
 
-        $thrown = { New-NTFSSymbolicLink -Path $link -Target $target -ErrorAction Stop } | Should -Throw -PassThru
+        New-NTFSSymbolicLink -Path $link -Target $target -ErrorVariable linkErrors -ErrorAction SilentlyContinue
 
-        $thrown.FullyQualifiedErrorId | Should -BeLike '*,NTFSSecurity.NewSymbolicLink'
-        '0x{0:X8}' -f $thrown.Exception.HResult | Should -Be '0x80070522'
+        $linkErrors | Should -HaveCount 1
+        $linkErrors[0].FullyQualifiedErrorId | Should -BeLike 'CreateSymbolicLinkError,*'
+        '0x{0:X8}' -f $linkErrors[0].Exception.HResult | Should -Be '0x80070522'
         Test-Path2 -Path $link | Should -BeFalse
+    }
+}
+
+# Before 5.0.0-rc7, both parameters were optional. Without -Path, the cmdlets failed with an index error; without -Target,
+# they used the current location, so New-NTFSSymbolicLink -Path Link created a link to the current folder.
+Describe 'Parameters of the cmdlets that create links' {
+    It '<Command> should require -<Parameter>' -ForEach @(
+        @{ Command = 'New-NTFSHardLink'; Parameter = 'Path' }
+        @{ Command = 'New-NTFSHardLink'; Parameter = 'Target' }
+        @{ Command = 'New-NTFSSymbolicLink'; Parameter = 'Path' }
+        @{ Command = 'New-NTFSSymbolicLink'; Parameter = 'Target' }
+    ) {
+        $sets = @((Get-Command -Name $Command).Parameters[$Parameter].ParameterSets.Values)
+
+        $sets | Should -Not -BeNullOrEmpty
+        $sets | ForEach-Object -Process { $_.IsMandatory | Should -BeTrue }
     }
 }
