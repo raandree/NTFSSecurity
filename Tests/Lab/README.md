@@ -118,9 +118,30 @@ Each call writes to a new folder in `$env:TEMP\NTFSSecurityLab\Results`:
   folder after the run
 
 A version before 5.0.0-rc3 fails case 1 with error 1307, a version before
-5.0.0-rc4 fails the tests of #108, and a version before 5.0.0-rc5 fails the
+5.0.0-rc4 fails the tests of #108, a version before 5.0.0-rc5 fails the
 test of case 3 with a computer that can't be reached: it returned no access
-instead of the result of the client.
+instead of the result of the client. A version before 5.0.0-rc6 fails two
+tests of case 8: `Get-NTFSHardLink` and `New-NTFSHardLink -PassThru` stopped
+on the share with the terminating error (50).
+
+## Acceptance of a release candidate
+
+Before a release, run the live tests once more under controlled conditions
+and record the evidence in this folder:
+
+1. Build the candidate once, package it with
+   `.github\scripts\New-ModulePackage.ps1`, and record the SHA-256 of the
+   packages and of the module files.
+2. Check that WinRM, LDAP, Kerberos, the secure channel, and the clocks of
+   the lab machines work.
+3. Take a checkpoint of the machines, named after the candidate and its
+   commit.
+4. Run the tests with `-ModulePath` of the extracted `NTFSSecurity.zip` in
+   both editions.
+5. Remove the fixture with `-RemoveFixture` and check that its accounts,
+   share, folders, group memberships, and profiles are gone.
+
+Records: [5.0.0-rc6](Acceptance-2026-10-08-5.0.0-rc6.md).
 
 ## Files
 
