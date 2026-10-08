@@ -316,6 +316,25 @@ Describe 'Remove-NTFSAudit' {
 
             Get-EveryoneAuditRule | Should -BeNullOrEmpty
         }
+
+        It 'Should keep an audit entry that does not match exactly, given the path' {
+            Add-NTFSAudit -Path $removeFolder -Account 'Everyone' -AccessRights Modify
+
+            Remove-NTFSAudit -Path $removeFolder -Account 'Everyone' -AccessRights ReadData -RemoveSpecific -ErrorAction Stop
+
+            $entries = @(Get-NTFSAudit -Path $removeFolder -ExcludeInherited | Where-Object -FilterScript { $_.Account.Sid -eq 'S-1-1-0' })
+            $entries | Should -HaveCount 1
+            $entries[0].AccessRights.ToString() | Should -BeLike '*Modify*'
+        }
+
+        It 'Should remove an audit entry that matches exactly, given the path' {
+            Add-NTFSAudit -Path $removeFolder -Account 'Everyone' -AccessRights Modify
+
+            Remove-NTFSAudit -Path $removeFolder -Account 'Everyone' -AccessRights Modify -RemoveSpecific -ErrorAction Stop
+
+            Get-NTFSAudit -Path $removeFolder -ExcludeInherited | Where-Object -FilterScript { $_.Account.Sid -eq 'S-1-1-0' } |
+                Should -BeNullOrEmpty
+        }
     }
 
     Context 'With -PassThru' {
@@ -415,6 +434,8 @@ Describe 'Clear-NTFSAudit' {
             )
             $audit.SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit') | Should -BeNullOrEmpty
             $inheritedCount = @((Get-Acl -LiteralPath $file).GetAccessRules($false, $true, $sidType)).Count
+            # Without inherited entries, the test couldn't see them copied as explicit ones (#110).
+            $inheritedCount | Should -BeGreaterThan 0
 
             Clear-NTFSAudit -Path $file -ErrorVariable clearErrors -ErrorAction SilentlyContinue
 

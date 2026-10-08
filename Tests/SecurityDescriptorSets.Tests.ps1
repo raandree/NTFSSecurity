@@ -53,6 +53,7 @@ Describe 'Cmdlets that change a security descriptor in memory' {
     It 'Disable-NTFSAccessInheritance should protect the DACL of the descriptor and keep the inherited entries' {
         $file = New-TestSandboxItem -Sandbox $sandbox -Name 'DisableAccess'
         $inheritedCount = @((Get-Acl -LiteralPath $file).GetAccessRules($false, $true, $sidType)).Count
+        $inheritedCount | Should -BeGreaterThan 0
         $sd = Get-NTFSSecurityDescriptor -Path $file
 
         Disable-NTFSAccessInheritance -SecurityDescriptor $sd -ErrorAction Stop

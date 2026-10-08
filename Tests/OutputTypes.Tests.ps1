@@ -56,20 +56,36 @@ Describe 'Declared output types' {
 
         $result = Get-FileHash2 -Path $file
 
-        $result.PSObject.TypeNames[0] | Should -Be @((Get-Command -Name Get-FileHash2).OutputType.Name)[0]
+        $result.PSObject.TypeNames[0] | Should -BeExactly @((Get-Command -Name Get-FileHash2).OutputType.Name)[0]
     }
 }
 
 Describe 'Privilege cmdlets with -PassThru' {
+    BeforeAll {
+        # The tests enable and disable the privileges of the test process; AfterAll restores the states they had (#110).
+        $fileSystemPrivileges = 'TakeOwnership', 'Restore', 'Backup', 'Security'
+        $enabledBefore = @(Get-Privileges | Where-Object -FilterScript {
+                $_.Privilege.ToString() -in $fileSystemPrivileges -and $_.PrivilegeState -eq 'Enabled'
+            } | ForEach-Object -Process { $_.Privilege })
+    }
+
     AfterEach {
         Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
     }
 
-    # Before 5.0.0, -PassThru wrote the privileges as one collection.
+    AfterAll {
+        $process = [System.Diagnostics.Process]::GetCurrentProcess()
+        foreach ($privilege in $enabledBefore) {
+            $null = [ProcessPrivileges.ProcessExtensions]::EnablePrivilege($process, $privilege)
+        }
+    }
+
+    # Before 5.0.0, -PassThru wrote the privileges as one collection. The access token of a basic user holds one
+    # privilege only, so the test compares with the privileges that the token holds.
     It 'Enable-Privileges should write one object per privilege' {
         $result = @(Enable-Privileges -PassThru -ErrorAction SilentlyContinue)
 
-        $result.Count | Should -BeGreaterThan 1
+        $result | Should -HaveCount @(Get-Privileges).Count
         $result | ForEach-Object -Process { $_ | Should -BeOfType [ProcessPrivileges.PrivilegeAndAttributes] }
     }
 

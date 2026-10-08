@@ -152,13 +152,15 @@ Describe 'Get-NTFSEffectiveAccess' {
 }
 
 Describe 'Get-NTFSOrphanedAccess' {
-    # Before 5.0.0, a path with braces stopped the cmdlet with a FormatException (#3).
+    # Before 5.0.0, a path with braces stopped the cmdlet with a FormatException (#3), which the verbose message raised.
     It 'Should read a folder whose name contains braces' {
         $braces = Join-Path -Path $sandbox -ChildPath ('{{Braces}}-{0}' -f [guid]::NewGuid().ToString('N').Substring(0, 8))
         Assert-TestSandboxPath -Sandbox $sandbox -Path $braces
         [IO.Directory]::CreateDirectory($braces) | Out-Null
 
-        { Get-NTFSOrphanedAccess -Path $braces -ErrorAction Stop } | Should -Not -Throw
+        $messages = @(Get-NTFSOrphanedAccess -Path $braces -Verbose -ErrorAction Stop 4>&1)
+
+        $messages.Message | Should -Contain "Item $braces knows about 0 orphaned SIDs in its ACL"
     }
 
     BeforeAll {
@@ -548,6 +550,26 @@ Describe 'Remove-NTFSAccess' {
             $rule = Get-EveryoneRule
             $rule | Should -Not -BeNullOrEmpty
             $rule.FileSystemRights.HasFlag([System.Security.AccessControl.FileSystemRights]::ReadData) | Should -BeFalse
+        }
+
+        It 'Should keep an entry that does not match exactly, given the path' {
+            Add-NTFSAccess -Path $removeFolder -Account 'Everyone' -AccessRights Modify
+
+            Remove-NTFSAccess -Path $removeFolder -Account 'Everyone' -AccessRights ReadData -RemoveSpecific -ErrorAction Stop
+
+            $rules = @((Get-Acl -LiteralPath $removeFolder).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
+            $rules | Should -HaveCount 1
+            $rules[0].FileSystemRights.HasFlag([System.Security.AccessControl.FileSystemRights]::Modify) | Should -BeTrue
+        }
+
+        It 'Should remove an entry that matches exactly, given the path' {
+            Add-NTFSAccess -Path $removeFolder -Account 'Everyone' -AccessRights Modify
+
+            Remove-NTFSAccess -Path $removeFolder -Account 'Everyone' -AccessRights Modify -RemoveSpecific -ErrorAction Stop
+
+            (Get-Acl -LiteralPath $removeFolder).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' } | Should -BeNullOrEmpty
         }
     }
 }

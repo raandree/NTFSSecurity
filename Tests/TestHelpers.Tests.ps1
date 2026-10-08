@@ -134,6 +134,28 @@ Describe 'Test helpers' {
         It 'Should not change the ACL of the target of a junction' {
             (Get-Acl -LiteralPath $target).Sddl | Should -BeExactly $targetSddl
         }
+
+        # Before 5.0.0-rc6, the teardown couldn't remove paths longer than 260 characters in Windows PowerShell (#110).
+        It 'Should remove a sandbox with a path longer than 260 characters' {
+            $longSandbox = New-TestSandbox -Name 'Helpers'
+            $long = Join-Path -Path $longSandbox -ChildPath (('A' * 100), ('B' * 100), ('C' * 100) -join '\')
+            Assert-TestSandboxPath -Sandbox $longSandbox -Path $long
+            # The \\?\ prefix lets Windows PowerShell create the path.
+            [IO.Directory]::CreateDirectory('\\?\' + $long) | Out-Null
+            [IO.File]::WriteAllText(('\\?\' + $long + '\File.txt'), 'Long')
+            $long.Length | Should -BeGreaterThan 260
+
+            Remove-TestSandbox -Sandbox $longSandbox
+
+            $longSandbox | Should -Not -Exist
+        }
+
+        # Before 5.0.0-rc6, an AfterAll after a failed setup stopped with a binding error that hid the error of the setup.
+        It 'Should do nothing for a sandbox that a failed setup did not create: <_>' -ForEach @('$null', 'empty string') {
+            $value = if ($_ -eq '$null') { $null } else { '' }
+
+            { Remove-TestSandbox -Sandbox $value } | Should -Not -Throw
+        }
     }
 
     Context 'Set-TestOwner' {

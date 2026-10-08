@@ -160,6 +160,20 @@ Describe 'Copy-Item2, Move-Item2, and Remove-Item2 with several paths' {
         $messages.Message | Should -Contain ("File '{0}' {1} to '{2}'" -f $first, $Verb, $target)
     }
 
+    It '<Command> should name the destination of a folder in the verbose message' -ForEach @(
+        @{ Command = 'Copy-Item2'; Verb = 'copied' }
+        @{ Command = 'Move-Item2'; Verb = 'moved' }
+    ) {
+        $sourceFolder = Join-Path -Path $folder -ChildPath 'VerboseFolder'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $sourceFolder
+        New-Item -ItemType Directory -Path $sourceFolder | Out-Null
+        $target = Join-Path -Path $destination -ChildPath 'VerboseFolder'
+
+        $messages = & $Command -Path $sourceFolder -Destination $destination -Verbose 4>&1
+
+        $messages.Message | Should -Contain ("Directory '{0}' {1} to '{2}'" -f $sourceFolder, $Verb, $target)
+    }
+
     # With -PassThru, both cmdlets return the item at the destination, as their pages say.
     It 'Copy-Item2 -PassThru should return the copy' {
         $result = Copy-Item2 -Path $first -Destination $destination -PassThru $true
@@ -381,14 +395,9 @@ Describe 'Test-Path2' {
         $long = Join-Path -Path $longRoot -ChildPath (('A' * 100), ('B' * 100), ('C' * 100) -join '\')
         Add-Type -Path (Join-Path -Path (Get-Module -Name NTFSSecurity).ModuleBase -ChildPath 'AlphaFS.dll')
         [Alphaleonis.Win32.Filesystem.Directory]::CreateDirectory($long) | Out-Null
-        try {
-            $long.Length | Should -BeGreaterThan 260
+        $long.Length | Should -BeGreaterThan 260
 
-            Test-Path2 -Path $long -PathType Container -ErrorAction Stop | Should -BeTrue
-        } finally {
-            # Remove-TestSandbox can't delete paths longer than 260 characters (#110).
-            [Alphaleonis.Win32.Filesystem.Directory]::Delete($longRoot, $true)
-        }
+        Test-Path2 -Path $long -PathType Container -ErrorAction Stop | Should -BeTrue
     }
 
     # Before 5.0.0-rc6, a path with a character that Windows doesn't allow in file names stopped the cmdlet with a
