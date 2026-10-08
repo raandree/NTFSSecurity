@@ -14,8 +14,8 @@
     Specifies the path of the result file in the NUnit format.
 
 .PARAMETER Title
-    Specifies the heading of the test results in the job summary. It can't contain a double quote or a percent sign,
-    which would change the command line of cmd.exe.
+    Specifies the heading of the test results in the job summary. It can't contain a double quote, a percent sign, or a
+    line break, which would change the command line of cmd.exe.
 
 .EXAMPLE
     .\.github\scripts\Invoke-TestsAsBasicUser.ps1 -ResultPath TestResults\WindowsPowerShell-BasicUser.xml -Title 'Windows PowerShell 5.1 as a basic user'
@@ -31,8 +31,9 @@ param (
 
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
-    # cmd.exe gets the title in a quoted argument and expands environment variables also inside quotes.
-    [ValidatePattern('^[^"%]+$')]
+    # cmd.exe gets the title in a quoted argument, expands environment variables also inside quotes, and ends the
+    # command at a line break. \z, unlike $, doesn't match before a final line feed.
+    [ValidatePattern('\A[^"%\r\n]+\z')]
     [string]
     $Title
 )

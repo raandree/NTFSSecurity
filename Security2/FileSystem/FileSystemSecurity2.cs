@@ -7,8 +7,6 @@ namespace Security2
 {
     public class FileSystemSecurity2
     {
-        protected FileSecurity fileSecurityDescriptor;
-        protected DirectorySecurity directorySecurityDescriptor;
         protected FileSystemInfo item;
         protected FileSystemSecurity sd;
         protected AccessControlSections sections;
@@ -236,9 +234,11 @@ namespace Security2
         }
 
         #region Conversion
+        // The descriptor is in sd. Before 5.0.0-rc6, these conversions returned fields that were never set, so they
+        // gave null, and the hash code threw a NullReferenceException.
         public static implicit operator FileSecurity(FileSystemSecurity2 fs2)
         {
-            return fs2.fileSecurityDescriptor;
+            return fs2.sd as FileSecurity;
         }
         public static implicit operator FileSystemSecurity2(FileSecurity fs)
         {
@@ -247,21 +247,20 @@ namespace Security2
 
         public static implicit operator DirectorySecurity(FileSystemSecurity2 fs2)
         {
-            return fs2.directorySecurityDescriptor;
+            return fs2.sd as DirectorySecurity;
         }
         public static implicit operator FileSystemSecurity2(DirectorySecurity fs)
         {
             return new FileSystemSecurity2(new DirectoryInfo(""));
         }
 
-        // Like the descriptors of .NET, two objects are equal when they wrap the same descriptor. The descriptor is in
-        // sd; fileSecurityDescriptor is never set, so its hash code threw a NullReferenceException, and the cast an
-        // InvalidCastException for any other type.
+        // Like the descriptors of .NET, two objects are equal when they wrap the same descriptor; a descriptor of .NET
+        // is never equal, so that equality is the same in both directions. A cast instead of "as" threw an
+        // InvalidCastException.
         public override bool Equals(object obj)
         {
             var other = obj as FileSystemSecurity2;
-            var descriptor = other != null ? other.sd : obj as FileSystemSecurity;
-            return descriptor != null && ReferenceEquals(sd, descriptor);
+            return other != null && ReferenceEquals(sd, other.sd);
         }
         public override int GetHashCode()
         {

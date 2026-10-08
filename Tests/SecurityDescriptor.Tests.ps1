@@ -311,4 +311,24 @@ Describe 'Comparing security descriptors' {
         $table[$sd] | Should -Be 'first'
         $table.Count | Should -Be 2
     }
+
+    # Before 5.0.0-rc6, the conversion returned a field that was never set, so it gave $null.
+    It 'Should convert to the security object of .NET that it holds' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'ConvertFile'
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ConvertFolder' -Directory
+        $fileSd = Get-NTFSSecurityDescriptor -Path $file
+        $folderSd = Get-NTFSSecurityDescriptor -Path $folder
+
+        [object]::ReferenceEquals([System.Security.AccessControl.FileSecurity] $fileSd, $fileSd.SecurityDescriptor) | Should -BeTrue
+        [object]::ReferenceEquals([System.Security.AccessControl.DirectorySecurity] $folderSd, $folderSd.SecurityDescriptor) | Should -BeTrue
+    }
+
+    It 'Should be equal only to a descriptor of the module, in both directions' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Symmetric'
+        $sd = Get-NTFSSecurityDescriptor -Path $file
+        $raw = $sd.SecurityDescriptor
+
+        $sd.Equals($raw) | Should -BeFalse
+        $raw.Equals($sd) | Should -BeFalse
+    }
 }

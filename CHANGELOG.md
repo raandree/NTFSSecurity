@@ -321,7 +321,8 @@ The format is based on
   `Select-Object -Unique` and `Compare-Object`, stopped with an
   `InvalidCastException`, and a security descriptor as the key of a
   hashtable with a `NullReferenceException`. Two objects are now equal when
-  they hold the same entry or descriptor, as in .NET
+  they hold the same entry or descriptor, as in .NET. Converting a security
+  descriptor to `FileSecurity` or `DirectorySecurity` returned `$null`
 - Fix `InheritedFrom` of `Get-NTFSAccess` and `Get-NTFSAudit`: with
   `-ExcludeExplicit`, each inherited entry showed the source of another
   entry, and `Get-NTFSAccess -SecurityDescriptor` stopped with an

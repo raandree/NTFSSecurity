@@ -117,9 +117,20 @@ Describe 'Invoke-TestsAsBasicUser.ps1' {
         $bindParameters = [scriptblock]::Create($ast.ParamBlock.Extent.Text)
     }
 
-    # The title goes into a quoted argument of cmd.exe, which expands environment variables also inside quotes.
-    It 'Should refuse a title with the character <_>, which would change the command line of cmd.exe' -ForEach @('%', '"') {
-        { & $bindParameters -ResultPath 'TestResults\Refused.xml' -Title "CI run $_ 1" } |
+    # The title goes into a quoted argument of cmd.exe, which expands environment variables also inside quotes and ends
+    # the command at a line break.
+    It 'Should refuse a title with the character <Name>, which would change the command line of cmd.exe' -ForEach @(
+        @{ Name = '%'; Character = '%' }
+        @{ Name = 'double quote'; Character = '"' }
+        @{ Name = 'line feed'; Character = "`n" }
+        @{ Name = 'carriage return'; Character = "`r" }
+    ) {
+        { & $bindParameters -ResultPath 'TestResults\Refused.xml' -Title "CI run $Character 1" } |
+            Should -Throw -ExpectedMessage "*'Title'*"
+    }
+
+    It 'Should refuse a title that ends with a line break' {
+        { & $bindParameters -ResultPath 'TestResults\Refused.xml' -Title "CI run`n" } |
             Should -Throw -ExpectedMessage "*'Title'*"
     }
 

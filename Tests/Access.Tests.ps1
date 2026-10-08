@@ -809,6 +809,15 @@ Describe 'Comparing access entries' {
         @(@($entries) + $entries[0] | Select-Object -Unique) | Should -HaveCount $entries.Count
         Compare-Object -ReferenceObject $entries -DifferenceObject $entries | Should -BeNullOrEmpty
     }
+
+    # The entry of .NET doesn't know the object of the module, so equality in one direction only would make a hashtable
+    # lookup depend on which of the two is the key.
+    It 'Should be equal only to an entry of the module, in both directions' {
+        $raw = [System.Security.AccessControl.FileSystemAccessRule] $entries[0]
+
+        $entries[0].Equals($raw) | Should -BeFalse
+        $raw.Equals($entries[0]) | Should -BeFalse
+    }
 }
 
 # Before 5.0.0-rc6, -ExcludeExplicit gave each inherited entry the source of another entry, and Get-NTFSAccess stopped
@@ -838,6 +847,25 @@ Describe 'InheritedFrom of access entries' {
         foreach ($entry in $result) {
             $entry.InheritedFrom | Should -Be $expectedSource["$($entry.Account.Sid)"]
         }
+    }
+
+    # Two explicit entries before the inherited ones; before 5.0.0-rc6, -ExcludeExplicit shifted the sources by two.
+    It 'Should name the folder of an inheritable entry, also with -ExcludeExplicit' {
+        $parent = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritedFromParent' -Directory
+        Add-NTFSAccess -Path $parent -Account 'S-1-5-32-546' -AccessRights ReadData -AppliesTo ThisFolderSubfoldersAndFiles
+        $child = Join-Path -Path $parent -ChildPath 'Child.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $child
+        Set-Content -LiteralPath $child -Value 'Child'
+        Add-NTFSAccess -Path $child -Account 'S-1-1-0' -AccessRights ReadData
+        Add-NTFSAccess -Path $child -Account 'S-1-5-32-545' -AccessRights ReadData
+
+        $all = @(Get-NTFSAccess -Path $child | Where-Object -FilterScript { $_.IsInherited -and "$($_.Account.Sid)" -eq 'S-1-5-32-546' })
+        $inherited = @(Get-NTFSAccess -Path $child -ExcludeExplicit | Where-Object -FilterScript { "$($_.Account.Sid)" -eq 'S-1-5-32-546' })
+
+        $all | Should -HaveCount 1
+        $all[0].InheritedFrom | Should -Be $parent
+        $inherited | Should -HaveCount 1
+        $inherited[0].InheritedFrom | Should -Be $parent
     }
 
     It 'Should read a security descriptor with audit entries and name the same folders' -Skip:(-not $holdsSecurityPrivilege) {
