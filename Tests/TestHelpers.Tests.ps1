@@ -13,6 +13,8 @@ BeforeDiscovery {
     $canAssignAnyOwner = Test-PrivilegeHeld -Name 'SeRestorePrivilege'
     # Reading and writing audit entries needs the Security privilege.
     $holdsSecurityPrivilege = Test-PrivilegeHeld -Name 'SeSecurityPrivilege'
+    $isElevated = Test-IsElevated
+    $canUseAdminShare = Test-AdminShareAvailable
 }
 
 BeforeAll {
@@ -266,6 +268,40 @@ Describe 'Test helpers' {
 
         It 'Should not find a privilege that does not exist' {
             Test-PrivilegeHeld -Name 'SeNoSuchPrivilege' | Should -BeFalse
+        }
+    }
+
+    # The administrative share of a drive, such as \\localhost\C$, is a network path and another volume for Windows.
+    Context 'ConvertTo-TestAdminSharePath and Test-AdminShareAvailable' {
+        BeforeAll {
+            $sandbox = New-TestSandbox -Name 'Helpers'
+        }
+
+        AfterAll {
+            Remove-TestSandbox -Sandbox $sandbox
+        }
+
+        It 'Should return the path of an item in the sandbox on the administrative share of its drive' {
+            $path = Join-Path -Path $sandbox -ChildPath 'Folder\File.txt'
+
+            ConvertTo-TestAdminSharePath -Sandbox $sandbox -Path $path |
+                Should -Be ('\\localhost\' + $path.Substring(0, 1) + '$' + $path.Substring(2))
+        }
+
+        It 'Should reach the same item through the administrative share' -Skip:(-not $canUseAdminShare) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'AdminShare'
+
+            Get-Content -LiteralPath (ConvertTo-TestAdminSharePath -Sandbox $sandbox -Path $file) | Should -Be 'AdminShare'
+        }
+
+        It 'Should refuse a path outside the sandbox' {
+            { ConvertTo-TestAdminSharePath -Sandbox $sandbox -Path "$sandbox-Other\File.txt" } |
+                Should -Throw -ExpectedMessage 'Refusing to change*'
+        }
+
+        # Only administrators can open the administrative shares.
+        It 'Should not offer the administrative share without elevation' -Skip:$isElevated {
+            Test-AdminShareAvailable | Should -BeFalse
         }
     }
 }

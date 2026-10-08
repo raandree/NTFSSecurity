@@ -10,9 +10,7 @@ BeforeDiscovery {
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
     $canCreateSymbolicLinks = Test-PrivilegeHeld -Name 'SeCreateSymbolicLinkPrivilege'
     # The administrative share of the drive of the sandboxes reaches them over SMB, like a share of a file server.
-    $tempPath = [IO.Path]::GetTempPath()
-    $canUseAdminShare = (Test-IsElevated) -and
-        (Test-Path -LiteralPath ('\\localhost\{0}$\' -f $tempPath.Substring(0, 1)) -ErrorAction SilentlyContinue)
+    $canUseAdminShare = Test-AdminShareAvailable
 }
 
 BeforeAll {
@@ -21,13 +19,6 @@ BeforeAll {
     Import-Module -Name $modulePath -Force -ErrorAction Stop
     $sandbox = New-TestSandbox -Name 'Links'
     Push-Location -LiteralPath $sandbox
-
-    function ConvertTo-AdminSharePath {
-        # The path of a sandbox item on the administrative share of its drive, such as \\localhost\C$\...
-        param ([string] $Path)
-
-        '\\localhost\{0}${1}' -f $Path.Substring(0, 1), $Path.Substring(2)
-    }
 }
 
 AfterAll {
@@ -161,7 +152,7 @@ Describe 'New-NTFSHardLink' {
         $link = Join-Path -Path $sandbox -ChildPath 'ShareLink.txt'
         Assert-TestSandboxPath -Sandbox $sandbox -Path $link
 
-        $result = @(New-NTFSHardLink -Path (ConvertTo-AdminSharePath -Path $link) -Target (ConvertTo-AdminSharePath -Path $target) -PassThru -ErrorVariable linkErrors -ErrorAction SilentlyContinue)
+        $result = @(New-NTFSHardLink -Path (ConvertTo-TestAdminSharePath -Sandbox $sandbox -Path $link) -Target (ConvertTo-TestAdminSharePath -Sandbox $sandbox -Path $target) -PassThru -ErrorVariable linkErrors -ErrorAction SilentlyContinue)
 
         $link | Should -Exist
         $linkErrors | Should -HaveCount 1
@@ -237,7 +228,7 @@ Describe 'Get-NTFSHardLink' {
     It 'Should write an error for a file on a network share and continue with the next path' -Skip:(-not $canUseAdminShare) {
         $file = New-TestSandboxItem -Sandbox $sandbox -Name 'ShareFile'
         $other = New-TestSandboxItem -Sandbox $sandbox -Name 'AfterShare'
-        $sharePath = ConvertTo-AdminSharePath -Path $file
+        $sharePath = ConvertTo-TestAdminSharePath -Sandbox $sandbox -Path $file
 
         $result = @(Get-NTFSHardLink -Path $sharePath, $other -ErrorVariable linkErrors -ErrorAction SilentlyContinue)
 

@@ -10,9 +10,7 @@ BeforeDiscovery {
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
     # A path on the administrative share of the drive of the sandboxes is another volume for Windows, like a share of a
     # file server.
-    $tempPath = [IO.Path]::GetTempPath()
-    $canUseAdminShare = (Test-IsElevated) -and
-        (Test-Path -LiteralPath ('\\localhost\{0}$\' -f $tempPath.Substring(0, 1)) -ErrorAction SilentlyContinue)
+    $canUseAdminShare = Test-AdminShareAvailable
 }
 
 BeforeAll {
@@ -359,15 +357,6 @@ Describe 'Copy-Item2, Move-Item2, and Remove-Item2 with several paths' {
 }
 
 Describe 'Move-Item2' {
-    BeforeAll {
-        function ConvertTo-AdminSharePath {
-            # The path of a sandbox item on the administrative share of its drive, such as \\localhost\C$\...
-            param ([string] $Path)
-
-            '\\localhost\{0}${1}' -f $Path.Substring(0, 1), $Path.Substring(2)
-        }
-    }
-
     # Windows can't move a folder to another volume. Before 5.0.0-rc7, the cmdlet let AlphaFS emulate the move by
     # copying and deleting, which failed for a folder with files with an error that named a file of the source, and
     # which deleted an empty folder without creating it at the destination.
@@ -382,7 +371,7 @@ Describe 'Move-Item2' {
         $destination = Join-Path -Path $sandbox -ChildPath ('Moved-{0}' -f (Split-Path -Path $source -Leaf))
         Assert-TestSandboxPath -Sandbox $sandbox -Path $destination
 
-        Move-Item2 -Path $source -Destination (ConvertTo-AdminSharePath -Path $destination) -ErrorVariable moveErrors -ErrorAction SilentlyContinue
+        Move-Item2 -Path $source -Destination (ConvertTo-TestAdminSharePath -Sandbox $sandbox -Path $destination) -ErrorVariable moveErrors -ErrorAction SilentlyContinue
 
         $moveErrors | Should -HaveCount 1
         $moveErrors[0].FullyQualifiedErrorId | Should -BeLike 'MoveError,*'
@@ -398,7 +387,7 @@ Describe 'Move-Item2' {
         $destination = Join-Path -Path $sandbox -ChildPath ('Moved-{0}' -f (Split-Path -Path $source -Leaf))
         Assert-TestSandboxPath -Sandbox $sandbox -Path $destination
 
-        Move-Item2 -Path $source -Destination (ConvertTo-AdminSharePath -Path $destination) -ErrorAction Stop
+        Move-Item2 -Path $source -Destination (ConvertTo-TestAdminSharePath -Sandbox $sandbox -Path $destination) -ErrorAction Stop
 
         $source | Should -Not -Exist
         Get-Content -LiteralPath $destination | Should -Be 'CrossVolumeFile'
@@ -412,7 +401,7 @@ Describe 'Move-Item2' {
         $destination = Join-Path -Path $sandbox -ChildPath ('Moved-{0}' -f (Split-Path -Path $source -Leaf))
         Assert-TestSandboxPath -Sandbox $sandbox -Path $destination
 
-        Move-Item2 -Path $source -Destination (ConvertTo-AdminSharePath -Path $destination) -Force -ErrorVariable moveErrors -ErrorAction SilentlyContinue
+        Move-Item2 -Path $source -Destination (ConvertTo-TestAdminSharePath -Sandbox $sandbox -Path $destination) -Force -ErrorVariable moveErrors -ErrorAction SilentlyContinue
 
         $moveErrors | Should -HaveCount 1
         $moveErrors[0].FullyQualifiedErrorId | Should -BeLike 'MoveError,*'

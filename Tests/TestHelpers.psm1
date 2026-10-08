@@ -381,6 +381,47 @@ function Test-PrivilegeHeld {
             Where-Object -Property Name -EQ -Value $Name)
 }
 
+function Test-AdminShareAvailable {
+    <#
+    .SYNOPSIS
+        Returns $true when the process can open the administrative share of the drive of the sandboxes, such as
+        \\localhost\C$, which Windows treats as a network path and as another volume. Only administrators can.
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param ()
+
+    $drive = [IO.Path]::GetTempPath().Substring(0, 1)
+    (Test-IsElevated) -and [bool] (Test-Path -LiteralPath ('\\localhost\{0}$\' -f $drive) -ErrorAction SilentlyContinue)
+}
+
+function ConvertTo-TestAdminSharePath {
+    <#
+    .SYNOPSIS
+        Returns the path of an item in a sandbox on the administrative share of its drive, such as
+        \\localhost\C$\Users\...\File.txt. It checks the local path with Assert-TestSandboxPath first, so that a test
+        reaches only items of its sandbox through the share.
+    .PARAMETER Sandbox
+        The sandbox folder that New-TestSandbox returned.
+    .PARAMETER Path
+        The full local path of the item.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param (
+        [Parameter(Mandatory)]
+        [string]
+        $Sandbox,
+
+        [Parameter(Mandatory)]
+        [string]
+        $Path
+    )
+
+    Assert-TestSandboxPath -Sandbox $Sandbox -Path $Path
+    '\\localhost\{0}${1}' -f $Path.Substring(0, 1), $Path.Substring(2)
+}
+
 Export-ModuleMember -Function New-TestSandbox, Assert-TestSandboxPath, Remove-TestSandbox, New-TestSandboxItem,
     Block-TestReadPermission, Block-TestWritePermission, Add-TestDenyRule, Set-TestOwner, Test-IsElevated,
-    Test-PrivilegeHeld
+    Test-PrivilegeHeld, Test-AdminShareAvailable, ConvertTo-TestAdminSharePath
