@@ -245,3 +245,130 @@ Describe 'Copy-Item2' {
         }
     }
 }
+
+Describe 'Test-Path2' {
+    BeforeAll {
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'TestPath' -Directory
+        $file = Join-Path -Path $folder -ChildPath 'File.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+        Set-Content -LiteralPath $file -Value 'File'
+        $missing = Join-Path -Path $folder -ChildPath 'Missing.txt'
+        $paths = @{ 'file' = $file; 'folder' = $folder; 'missing item' = $missing }
+    }
+
+    It 'Should return <Expected> for a <Kind> with -PathType <PathType>' -ForEach @(
+        @{ Kind = 'file'; PathType = 'Any'; Expected = $true }
+        @{ Kind = 'folder'; PathType = 'Any'; Expected = $true }
+        @{ Kind = 'missing item'; PathType = 'Any'; Expected = $false }
+        @{ Kind = 'file'; PathType = 'Leaf'; Expected = $true }
+        @{ Kind = 'folder'; PathType = 'Leaf'; Expected = $false }
+        @{ Kind = 'missing item'; PathType = 'Leaf'; Expected = $false }
+        @{ Kind = 'file'; PathType = 'Container'; Expected = $false }
+        @{ Kind = 'folder'; PathType = 'Container'; Expected = $true }
+        @{ Kind = 'missing item'; PathType = 'Container'; Expected = $false }
+    ) {
+        $result = @(Test-Path2 -Path $paths[$Kind] -PathType $PathType -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+        $result[0] | Should -BeOfType [bool]
+        $result[0] | Should -Be $Expected
+    }
+
+    It 'Should write one value per path in the order of the paths' {
+        $result = @(Test-Path2 -Path $file, $missing, $folder -ErrorAction Stop)
+
+        $result -join ',' | Should -Be 'True,False,True'
+    }
+
+    It 'Should take the items from the pipeline' {
+        $result = @(Get-ChildItem -LiteralPath $folder | Test-Path2 -PathType Leaf -ErrorAction Stop)
+
+        $result -join ',' | Should -Be 'True'
+    }
+
+    It 'Should resolve a relative path against the current location' {
+        $relative = Join-Path -Path (Split-Path -Path $folder -Leaf) -ChildPath 'File.txt'
+
+        Test-Path2 -Path $relative -ErrorAction Stop | Should -BeTrue
+    }
+
+    It 'Should find a folder whose path is longer than 260 characters' {
+        $longRoot = Join-Path -Path $folder -ChildPath 'Long'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $longRoot
+        $long = Join-Path -Path $longRoot -ChildPath (('A' * 100), ('B' * 100), ('C' * 100) -join '\')
+        Add-Type -Path (Join-Path -Path (Get-Module -Name NTFSSecurity).ModuleBase -ChildPath 'AlphaFS.dll')
+        [Alphaleonis.Win32.Filesystem.Directory]::CreateDirectory($long) | Out-Null
+        try {
+            $long.Length | Should -BeGreaterThan 260
+
+            Test-Path2 -Path $long -PathType Container -ErrorAction Stop | Should -BeTrue
+        } finally {
+            # Remove-TestSandbox can't delete paths longer than 260 characters (#110).
+            [Alphaleonis.Win32.Filesystem.Directory]::Delete($longRoot, $true)
+        }
+    }
+
+    # Before 5.0.0-rc6, a path with a character that Windows doesn't allow in file names stopped the cmdlet with a
+    # terminating "Illegal characters in path" error in Windows PowerShell. Such an item can't exist, so the cmdlet
+    # writes $false like for any other missing item, as in PowerShell 7 and like Test-Path.
+    It 'Should return $false for a path with the character <_> and continue with the next path' -ForEach @('|', '<', '>', '"', '*', '?') {
+        $invalid = Join-Path -Path $folder -ChildPath ('a{0}b' -f $_)
+
+        $result = @(Test-Path2 -Path $invalid, $file -ErrorVariable testErrors -ErrorAction SilentlyContinue)
+
+        $testErrors | Should -BeNullOrEmpty
+        $result -join ',' | Should -Be 'False,True'
+    }
+}
+
+Describe 'Get-DiskSpace' {
+    BeforeAll {
+        $systemDrive = New-Object -TypeName 'System.IO.DriveInfo' -ArgumentList $env:SystemDrive
+    }
+
+    It 'Should return the size of the system drive' {
+        $result = @(Get-DiskSpace -DriveLetter $env:SystemDrive -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+        $result[0] | Should -BeOfType [Alphaleonis.Win32.Filesystem.DiskSpaceInfo]
+        $result[0].DriveName | Should -Be ('{0}\' -f $env:SystemDrive)
+        $result[0].TotalNumberOfBytes | Should -Be $systemDrive.TotalSize
+    }
+
+    It 'Should report free space and clusters that fit the size' {
+        $result = Get-DiskSpace -DriveLetter $env:SystemDrive -ErrorAction Stop
+
+        $result.TotalNumberOfFreeBytes | Should -BeLessOrEqual $result.TotalNumberOfBytes
+        $result.FreeBytesAvailable | Should -BeLessOrEqual $result.TotalNumberOfFreeBytes
+        $result.ClusterSize | Should -Be ($result.BytesPerSector * $result.SectorsPerCluster)
+        $result.NumberOfFreeClusters | Should -BeLessOrEqual $result.TotalNumberOfClusters
+    }
+
+    It 'Should return the volumes with a size greater than zero without -DriveLetter' {
+        $result = @(Get-DiskSpace -WarningAction SilentlyContinue -ErrorAction Stop)
+
+        $result | Should -Not -BeNullOrEmpty
+        $result | ForEach-Object -Process { $_.TotalNumberOfBytes | Should -BeGreaterThan 0 }
+        $result.TotalNumberOfBytes | Should -Contain $systemDrive.TotalSize
+    }
+
+    It 'Should warn and return nothing for a drive letter without a volume' {
+        $used = @((Get-PSDrive -PSProvider FileSystem).Name) + @([System.IO.DriveInfo]::GetDrives() | ForEach-Object -Process { $_.Name.Substring(0, 1) })
+        $letter = [char[]](68..90) | Where-Object -FilterScript { [string] $_ -notin $used } | Select-Object -Last 1
+        if (-not $letter) {
+            Set-ItResult -Skipped -Because 'every drive letter is in use'
+            return
+        }
+
+        $result = @(Get-DiskSpace -DriveLetter "${letter}:" -WarningVariable spaceWarnings -WarningAction SilentlyContinue -ErrorVariable spaceErrors -ErrorAction SilentlyContinue)
+
+        $result | Should -BeNullOrEmpty
+        $spaceErrors | Should -BeNullOrEmpty
+        $spaceWarnings.Message | Should -Be "Could not get drive details for '${letter}:'"
+    }
+
+    It 'Should reject a drive letter without a colon' {
+        { Get-DiskSpace -DriveLetter 'C' -ErrorAction Stop } |
+            Should -Throw -ErrorId 'ParameterArgumentValidationError,NTFSSecurity.GetDiskSpace'
+    }
+}

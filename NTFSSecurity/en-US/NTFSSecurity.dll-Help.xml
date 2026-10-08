@@ -10136,7 +10136,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     <maml:alertSet>
       <maml:alert>
         <maml:para>The cmdlet resolves paths through the AlphaFS library, which is not bound by the 260-character `MAX_PATH` limit of the Windows PowerShell file system provider. Use `Test-Path2` instead of `Test-Path` when a path can be longer than that limit.</maml:para>
-        <maml:para>A path that does not exist is not an error condition. The cmdlet writes `$false` and continues with the next path.</maml:para>
+        <maml:para>A path that does not exist is not an error condition. The cmdlet writes `$false` and continues with the next path. This also applies to a path with a character that Windows doesn't allow in names, such as `|` or `&lt;`; before 5.0.0, such a path stopped the cmdlet with the terminating error "Illegal characters in path" in Windows PowerShell.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>

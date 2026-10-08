@@ -68,6 +68,16 @@ namespace NTFSSecurity
                 {
                     WriteError(new ErrorRecord(ex, "PathNotFound", ErrorCategory.ObjectNotFound, path));
                 }
+                // In Windows PowerShell, .NET rejects a path with a character that Windows doesn't allow in names.
+                // Such an item can't exist, so the cmdlet writes $false, as in PowerShell 7 and like Test-Path.
+                catch (System.ArgumentException)
+                {
+                    WriteObject(false);
+                }
+                catch (System.NotSupportedException)
+                {
+                    WriteObject(false);
+                }
             }
         }
 

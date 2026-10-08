@@ -269,6 +269,10 @@ The format is based on
 - Fix `Get-NTFSEffectiveAccess`, which returned no access when the computer
   of `-ServerName` couldn't be reached, although it warned that it had
   calculated the result on this computer; it now returns that result
+- Fix `Test-Path2`, which stopped with the terminating error "Illegal
+  characters in path" in Windows PowerShell for a path with a character
+  that Windows doesn't allow in names, such as `|`; it now returns `$false`
+  for such a path, as in PowerShell 7
 - Fix the cmdlets that enable the Backup, Restore, Take Ownership, and
   Security privileges, which left them enabled in the session when a later
   command, such as `Select-Object -First`, or a terminating error stopped
