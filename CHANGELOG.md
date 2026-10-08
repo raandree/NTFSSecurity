@@ -277,5 +277,10 @@ The format is based on
   Security privileges, which left them enabled in the session when a later
   command, such as `Select-Object -First`, or a terminating error stopped
   the pipeline early; they now disable them also then
+- Fix the cmdlets that enable the privileges, which stopped with the error
+  "Priviledge already disabled" and left the other privileges enabled when
+  another command in the pipeline, such as `Disable-Privileges`, had
+  disabled one of them; a privilege that they can't disable now gives a
+  warning, and they still disable the others
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

@@ -29,6 +29,13 @@ BeforeAll {
     function Get-BackupPrivilegeState {
         (Get-Privileges | Where-Object -Property Privilege -EQ -Value 'Backup').PrivilegeState
     }
+
+    function Get-EnabledFileSystemPrivilege {
+        # The names of the privileges that the cmdlets enable, as far as they are enabled now
+        @(Get-Privileges | Where-Object -FilterScript {
+                $_.Privilege -in 'TakeOwnership', 'Restore', 'Backup', 'Security' -and $_.PrivilegeState -eq 'Enabled'
+            } | ForEach-Object -Process { $_.Privilege.ToString() })
+    }
 }
 
 AfterAll {
@@ -122,8 +129,14 @@ Describe 'Inheritance cmdlets' {
 
 Describe 'Privileges when the pipeline stops early' {
     BeforeAll {
+        # The cmdlets enable the privileges only with this setting; without it, these tests would prove nothing.
+        $privateData['EnablePrivileges'] = $true
         $files = 1..3 | ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name "Stopped$_" }
         $missing = Join-Path -Path $sandbox -ChildPath 'StoppedMissing.txt'
+    }
+
+    AfterAll {
+        $privateData['EnablePrivileges'] = $enablePrivileges
     }
 
     BeforeEach {
@@ -141,16 +154,24 @@ Describe 'Privileges when the pipeline stops early' {
     It 'Should disable the privileges after Select-Object -First stops the pipeline' -Skip:(-not $holdsPrivileges) {
         Get-BackupPrivilegeState | Should -Be 'Disabled'
 
-        Get-NTFSOwner -Path $files | Select-Object -First 1 | Out-Null
+        $stateWhileRunning = Get-NTFSOwner -Path $files | ForEach-Object -Process { Get-BackupPrivilegeState } |
+            Select-Object -First 1
 
+        $stateWhileRunning | Should -Be 'Enabled'
         Get-BackupPrivilegeState | Should -Be 'Disabled'
     }
 
     It 'Should disable the privileges after a terminating error' -Skip:(-not $holdsPrivileges) {
         Get-BackupPrivilegeState | Should -Be 'Disabled'
+        $statesWhileRunning = New-Object -TypeName 'System.Collections.Generic.List[string]'
 
-        { Get-NTFSAccess -Path $missing, $files[0] -ErrorAction Stop } | Should -Throw
+        {
+            Get-NTFSAccess -Path $files[0], $missing -ErrorAction Stop |
+                ForEach-Object -Process { $statesWhileRunning.Add((Get-BackupPrivilegeState)) }
+        } | Should -Throw
 
+        $statesWhileRunning | Should -Not -BeNullOrEmpty
+        $statesWhileRunning | Should -Not -Contain 'Disabled'
         Get-BackupPrivilegeState | Should -Be 'Disabled'
     }
 
@@ -158,5 +179,86 @@ Describe 'Privileges when the pipeline stops early' {
         Enable-Privileges -PassThru | Select-Object -First 1 | Out-Null
 
         Get-BackupPrivilegeState | Should -Be 'Enabled'
+    }
+}
+
+Describe 'Privileges that another command in the pipeline changes' {
+    BeforeAll {
+        $privateData['EnablePrivileges'] = $true
+        $files = 1..3 | ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name "Changed$_" }
+
+        function Disable-TakeOwnershipOnce {
+            # Passes the objects on and disables the Take Ownership privilege when the first one passes, as another
+            # command in the pipeline can. Records the state of the Backup privilege at that moment.
+            param (
+                [Parameter(ValueFromPipeline)]
+                [object]
+                $InputObject,
+
+                [Parameter(Mandatory)]
+                [AllowEmptyCollection()]
+                [System.Collections.Generic.List[string]]
+                $BackupState
+            )
+
+            begin {
+                $first = $true
+            }
+
+            process {
+                if ($first) {
+                    $BackupState.Add((Get-BackupPrivilegeState))
+                    $null = [ProcessPrivileges.ProcessExtensions]::DisablePrivilege(
+                        [System.Diagnostics.Process]::GetCurrentProcess(), [ProcessPrivileges.Privilege]::TakeOwnership
+                    )
+                    $first = $false
+                }
+
+                $InputObject
+            }
+        }
+    }
+
+    AfterAll {
+        $privateData['EnablePrivileges'] = $enablePrivileges
+    }
+
+    BeforeEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    AfterEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    # Before 5.0.0-rc6, a cmdlet decided which privileges to disable on the states that it had read when it enabled
+    # them. A privilege that another command had disabled since then stopped it with "Priviledge already disabled",
+    # and the privileges after that one in its list stayed enabled.
+    It 'Should disable the other privileges when another command disabled one of them' -Skip:(-not $holdsPrivileges) {
+        $backupState = New-Object -TypeName 'System.Collections.Generic.List[string]'
+
+        { Get-NTFSOwner -Path $files | Disable-TakeOwnershipOnce -BackupState $backupState | Out-Null } | Should -Not -Throw
+
+        $backupState | Should -Be 'Enabled'
+        Get-EnabledFileSystemPrivilege | Should -BeNullOrEmpty
+    }
+
+    It 'Should disable the other privileges when another command disabled one of them and the pipeline stops early' -Skip:(-not $holdsPrivileges) {
+        $backupState = New-Object -TypeName 'System.Collections.Generic.List[string]'
+
+        Get-NTFSOwner -Path $files | Disable-TakeOwnershipOnce -BackupState $backupState | Select-Object -First 1 | Out-Null
+
+        $backupState | Should -Be 'Enabled'
+        Get-EnabledFileSystemPrivilege | Should -BeNullOrEmpty
+    }
+
+    It 'Should not fail when Disable-Privileges runs inside the pipeline' -Skip:(-not $holdsPrivileges) {
+        {
+            Get-NTFSOwner -Path $files |
+                ForEach-Object -Process { Disable-Privileges -WarningAction SilentlyContinue; $_ } |
+                Out-Null
+        } | Should -Not -Throw
+
+        Get-EnabledFileSystemPrivilege | Should -BeNullOrEmpty
     }
 }

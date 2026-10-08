@@ -189,13 +189,17 @@ session runs elevated (**Run as administrator**).
 The access, audit, inheritance, owner, and security descriptor cmdlets enable
 these privileges automatically while they run and disable the ones they
 enabled when they finish, also when a later command such as
-`Select-Object -First` or a terminating error stops the pipeline early. If a
+`Select-Object -First` or a terminating error stops the pipeline early. A
+privilege that another command in the pipeline, such as `Disable-Privileges`,
+has disabled in the meantime stays disabled, and a privilege that a cmdlet
+can't disable when it finishes gives a warning. If a
 privilege cannot be enabled, the cmdlet continues without it. You can turn
 this behavior off with the `EnablePrivileges` module setting. Before 5.0.0,
 the inheritance cmdlets were an exception: they always tried to enable the
 privileges, and when `EnablePrivileges` was `$false`, they left them enabled.
 And before 5.0.0, every cmdlet left the privileges enabled in the session when
-the pipeline stopped early.
+the pipeline stopped early, and stopped with the error "Priviledge already
+disabled" when another command in the pipeline had disabled one of them.
 
 `Enable-Privileges` enables the four privileges for the current PowerShell
 process until you run `Disable-Privileges` or close the session.
