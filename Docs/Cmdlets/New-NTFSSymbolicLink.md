@@ -25,7 +25,7 @@ The cmdlet inspects the target first and creates a file symbolic link when the t
 
 Relative paths are resolved against the current location before the link is created, which means that the link always stores an absolute target path.
 
-By default the cmdlet produces no output. With `-PassThru` it returns a file object for the new link, including for a link that points to a folder.
+By default the cmdlet produces no output. With `-PassThru` it returns an object for the new link: a file object for a link to a file, and a folder object for a link to a folder.
 
 ## EXAMPLES
 
@@ -65,7 +65,7 @@ This command tests a path that leads through the symbolic link. It returns `$tru
 
 ### -PassThru
 
-Indicates that the cmdlet returns an object for the new link. By default, this cmdlet produces no output. The returned object is a file object even when the link points to a folder.
+Indicates that the cmdlet returns an object for the new link. By default, this cmdlet produces no output. The returned object is a file object for a link to a file and a folder object for a link to a folder.
 
 ```yaml
 Type: SwitchParameter
@@ -132,7 +132,7 @@ With `-PassThru`, the cmdlet writes a folder object for a new link to a folder. 
 
 ## NOTES
 
-Creating a symbolic link on Windows requires the "Create symbolic links" user right, `SeCreateSymbolicLinkPrivilege`, which is granted to the Administrators group by default. Without that right, Windows rejects the operation with error 1314, "A required privilege is not held by the client", so run the cmdlet from an elevated session or grant the right to the account. On a computer that runs in Windows Developer Mode, Windows also allows accounts without that right to create symbolic links.
+Creating a symbolic link on Windows requires the "Create symbolic links" user right, `SeCreateSymbolicLinkPrivilege`, which is granted to the Administrators group by default. Without that right, Windows rejects the operation with error 1314, "A required privilege is not held by the client", so run the cmdlet from an elevated session or grant the right to the account. Windows Developer Mode doesn't change this: it lets accounts without that right create symbolic links only in programs that request it, such as `mklink`, and the cmdlet doesn't.
 
 Unlike a hard link, a symbolic link is a separate file system entry that stores a path, so it can point to an item on another volume and the link and its target can be managed independently. The cmdlet still requires the target to exist at the moment the link is created. If the target is removed later, the link remains and stops resolving.
 
