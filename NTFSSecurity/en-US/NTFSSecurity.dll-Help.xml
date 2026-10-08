@@ -4588,6 +4588,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
         <maml:para>If the ACL of an item cannot be read because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Reading the owner, which that fallback needs first, requires the same Read Permissions right as reading the ACL, so the cmdlet then writes a non-terminating `ReadSecurityError` and continues with the next item.</maml:para>
         <maml:para>Entries whose account cannot be translated into a name are returned with their SID. Use `Get-NTFSOrphanedAccess` to list only those entries.</maml:para>
         <maml:para>Before 5.0.0, after a path whose ACL could not be read, the cmdlet returned the entries of the previous item again.</maml:para>
+        <maml:para>Before 5.0.0-rc6, with `-ExcludeExplicit`, each inherited entry showed the `InheritedFrom` path of another entry, and for a security descriptor with audit entries, such as one that `Get-NTFSSecurityDescriptor` reads in an elevated session, the cmdlet stopped with an `ArgumentOutOfRangeException`.</maml:para>
         <maml:para>For the root of a drive, such as `C:`, or of a volume, such as `\?\Volume{GUID}`, the cmdlets that read and change security use the root folder of the volume, like Explorer, `icacls`, and `Get-Acl`. Before 5.0.0, they read and changed the security descriptor of the drive itself, a device object with other entries.</maml:para>
       </maml:alert>
     </maml:alertSet>
@@ -4871,6 +4872,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
         <maml:para>Reading the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it, the cmdlet writes the non-terminating error `ReadSecurityError` for each item, which reports "A required privilege is not held by the client". `Get-NTFSSecurityDescriptor` reads a security descriptor without its SACL when the privilege is missing; for such a descriptor, the cmdlet writes a `ReadSecurityError` as well.</maml:para>
         <maml:para>If reading the audit entries is denied, the cmdlet writes a `ReadSecurityError` with the category `PermissionDenied`. It doesn't take ownership of the item, because ownership grants no access to the SACL.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet returned no entries and no error without the Security privilege, and after a path whose security descriptor could not be read, it returned the entries of the previous item again. The `InheritanceEnabled` property of the entries also reported whether the access entries were inherited instead of the audit entries.</maml:para>
+        <maml:para>Before 5.0.0-rc6, with `-ExcludeExplicit`, each inherited entry showed the `InheritedFrom` path of another entry.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>

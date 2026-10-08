@@ -293,3 +293,22 @@ Describe 'FileSystemSecurity2.Write with another item' {
         (Get-Acl -LiteralPath $target).GetOwner($sidType).Value | Should -Be $targetOwner
     }
 }
+
+# Before 5.0.0-rc6, comparing a descriptor threw an InvalidCastException, and its hash code a NullReferenceException,
+# so -eq and a hashtable with the descriptor as key failed.
+Describe 'Comparing security descriptors' {
+    It 'Should find a descriptor equal to itself and not to another one, and use it as a key' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Compare'
+        $sd = Get-NTFSSecurityDescriptor -Path $file
+        $other = Get-NTFSSecurityDescriptor -Path $file
+
+        $sd -eq $sd | Should -BeTrue
+        $sd -eq $other | Should -BeFalse
+        $sd.Equals('x') | Should -BeFalse
+        $table = @{}
+        $table[$sd] = 'first'
+        $table[$other] = 'second'
+        $table[$sd] | Should -Be 'first'
+        $table.Count | Should -Be 2
+    }
+}

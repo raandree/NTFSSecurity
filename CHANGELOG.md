@@ -316,5 +316,16 @@ The format is based on
   `.\`, such as `.gitignore`: the cmdlets dropped its first two characters
   and read, changed, or removed the item with the shorter name, such as
   `itignore`, when one existed
+- Fix comparing the objects of the access, audit, and security descriptor
+  cmdlets: `-eq` and `-contains`, and in PowerShell 7 also
+  `Select-Object -Unique` and `Compare-Object`, stopped with an
+  `InvalidCastException`, and a security descriptor as the key of a
+  hashtable with a `NullReferenceException`. Two objects are now equal when
+  they hold the same entry or descriptor, as in .NET
+- Fix `InheritedFrom` of `Get-NTFSAccess` and `Get-NTFSAudit`: with
+  `-ExcludeExplicit`, each inherited entry showed the source of another
+  entry, and `Get-NTFSAccess -SecurityDescriptor` stopped with an
+  `ArgumentOutOfRangeException` for a descriptor with audit entries, such
+  as one that `Get-NTFSSecurityDescriptor` reads in an elevated session
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

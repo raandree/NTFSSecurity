@@ -784,3 +784,74 @@ Describe 'Clear-NTFSAccess' {
         }
     }
 }
+
+# Before 5.0.0-rc6, comparing an entry with anything threw an InvalidCastException, so -eq, -contains, and in PowerShell 7
+# also Select-Object -Unique and Compare-Object failed for the output of Get-NTFSAccess. Like the entries of .NET, two
+# objects are equal when they wrap the same entry.
+Describe 'Comparing access entries' {
+    BeforeAll {
+        $compareFile = New-TestSandboxItem -Sandbox $sandbox -Name 'Compare'
+        Add-NTFSAccess -Path $compareFile -Account 'S-1-1-0' -AccessRights ReadData
+        $entries = @(Get-NTFSAccess -Path $compareFile)
+    }
+
+    It 'Should find an entry equal to itself and not to another entry' {
+        $entries.Count | Should -BeGreaterThan 1
+
+        $entries[0] -eq $entries[0] | Should -BeTrue
+        $entries[0] -eq $entries[1] | Should -BeFalse
+        $entries -contains $entries[1] | Should -BeTrue
+        $entries[0].Equals('S-1-1-0') | Should -BeFalse
+        $entries[0].Equals($null) | Should -BeFalse
+    }
+
+    It 'Should work with Select-Object -Unique and Compare-Object' {
+        @(@($entries) + $entries[0] | Select-Object -Unique) | Should -HaveCount $entries.Count
+        Compare-Object -ReferenceObject $entries -DifferenceObject $entries | Should -BeNullOrEmpty
+    }
+}
+
+# Before 5.0.0-rc6, -ExcludeExplicit gave each inherited entry the source of another entry, and Get-NTFSAccess stopped
+# with an ArgumentOutOfRangeException for a security descriptor with audit entries, because it took the sources of the
+# audit entries for the access entries.
+Describe 'InheritedFrom of access entries' {
+    BeforeAll {
+        $inheritedFromFile = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritedFrom'
+        Add-NTFSAccess -Path $inheritedFromFile -Account 'S-1-1-0' -AccessRights ReadData
+        $expectedSource = @{}
+        foreach ($entry in Get-NTFSAccess -Path $inheritedFromFile) {
+            if ($entry.IsInherited) {
+                $expectedSource["$($entry.Account.Sid)"] = $entry.InheritedFrom
+            }
+        }
+    }
+
+    It 'Should name the folder that each inherited entry comes from' {
+        $expectedSource.Count | Should -BeGreaterThan 0
+        $expectedSource.Values | ForEach-Object -Process { $_ | Should -Not -BeNullOrEmpty }
+    }
+
+    It 'Should name the same folders with -ExcludeExplicit' {
+        $result = @(Get-NTFSAccess -Path $inheritedFromFile -ExcludeExplicit)
+
+        $result | Should -HaveCount $expectedSource.Count
+        foreach ($entry in $result) {
+            $entry.InheritedFrom | Should -Be $expectedSource["$($entry.Account.Sid)"]
+        }
+    }
+
+    It 'Should read a security descriptor with audit entries and name the same folders' -Skip:(-not $holdsSecurityPrivilege) {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritedFromAudit'
+        Add-NTFSAccess -Path $file -Account 'S-1-1-0' -AccessRights ReadData
+        Add-NTFSAudit -Path $file -Account 'S-1-1-0' -AccessRights ReadData -InheritanceFlags None -PropagationFlags None
+        $sd = Get-NTFSSecurityDescriptor -Path $file
+        @($sd.SecurityDescriptor.GetAuditRules($true, $true, $sidType)) | Should -Not -BeNullOrEmpty
+
+        $result = @(Get-NTFSAccess -SecurityDescriptor $sd -ErrorAction Stop)
+
+        $result | Should -HaveCount @(Get-NTFSAccess -Path $file).Count
+        foreach ($entry in @($result | Where-Object -FilterScript { $_.IsInherited })) {
+            $entry.InheritedFrom | Should -Be $expectedSource["$($entry.Account.Sid)"]
+        }
+    }
+}

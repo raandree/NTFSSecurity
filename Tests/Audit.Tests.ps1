@@ -462,3 +462,37 @@ Describe 'Clear-NTFSAudit' {
         }
     }
 }
+
+# Before 5.0.0-rc6, comparing an audit entry with anything threw an InvalidCastException.
+Describe 'Comparing audit entries' {
+    It 'Should find an entry equal to itself and not to a string' -Skip:(-not $canReadAudit) {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Compare'
+        Add-NTFSAudit -Path $file -Account 'S-1-1-0' -AccessRights ReadData -InheritanceFlags None -PropagationFlags None
+        $entries = @(Get-NTFSAudit -Path $file -ExcludeInherited)
+        $entries | Should -HaveCount 1
+
+        $entries[0] -eq $entries[0] | Should -BeTrue
+        $entries -contains $entries[0] | Should -BeTrue
+        $entries[0].Equals('S-1-1-0') | Should -BeFalse
+    }
+}
+
+# Before 5.0.0-rc6, -ExcludeExplicit gave each inherited audit entry the source of another entry.
+Describe 'InheritedFrom of audit entries' {
+    It 'Should name the folder that an inherited entry comes from, also with -ExcludeExplicit' -Skip:(-not $canReadAudit) {
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritedFrom' -Directory
+        Add-NTFSAudit -Path $folder -Account 'S-1-1-0' -AccessRights ReadData -InheritanceFlags 'ContainerInherit, ObjectInherit' -PropagationFlags None
+        $file = Join-Path -Path $folder -ChildPath 'File.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+        Set-Content -LiteralPath $file -Value 'File'
+        Add-NTFSAudit -Path $file -Account 'S-1-5-32-546' -AccessRights Delete -InheritanceFlags None -PropagationFlags None
+
+        $all = @(Get-NTFSAudit -Path $file)
+        $inherited = @(Get-NTFSAudit -Path $file -ExcludeExplicit)
+
+        @($all | Where-Object -FilterScript { $_.IsInherited }) | Should -HaveCount 1
+        @($all | Where-Object -FilterScript { $_.IsInherited })[0].InheritedFrom | Should -Be $folder
+        $inherited | Should -HaveCount 1
+        $inherited[0].InheritedFrom | Should -Be $folder
+    }
+}

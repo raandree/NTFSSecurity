@@ -185,6 +185,8 @@ If reading the audit entries is denied, the cmdlet writes a `ReadSecurityError` 
 
 Before 5.0.0, the cmdlet returned no entries and no error without the Security privilege, and after a path whose security descriptor could not be read, it returned the entries of the previous item again. The `InheritanceEnabled` property of the entries also reported whether the access entries were inherited instead of the audit entries.
 
+Before 5.0.0-rc6, with `-ExcludeExplicit`, each inherited entry showed the `InheritedFrom` path of another entry.
+
 ## RELATED LINKS
 
 [Add-NTFSAudit](Add-NTFSAudit.md)

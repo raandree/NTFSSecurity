@@ -254,14 +254,18 @@ namespace Security2
             return new FileSystemSecurity2(new DirectoryInfo(""));
         }
 
-        //REQUIRED BECAUSE OF CONVERSION OPERATORS
+        // Like the descriptors of .NET, two objects are equal when they wrap the same descriptor. The descriptor is in
+        // sd; fileSecurityDescriptor is never set, so its hash code threw a NullReferenceException, and the cast an
+        // InvalidCastException for any other type.
         public override bool Equals(object obj)
         {
-            return this.fileSecurityDescriptor == (FileSecurity)obj;
+            var other = obj as FileSystemSecurity2;
+            var descriptor = other != null ? other.sd : obj as FileSystemSecurity;
+            return descriptor != null && ReferenceEquals(sd, descriptor);
         }
         public override int GetHashCode()
         {
-            return fileSecurityDescriptor.GetHashCode();
+            return sd != null ? sd.GetHashCode() : 0;
         }
         #endregion
 
