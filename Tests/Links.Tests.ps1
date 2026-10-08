@@ -9,6 +9,10 @@ param ()
 BeforeDiscovery {
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
     $canCreateSymbolicLinks = Test-PrivilegeHeld -Name 'SeCreateSymbolicLinkPrivilege'
+    # The administrative share of the drive of the sandboxes reaches them over SMB, like a share of a file server.
+    $tempPath = [IO.Path]::GetTempPath()
+    $canUseAdminShare = (Test-IsElevated) -and
+        (Test-Path -LiteralPath ('\\localhost\{0}$\' -f $tempPath.Substring(0, 1)) -ErrorAction SilentlyContinue)
 }
 
 BeforeAll {
@@ -17,6 +21,13 @@ BeforeAll {
     Import-Module -Name $modulePath -Force -ErrorAction Stop
     $sandbox = New-TestSandbox -Name 'Links'
     Push-Location -LiteralPath $sandbox
+
+    function ConvertTo-AdminSharePath {
+        # The path of a sandbox item on the administrative share of its drive, such as \\localhost\C$\...
+        param ([string] $Path)
+
+        '\\localhost\{0}${1}' -f $Path.Substring(0, 1), $Path.Substring(2)
+    }
 }
 
 AfterAll {
@@ -110,6 +121,21 @@ Describe 'New-NTFSHardLink' {
 
         $link | Should -Not -Exist
     }
+
+    # Windows can't list the names of a file on a network share. Before 5.0.0-rc6, the cmdlet stopped with a
+    # terminating error after it had created the link.
+    It 'Should create the link on a network share and write an error for -PassThru, which cannot list the names there' -Skip:(-not $canUseAdminShare) {
+        $target = New-TestSandboxItem -Sandbox $sandbox -Name 'ShareTarget'
+        $link = Join-Path -Path $sandbox -ChildPath 'ShareLink.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $link
+
+        $result = @(New-NTFSHardLink -Path (ConvertTo-AdminSharePath -Path $link) -Target (ConvertTo-AdminSharePath -Path $target) -PassThru -ErrorVariable linkErrors -ErrorAction SilentlyContinue)
+
+        $link | Should -Exist
+        $linkErrors | Should -HaveCount 1
+        $linkErrors[0].FullyQualifiedErrorId | Should -BeLike 'GetHardLinkError,*'
+        $result | Should -BeNullOrEmpty
+    }
 }
 
 Describe 'Get-NTFSHardLink' {
@@ -158,6 +184,35 @@ Describe 'Get-NTFSHardLink' {
         $linkErrors | Should -HaveCount 1
         $linkErrors[0].FullyQualifiedErrorId | Should -BeLike 'FileNotFound,*'
         $result.FullName | Should -Be $file
+    }
+
+    # Before 5.0.0-rc6, a folder stopped the cmdlet with a terminating error, so that it skipped the remaining paths.
+    It 'Should write an error for a folder and continue with the next path' {
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'HardLinkFolder' -Directory
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'AfterFolder'
+
+        $result = @(Get-NTFSHardLink -Path $folder, $file -ErrorVariable linkErrors -ErrorAction SilentlyContinue)
+
+        $linkErrors | Should -HaveCount 1
+        $linkErrors[0].FullyQualifiedErrorId | Should -BeLike 'GetHardLinkError,*'
+        $linkErrors[0].TargetObject | Should -Be $folder
+        $linkErrors[0].Exception.Message | Should -Be 'The item must be a file'
+        $result.FullName | Should -Be $file
+    }
+
+    # Windows can't list the names of a file on a network share. Before 5.0.0-rc6, the cmdlet stopped with a
+    # terminating error, so that it skipped the remaining paths.
+    It 'Should write an error for a file on a network share and continue with the next path' -Skip:(-not $canUseAdminShare) {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'ShareFile'
+        $other = New-TestSandboxItem -Sandbox $sandbox -Name 'AfterShare'
+        $sharePath = ConvertTo-AdminSharePath -Path $file
+
+        $result = @(Get-NTFSHardLink -Path $sharePath, $other -ErrorVariable linkErrors -ErrorAction SilentlyContinue)
+
+        $linkErrors | Should -HaveCount 1
+        $linkErrors[0].FullyQualifiedErrorId | Should -BeLike 'GetHardLinkError,*'
+        $linkErrors[0].TargetObject | Should -Be $sharePath
+        $result.FullName | Should -Be $other
     }
 }
 
