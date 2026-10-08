@@ -13,6 +13,11 @@ BeforeDiscovery {
     # Assigning an owner other than the user or one of its groups needs the Restore privilege.
     $canAssignAnyOwner = Test-PrivilegeHeld -Name 'SeRestorePrivilege'
     $holdsSecurityPrivilege = Test-PrivilegeHeld -Name 'SeSecurityPrivilege'
+    # Names of this computer for -ServerName of Get-NTFSEffectiveAccess: its NetBIOS name, its DNS host name, and, in a
+    # domain, its fully qualified name
+    $ipProperties = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties()
+    $localComputerNames = @(@('LOCALHOST', '.', $env:COMPUTERNAME, $ipProperties.HostName) +
+        @(if ($ipProperties.DomainName) { '{0}.{1}' -f $ipProperties.HostName, $ipProperties.DomainName }) | Sort-Object -Unique)
 }
 
 BeforeAll {
@@ -149,6 +154,23 @@ Describe 'Get-NTFSEffectiveAccess' {
             $accessWarnings.Message | Should -Contain ("The effective rights can only be computed based on group membership on this computer, " +
                 "because the computer 'ntfssecurity-test.invalid' can't be reached for a remote access check. " +
                 'For more accurate results, calculate effective access rights on that computer.')
+        }
+    }
+
+    # Not every computer offers the remote interface of the authorization manager; the cmdlet then calculates the result
+    # with the local one, which for a name of this computer is the result of that computer. Before 5.0.0-rc7, the cmdlet
+    # warned that the computer couldn't be reached for every name of this computer but localhost in lowercase.
+    Context 'When -ServerName names this computer' {
+        It 'Should return the result of localhost for <_> and warn no more than for localhost' -ForEach $localComputerNames {
+            $expected = Get-NTFSEffectiveAccess -Path $effectiveFile -WarningVariable expectedWarnings -WarningAction SilentlyContinue -ErrorAction Stop
+
+            $result = @(Get-NTFSEffectiveAccess -Path $effectiveFile -ServerName $_ -WarningVariable accessWarnings -WarningAction SilentlyContinue -ErrorVariable accessErrors -ErrorAction SilentlyContinue)
+
+            $accessErrors | Should -BeNullOrEmpty
+            $result | Should -HaveCount 1
+            $result[0].AccessRights | Should -Be $expected.AccessRights
+            # Without the Security privilege, the cmdlet warns about it for every name.
+            @($accessWarnings.Message) -join '|' | Should -Be (@($expectedWarnings.Message) -join '|')
         }
     }
 }

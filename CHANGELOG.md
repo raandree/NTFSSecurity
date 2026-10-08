@@ -363,5 +363,9 @@ The format is based on
   missing `-Target`, and of `New-NTFSHardLink` for a folder as `-Target`,
   which named no path. `New-NTFSSymbolicLink` now checks `-Path` first,
   like `New-NTFSHardLink`
+- Fix `Get-NTFSEffectiveAccess`, which warned that the result might be
+  inaccurate for every name of this computer in `-ServerName` except
+  `localhost` in lowercase, such as `.`, `LOCALHOST`, or the computer name,
+  where the computer doesn't offer the remote access check
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD
