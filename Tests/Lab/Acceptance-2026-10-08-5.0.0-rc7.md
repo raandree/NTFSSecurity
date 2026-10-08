@@ -106,15 +106,20 @@ a checkpoint, from 16:04 to 16:20 UTC.
 
 ## Baseline
 
-None. 5.0.0-rc6 isn't published yet, and the live tests changed only in
-the text that they expect from the warning of `Get-NTFSEffectiveAccess`
-for a computer that can't be reached, which names the computer now. The
+The published 5.0.0-rc6 from the PowerShell Gallery, whose hash the script
+checks against the one the Gallery publishes, in both editions, 20:43 to
+21:00 UTC, with the same live tests. It failed one test in each edition,
+the warning of `Get-NTFSEffectiveAccess` for a computer that can't be
+reached, which names the computer since 5.0.0-rc7: Admin 39 passed and 1
+failed; Delegate 38, ServerAdmin 13, and Server 72 with 1 skipped passed.
+The live tests find no other difference between the two versions; the
 local tests cover the other changes of 5.0.0-rc7.
 
 ## Cleanup
 
 `Invoke-NTFSSecurityLabTest.ps1 -RemoveFixture` at 16:21 UTC, after the
-first two runs, and at 16:44 UTC, after the acceptance. Each check
+first two runs, at 16:44 UTC, after the acceptance, and at 21:03 UTC,
+after the baseline. Each check
 compared the lab with the 10 SIDs of the fixture's accounts and groups,
 read before the removal, which found the fixture. After each removal:
 
