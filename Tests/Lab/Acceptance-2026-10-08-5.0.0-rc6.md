@@ -4,10 +4,17 @@ Acceptance of the release candidate 5.0.0-rc6 in the lab, on 2026-10-08,
 before the pull request. It follows the procedure in the
 [README](README.md#acceptance-of-a-release-candidate).
 
+The candidate changed twice during the acceptance. The run of `acfe3af`
+passed; the coverage report of the candidate then found three defects,
+which `0df2482` and `1b9edbb` fix, and the run of `1b9edbb` passed as
+well; a second review led to `7b0781f`. This record describes the run of
+`7b0781f`, the last commit of the pull request that changes the module,
+and names the results of the earlier runs.
+
 ## Candidate
 
 - Branch `ai/release-5.0.0-rc6`, commit
-  `acfe3af4cf184e6b12b0bf9b20a8a4d65149b01c`, 26 commits on `fcb370e`
+  `7b0781ff8bb2c1ee4087a16411acd4c7070ba1fa`, 31 commits on `fcb370e`
   (5.0.0-rc5).
 - Release build of that commit, packaged with
   `.github\scripts\New-ModulePackage.ps1`. The live tests imported the
@@ -17,10 +24,10 @@ before the pull request. It follows the procedure in the
 
 | SHA-256 | File |
 | --- | --- |
-| `30F9694556CB3ADB57D0455AC8E917FA7DC405770DAD3F8C37F42337AECE6374` | `NTFSSecurity.5.0.0-rc6.nupkg` |
-| `2A1E5482A67167658A33C7977D7251681F25D4EA437C06B441B5EAAC1016EF55` | `NTFSSecurity.zip` |
-| `D308BD24061DEBB633F7A11C924D6347457C530924ACDD4893BEA48BEC58B63E` | `NTFSSecurity\NTFSSecurity.dll` |
-| `32C8EA2A55F8721F7953A4E1DE382E1DA6D1CD4BBA844347DD1CA4DA38661D04` | `NTFSSecurity\Security2.dll` |
+| `E99B5123F45E4F56AC005C629C2241DC616B2AAC152C17EA57A67C0823FFCA10` | `NTFSSecurity.5.0.0-rc6.nupkg` |
+| `53C020EAD59467A407ED755F3D9296E9C70AFFAB184CF9CDF27AF92117FBBEE0` | `NTFSSecurity.zip` |
+| `F438D7FDB3F5A1D75F5CA48D7B610EED31215FF1BF9C185C6856AA365D195C8D` | `NTFSSecurity\NTFSSecurity.dll` |
+| `EE1B0DF9619C998A4482F3F79DCB2191BBEAD859660D6D924D1F333DBE7CBBCE` | `NTFSSecurity\Security2.dll` |
 | `902157ABBD2E0B76DA744A918BDD174D5226C3494908ABA75F9E5DE28AE6A008` | `NTFSSecurity\ProcessPrivileges.dll` |
 | `E2077AFEB38703345AE7857C1266F8B26E167ED887BFFAC8C8169A8F267BE6E9` | `NTFSSecurity\PrivilegeControl.dll` |
 | `A8DA47194AB0F71232C69D01955AD93BA73C7ECEB58D0DE800CA085D4A2E18D8` | `NTFSSecurity\AlphaFS.dll` |
@@ -29,19 +36,22 @@ before the pull request. It follows the procedure in the
 | `59583423241951EBE0FC2D8237D0C28C3ECC8C7CD2C115D2660F8579888632FC` | `NTFSSecurity\NTFSSecurity.Init.ps1` |
 | `FB0920CC37ED858F55AFD54998DC854E27FBBE6A0177CB059CB03CFE91361197` | `NTFSSecurity\NTFSSecurity.format.ps1xml` |
 | `CB6882FF91E6716605D5599E7B464C3346E461216ACED07E847621738F04FB9B` | `NTFSSecurity\NTFSSecurity.types.ps1xml` |
-| `DF9657E224E1DDA6D933099A3A09F7E794391B307FD4DDD1C8358049961BF146` | `NTFSSecurity\en-US\NTFSSecurity.dll-Help.xml` |
+| `5115D0D76CA2A06795CD754539AC7EC19A70591E8C5616E7BEB5AE66E6971E6D` | `NTFSSecurity\en-US\NTFSSecurity.dll-Help.xml` |
 
 ## Tests without a lab
 
-The Pester suite of the commit, 657 tests, against the same build. No test
+The Pester suite of the commit, 684 tests, against the same build. No test
 failed, and every test ran in at least one configuration.
 
 | Configuration | Passed | Failed | Skipped |
 | --- | ---: | ---: | ---: |
-| Windows PowerShell 5.1, elevated | 635 | 0 | 22 |
-| PowerShell 7, elevated | 605 | 0 | 52 |
-| Windows PowerShell 5.1, basic user | 566 | 0 | 91 |
-| PowerShell 7, basic user | 536 | 0 | 121 |
+| Windows PowerShell 5.1, elevated | 662 | 0 | 22 |
+| PowerShell 7, elevated | 632 | 0 | 52 |
+| Windows PowerShell 5.1, basic user | 590 | 0 | 94 |
+| PowerShell 7, basic user | 560 | 0 | 124 |
+
+The C# coverage of the four configurations, measured with AltCover on
+`1b9edbb`: 68.1% of the lines and 44.3% of the branches.
 
 ## Lab
 
@@ -57,19 +67,22 @@ Windows Server 2025 Datacenter (10.0.26100).
 | `F2DC1` | `forest2.net` | Account of another forest |
 | `F3DC1` | `forest3.net` | Account of another forest |
 
-Readiness, 11:06 to 11:07 UTC: WinRM answered on all six machines. The
-four domain controllers answered LDAP (RootDSE, synchronized) and issued a
-Kerberos ticket for `krbtgt`. The client and the file server found a
-domain controller, had a working secure channel, and got a service ticket
-for each other. The clocks were 4.3 to 5.0 seconds ahead of the host.
+Readiness, checked before each run: WinRM answered on all six machines.
+The four domain controllers answered LDAP (RootDSE, synchronized) and
+issued a Kerberos ticket for `krbtgt`. The client and the file server
+found a domain controller, had a working secure channel, and got a service
+ticket for each other. The clocks were 4.3 to 5.0 seconds ahead of the
+host.
 
-Checkpoint `ntfs-rc6-acfe3af-before-acceptance` (Production) of the six
-machines, taken 11:07 to 11:08 UTC before the run.
+Checkpoints (Production) of the six machines, taken before each run:
+`ntfs-rc6-acfe3af-before-acceptance` (11:07 UTC),
+`ntfs-rc6-1b9edbb-before-acceptance` (12:21 UTC), and
+`ntfs-rc6-7b0781f-before-acceptance` (12:50 UTC).
 
 ## Results
 
 `Invoke-NTFSSecurityLabTest.ps1 -ModulePath <extracted package>` in both
-editions, 11:08 to 11:25 UTC. The module reported version 5.0.0-rc6 in
+editions, 12:51 to 13:07 UTC. The module reported version 5.0.0-rc6 in
 every role that loads it.
 
 | Edition | Role | Passed | Failed | Skipped |
@@ -88,6 +101,9 @@ load the module. The accounts of the other domain and forests were
 `B\NtfsLiveForeign`, `forest2\NtfsLiveForeign`, and
 `forest3\NtfsLiveForeign`; their 13 tests passed in both editions.
 
+The earlier runs had the same counts and no failure: `acfe3af` from 11:08
+to 11:25 UTC, and `1b9edbb` from 12:23 to 12:39 UTC.
+
 ## Baseline
 
 The published 5.0.0-rc5 from the PowerShell Gallery, whose hash the script
@@ -102,10 +118,12 @@ cover the other fixes of 5.0.0-rc6.
 
 ## Cleanup
 
-`Invoke-NTFSSecurityLabTest.ps1 -RemoveFixture`, 11:38 UTC, after the
-baseline. The check compared the lab with the 10 SIDs of the fixture's
-accounts and groups, read before the removal; the same check had found the
-fixture before the removal:
+`Invoke-NTFSSecurityLabTest.ps1 -RemoveFixture` after each run: at 11:38
+UTC after the first run and the baseline, at 12:48 UTC after the second,
+and at 13:09 UTC after the third. Each check compared the lab with the 10
+SIDs of the fixture's accounts and groups, read before the removal; the
+same check had found the fixture before the first removal. After each
+removal:
 
 - No domain has the organizational unit `NTFSSecurityLive` or an account
   whose name starts with `NtfsLive`.
@@ -117,8 +135,8 @@ fixture before the removal:
   and Remote Management Users have no member of the fixture, and no
   profile of the fixture's accounts is left.
 
-The checkpoint `ntfs-rc6-acfe3af-before-acceptance` stays on the six
-machines until the maintainer deletes it.
+The three checkpoints stay on the six machines until the maintainer
+deletes them.
 
 ## Not covered
 
