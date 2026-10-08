@@ -77,6 +77,11 @@ Gallery compares labels as text, so `rc10` sorts before `rc2`.
 
 ## Publish a release
 
+Before you publish a release, run the live tests in a lab against the last
+prerelease from the PowerShell Gallery, as the
+[acceptance of a release candidate](../../Tests/Lab/README.md#acceptance-of-a-release-candidate)
+describes, with `-Version` instead of `-ModulePath`.
+
 1. Remove the `Prerelease` value from the module manifest.
 2. In `CHANGELOG.md`, rename `## [Unreleased]` to the version with the
    release date, such as `## [5.0.0] - 2026-10-31`, add an empty

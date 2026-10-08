@@ -188,11 +188,18 @@ session runs elevated (**Run as administrator**).
 
 The access, audit, inheritance, owner, and security descriptor cmdlets enable
 these privileges automatically while they run and disable the ones they
-enabled when they finish. If a privilege cannot be enabled, the cmdlet
-continues without it. You can turn this behavior off with the
-`EnablePrivileges` module setting. Before 5.0.0, the inheritance cmdlets were
-an exception: they always tried to enable the privileges, and when
-`EnablePrivileges` was `$false`, they left them enabled.
+enabled when they finish, also when a later command such as
+`Select-Object -First` or a terminating error stops the pipeline early. A
+privilege that another command in the pipeline, such as `Disable-Privileges`,
+has disabled in the meantime stays disabled, and a privilege that a cmdlet
+can't disable when it finishes gives a warning. If a
+privilege cannot be enabled, the cmdlet continues without it. You can turn
+this behavior off with the `EnablePrivileges` module setting. Before 5.0.0,
+the inheritance cmdlets were an exception: they always tried to enable the
+privileges, and when `EnablePrivileges` was `$false`, they left them enabled.
+And before 5.0.0, every cmdlet left the privileges enabled in the session when
+the pipeline stopped early, and stopped with the error "Priviledge already
+disabled" when another command in the pipeline had disabled one of them.
 
 `Enable-Privileges` enables the four privileges for the current PowerShell
 process until you run `Disable-Privileges` or close the session.
@@ -202,7 +209,13 @@ state.
 When reading or changing an item fails with an access-denied error, most of
 these cmdlets make the current user the owner of the item, retry, and then
 restore the previous owner, also when the retry fails. Before 5.0.0, a failed
-retry left the current user as the owner. This requires the privileges above.
+retry left the current user as the owner. Taking ownership needs the Take
+Ownership right on the item or the Take Ownership privilege, and setting the
+previous owner back needs the Restore privilege unless that owner is the user
+or one of its groups. When the owner of an item changes, Windows removes its
+entries for OWNER RIGHTS, so the retry removes such entries as well. For
+reading, the retry doesn't help: the cmdlet must read the owner first, which
+needs the same right as reading the permissions.
 
 Reading or changing audit entries always requires the Security privilege.
 Without it, the audit cmdlets fail, and `Get-NTFSEffectiveAccess` warns that

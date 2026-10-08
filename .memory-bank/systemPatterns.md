@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-07
+last-verified: 2026-10-08
 owner: active-agent
 source: repository evidence
 ---
@@ -35,7 +35,15 @@ NTFSSecurity.dll ── cmdlets ──> Security2.dll (FileSystemAccessRule2,
   ownership and restores the previous owner on every exit path.
 - `BaseCmdletWithPrivControl` enables Backup, Restore, TakeOwnership, and
   Security in `BeginProcessing` when `PrivateData.EnablePrivileges` is
-  `$true`, and disables the ones it enabled in `EndProcessing`.
+  `$true`, and disables the ones it enabled in `EndProcessing` and, since
+  5.0.0-rc6, in `Dispose`: PowerShell skips `EndProcessing` when a later
+  command, such as `Select-Object -First`, or a terminating error stops the
+  pipeline, but calls `Dispose`. `Enable-Privileges` keeps them
+  (`KeepEnabledPrivileges`). The cleanup reads the current state of each
+  privilege, because another command in the pipeline can have changed it,
+  and tries every privilege even when one fails: `EndProcessing` warns,
+  `Dispose` stays silent, because PowerShell ignores exceptions thrown
+  there and no stream is open anymore.
 - `PrivateData` switches: `EnablePrivileges`, `GetInheritedFrom`,
   `GetFileSystemModeProperty`, `IdentifyHardLinks`, `ShowAccountSid`.
 - Cmdlets accept `-Path` (alias `FullName`) or `-SecurityDescriptor`; the
@@ -67,6 +75,7 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 | 18 | [NTFSSecurity will be archived](decisions/0018-archive-for-windowsaccesscontrol.md) |
 | 19 | [Cmdlets write only the sections that they change](decisions/0019-write-only-changed-sections.md) |
 | 20 | [Live tests in a lab live in Tests\Lab](decisions/0020-live-tests-in-tests-lab.md) |
+| 21 | [A quality gate before 5.0.0](decisions/0021-quality-gate-before-5.0.0.md) |
 
 ## Patterns
 
@@ -90,9 +99,20 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 - A test that changes files, links, or security descriptors uses
   `Tests\TestHelpers.psm1`: its own sandbox, `Assert-TestSandboxPath`
   before each change, `Remove-TestSandbox`. Cases that need a privilege
-  skip with `Test-PrivilegeHeld` and run in CI (elevated). `Block-Test*`
-  make a read or a write fail without elevation; `Set-TestOwner` with
+  skip with `Test-PrivilegeHeld`, cases that need its absence skip when
+  elevated; CI runs the suite elevated and as a basic user in both
+  editions, so each case runs somewhere. `Block-Test*` make a read or a
+  write fail without elevation; `Set-TestOwner` with
   `EnablePrivileges = $false` reproduces an owner the user can't assign.
+- Fixtures write a DACL with `SetAccessControl`, never with `Set-Acl`:
+  `Set-Acl` compares `AreAuditRulesProtected` of the new descriptor with
+  `AreAccessRulesProtected` of the item (`FileSystemSecurity.cs` of
+  PowerShell), so for an item with a protected DACL it writes the audit
+  section too. Without the Security privilege that fails with
+  `PrivilegeNotHeldException`; with it, `Set-Acl` writes every section and
+  drops the audit entries. Windows PowerShell has
+  `FileInfo`/`DirectoryInfo.SetAccessControl`; PowerShell 7 has
+  `[System.IO.FileSystemAclExtensions]::SetAccessControl`.
 - `Get-Help -Online` tests run only in Windows PowerShell, which honors the
   hook `BypassOnlineHelpRetrieval`. `Manifest.Tests.ps1` and
   `Release.Tests.ps1` check the manifest, the version (Decision 10), the

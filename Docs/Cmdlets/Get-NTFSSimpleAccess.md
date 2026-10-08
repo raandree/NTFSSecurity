@@ -27,7 +27,7 @@ Get-NTFSSimpleAccess [-IncludeRootFolder] [-SecurityDescriptor] <FileSystemSecur
 
 ## DESCRIPTION
 
-Reads the access control entries of folders and writes them as `Security2.SimpleFileSystemAccessRule` objects whose rights are reduced to the three values `Read`, `Write`, and `Delete`. Reading rights such as `ReadAttributes` or `Traverse` become `Read`, changing rights such as `CreateFiles`, `WriteAttributes`, `ChangePermissions`, or `TakeOwnership` become `Write`, and `Delete` and `DeleteSubdirectoriesAndFiles` become `Delete`; `FullControl` becomes all three. The result answers who may read, change, or delete in a folder without the detail of the full ACL.
+Reads the access control entries of folders and writes them as `Security2.SimpleFileSystemAccessRule` objects whose rights are reduced to the three values `Read`, `Write`, and `Delete`. Reading rights such as `ReadData`, which on a folder is the right to list it (`ListDirectory`), `ReadAttributes`, or `Traverse` become `Read`, changing rights such as `CreateFiles`, `WriteAttributes`, `ChangePermissions`, or `TakeOwnership` become `Write`, and `Delete` and `DeleteSubdirectoriesAndFiles` become `Delete`; `FullControl` becomes all three. The result answers who may read, change, or delete in a folder without the detail of the full ACL.
 
 The second simplification is that repetitions are left out. The first folder the cmdlet processes is reported with all of its entries, and for every folder that follows only the entries are reported that its parent folder does not already cover. An entry is covered when the parent has an entry for the same account and access type that includes at least the same simple rights. This makes a recursive listing show where permissions actually change instead of repeating the inherited ones on every level, and it requires the parent folder to be processed before its children, which `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` do by default.
 
@@ -190,7 +190,7 @@ When the module setting `EnablePrivileges` is `$true` (the default in the `Priva
 
 The simplified rights hide which exact rights an account holds. Use `Get-NTFSAccess` when you need the full access control entry, and `Get-NTFSEffectiveAccess` when you need the rights that result from all entries together.
 
-Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor`, and its output had no table view.
+Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor`, and its output had no table view. It also showed no rights for an entry that grants only `ReadData`, which other tools than .NET create, and it left out the parent folder of a relative path with a single folder name, such as `Data`.
 
 ## RELATED LINKS
 

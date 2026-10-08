@@ -208,6 +208,65 @@ Describe 'Set-NTFSSecurityDescriptor' {
             $setErrors | Should -BeNullOrEmpty
             (Get-Acl -LiteralPath $file).GetOwner($sidType).Value | Should -Be 'S-1-5-32-544'
         }
+
+        # Before 5.0.0-rc6, the cmdlet wrote no object with -PassThru when it had to take ownership for the write.
+        It 'Should return the written descriptor with -PassThru also when it took ownership for the write' -Skip:(-not $canAssignAnyOwner) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'RetryPassThru'
+            Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ $currentUser = 'ChangePermissions' }
+            Set-TestOwner -Sandbox $sandbox -Path $file -Sid $trustedInstaller
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+            Add-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData
+            $sd.SecurityDescriptor.SetOwner((New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList 'S-1-5-32-544'))
+
+            $result = @(Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -PassThru -ErrorVariable setErrors -ErrorAction SilentlyContinue)
+
+            $setErrors | Should -BeNullOrEmpty
+            $result | Should -HaveCount 1
+            $result[0].FullName | Should -Be $file
+            $result[0].SecurityDescriptor.GetOwner($sidType).Value | Should -Be 'S-1-5-32-544'
+        }
+    }
+
+    Context 'When the written descriptor denies reading it again' {
+        BeforeAll {
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        # Before 5.0.0-rc6, the cmdlet read the item again for -PassThru inside the block that retries a denied write,
+        # so that a denied read started an ownership retry and ended in a WriteSdError, although the write succeeded.
+        It 'Should write the descriptor and report a read error for -PassThru, not a write error' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'PassThruDenied'
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+            # A deny entry for OWNER RIGHTS replaces the right of the owner to read the security descriptor.
+            Add-NTFSAccess -SecurityDescriptor $sd -Account 'S-1-3-4' -AccessRights ReadPermissions -AccessType Deny -AppliesTo ThisFolderOnly
+
+            $result = @(Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -PassThru -ErrorVariable setErrors -ErrorAction SilentlyContinue)
+
+            $result | Should -BeNullOrEmpty
+            $setErrors | Should -HaveCount 1
+            $setErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadSecurityError,*'
+            # Get-Acl of an elevated Windows PowerShell still reads the item, so .NET checks that the entry was written;
+            # .NET Core has the method as an extension method.
+            $info = New-Object -TypeName 'System.IO.FileInfo' -ArgumentList $file
+            $denied = $null
+            try {
+                if ($PSVersionTable.PSEdition -eq 'Desktop') {
+                    $null = $info.GetAccessControl()
+                }
+                else {
+                    $null = [System.IO.FileSystemAclExtensions]::GetAccessControl($info)
+                }
+            }
+            catch {
+                $denied = $_.Exception.GetBaseException()
+            }
+
+            $denied | Should -BeOfType [System.UnauthorizedAccessException]
+        }
     }
 }
 
@@ -232,5 +291,44 @@ Describe 'FileSystemSecurity2.Write with another item' {
         { $sd.Write($destination) } | Should -Not -Throw
 
         (Get-Acl -LiteralPath $target).GetOwner($sidType).Value | Should -Be $targetOwner
+    }
+}
+
+# Before 5.0.0-rc6, comparing a descriptor threw an InvalidCastException, and its hash code a NullReferenceException,
+# so -eq and a hashtable with the descriptor as key failed.
+Describe 'Comparing security descriptors' {
+    It 'Should find a descriptor equal to itself and not to another one, and use it as a key' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Compare'
+        $sd = Get-NTFSSecurityDescriptor -Path $file
+        $other = Get-NTFSSecurityDescriptor -Path $file
+
+        $sd -eq $sd | Should -BeTrue
+        $sd -eq $other | Should -BeFalse
+        $sd.Equals('x') | Should -BeFalse
+        $table = @{}
+        $table[$sd] = 'first'
+        $table[$other] = 'second'
+        $table[$sd] | Should -Be 'first'
+        $table.Count | Should -Be 2
+    }
+
+    # Before 5.0.0-rc6, the conversion returned a field that was never set, so it gave $null.
+    It 'Should convert to the security object of .NET that it holds' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'ConvertFile'
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ConvertFolder' -Directory
+        $fileSd = Get-NTFSSecurityDescriptor -Path $file
+        $folderSd = Get-NTFSSecurityDescriptor -Path $folder
+
+        [object]::ReferenceEquals([System.Security.AccessControl.FileSecurity] $fileSd, $fileSd.SecurityDescriptor) | Should -BeTrue
+        [object]::ReferenceEquals([System.Security.AccessControl.DirectorySecurity] $folderSd, $folderSd.SecurityDescriptor) | Should -BeTrue
+    }
+
+    It 'Should be equal only to a descriptor of the module, in both directions' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Symmetric'
+        $sd = Get-NTFSSecurityDescriptor -Path $file
+        $raw = $sd.SecurityDescriptor
+
+        $sd.Equals($raw) | Should -BeFalse
+        $raw.Equals($sd) | Should -BeFalse
     }
 }

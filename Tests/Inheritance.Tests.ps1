@@ -127,6 +127,8 @@ Describe 'Set-NTFSInheritance' {
             $file = New-TestSandboxItem -Sandbox $sandbox -Name 'KeepAccess'
             Assert-TestSandboxPath -Sandbox $sandbox -Path $file
             $inheritedCount = @((Get-Acl -LiteralPath $file).Access | Where-Object -Property IsInherited).Count
+            # Without inherited entries, the test couldn't see them kept as explicit ones (#110).
+            $inheritedCount | Should -BeGreaterThan 0
 
             Set-NTFSInheritance -Path $file -AccessInheritanceEnabled $false
 

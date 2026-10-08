@@ -719,7 +719,7 @@
     <maml:alertSet>
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
-        <maml:para>If the ACL of an item cannot be written because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.</maml:para>
+        <maml:para>If the ACL of an item cannot be written because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. That fallback only succeeds when the account can take ownership of the item, through the Take Ownership right on the item or the Take Ownership privilege, and can set the previous owner back, which needs the Restore privilege unless that owner is the account itself or one of its groups. When the owner changes, Windows removes the entries for OWNER RIGHTS of the item.</maml:para>
         <maml:para>In the `Path` parameter sets, the cmdlet reads and writes only the DACL of the item and leaves its owner, its group, and its SACL as they are. Before 5.0.0, it also wrote the owner back, which failed with error 1307, "This security ID may not be assigned as the owner of this object", when the account may not assign that owner, such as on some file servers. In an elevated session, it could also store the inherited entries of the item as explicit entries.</maml:para>
       </maml:alert>
     </maml:alertSet>
@@ -1711,7 +1711,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     <maml:alertSet>
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
-        <maml:para>If the ACL of an item cannot be written because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.</maml:para>
+        <maml:para>If the ACL of an item cannot be written because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. That fallback only succeeds when the account can take ownership of the item, through the Take Ownership right on the item or the Take Ownership privilege, and can set the previous owner back, which needs the Restore privilege unless that owner is the account itself or one of its groups. When the owner changes, Windows removes the entries for OWNER RIGHTS of the item.</maml:para>
         <maml:para>In the `Path` parameter set, the cmdlet reads and writes only the DACL of the item and leaves its owner, its group, and its SACL as they are. Before 5.0.0, it also wrote the owner back, which failed with error 1307, "This security ID may not be assigned as the owner of this object", when the account may not assign that owner, such as on some file servers.</maml:para>
       </maml:alert>
     </maml:alertSet>
@@ -1997,7 +1997,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     <maml:description>
       <maml:para>The `Copy-Item2` cmdlet copies the items in `-Path` to the location in `-Destination`. It is the long-path counterpart of the built-in `Copy-Item` cmdlet: it works through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), so source and destination may be longer than the 260-character `MAX_PATH` limit.</maml:para>
       <maml:para>How `-Destination` is interpreted depends on what is already there. If the value names an existing folder, the cmdlet keeps the name of the source item and copies it into that folder. In every other case the value is the full path of the new item, which lets you copy and rename in one step. `-Destination` is resolved against the current location once, when the cmdlet starts.</maml:para>
-      <maml:para>Without `-Force`, the cmdlet checks whether the destination file already exists and writes a `DestinationFileAlreadyExists` error instead of overwriting it. With `-WhatIf`, it names an existing destination file in a verbose message instead; before 5.0.0, it wrote the error also with `-WhatIf`. With `-Force`, an existing file is replaced. Relative paths and the `.` and `..` notations in `-Path` are resolved against the current location, and wildcard characters are not supported.</maml:para>
+      <maml:para>Without `-Force`, the cmdlet checks whether a file or folder already exists at the destination and writes a `DestinationFileAlreadyExists` error instead of overwriting it or merging into it. With `-WhatIf`, it names an existing destination in a verbose message instead; before 5.0.0, it wrote the error also with `-WhatIf`. With `-Force`, an existing file is replaced, and a folder is copied into an existing folder of the same name, replacing the files that exist in both. The folder that is to contain the new item must exist; otherwise the cmdlet writes an error that names that folder, or, with `-WhatIf`, a verbose message. Relative paths and the `.` and `..` notations in `-Path` are resolved against the current location, and wildcard characters are not supported.</maml:para>
       <maml:para>The cmdlet supports `-WhatIf` and `-Confirm`, and it writes nothing to the pipeline unless you specify `-PassThru $true`.</maml:para>
     </maml:description>
     <command:syntax>
@@ -2041,7 +2041,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
           <maml:name>Force</maml:name>
           <maml:description>
-            <maml:para>Indicates that the cmdlet overwrites an existing destination file. Without `-Force`, an existing file causes the error `DestinationFileAlreadyExists` and the item is not copied.</maml:para>
+            <maml:para>Indicates that the cmdlet overwrites an existing destination file, and copies a folder into an existing folder of the same name. Without `-Force`, an existing file or folder at the destination causes the error `DestinationFileAlreadyExists` and the item is not copied.</maml:para>
           </maml:description>
           <dev:type>
             <maml:name>SwitchParameter</maml:name>
@@ -2102,7 +2102,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
         <maml:name>Force</maml:name>
         <maml:description>
-          <maml:para>Indicates that the cmdlet overwrites an existing destination file. Without `-Force`, an existing file causes the error `DestinationFileAlreadyExists` and the item is not copied.</maml:para>
+          <maml:para>Indicates that the cmdlet overwrites an existing destination file, and copies a folder into an existing folder of the same name. Without `-Force`, an existing file or folder at the destination causes the error `DestinationFileAlreadyExists` and the item is not copied.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
         <dev:type>
@@ -2189,7 +2189,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         <maml:para>`Copy-Item2` copies through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it handles source and destination paths that exceed the 260-character `MAX_PATH` limit of the built-in `Copy-Item` cmdlet.</maml:para>
         <maml:para>Before 5.0.0, `-PassThru` also wrote the item when `-WhatIf` or a declined confirmation skipped the operation.</maml:para>
         <maml:para>Before 5.0.0, copying a folder that contained files failed with a `CopyError` that reported a `DirectoryNotFoundException` for the first file in the folder.</maml:para>
-        <maml:para>If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call.</maml:para>
+        <maml:para>If a path in `-Path` does not exist, a file or folder exists at the destination and `-Force` is missing, or the folder that is to contain the copy does not exist, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call. Before 5.0.0, it also didn't detect an existing destination folder, so that the copy failed in the middle with a `CopyError` after it had copied a part of the folder; it reported a missing destination folder as a `DirectoryNotFoundException` that named the source item; and, in the prereleases of 5.0.0, it created the missing folders of the destination for a folder.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -4585,9 +4585,10 @@ PS C:\&gt; Disable-Privileges</dev:code>
     <maml:alertSet>
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
-        <maml:para>If the ACL of an item cannot be read because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.</maml:para>
+        <maml:para>If the ACL of an item cannot be read because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Reading the owner, which that fallback needs first, requires the same Read Permissions right as reading the ACL, so the cmdlet then writes a non-terminating `ReadSecurityError` and continues with the next item.</maml:para>
         <maml:para>Entries whose account cannot be translated into a name are returned with their SID. Use `Get-NTFSOrphanedAccess` to list only those entries.</maml:para>
         <maml:para>Before 5.0.0, after a path whose ACL could not be read, the cmdlet returned the entries of the previous item again.</maml:para>
+        <maml:para>Before 5.0.0-rc6, with `-ExcludeExplicit`, each inherited entry showed the `InheritedFrom` path of another entry, and for a security descriptor with audit entries, such as one that `Get-NTFSSecurityDescriptor` reads in an elevated session, the cmdlet stopped with an `ArgumentOutOfRangeException`.</maml:para>
         <maml:para>For the root of a drive, such as `C:`, or of a volume, such as `\?\Volume{GUID}`, the cmdlets that read and change security use the root folder of the volume, like Explorer, `icacls`, and `Get-Acl`. Before 5.0.0, they read and changed the security descriptor of the drive itself, a device object with other entries.</maml:para>
       </maml:alert>
     </maml:alertSet>
@@ -4871,6 +4872,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
         <maml:para>Reading the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it, the cmdlet writes the non-terminating error `ReadSecurityError` for each item, which reports "A required privilege is not held by the client". `Get-NTFSSecurityDescriptor` reads a security descriptor without its SACL when the privilege is missing; for such a descriptor, the cmdlet writes a `ReadSecurityError` as well.</maml:para>
         <maml:para>If reading the audit entries is denied, the cmdlet writes a `ReadSecurityError` with the category `PermissionDenied`. It doesn't take ownership of the item, because ownership grants no access to the SACL.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet returned no entries and no error without the Security privilege, and after a path whose security descriptor could not be read, it returned the entries of the previous item again. The `InheritanceEnabled` property of the entries also reported whether the access entries were inherited instead of the audit entries.</maml:para>
+        <maml:para>Before 5.0.0-rc6, with `-ExcludeExplicit`, each inherited entry showed the `InheritedFrom` path of another entry.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -4943,7 +4945,7 @@ PS C:\&gt; Get-NTFSAudit -SecurityDescriptor $sd</dev:code>
     <maml:description>
       <maml:para>Calculates the rights an account really has on a file or a folder and writes the result as a single `Security2.FileSystemAccessRule2` object per item. The cmdlet evaluates the complete discretionary access control list (DACL) of the item against the group memberships of the account with the Windows Authorization API, so allow entries, deny entries, and inherited entries are combined the same way the Windows access check combines them. This is the equivalent of the "Effective Access" tab of the advanced security dialog.</maml:para>
       <maml:para>The calculation covers the NTFS permissions of the item only. Share permissions are stored in a separate security descriptor and are not part of the result, so access over a network share can be more restrictive than this cmdlet reports.</maml:para>
-      <maml:para>When `-Account` is omitted, the account that runs the session is used. `-ServerName` selects the computer whose authorization manager resolves the group memberships of the account and defaults to `localhost`; when the remote authorization manager of the named computer cannot be reached, the cmdlet falls back to the local one and warns that the result is based on the group memberships known on this computer and may be inaccurate. Reading effective access relies on the Security privilege, and the cmdlet warns when the account does not hold it or the privilege is disabled.</maml:para>
+      <maml:para>When `-Account` is omitted, the account that runs the session is used. `-ServerName` selects the computer whose authorization manager resolves the group memberships of the account and defaults to `localhost`; when the remote authorization manager of the named computer cannot be reached, the cmdlet falls back to the local one and warns that the result is based on the group memberships known on this computer and may be inaccurate. The authorization manager of the named computer answers only the administrators of that computer and the members of its local group Access Control Assistance Operators; for any other account, the cmdlet writes an error and doesn't fall back. Reading effective access relies on the Security privilege, and the cmdlet warns when the account does not hold it or the privilege is disabled.</maml:para>
       <maml:para>When `-Path` is omitted, the cmdlet calculates the effective access to the current location. In the `SecurityDescriptor` parameter set, it calculates the effective access from a `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, without reading the item again.</maml:para>
     </maml:description>
     <command:syntax>
@@ -4987,7 +4989,7 @@ PS C:\&gt; Get-NTFSAudit -SecurityDescriptor $sd</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
           <maml:name>ServerName</maml:name>
           <maml:description>
-            <maml:para>Specifies the computer whose authorization manager resolves the group memberships of the account. The default is `localhost`. Name the computer that stores the item when you query a network path, because the group memberships known there determine the result; if that computer cannot be reached, the cmdlet falls back to the local authorization manager and warns that the result may be inaccurate.</maml:para>
+            <maml:para>Specifies the computer whose authorization manager resolves the group memberships of the account. The default is `localhost`. Name the computer that stores the item when you query a network path, because the group memberships known there determine the result; if that computer cannot be reached, the cmdlet falls back to the local authorization manager and warns that the result may be inaccurate. The authorization manager of a computer answers only its administrators and the members of its local group Access Control Assistance Operators; for any other account, the cmdlet writes a non-terminating `GetEffectiveAccessError` with the message "Access is denied" and returns no result for the item.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
           <dev:type>
@@ -5038,7 +5040,7 @@ PS C:\&gt; Get-NTFSAudit -SecurityDescriptor $sd</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
           <maml:name>ServerName</maml:name>
           <maml:description>
-            <maml:para>Specifies the computer whose authorization manager resolves the group memberships of the account. The default is `localhost`. Name the computer that stores the item when you query a network path, because the group memberships known there determine the result; if that computer cannot be reached, the cmdlet falls back to the local authorization manager and warns that the result may be inaccurate.</maml:para>
+            <maml:para>Specifies the computer whose authorization manager resolves the group memberships of the account. The default is `localhost`. Name the computer that stores the item when you query a network path, because the group memberships known there determine the result; if that computer cannot be reached, the cmdlet falls back to the local authorization manager and warns that the result may be inaccurate. The authorization manager of a computer answers only its administrators and the members of its local group Access Control Assistance Operators; for any other account, the cmdlet writes a non-terminating `GetEffectiveAccessError` with the message "Access is denied" and returns no result for the item.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
           <dev:type>
@@ -5102,7 +5104,7 @@ PS C:\&gt; Get-NTFSAudit -SecurityDescriptor $sd</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
         <maml:name>ServerName</maml:name>
         <maml:description>
-          <maml:para>Specifies the computer whose authorization manager resolves the group memberships of the account. The default is `localhost`. Name the computer that stores the item when you query a network path, because the group memberships known there determine the result; if that computer cannot be reached, the cmdlet falls back to the local authorization manager and warns that the result may be inaccurate.</maml:para>
+          <maml:para>Specifies the computer whose authorization manager resolves the group memberships of the account. The default is `localhost`. Name the computer that stores the item when you query a network path, because the group memberships known there determine the result; if that computer cannot be reached, the cmdlet falls back to the local authorization manager and warns that the result may be inaccurate. The authorization manager of a computer answers only its administrators and the members of its local group Access Control Assistance Operators; for any other account, the cmdlet writes a non-terminating `GetEffectiveAccessError` with the message "Access is denied" and returns no result for the item.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
         <dev:type>
@@ -5224,7 +5226,7 @@ PS C:\&gt; Get-NTFSAudit -SecurityDescriptor $sd</dev:code>
     <maml:description>
       <maml:para>On an NTFS volume, a file is a block of data that one or more directory entries, called hard links, refer to. The `Get-NTFSHardLink` cmdlet asks the file system for every hard link of the file that `-Path` points to and writes a file object for each of them, including the name that you passed in.</maml:para>
       <maml:para>A file that has only one name returns a single object. A file that has additional hard links returns one object per name, which lets you find all the places on the volume from which the same data is reachable. The file system reports the links relative to the root of the volume, and the cmdlet combines them with the root of the path you specify, so the result contains full paths. All hard links of a file are always on the same volume as the file.</maml:para>
-      <maml:para>`-Path` must point to a file. A folder causes an error, because NTFS does not support hard links to folders. If you omit `-Path`, the cmdlet falls back to the current location, which is a folder and therefore produces the same error, so always pass the path of a file.</maml:para>
+      <maml:para>`-Path` must point to a file. A folder causes a non-terminating `GetHardLinkError`, because NTFS does not support hard links to folders, and the cmdlet continues with the next path. If you omit `-Path`, the cmdlet falls back to the current location, which is a folder and therefore produces the same error, so always pass the path of a file.</maml:para>
       <maml:para>The parameter accepts an array of paths and takes pipeline input by value and by property name through its `FullName` alias. `Get-ChildItem2` adds a `HardLinkCount` property to each file as long as the `IdentifyHardLinks` entry in the `PrivateData` section of the module manifest is `$true`, which lets you select the files that have more than one name before you resolve them.</maml:para>
     </maml:description>
     <command:syntax>
@@ -5289,6 +5291,7 @@ PS C:\&gt; Get-NTFSAudit -SecurityDescriptor $sd</dev:code>
     <maml:alertSet>
       <maml:alert>
         <maml:para>Hard links exist only within a single NTFS volume. Every object that this cmdlet returns therefore refers to a path on the volume of the file that you passed in.</maml:para>
+        <maml:para>Windows can't list the names of a file on a network share, also when the share lies on an NTFS volume of the file server. For such a file the cmdlet writes a non-terminating `GetHardLinkError` with the message "The request is not supported" and continues with the next path; run the cmdlet on the file server itself instead. Before 5.0.0, a file on a network share and a folder stopped the cmdlet with a terminating error, so that it skipped the remaining paths.</maml:para>
         <maml:para>Because all hard links of a file share the same data, they also share the file content, the file size, and the time stamps. The security descriptor is stored with the file as well, so changing permissions through one name changes them for every name.</maml:para>
         <maml:para>The cmdlet resolves paths through the AlphaFS library and therefore also works with paths that exceed the 260-character `MAX_PATH` limit.</maml:para>
       </maml:alert>
@@ -5740,7 +5743,7 @@ PS C:\&gt; Get-NTFSAudit -SecurityDescriptor $sd</dev:code>
     <maml:alertSet>
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
-        <maml:para>If the ACL of an item cannot be read because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.</maml:para>
+        <maml:para>If the ACL of an item cannot be read because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Reading the owner, which that fallback needs first, requires the same Read Permissions right as reading the ACL, so the cmdlet then writes a non-terminating `ReadSecurityError` and continues with the next item. Before 5.0.0, it reported that error as an `AddAceError`.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor`, and after a path whose ACL could not be read, it returned the orphaned entries of the previous item again.</maml:para>
       </maml:alert>
     </maml:alertSet>
@@ -6381,7 +6384,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       </maml:description>
     </command:details>
     <maml:description>
-      <maml:para>Reads the access control entries of folders and writes them as `Security2.SimpleFileSystemAccessRule` objects whose rights are reduced to the three values `Read`, `Write`, and `Delete`. Reading rights such as `ReadAttributes` or `Traverse` become `Read`, changing rights such as `CreateFiles`, `WriteAttributes`, `ChangePermissions`, or `TakeOwnership` become `Write`, and `Delete` and `DeleteSubdirectoriesAndFiles` become `Delete`; `FullControl` becomes all three. The result answers who may read, change, or delete in a folder without the detail of the full ACL.</maml:para>
+      <maml:para>Reads the access control entries of folders and writes them as `Security2.SimpleFileSystemAccessRule` objects whose rights are reduced to the three values `Read`, `Write`, and `Delete`. Reading rights such as `ReadData`, which on a folder is the right to list it (`ListDirectory`), `ReadAttributes`, or `Traverse` become `Read`, changing rights such as `CreateFiles`, `WriteAttributes`, `ChangePermissions`, or `TakeOwnership` become `Write`, and `Delete` and `DeleteSubdirectoriesAndFiles` become `Delete`; `FullControl` becomes all three. The result answers who may read, change, or delete in a folder without the detail of the full ACL.</maml:para>
       <maml:para>The second simplification is that repetitions are left out. The first folder the cmdlet processes is reported with all of its entries, and for every folder that follows only the entries are reported that its parent folder does not already cover. An entry is covered when the parent has an entry for the same account and access type that includes at least the same simple rights. This makes a recursive listing show where permissions actually change instead of repeating the inherited ones on every level, and it requires the parent folder to be processed before its children, which `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` do by default.</maml:para>
       <maml:para>`-IncludeRootFolder` is on by default and adds the parent folder of the first path as the baseline for the comparison, which is why the first result usually belongs to the folder above the one that was asked for. Use `-IncludeRootFolder:$false` to start the comparison at the first path itself.</maml:para>
       <maml:para>The cmdlet only processes folders; a path that points to a file is skipped silently, while the security descriptor of a file is reported. Relative paths are resolved against the current location, and the current location is used when `-Path` is omitted. `-ExcludeInherited`, `-ExcludeExplicit`, and `-Account` work as in `Get-NTFSAccess`. With `-SecurityDescriptor`, the cmdlet reports the entries of a `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, without comparing them with a parent folder.</maml:para>
@@ -6624,7 +6627,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>The simplified rights hide which exact rights an account holds. Use `Get-NTFSAccess` when you need the full access control entry, and `Get-NTFSEffectiveAccess` when you need the rights that result from all entries together.</maml:para>
-        <maml:para>Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor`, and its output had no table view.</maml:para>
+        <maml:para>Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor`, and its output had no table view. It also showed no rights for an entry that grants only `ReadData`, which other tools than .NET create, and it left out the parent folder of a relative path with a single folder name, such as `Data`.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -6784,7 +6787,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
     <maml:description>
       <maml:para>The `Move-Item2` cmdlet moves the items in `-Path` to the location in `-Destination`. It is the long-path counterpart of the built-in `Move-Item` cmdlet: it works through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), so source and destination may be longer than the 260-character `MAX_PATH` limit. Files and folders can both be moved, and a folder is moved with everything it contains.</maml:para>
       <maml:para>How `-Destination` is interpreted depends on what is already there. If the value names an existing folder, the cmdlet keeps the name of the source item and moves it into that folder. In every other case the value is the full path of the new item, which lets you move and rename in one step, or rename an item in place. `-Destination` is resolved against the current location once, when the cmdlet starts.</maml:para>
-      <maml:para>Without `-Force`, the cmdlet checks whether the destination file already exists and writes a `DestinationFileAlreadyExists` error instead of overwriting it; the move itself then runs with the `CopyAllowed` option, which allows a file to move to a different volume. With `-WhatIf`, the cmdlet names an existing destination file in a verbose message instead; before 5.0.0, it wrote the error also with `-WhatIf`. With `-Force`, the move runs with the `ReplaceExisting` option and overwrites an existing destination item.</maml:para>
+      <maml:para>Without `-Force`, the cmdlet checks whether a file or folder already exists at the destination and writes a `DestinationFileAlreadyExists` error instead of overwriting it; the move itself then runs with the `CopyAllowed` option, which allows a file to move to a different volume. With `-WhatIf`, the cmdlet names an existing destination in a verbose message instead; before 5.0.0, it wrote the error also with `-WhatIf`. With `-Force`, the move runs with the `ReplaceExisting` option and overwrites an existing destination item. The folder that is to contain the moved item must exist; otherwise the cmdlet writes an error that names that folder, or, with `-WhatIf`, a verbose message.</maml:para>
       <maml:para>The cmdlet supports `-WhatIf` and `-Confirm`, and it writes nothing to the pipeline unless you specify `-PassThru $true`.</maml:para>
     </maml:description>
     <command:syntax>
@@ -6828,7 +6831,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
           <maml:name>Force</maml:name>
           <maml:description>
-            <maml:para>Indicates that the cmdlet replaces an existing destination item. Without `-Force`, an existing destination file causes the error `DestinationFileAlreadyExists` and the item is not moved.</maml:para>
+            <maml:para>Indicates that the cmdlet replaces an existing destination item. Without `-Force`, an existing file or folder at the destination causes the error `DestinationFileAlreadyExists` and the item is not moved.</maml:para>
           </maml:description>
           <dev:type>
             <maml:name>SwitchParameter</maml:name>
@@ -6889,7 +6892,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
         <maml:name>Force</maml:name>
         <maml:description>
-          <maml:para>Indicates that the cmdlet replaces an existing destination item. Without `-Force`, an existing destination file causes the error `DestinationFileAlreadyExists` and the item is not moved.</maml:para>
+          <maml:para>Indicates that the cmdlet replaces an existing destination item. Without `-Force`, an existing file or folder at the destination causes the error `DestinationFileAlreadyExists` and the item is not moved.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
         <dev:type>
@@ -6975,8 +6978,8 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <maml:alert>
         <maml:para>`Move-Item2` moves through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it handles source and destination paths that exceed the 260-character `MAX_PATH` limit of the built-in `Move-Item` cmdlet.</maml:para>
         <maml:para>Before 5.0.0, `-PassThru` also wrote the item when `-WhatIf` or a declined confirmation skipped the operation.</maml:para>
-        <maml:para>The cmdlet chooses between two mutually exclusive move options. Without `-Force` it moves with `CopyAllowed`, which permits a file to cross volume boundaries because Windows then copies and deletes it. With `-Force` it moves with `ReplaceExisting`, which overwrites the destination but does not request `CopyAllowed`, so a move across volumes can fail when `-Force` is specified.</maml:para>
-        <maml:para>If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call.</maml:para>
+        <maml:para>The cmdlet chooses between two mutually exclusive move options. Without `-Force` it moves with `CopyAllowed`, which permits a file to cross volume boundaries because Windows then copies and deletes it. With `-Force` it moves with `ReplaceExisting`, which overwrites the destination but does not request `CopyAllowed`, so a move across volumes can fail when `-Force` is specified. A folder can't move to another volume: the cmdlet writes a `MoveError` and leaves the folder in place, so copy it with `Copy-Item2` and remove it with `Remove-Item2` instead.</maml:para>
+        <maml:para>If a path in `-Path` does not exist, a file or folder exists at the destination and `-Force` is missing, or the folder that is to contain the moved item does not exist, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call. Before 5.0.0, it also reported an existing destination folder as a `MoveError`, and a missing destination folder as a `DirectoryNotFoundException` that named the source item ( #21 (https://github.com/raandree/NTFSSecurity/issues/21)).</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -7160,6 +7163,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
     <maml:alertSet>
       <maml:alert>
         <maml:para>Windows supports hard links only for files on the same NTFS volume. A link that points to a file on another volume, or a target on a file system that does not implement hard links, cannot be created.</maml:para>
+        <maml:para>The cmdlet creates hard links on a network share as well, but Windows can't list the names of a file there. With `-PassThru` on a share, the cmdlet creates the link and writes a non-terminating `GetHardLinkError` with the message "The request is not supported" instead of the objects. Before 5.0.0, it stopped with a terminating error after it had created the link.</maml:para>
         <maml:para>The cmdlet does not overwrite anything. If `-Path` already exists, or if `-Target` is missing or is a folder, the cmdlet reports an error and leaves the file system unchanged.</maml:para>
         <maml:para>Because all names of a file share the same data, the number of hard links is a property of the file, not of an individual name. Use `Get-NTFSHardLink` to list them, and delete a link with `Remove-Item2` or `Remove-Item`, which removes only that name as long as other names remain.</maml:para>
         <maml:para>Before 5.0.0, the error for a missing `-Target` said "The target path exist", the opposite of the cause.</maml:para>
@@ -7231,7 +7235,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <maml:para>The `New-NTFSSymbolicLink` cmdlet creates a symbolic link that redirects to another file or folder. `-Path` is the new link that the cmdlet creates, and `-Target` is the existing item that the link points to. Read the command as "create Path , which points to Target ".</maml:para>
       <maml:para>The cmdlet inspects the target first and creates a file symbolic link when the target is a file and a directory symbolic link when the target is a folder, so you do not select the link type yourself. `-Target` must exist when the link is created, and `-Path` must not exist yet, so the cmdlet never overwrites an existing item.</maml:para>
       <maml:para>Relative paths are resolved against the current location before the link is created, which means that the link always stores an absolute target path.</maml:para>
-      <maml:para>By default the cmdlet produces no output. With `-PassThru` it returns a file object for the new link, including for a link that points to a folder.</maml:para>
+      <maml:para>By default the cmdlet produces no output. With `-PassThru` it returns an object for the new link: a file object for a link to a file, and a folder object for a link to a folder.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
@@ -7263,7 +7267,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
           <maml:name>PassThru</maml:name>
           <maml:description>
-            <maml:para>Indicates that the cmdlet returns an object for the new link. By default, this cmdlet produces no output. The returned object is a file object even when the link points to a folder.</maml:para>
+            <maml:para>Indicates that the cmdlet returns an object for the new link. By default, this cmdlet produces no output. The returned object is a file object for a link to a file and a folder object for a link to a folder.</maml:para>
           </maml:description>
           <dev:type>
             <maml:name>SwitchParameter</maml:name>
@@ -7277,7 +7281,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
         <maml:name>PassThru</maml:name>
         <maml:description>
-          <maml:para>Indicates that the cmdlet returns an object for the new link. By default, this cmdlet produces no output. The returned object is a file object even when the link points to a folder.</maml:para>
+          <maml:para>Indicates that the cmdlet returns an object for the new link. By default, this cmdlet produces no output. The returned object is a file object for a link to a file and a folder object for a link to a folder.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
         <dev:type>
@@ -7341,7 +7345,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
     </command:returnValues>
     <maml:alertSet>
       <maml:alert>
-        <maml:para>Creating a symbolic link on Windows requires the "Create symbolic links" user right, `SeCreateSymbolicLinkPrivilege`, which is granted to the Administrators group by default. Without that right, Windows rejects the operation with error 1314, "A required privilege is not held by the client", so run the cmdlet from an elevated session or grant the right to the account. On a computer that runs in Windows Developer Mode, Windows also allows accounts without that right to create symbolic links.</maml:para>
+        <maml:para>Creating a symbolic link on Windows requires the "Create symbolic links" user right, `SeCreateSymbolicLinkPrivilege`, which is granted to the Administrators group by default. Without that right, Windows rejects the operation with error 1314, "A required privilege is not held by the client", so run the cmdlet from an elevated session or grant the right to the account. Windows Developer Mode doesn't change this: it lets accounts without that right create symbolic links only in programs that request it, such as `mklink`, and the cmdlet doesn't.</maml:para>
         <maml:para>Unlike a hard link, a symbolic link is a separate file system entry that stores a path, so it can point to an item on another volume and the link and its target can be managed independently. The cmdlet still requires the target to exist at the moment the link is created. If the target is removed later, the link remains and stops resolving.</maml:para>
         <maml:para>Deleting a symbolic link removes the link only and leaves the target untouched. Delete a directory symbolic link as a link rather than recursively, so that the content of the target folder is not affected.</maml:para>
       </maml:alert>
@@ -8423,7 +8427,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
     <maml:alertSet>
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
-        <maml:para>If the ACL of an item cannot be written because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.</maml:para>
+        <maml:para>If the ACL of an item cannot be written because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. That fallback only succeeds when the account can take ownership of the item, through the Take Ownership right on the item or the Take Ownership privilege, and can set the previous owner back, which needs the Restore privilege unless that owner is the account itself or one of its groups. When the owner changes, Windows removes the entries for OWNER RIGHTS of the item.</maml:para>
         <maml:para>Removing rights from an entry that does not exist is not an error; the cmdlet leaves the ACL unchanged.</maml:para>
         <maml:para>In the `Path` parameter sets, the cmdlet writes only the DACL of the item and leaves its owner, its group, and its SACL as they are. Before 5.0.0, it could also write the owner back, which failed with error 1307, "This security ID may not be assigned as the owner of this object", when the account may not assign that owner, such as on some file servers.</maml:para>
         <maml:para>An entry with a generic right, such as `GenericAll`, can be removed, for example by piping it from `Get-NTFSAccess`. Windows keeps generic rights in the inherit-only entries of folders. Before 5.0.0, the cmdlet failed for such an entry with the error "The value '269484032' is not valid for this usage of the type FileSystemRights".</maml:para>
@@ -9884,8 +9888,8 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     <maml:description>
       <maml:para>The `Set-NTFSSecurityDescriptor` cmdlet writes a `Security2.FileSystemSecurity2` object to the file system. It is the final step of the security descriptor workflow: `Get-NTFSSecurityDescriptor` reads a descriptor into memory, cmdlets such as `Add-NTFSAccess`, `Remove-NTFSAccess`, `Set-NTFSOwner`, and `Disable-NTFSAccessInheritance` change that copy through their `-SecurityDescriptor` parameter, and this cmdlet applies all of those changes in a single write.</maml:para>
       <maml:para>Each descriptor remembers the item it was read from, and the cmdlet writes it back to exactly that item. There is no parameter that redirects the write to a different path. The cmdlet writes only the sections of the descriptor that changed since it was read or last written, such as the DACL after `Add-NTFSAccess`, and leaves the other sections of the item as they are, so a descriptor that you did not change writes nothing. With `-Verbose`, the cmdlet names the sections that it writes, or says that it writes nothing. Before 5.0.0, the cmdlet wrote every section that it had read, also an unchanged owner, which failed with error 1307, "This security ID may not be assigned as the owner of this object", when the account may not assign that owner, such as on some file servers.</maml:para>
-      <maml:para>The cmdlet produces no output unless you use `-PassThru`, which reads the item again after the write and returns a new `FileSystemSecurity2` object that reflects what is now stored on disk. Descriptors can be passed as an array or through the pipeline, and each one is processed on its own.</maml:para>
-      <maml:para>When the write fails because access is denied, the cmdlet takes ownership of the item with the account of the current session, writes the descriptor, and restores the previous owner, also when that write fails. A descriptor that sets a new owner keeps it; before 5.0.0, the cmdlet set the previous owner back over it. If the write fails as well, the cmdlet writes a non-terminating error and continues with the next descriptor. Windows checks each section separately: changing the access control list requires the Change Permissions right on the item, changing the owner requires the Take Ownership right or the Take Ownership privilege, assigning ownership to another account requires the Restore privilege, and writing audit entries requires the Security privilege.</maml:para>
+      <maml:para>The cmdlet produces no output unless you use `-PassThru`, which reads the item again after the write and returns a new `FileSystemSecurity2` object that reflects what is now stored on disk. If that read fails, for example because the written descriptor denies the account the right to read it, the cmdlet writes a non-terminating `ReadSecurityError`; the descriptor is written all the same. Descriptors can be passed as an array or through the pipeline, and each one is processed on its own.</maml:para>
+      <maml:para>When the write fails because access is denied, the cmdlet takes ownership of the item with the account of the current session, writes the descriptor, and restores the previous owner, also when that write fails. A descriptor that sets a new owner keeps it; before 5.0.0, the cmdlet set the previous owner back over it. If setting the previous owner back fails, the cmdlet writes a non-terminating `RestoreOwnerError`, and the account of the session stays the owner of the item. If the write fails as well, the cmdlet writes a non-terminating error and continues with the next descriptor. Windows checks each section separately: changing the access control list requires the Change Permissions right on the item, changing the owner requires the Take Ownership right or the Take Ownership privilege, assigning ownership to another account requires the Restore privilege, and writing audit entries requires the Security privilege. Before 5.0.0, `-PassThru` returned nothing for a descriptor that the cmdlet wrote as the owner, and a failed read for `-PassThru` started another attempt of the write and ended in a `WriteSdError`, although the write had succeeded.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
@@ -10136,7 +10140,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     <maml:alertSet>
       <maml:alert>
         <maml:para>The cmdlet resolves paths through the AlphaFS library, which is not bound by the 260-character `MAX_PATH` limit of the Windows PowerShell file system provider. Use `Test-Path2` instead of `Test-Path` when a path can be longer than that limit.</maml:para>
-        <maml:para>A path that does not exist is not an error condition. The cmdlet writes `$false` and continues with the next path.</maml:para>
+        <maml:para>A path that does not exist is not an error condition. The cmdlet writes `$false` and continues with the next path. This also applies to a path with a character that Windows doesn't allow in names, such as `|` or `&lt;`; Windows PowerShell rejects such a path, and the cmdlet writes the reason as a debug message. Before 5.0.0, such a path stopped the cmdlet with the terminating error "Illegal characters in path" in Windows PowerShell.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>

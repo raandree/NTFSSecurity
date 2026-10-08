@@ -73,6 +73,10 @@ The format is based on
   also an unchanged owner, which failed with error 1307 where the account
   may not assign that owner
   ([#34](https://github.com/raandree/NTFSSecurity/issues/34))
+- Document that `Get-NTFSEffectiveAccess -ServerName` works only for the
+  administrators of the named computer and the members of its group Access
+  Control Assistance Operators; any other account gets the error "Access is
+  denied" and no result
 
 ### Deprecated
 
@@ -269,5 +273,60 @@ The format is based on
 - Fix `Get-NTFSEffectiveAccess`, which returned no access when the computer
   of `-ServerName` couldn't be reached, although it warned that it had
   calculated the result on this computer; it now returns that result
+- Fix `Test-Path2`, which stopped with the terminating error "Illegal
+  characters in path" in Windows PowerShell for a path with a character
+  that Windows doesn't allow in names, such as `|`; it now returns `$false`
+  for such a path, as in PowerShell 7, and writes the reason as a debug
+  message
+- Fix the cmdlets that enable the Backup, Restore, Take Ownership, and
+  Security privileges, which left them enabled in the session when a later
+  command, such as `Select-Object -First`, or a terminating error stopped
+  the pipeline early; they now disable them also then
+- Fix the cmdlets that enable the privileges, which stopped with the error
+  "Priviledge already disabled" and left the other privileges enabled when
+  another command in the pipeline, such as `Disable-Privileges`, had
+  disabled one of them; a privilege that they can't disable now gives a
+  warning, and they still disable the others
+- Fix `Get-NTFSSimpleAccess`, which showed no rights for an entry that
+  grants only `ReadData`, and which left out the parent folder of a
+  relative path with a single folder name, although `-IncludeRootFolder` is
+  on by default
+- Fix `Copy-Item2` and `Move-Item2`, which didn't detect a folder at the
+  destination, so that a copy failed in the middle after it had copied a
+  part of the folder, and which reported a missing destination folder with
+  an error that named the source item
+  ([#21](https://github.com/raandree/NTFSSecurity/issues/21)); they now
+  write `DestinationFileAlreadyExists` and an error that names the missing
+  folder, and with `-WhatIf` a verbose message that names it. `Copy-Item2`
+  no longer creates the missing folders of the destination when it copies a
+  folder, which the prereleases of 5.0.0 did
+- Fix `Get-NTFSHardLink`, which stopped for all remaining paths at a folder
+  and at a file on a network share, where Windows can't list the names of
+  a file, and `New-NTFSHardLink -PassThru`, which stopped with a
+  terminating error on a share after it had created the link; both now
+  write a non-terminating `GetHardLinkError`
+- Fix `-PassThru` of `Set-NTFSSecurityDescriptor`, which returned nothing
+  for a descriptor that the cmdlet wrote as the owner, and which turned a
+  failed read after a successful write into another attempt of the write
+  and a `WriteSdError`; it now writes a `ReadSecurityError` for that read
+- Fix `Get-NTFSOrphanedAccess`, which reported an item that it couldn't
+  read as an `AddAceError`; it now writes a `ReadSecurityError`, like
+  `Get-NTFSAccess`
+- Fix every cmdlet for a relative path that starts with a dot but not with
+  `.\`, such as `.gitignore`: the cmdlets dropped its first two characters
+  and read, changed, or removed the item with the shorter name, such as
+  `itignore`, when one existed
+- Fix comparing the objects of the access, audit, and security descriptor
+  cmdlets: `-eq` and `-contains`, and in PowerShell 7 also
+  `Select-Object -Unique` and `Compare-Object`, stopped with an
+  `InvalidCastException`, and a security descriptor as the key of a
+  hashtable with a `NullReferenceException`. Two objects are now equal when
+  they hold the same entry or descriptor, as in .NET. Converting a security
+  descriptor to `FileSecurity` or `DirectorySecurity` returned `$null`
+- Fix `InheritedFrom` of `Get-NTFSAccess` and `Get-NTFSAudit`: with
+  `-ExcludeExplicit`, each inherited entry showed the source of another
+  entry, and `Get-NTFSAccess -SecurityDescriptor` stopped with an
+  `ArgumentOutOfRangeException` for a descriptor with audit entries, such
+  as one that `Get-NTFSSecurityDescriptor` reads in an elevated session
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

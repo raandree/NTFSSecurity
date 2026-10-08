@@ -61,6 +61,12 @@ namespace NTFSSecurity
         {
             //nothing as we want to keep the privileges enabled  
         }
+
+        // Keeps the privileges enabled also when the pipeline stops early and PowerShell calls only Dispose.
+        protected override bool KeepEnabledPrivileges
+        {
+            get { return true; }
+        }
     }
     #endregion Enable-Privileges
 

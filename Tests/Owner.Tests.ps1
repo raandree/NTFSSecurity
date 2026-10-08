@@ -13,6 +13,8 @@ BeforeDiscovery {
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
     # With the Backup privilege, Windows may grant reading the owner despite a deny entry.
     $canBypassDeny = Test-PrivilegeHeld -Name 'SeBackupPrivilege'
+    # Assigning an owner other than the user or one of its groups needs the Restore privilege.
+    $canAssignAnyOwner = Test-PrivilegeHeld -Name 'SeRestorePrivilege'
 }
 
 BeforeAll {
@@ -97,9 +99,68 @@ Describe 'Current location' {
             Should -Not -Throw
     }
 
+    # The error for the folder is non-terminating since 5.0.0-rc6, so -ErrorAction Stop turns it into the exception.
     It 'Get-NTFSHardLink should report the folder of the current location, not a NullReferenceException' {
-        { Invoke-WithShadowedPwd -Command { Get-NTFSHardLink -ErrorAction SilentlyContinue } } |
+        { Invoke-WithShadowedPwd -Command { Get-NTFSHardLink -ErrorAction Stop } } |
             Should -Throw -ExpectedMessage '*must be a file*'
+    }
+}
+
+# Before 5.0.0-rc6, a relative path that started with a dot, but not with .\, lost its first two characters: a command
+# on .Dotfile read or changed the item otfile in the same folder when one existed.
+Describe 'Relative paths that start with a dot' {
+    BeforeAll {
+        $dotFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'Dot' -Directory
+        Push-Location -LiteralPath $dotFolder
+        # The names that the defect made of the paths
+        foreach ($name in '.Dotfile', '..Dotfile', 'otfile', 'Dotfile') {
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $name
+            Set-Content -LiteralPath $name -Value $name
+        }
+    }
+
+    AfterAll {
+        Pop-Location
+    }
+
+    It 'Should resolve <Path> to the item <Expected> of the current location' -ForEach @(
+        @{ Path = '.Dotfile'; Expected = '.Dotfile' }
+        @{ Path = '..Dotfile'; Expected = '..Dotfile' }
+        @{ Path = '.\.Dotfile'; Expected = '.Dotfile' }
+        @{ Path = './.Dotfile'; Expected = '.Dotfile' }
+        @{ Path = '..\{0}\.Dotfile'; Expected = '.Dotfile' }
+    ) {
+        # {0} is the name of the current folder.
+        $relative = $Path -f (Split-Path -Path $dotFolder -Leaf)
+
+        $result = Get-NTFSOwner -Path $relative -ErrorAction Stop
+
+        $result.FullName | Should -Be (Join-Path -Path $dotFolder -ChildPath $Expected)
+    }
+
+    It 'Remove-Item2 should remove the item that the path names, not another item' {
+        foreach ($name in '.RemoveMe', 'emoveMe') {
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $name
+            Set-Content -LiteralPath $name -Value $name
+        }
+
+        Remove-Item2 -Path '.RemoveMe' -ErrorAction Stop
+
+        Join-Path -Path $dotFolder -ChildPath '.RemoveMe' | Should -Not -Exist
+        Join-Path -Path $dotFolder -ChildPath 'emoveMe' | Should -Exist
+    }
+
+    It 'Copy-Item2 should copy to the destination that the path names, not over another item' {
+        foreach ($name in 'CopySource', 'opyTarget') {
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $name
+            Set-Content -LiteralPath $name -Value $name
+        }
+        Assert-TestSandboxPath -Sandbox $sandbox -Path '.CopyTarget'
+
+        Copy-Item2 -Path 'CopySource' -Destination '.CopyTarget' -Force -ErrorAction Stop
+
+        Get-Content -LiteralPath (Join-Path -Path $dotFolder -ChildPath '.CopyTarget') | Should -Be 'CopySource'
+        Get-Content -LiteralPath (Join-Path -Path $dotFolder -ChildPath 'opyTarget') | Should -Be 'opyTarget'
     }
 }
 
@@ -124,5 +185,119 @@ Describe 'File and folder objects as arguments' {
         $result = Get-Item -LiteralPath $file | Get-NTFSOwner
 
         $result.FullName | Should -Be $file
+    }
+}
+
+Describe 'Set-NTFSOwner' {
+    BeforeAll {
+        $sidType = [System.Security.Principal.SecurityIdentifier]
+        $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        # An owner that the user can assign only with the Restore privilege
+        $trustedInstaller = 'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'
+        $privateData = (Get-Module -Name NTFSSecurity).PrivateData
+        $enablePrivileges = $privateData['EnablePrivileges']
+
+        function Get-TestOwner {
+            param ([string] $Path)
+
+            (Get-Acl -LiteralPath $Path).GetOwner($sidType).Value
+        }
+    }
+
+    AfterAll {
+        $privateData['EnablePrivileges'] = $enablePrivileges
+    }
+
+    It 'Should make the account the owner and write nothing without -PassThru' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'SetOwner'
+
+        $result = @(Set-NTFSOwner -Path $file -Account $currentUser -ErrorAction Stop)
+
+        $result | Should -BeNullOrEmpty
+        Get-TestOwner -Path $file | Should -Be $currentUser
+    }
+
+    It 'Should return the new owner of a folder with -PassThru' {
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'SetOwnerFolder' -Directory
+
+        $result = @(Set-NTFSOwner -Path $folder -Account $currentUser -PassThru -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+        $result[0] | Should -BeOfType [Security2.FileSystemOwner]
+        $result[0].FullName | Should -Be $folder
+        $result[0].Owner.Sid | Should -Be $currentUser
+        Get-TestOwner -Path $folder | Should -Be $currentUser
+    }
+
+    It 'Should take the items from the pipeline' {
+        $files = 1..2 | ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name "SetOwnerPiped$_" }
+
+        $result = @(Get-Item2 -Path $files | Set-NTFSOwner -Account $currentUser -PassThru -ErrorAction Stop)
+
+        ($result.FullName -join '|') | Should -Be ($files -join '|')
+    }
+
+    It 'Should set an owner that only the Restore privilege allows' -Skip:(-not $canAssignAnyOwner) {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'SetOwnerRestore'
+
+        Set-NTFSOwner -Path $file -Account $trustedInstaller -ErrorAction Stop
+
+        Get-TestOwner -Path $file | Should -Be $trustedInstaller
+    }
+
+    It 'Should write a read error for a path that does not exist and continue with the next path' {
+        $missing = Join-Path -Path $sandbox -ChildPath 'SetOwnerMissing.txt'
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'SetOwnerAfterMissing'
+
+        Set-NTFSOwner -Path $missing, $file -Account $currentUser -ErrorVariable ownerErrors -ErrorAction SilentlyContinue
+
+        $ownerErrors | Should -HaveCount 1
+        $ownerErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadFileError,*'
+        Get-TestOwner -Path $file | Should -Be $currentUser
+    }
+
+    Context 'When Windows refuses the owner' {
+        BeforeAll {
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        # Without the Restore privilege, Windows refuses an owner other than the user or one of its groups: (1307) This
+        # security ID may not be assigned as the owner of this object.
+        It 'Should write a SetOwnerError and keep the owner' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'SetOwnerRefused'
+            $owner = Get-TestOwner -Path $file
+            (Get-Privileges | Where-Object -Property Privilege -EQ -Value 'Restore').PrivilegeState | Should -Not -Be 'Enabled'
+
+            Set-NTFSOwner -Path $file -Account $trustedInstaller -ErrorVariable ownerErrors -ErrorAction SilentlyContinue
+
+            $ownerErrors | Should -HaveCount 1
+            $ownerErrors[0].FullyQualifiedErrorId | Should -BeLike 'SetOwnerError,*'
+            Get-TestOwner -Path $file | Should -Be $owner
+        }
+    }
+
+    Context 'With -SecurityDescriptor' {
+        It 'Should change only the descriptor in memory until Set-NTFSSecurityDescriptor writes it' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'SetOwnerDescriptor'
+            $owner = Get-TestOwner -Path $file
+            if ($owner -eq $currentUser) {
+                # Only an elevated session creates items that the Administrators group owns.
+                Set-ItResult -Skipped -Because 'the user owns new items, and no other owner can be set without privileges'
+                return
+            }
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+
+            $result = @(Set-NTFSOwner -SecurityDescriptor $sd -Account $currentUser -PassThru -ErrorAction Stop)
+
+            $result | Should -HaveCount 1
+            $result[0].Owner.Sid | Should -Be $currentUser
+            Get-TestOwner -Path $file | Should -Be $owner
+            Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorAction Stop
+            Get-TestOwner -Path $file | Should -Be $currentUser
+        }
     }
 }

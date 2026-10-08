@@ -7,8 +7,6 @@ namespace Security2
 {
     public class FileSystemSecurity2
     {
-        protected FileSecurity fileSecurityDescriptor;
-        protected DirectorySecurity directorySecurityDescriptor;
         protected FileSystemInfo item;
         protected FileSystemSecurity sd;
         protected AccessControlSections sections;
@@ -236,9 +234,11 @@ namespace Security2
         }
 
         #region Conversion
+        // The descriptor is in sd. Before 5.0.0-rc6, these conversions returned fields that were never set, so they
+        // gave null, and the hash code threw a NullReferenceException.
         public static implicit operator FileSecurity(FileSystemSecurity2 fs2)
         {
-            return fs2.fileSecurityDescriptor;
+            return fs2.sd as FileSecurity;
         }
         public static implicit operator FileSystemSecurity2(FileSecurity fs)
         {
@@ -247,21 +247,24 @@ namespace Security2
 
         public static implicit operator DirectorySecurity(FileSystemSecurity2 fs2)
         {
-            return fs2.directorySecurityDescriptor;
+            return fs2.sd as DirectorySecurity;
         }
         public static implicit operator FileSystemSecurity2(DirectorySecurity fs)
         {
             return new FileSystemSecurity2(new DirectoryInfo(""));
         }
 
-        //REQUIRED BECAUSE OF CONVERSION OPERATORS
+        // Like the descriptors of .NET, two objects are equal when they wrap the same descriptor; a descriptor of .NET
+        // is never equal, so that equality is the same in both directions. A cast instead of "as" threw an
+        // InvalidCastException.
         public override bool Equals(object obj)
         {
-            return this.fileSecurityDescriptor == (FileSecurity)obj;
+            var other = obj as FileSystemSecurity2;
+            return other != null && ReferenceEquals(sd, other.sd);
         }
         public override int GetHashCode()
         {
-            return fileSecurityDescriptor.GetHashCode();
+            return sd != null ? sd.GetHashCode() : 0;
         }
         #endregion
 

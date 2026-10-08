@@ -23,7 +23,7 @@ On an NTFS volume, a file is a block of data that one or more directory entries,
 
 A file that has only one name returns a single object. A file that has additional hard links returns one object per name, which lets you find all the places on the volume from which the same data is reachable. The file system reports the links relative to the root of the volume, and the cmdlet combines them with the root of the path you specify, so the result contains full paths. All hard links of a file are always on the same volume as the file.
 
-`-Path` must point to a file. A folder causes an error, because NTFS does not support hard links to folders. If you omit `-Path`, the cmdlet falls back to the current location, which is a folder and therefore produces the same error, so always pass the path of a file.
+`-Path` must point to a file. A folder causes a non-terminating `GetHardLinkError`, because NTFS does not support hard links to folders, and the cmdlet continues with the next path. If you omit `-Path`, the cmdlet falls back to the current location, which is a folder and therefore produces the same error, so always pass the path of a file.
 
 The parameter accepts an array of paths and takes pipeline input by value and by property name through its `FullName` alias. `Get-ChildItem2` adds a `HardLinkCount` property to each file as long as the `IdentifyHardLinks` entry in the `PrivateData` section of the module manifest is `$true`, which lets you select the files that have more than one name before you resolve them.
 
@@ -101,6 +101,8 @@ The cmdlet never writes folder objects, because it rejects folders with the erro
 ## NOTES
 
 Hard links exist only within a single NTFS volume. Every object that this cmdlet returns therefore refers to a path on the volume of the file that you passed in.
+
+Windows can't list the names of a file on a network share, also when the share lies on an NTFS volume of the file server. For such a file the cmdlet writes a non-terminating `GetHardLinkError` with the message "The request is not supported" and continues with the next path; run the cmdlet on the file server itself instead. Before 5.0.0, a file on a network share and a folder stopped the cmdlet with a terminating error, so that it skipped the remaining paths.
 
 Because all hard links of a file share the same data, they also share the file content, the file size, and the time stamps. The security descriptor is stored with the file as well, so changing permissions through one name changes them for every name.
 

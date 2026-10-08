@@ -180,11 +180,13 @@ One object per access control entry, with the account, the rights, the access ty
 
 When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.
 
-If the ACL of an item cannot be read because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.
+If the ACL of an item cannot be read because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Reading the owner, which that fallback needs first, requires the same Read Permissions right as reading the ACL, so the cmdlet then writes a non-terminating `ReadSecurityError` and continues with the next item.
 
 Entries whose account cannot be translated into a name are returned with their SID. Use `Get-NTFSOrphanedAccess` to list only those entries.
 
 Before 5.0.0, after a path whose ACL could not be read, the cmdlet returned the entries of the previous item again.
+
+Before 5.0.0-rc6, with `-ExcludeExplicit`, each inherited entry showed the `InheritedFrom` path of another entry, and for a security descriptor with audit entries, such as one that `Get-NTFSSecurityDescriptor` reads in an elevated session, the cmdlet stopped with an `ArgumentOutOfRangeException`.
 
 For the root of a drive, such as `C:\`, or of a volume, such as `\\?\Volume{GUID}\`, the cmdlets that read and change security use the root folder of the volume, like Explorer, `icacls`, and `Get-Acl`. Before 5.0.0, they read and changed the security descriptor of the drive itself, a device object with other entries.
 

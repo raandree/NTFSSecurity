@@ -97,7 +97,7 @@ Describe 'Release metadata' {
     # The PowerShell Gallery doesn't accept a version twice. Add every published version to this list
     # (Docs/Contributing/05-Releasing.md).
     It 'Should not reuse a version that the PowerShell Gallery already has' {
-        $publishedVersions = '4.0', '4.2.2', '4.2.3', '4.2.4', '4.2.5', '4.2.6', '5.0.0-rc1', '5.0.0-rc2', '5.0.0-rc3', '5.0.0-rc4'
+        $publishedVersions = '4.0', '4.2.2', '4.2.3', '4.2.4', '4.2.5', '4.2.6', '5.0.0-rc1', '5.0.0-rc2', '5.0.0-rc3', '5.0.0-rc4', '5.0.0-rc5'
 
         $publishedVersions | Should -Not -Contain $version
     }
@@ -105,5 +105,36 @@ Describe 'Release metadata' {
     It 'Should not name a prerelease version in the README, which outlives the release' {
         Get-Content -LiteralPath (Join-Path -Path $repositoryPath -ChildPath 'Docs\README.md') -Raw |
             Should -Not -Match '\d+\.\d+\.\d+-[A-Za-z]'
+    }
+}
+
+Describe 'Invoke-TestsAsBasicUser.ps1' {
+    BeforeAll {
+        # Only the parameters of the script, so that a test binds them without running the tests as a basic user
+        $path = Join-Path -Path $PSScriptRoot -ChildPath '..\.github\scripts\Invoke-TestsAsBasicUser.ps1'
+        $tokens = $parseErrors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref] $tokens, [ref] $parseErrors)
+        $bindParameters = [scriptblock]::Create($ast.ParamBlock.Extent.Text)
+    }
+
+    # The title goes into a quoted argument of cmd.exe, which expands environment variables also inside quotes and ends
+    # the command at a line break.
+    It 'Should refuse a title with the character <Name>, which would change the command line of cmd.exe' -ForEach @(
+        @{ Name = '%'; Character = '%' }
+        @{ Name = 'double quote'; Character = '"' }
+        @{ Name = 'line feed'; Character = "`n" }
+        @{ Name = 'carriage return'; Character = "`r" }
+    ) {
+        { & $bindParameters -ResultPath 'TestResults\Refused.xml' -Title "CI run $Character 1" } |
+            Should -Throw -ExpectedMessage "*'Title'*"
+    }
+
+    It 'Should refuse a title that ends with a line break' {
+        { & $bindParameters -ResultPath 'TestResults\Refused.xml' -Title "CI run`n" } |
+            Should -Throw -ExpectedMessage "*'Title'*"
+    }
+
+    It 'Should accept the title <_> of the CI workflow' -ForEach @('Windows PowerShell 5.1 as a basic user', 'PowerShell 7 as a basic user') {
+        { & $bindParameters -ResultPath 'TestResults\Accepted.xml' -Title $_ } | Should -Not -Throw
     }
 }

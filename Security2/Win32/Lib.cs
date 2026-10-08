@@ -19,44 +19,21 @@ namespace Security2
         IntPtr pErrorSecObj = IntPtr.Zero;
 
         #region GetInheritedFrom
-        public static List<string> GetInheritedFrom(FileSystemInfo item, ObjectSecurity sd)
+        // Returns the source of each entry of the DACL, or of the SACL for audit entries, in the order of the ACL. Before
+        // 5.0.0-rc6, a descriptor with a SACL returned the sources of the audit entries also for the access entries.
+        public static List<string> GetInheritedFrom(FileSystemInfo item, ObjectSecurity sd, bool auditEntries)
         {
             var inheritedFrom = new List<string>();
 
             var sdBytes = sd.GetSecurityDescriptorBinaryForm();
-            byte[] aclBytes = null;
             var rawSd = new RawSecurityDescriptor(sdBytes, 0);
+            var acl = auditEntries ? rawSd.SystemAcl : rawSd.DiscretionaryAcl;
 
-            var aceCount = 0;
-
-            if (rawSd.SystemAcl != null)
+            if (acl != null)
             {
-                aceCount = rawSd.SystemAcl.Count;
-                aclBytes = new byte[rawSd.SystemAcl.BinaryLength];
-                rawSd.SystemAcl.GetBinaryForm(aclBytes, 0);
-
-                try
-                {
-                    inheritedFrom = GetInheritedFrom(item.FullName,
-                    aclBytes,
-                    aceCount,
-                    item is DirectoryInfo ? true : false,
-                    SECURITY_INFORMATION.SACL_SECURITY_INFORMATION);
-                }
-                catch
-                {
-                    inheritedFrom = new List<string>();
-                    for (int i = 0; i < aceCount; i++)
-                    {
-                        inheritedFrom.Add("unknown parent");
-                    }
-                }
-            }
-            else if (rawSd.DiscretionaryAcl != null)
-            {
-                aceCount = rawSd.DiscretionaryAcl.Count;
-                aclBytes = new byte[rawSd.DiscretionaryAcl.BinaryLength];
-                rawSd.DiscretionaryAcl.GetBinaryForm(aclBytes, 0);
+                var aceCount = acl.Count;
+                var aclBytes = new byte[acl.BinaryLength];
+                acl.GetBinaryForm(aclBytes, 0);
 
                 try
                 {
@@ -64,7 +41,7 @@ namespace Security2
                         aclBytes,
                         aceCount,
                         item is DirectoryInfo ? true : false,
-                        SECURITY_INFORMATION.DACL_SECURITY_INFORMATION);
+                        auditEntries ? SECURITY_INFORMATION.SACL_SECURITY_INFORMATION : SECURITY_INFORMATION.DACL_SECURITY_INFORMATION);
                 }
                 catch
                 {

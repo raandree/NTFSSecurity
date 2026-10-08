@@ -48,10 +48,12 @@ namespace Security2
             return new FileSystemAccessRule2(ace);
         }
 
-        //REQUIRED BECAUSE OF CONVERSION OPERATORS
+        // Like the entries of .NET, two objects are equal when they wrap the same entry; an entry of .NET is never equal,
+        // so that equality is the same in both directions. A cast instead of "as" threw an InvalidCastException.
         public override bool Equals(object obj)
         {
-            return fileSystemAccessRule == (FileSystemAccessRule)obj;
+            var other = obj as FileSystemAccessRule2;
+            return other != null && ReferenceEquals(fileSystemAccessRule, other.fileSystemAccessRule);
         }
         public override int GetHashCode()
         {

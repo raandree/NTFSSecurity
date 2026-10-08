@@ -112,14 +112,14 @@ namespace NTFSSecurity
             {
                 path = GetCurrentLocation();
             }
-            else if (path.StartsWith(".."))
+            else if (path == ".." || path.StartsWith("..\\"))
             {
                 var currentLocation = GetCurrentLocation();
                 path = System.IO.Path.Combine(
                     string.Join("\\", currentLocation.Split('\\').Take(currentLocation.Split('\\').Count() - path.Split('\\').Count(s => s == "..")).ToArray()),
                     string.Join("\\", path.Split('\\').Where(e => e != "..").ToArray()));
             }
-            else if (path.StartsWith("."))
+            else if (path.StartsWith(".\\") || path.StartsWith("./"))
             {
                 //combine . and .\path\subpath
                 path = System.IO.Path.Combine(GetCurrentLocation(), path.Substring(2));
@@ -146,6 +146,45 @@ namespace NTFSSecurity
         protected string GetCurrentLocation()
         {
             return SessionState.Path.CurrentFileSystemLocation.ProviderPath;
+        }
+        #endregion
+
+        #region WriteMissingDestinationFolderError
+        /// <summary>
+        /// Returns the folder of a destination path when that folder doesn't exist.
+        /// </summary>
+        /// <param name="destinationPath">The full path of the item that the operation would create.</param>
+        /// <returns>The missing folder, or null when the folder exists or the path has none, such as a share root.</returns>
+        protected string GetMissingDestinationFolder(string destinationPath)
+        {
+            var folder = Alphaleonis.Win32.Filesystem.Path.GetDirectoryName(destinationPath.TrimEnd('\\'));
+            if (string.IsNullOrEmpty(folder) || Alphaleonis.Win32.Filesystem.Directory.Exists(folder))
+            {
+                return null;
+            }
+
+            return folder;
+        }
+
+        /// <summary>
+        /// Writes an error that names the folder of a destination path when that folder doesn't exist. Before
+        /// 5.0.0-rc6, AlphaFS reported such a destination as the source path that could not be found (#21), and
+        /// Copy-Item2 created the missing folders for a folder.
+        /// </summary>
+        /// <param name="destinationPath">The full path of the item that the operation would create.</param>
+        /// <param name="errorId">The error ID of the cmdlet for a failed operation.</param>
+        /// <returns>Whether the folder is missing and the error was written.</returns>
+        protected bool WriteMissingDestinationFolderError(string destinationPath, string errorId)
+        {
+            var folder = GetMissingDestinationFolder(destinationPath);
+            if (folder == null)
+            {
+                return false;
+            }
+
+            var exception = new System.IO.DirectoryNotFoundException(string.Format("The destination folder '{0}' does not exist.", folder));
+            WriteError(new ErrorRecord(exception, errorId, ErrorCategory.ObjectNotFound, destinationPath));
+            return true;
         }
         #endregion
 
@@ -182,12 +221,18 @@ namespace NTFSSecurity
         #endregion
     }
 
-    public class BaseCmdletWithPrivControl : BaseCmdlet
+    public class BaseCmdletWithPrivControl : BaseCmdlet, IDisposable
     {
         protected PrivilegeAndAttributesCollection privileges = null;
         protected PrivilegeControl privControl = new PrivilegeControl();
         private List<string> enabledPrivileges = new List<string>();
         Hashtable privateData = null;
+
+        // A cmdlet that enables the privileges for the session, such as Enable-Privileges, keeps them enabled.
+        protected virtual bool KeepEnabledPrivileges
+        {
+            get { return false; }
+        }
 
         protected override void BeginProcessing()
         {
@@ -208,13 +253,53 @@ namespace NTFSSecurity
 
                 //disable all privileges that have been enabled by this cmdlet
                 WriteVerbose(string.Format("Disabeling all {0} enabled privileges...", enabledPrivileges.Count));
-                foreach (var privilege in enabledPrivileges)
+                var failed = new Dictionary<string, Exception>();
+                foreach (var privilege in DisableEnabledPrivileges(failed))
                 {
-                    DisablePrivilege((Privilege)Enum.Parse(typeof(Privilege), privilege));
                     WriteVerbose(string.Format("\t{0} disabled", privilege));
+                }
+                foreach (var failure in failed)
+                {
+                    WriteDebug(string.Format("Could not disable privilege {0}. The error was: {1}", failure.Key, failure.Value.Message));
+                    WriteWarning(string.Format("The privilege '{0}' could not be disabled.", failure.Key));
                 }
                 WriteVerbose(string.Format("...finished"));
             }
+        }
+
+        // PowerShell calls Dispose also when a later command or a terminating error stops the pipeline, and then
+        // skips EndProcessing. Before 5.0.0-rc6, the privileges that the cmdlet had enabled stayed enabled in the
+        // session in that case. PowerShell ignores an exception from Dispose and no stream is open anymore, so a
+        // privilege that can't be disabled goes unreported here.
+        public void Dispose()
+        {
+            DisableEnabledPrivileges(new Dictionary<string, Exception>());
+            GC.SuppressFinalize(this);
+        }
+
+        // Disables the privileges that this cmdlet enabled, once, and returns their names. A privilege that can't be
+        // disabled goes to failed with its error and doesn't keep the others enabled.
+        private List<string> DisableEnabledPrivileges(Dictionary<string, Exception> failed)
+        {
+            var disabled = new List<string>();
+            if (!KeepEnabledPrivileges)
+            {
+                foreach (var privilege in enabledPrivileges)
+                {
+                    try
+                    {
+                        DisablePrivilege((Privilege)Enum.Parse(typeof(Privilege), privilege));
+                        disabled.Add(privilege);
+                    }
+                    catch (Exception ex)
+                    {
+                        failed[privilege] = ex;
+                    }
+                }
+            }
+
+            enabledPrivileges.Clear();
+            return disabled;
         }
 
         protected void EnablePrivilege(Privilege privilege)
@@ -239,8 +324,10 @@ namespace NTFSSecurity
 
         public void DisablePrivilege(Privilege privilege)
         {
-            //if the privilege is enabled
-            if (privileges.Single(p => p.Privilege == privilege).PrivilegeState == PrivilegeState.Enabled)
+            // The current state, not the one that the cmdlet read when it enabled the privileges: another command, also
+            // one in the same pipeline, can have disabled the privilege since then. Before 5.0.0-rc6, the cmdlet then
+            // failed with "Priviledge already disabled" and left the privileges after this one enabled.
+            if (privControl.GetPrivileges().Any(p => p.Privilege == privilege && p.PrivilegeState == PrivilegeState.Enabled))
                 privControl.DisablePrivilege(privilege);
         }
 

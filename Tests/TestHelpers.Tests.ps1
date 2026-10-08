@@ -11,6 +11,8 @@ BeforeDiscovery {
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
     # Assigning an owner other than the user or one of its groups needs the Restore privilege.
     $canAssignAnyOwner = Test-PrivilegeHeld -Name 'SeRestorePrivilege'
+    # Reading and writing audit entries needs the Security privilege.
+    $holdsSecurityPrivilege = Test-PrivilegeHeld -Name 'SeSecurityPrivilege'
 }
 
 BeforeAll {
@@ -134,6 +136,28 @@ Describe 'Test helpers' {
         It 'Should not change the ACL of the target of a junction' {
             (Get-Acl -LiteralPath $target).Sddl | Should -BeExactly $targetSddl
         }
+
+        # Before 5.0.0-rc6, the teardown couldn't remove paths longer than 260 characters in Windows PowerShell (#110).
+        It 'Should remove a sandbox with a path longer than 260 characters' {
+            $longSandbox = New-TestSandbox -Name 'Helpers'
+            $long = Join-Path -Path $longSandbox -ChildPath (('A' * 100), ('B' * 100), ('C' * 100) -join '\')
+            Assert-TestSandboxPath -Sandbox $longSandbox -Path $long
+            # The \\?\ prefix lets Windows PowerShell create the path.
+            [IO.Directory]::CreateDirectory('\\?\' + $long) | Out-Null
+            [IO.File]::WriteAllText(('\\?\' + $long + '\File.txt'), 'Long')
+            $long.Length | Should -BeGreaterThan 260
+
+            Remove-TestSandbox -Sandbox $longSandbox
+
+            $longSandbox | Should -Not -Exist
+        }
+
+        # Before 5.0.0-rc6, an AfterAll after a failed setup stopped with a binding error that hid the error of the setup.
+        It 'Should do nothing for a sandbox that a failed setup did not create: <_>' -ForEach @('$null', 'empty string') {
+            $value = if ($_ -eq '$null') { $null } else { '' }
+
+            { Remove-TestSandbox -Sandbox $value } | Should -Not -Throw
+        }
     }
 
     Context 'Set-TestOwner' {
@@ -188,6 +212,41 @@ Describe 'Test helpers' {
                     Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-32-546' })
             $rules | Should -HaveCount 1
             $rules[0].AccessControlType | Should -Be 'Deny'
+        }
+
+        # Set-Acl also writes the audit section of an item whose DACL is protected, which fails without the Security
+        # privilege.
+        It 'Should add a deny entry to an item whose DACL is protected' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Protected'
+            & icacls.exe $file /inheritance:d *> $null
+            $LASTEXITCODE | Should -Be 0
+
+            Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ 'S-1-5-32-546' = 'ReadData' }
+
+            $acl = Get-Acl -LiteralPath $file
+            $acl.AreAccessRulesProtected | Should -BeTrue
+            $rules = @($acl.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-32-546' })
+            $rules | Should -HaveCount 1
+            $rules[0].AccessControlType | Should -Be 'Deny'
+        }
+
+        # With the Security privilege, Set-Acl writes all sections, so the audit entries of the item would be lost.
+        It 'Should keep the audit entries of the item' -Skip:(-not $holdsSecurityPrivilege) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Audited'
+            $auditAcl = Get-Acl -LiteralPath $file -Audit
+            $auditAcl.AddAuditRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList (
+                        (New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList 'S-1-1-0'),
+                        [System.Security.AccessControl.FileSystemRights]::Delete,
+                        [System.Security.AccessControl.AuditFlags]::Success
+                    )))
+            Set-Acl -LiteralPath $file -AclObject $auditAcl
+
+            Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ 'S-1-5-32-546' = 'ReadData' }
+
+            $auditRules = @((Get-Acl -LiteralPath $file -Audit).GetAuditRules($true, $false, [System.Security.Principal.SecurityIdentifier]))
+            $auditRules | Should -HaveCount 1
+            $auditRules[0].IdentityReference.Value | Should -Be 'S-1-1-0'
         }
 
         It 'Should refuse an item outside the sandbox' {

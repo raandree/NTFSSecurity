@@ -87,9 +87,17 @@ function Remove-TestSandbox {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory)]
+        [AllowNull()]
+        [AllowEmptyString()]
         [string]
         $Sandbox
     )
+
+    # A setup that failed before New-TestSandbox returned leaves nothing to remove. Before 5.0.0-rc6, the binding error
+    # hid the error of the setup (#110).
+    if ([string]::IsNullOrEmpty($Sandbox)) {
+        return
+    }
 
     Assert-TestSandboxPath -Sandbox $Sandbox -Path $Sandbox
     if (-not (Test-Path -LiteralPath $Sandbox)) {
@@ -100,17 +108,20 @@ function Remove-TestSandbox {
     # the caller uses ErrorAction Stop. Such items can still be deleted through the rights on their folder.
     $ErrorActionPreference = 'Continue'
 
+    # The prefix lets .NET in Windows PowerShell reach paths longer than 260 characters (#110).
+    $longPathPrefix = '\\?\'
+
     # Windows PowerShell 5.1 and icacls /T follow directory links, so the links go first. A folder that denies
     # listing its content gets its own ACL reset, without /T, before it is listed.
     $pending = New-Object -TypeName 'System.Collections.Generic.Stack[string]'
-    $pending.Push($Sandbox)
+    $pending.Push($longPathPrefix + $Sandbox)
     while ($pending.Count -gt 0) {
         $folder = $pending.Pop()
         try {
             $entries = [IO.Directory]::GetFileSystemEntries($folder)
         }
         catch {
-            & icacls.exe $folder /reset /C /Q *> $null
+            & icacls.exe $folder.Substring($longPathPrefix.Length) /reset /C /Q *> $null
             $entries = [IO.Directory]::GetFileSystemEntries($folder)
         }
         foreach ($entry in $entries) {
@@ -129,10 +140,26 @@ function Remove-TestSandbox {
         }
     }
     & icacls.exe $Sandbox /reset /T /C /Q *> $null
-    Get-ChildItem -LiteralPath $Sandbox -Recurse -Force | ForEach-Object -Process {
-        $_.Attributes = [IO.FileAttributes]::Normal
+    Get-ChildItem -LiteralPath $Sandbox -Recurse -Force -ErrorAction SilentlyContinue | ForEach-Object -Process {
+        # Windows PowerShell returns items below paths longer than 260 characters that it can't change; rd removes them.
+        try {
+            $_.Attributes = [IO.FileAttributes]::Normal
+        }
+        catch {
+            Write-Verbose -Message "Keeping the attributes of '$($_.FullName)': $($_.Exception.Message)"
+        }
     }
-    Remove-Item -LiteralPath $Sandbox -Recurse -Force
+    Remove-Item -LiteralPath $Sandbox -Recurse -Force -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $Sandbox) {
+        # Windows PowerShell can't remove paths longer than 260 characters; rd can with the prefix, and the links are
+        # gone already.
+        & cmd.exe /d /c ('rd /s /q "{0}{1}"' -f $longPathPrefix, $Sandbox) *> $null
+    }
+
+    if (Test-Path -LiteralPath $Sandbox) {
+        Write-Error -Message "The sandbox '$Sandbox' could not be removed."
+    }
+
     try {
         # Fails while another sandbox exists, also one of a test run in parallel
         [IO.Directory]::Delete($script:sandboxRoot, $false)
@@ -250,6 +277,7 @@ function Add-TestDenyRule {
     )
 
     Assert-TestSandboxPath -Sandbox $Sandbox -Path $Path
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
     $acl = Get-Acl -LiteralPath $Path
     foreach ($sid in $Rights.Keys) {
         $identity = New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList $sid
@@ -259,7 +287,15 @@ function Add-TestDenyRule {
         )
         $acl.AddAccessRule($rule)
     }
-    Set-Acl -LiteralPath $Path -AclObject $acl
+    # Not Set-Acl: it compares AreAuditRulesProtected with AreAccessRulesProtected, so it also writes the audit
+    # section of an item whose DACL is protected, which fails without the Security privilege. With the privilege, it
+    # writes all sections and drops the audit entries. SetAccessControl writes only the DACL, the section that changed.
+    if ($PSVersionTable.PSEdition -eq 'Core') {
+        [System.IO.FileSystemAclExtensions]::SetAccessControl($item, $acl)
+    }
+    else {
+        $item.SetAccessControl($acl)
+    }
 }
 
 function Set-TestOwner {

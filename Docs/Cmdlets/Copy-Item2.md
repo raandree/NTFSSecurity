@@ -24,7 +24,7 @@ The `Copy-Item2` cmdlet copies the items in `-Path` to the location in `-Destina
 
 How `-Destination` is interpreted depends on what is already there. If the value names an existing folder, the cmdlet keeps the name of the source item and copies it into that folder. In every other case the value is the full path of the new item, which lets you copy and rename in one step. `-Destination` is resolved against the current location once, when the cmdlet starts.
 
-Without `-Force`, the cmdlet checks whether the destination file already exists and writes a `DestinationFileAlreadyExists` error instead of overwriting it. With `-WhatIf`, it names an existing destination file in a verbose message instead; before 5.0.0, it wrote the error also with `-WhatIf`. With `-Force`, an existing file is replaced. Relative paths and the `.` and `..` notations in `-Path` are resolved against the current location, and wildcard characters are not supported.
+Without `-Force`, the cmdlet checks whether a file or folder already exists at the destination and writes a `DestinationFileAlreadyExists` error instead of overwriting it or merging into it. With `-WhatIf`, it names an existing destination in a verbose message instead; before 5.0.0, it wrote the error also with `-WhatIf`. With `-Force`, an existing file is replaced, and a folder is copied into an existing folder of the same name, replacing the files that exist in both. The folder that is to contain the new item must exist; otherwise the cmdlet writes an error that names that folder, or, with `-WhatIf`, a verbose message. Relative paths and the `.` and `..` notations in `-Path` are resolved against the current location, and wildcard characters are not supported.
 
 The cmdlet supports `-WhatIf` and `-Confirm`, and it writes nothing to the pipeline unless you specify `-PassThru $true`.
 
@@ -98,7 +98,7 @@ Accept wildcard characters: False
 
 ### -Force
 
-Indicates that the cmdlet overwrites an existing destination file. Without `-Force`, an existing file causes the error `DestinationFileAlreadyExists` and the item is not copied.
+Indicates that the cmdlet overwrites an existing destination file, and copies a folder into an existing folder of the same name. Without `-Force`, an existing file or folder at the destination causes the error `DestinationFileAlreadyExists` and the item is not copied.
 
 ```yaml
 Type: SwitchParameter
@@ -192,7 +192,7 @@ Before 5.0.0, `-PassThru` also wrote the item when `-WhatIf` or a declined confi
 
 Before 5.0.0, copying a folder that contained files failed with a `CopyError` that reported a `DirectoryNotFoundException` for the first file in the folder.
 
-If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call.
+If a path in `-Path` does not exist, a file or folder exists at the destination and `-Force` is missing, or the folder that is to contain the copy does not exist, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call. Before 5.0.0, it also didn't detect an existing destination folder, so that the copy failed in the middle with a `CopyError` after it had copied a part of the folder; it reported a missing destination folder as a `DirectoryNotFoundException` that named the source item; and, in the prereleases of 5.0.0, it created the missing folders of the destination for a folder.
 
 ## RELATED LINKS
 

@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-07
+last-verified: 2026-10-08
 owner: active-agent
 source: repository evidence
 ---
@@ -72,20 +72,24 @@ source: repository evidence
 - The third workstation (`ExHost`, a Windows Server 2025 VM, x64, used since
   2026-10-07) runs the agent session elevated and hosts the AutomatedLab lab
   `WindowsAccessControlLab` (Decision 20) with Hyper-V and AutomatedLab
-  5.61.704. It has no NuGet cache, platyPS, or GitHub CLI: check each
+  5.61.704. It has no NuGet cache or platyPS: check each
   nuget.org package against the SHA-512 `packageHash` of its catalog entry
   (`https://api.nuget.org/v3/registration5-semver1/<id>/<version>.json`,
   then `catalogEntry`), and each Gallery package against `PackageHash` of
   `api/v2/Packages(Id='<id>',Version='<version>')`. Pester 5.7.1 is in
-  `V:\Git\WindowsAccessControl\output\RequiredModules`; read issues and pull
-  requests through the GitHub REST API. The lab domains `a.forest1.net` and
-  `b.forest1.net` had a maximum password age of 42 days, so the password of
-  `install` expired on 2026-09-15 and AutomatedLab got access denied; it
-  never expires since 2026-10-07, as in `forest1.net`.
+  `V:\Git\WindowsAccessControl\output\RequiredModules`. The GitHub CLI
+  2.102.0 is in `C:\Program Files\GitHub CLI`, outside the PATH, and signed
+  in as `raandree` since 2026-10-08; `Block-RemoteMutation` denies its
+  mutating commands, so the agent uses it read-only. The lab domains
+  `a.forest1.net` and `b.forest1.net` had a maximum password age of 42
+  days, so the password of `install` expired on 2026-09-15 and AutomatedLab
+  got access denied; it never expires since 2026-10-07, as in
+  `forest1.net`.
 
 ## Constraints
 
-- `ModuleVersion` is `5.0.0` with the prerelease label `rc5`.
+- `ModuleVersion` is `5.0.0` with the prerelease label `rc6` on the branch
+  `ai/release-5.0.0-rc6` (`rc5` on `master`).
   The latest stable tag and Gallery release is `4.2.6`. The manifest
   requires PowerShell 5.1 and .NET Framework 4.5.2, uses `RootModule`, and
   lists exactly 36 cmdlets; `Test-ModuleManifest` passes in Windows
@@ -96,7 +100,8 @@ source: repository evidence
 - PowerShell Gallery versions (publish dates): 4.0.0 (2015-08-19), 4.2.2
   (2016-05-18), 4.2.3 (2016-05-19), 4.2.4 (2018-08-13), 4.2.5 (2019-07-11),
   4.2.6 (2019-07-12), none with release notes; 5.0.0-rc1 (2026-10-04),
-  5.0.0-rc2 (2026-10-05), 5.0.0-rc3 and 5.0.0-rc4 (2026-10-06), published
+  5.0.0-rc2 (2026-10-05), 5.0.0-rc3 and 5.0.0-rc4 (2026-10-06), 5.0.0-rc5
+  (2026-10-08), published
   by CI. Older versions were released on CodePlex only, and their dates are
   lost. The git history starts on 2016-10-10, when the project moved from
   CodePlex.
@@ -139,7 +144,9 @@ source: repository evidence
   then: 01 `Update-MarkdownHelp` and fail on `git diff -- Docs/Cmdlets`; 02
   `Get-MarkdownLink -BrokenOnly`; 03 regenerate the help file and fail on
   `git status --porcelain -- NTFSSecurity/en-US`; 04 `Invoke-Tests.ps1` in
-  Windows PowerShell 5.1 and in PowerShell 7. Job `wiki` on `ubuntu-latest`
+  Windows PowerShell 5.1 and in PowerShell 7, then
+  `Invoke-TestsAsBasicUser.ps1` in both editions (since 5.0.0-rc6). Job
+  `wiki` on `ubuntu-latest`
   (read-only) clones the wiki (`gh auth setup-git` with the built-in token),
   runs `Export-WikiContent.ps1`, and lists the changed pages in the job
   summary; job `publish-wiki` (`contents: write`) repeats that and publishes,
@@ -159,7 +166,8 @@ source: repository evidence
   ci.yml`, `gh pr checks <number>`, and `gh run view <id> --log-failed`
   (read-only).
 - Workflow lint: actionlint (download the release zip into `$env:TEMP` and
-  check its SHA-256 against the checksum file); PowerShell steps check
+  check its SHA-256 against the checksum file; 1.7.12 on 2026-10-08);
+  PowerShell steps check
   `$LASTEXITCODE` after every native command, because GitHub checks only
   the last one.
 - Run platyPS in Windows PowerShell 5.1 to avoid PowerShell 7.4+
@@ -171,16 +179,61 @@ source: repository evidence
   PowerShell 5.1: the launcher starts `pwsh`, and its payload runs
   `powershell.exe -NoProfile -EncodedCommand` with Pester imported by full
   path. A run without `bin\Release\en-US` must fail.
-- Tests that run only without a privilege skip in CI and in an elevated
-  session. Run them as a basic user with `runas /trustlevel:0x20000`, and
-  give Windows PowerShell its own `PSModulePath`; that token holds one
-  privilege, so the `Enable-Privileges -PassThru` count test fails there.
+- Tests that run only without a privilege skip in an elevated session.
+  `.github\scripts\Invoke-TestsAsBasicUser.ps1` runs the suite from an
+  elevated session with a token of the SAFER level Normal User, like
+  `runas /trustlevel:0x20000`, and CI runs it in both editions. For a
+  single file, `runas /trustlevel:0x20000` works too; give Windows
+  PowerShell its own `PSModulePath`, and note that `runas` returns at once,
+  so the script it starts writes its own log. Both tokens hold only the
+  privilege to bypass traverse checking.
+  Pester reports a skipped `-ForEach` test under its template name, such as
+  `<_> should ...`, and a test that ran under the expanded name: compare
+  runs by template.
+- C# coverage (Decision 21): AltCover 9.0.145 (`tools\net472\AltCover.exe`
+  of the nuget.org package) instruments a copy of the local Release build,
+  which has the PDB files that the published package lacks:
+  `--reportFormat=OpenCover`, AlphaFS and `System.Management.Automation`
+  excluded with `--assemblyFilter`, and no `--save`: then every process
+  writes its hits into the report when it exits. With `--save`, each
+  process writes a recorder file, and `runner --collect` keeps only the
+  first one (verified 2026-10-08), so the numbers measured that way held
+  only the main process of the elevated Windows PowerShell run. Put the
+  instrumented module in `NTFSSecurity\bin\Release` of a `git worktree`,
+  run `.github\scripts\Invoke-Tests.ps1` elevated and
+  `Invoke-TestsAsBasicUser.ps1` in both editions, then
+  `AltCover.exe runner --collect --recorderDirectory=<the instrumented
+  folder>`, which recalculates the summary of the report from the hits.
+  All four configurations, 2026-10-08: the rc5 tree 58.1% of the lines
+  (2,020 of 3,476) and 38.0% of the branches (711 of 1,873), 62.5% without
+  244 lines in classes that no cmdlet calls; the rc6 candidate (`1b9edbb`)
+  68.1% of the lines (2,412 of 3,540) and 44.3% of the branches (850 of
+  1,918), 73.2% without those classes, the `NTFSSecurity` assembly 78.1%.
+  The earlier figures, 55.9% for rc5 and 65.6% for rc6, used `--save`.
 - Live tests (Decision 20): in an elevated Windows PowerShell 5.1 session
   on the lab host, `Tests\Lab\Invoke-NTFSSecurityLabTest.ps1` with
   `-Version` for Gallery packages or `-ModulePath` for a build; it writes
   the results to `$env:TEMP\NTFSSecurityLab\Results`. A run of two versions
   in both editions takes about 30 minutes; `-RemoveFixture` removes its
-  accounts, share, and folders from the lab.
+  accounts, share, and folders from the lab. For a check on the client as
+  an account without administrator rights, use `NtfsLiveServerAdmin`
+  (Remote Management Users on the client, CredSSP by IP address like the
+  controller): reset its password on the PDC emulator to a random value
+  in memory; the next run of the controller sets a new one anyway.
+- Lab acceptance of a candidate (modeled on the WindowsAccessControl
+  handoff 07): build once, package it with `New-ModulePackage.ps1`, and
+  record the SHA-256 of the packages and module files; check WinRM, LDAP
+  (RootDSE), Kerberos (`klist get`), the secure channel, and the clock of
+  the six VMs; take a Production checkpoint named
+  `ntfs-<label>-<commit>-before-acceptance` of `F1ADC1`, `F1BDC1`,
+  `F2DC1`, `F3DC1`, `F1AFile1`, and `F1AFile2`; run the controller with
+  `-ModulePath` of the extracted `NTFSSecurity.zip` in both editions; then
+  `-RemoveFixture` and check that the accounts, share, folders, group
+  memberships, and profiles are gone.
+- `Get-NTFSEffectiveAccess -ServerName`: the authorization manager of the
+  named computer answers only its administrators and the members of its
+  group Access Control Assistance Operators (S-1-5-32-579); others get
+  "Access is denied" (5). Lab probe of 2026-10-08 on `F1AFile2`.
 - Markdown lint: `npx markdownlint-cli2` with `MD013` limited to prose
   (tables, code, and headings excluded) on the conceptual pages; for
   `CHANGELOG.md` also `MD024` with `siblings_only: true`, because every

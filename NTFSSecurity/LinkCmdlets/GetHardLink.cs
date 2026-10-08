@@ -48,8 +48,12 @@ namespace NTFSSecurity
                     //access the path to make sure it exists and is a file
                     var item = GetFileSystemInfo2(path);
 
+                    // An error for this path only; before 5.0.0-rc6, a folder stopped the cmdlet for all paths.
                     if (item is DirectoryInfo)
-                        throw new ArgumentException("The item must be a file");
+                    {
+                        WriteError(new ErrorRecord(new ArgumentException("The item must be a file"), "GetHardLinkError", ErrorCategory.InvalidArgument, path));
+                        continue;
+                    }
 
                     var links = File.EnumerateHardlinks(item.FullName);
 
@@ -63,6 +67,16 @@ namespace NTFSSecurity
                 catch (System.IO.FileNotFoundException ex)
                 {
                     WriteError(new ErrorRecord(ex, "FileNotFound", ErrorCategory.ObjectNotFound, path));
+                }
+                // Windows can't list the names of a file on a network share: (50) The request is not supported.
+                // Before 5.0.0-rc6, this stopped the cmdlet for all paths.
+                catch (System.IO.IOException ex)
+                {
+                    WriteError(new ErrorRecord(ex, "GetHardLinkError", ErrorCategory.ReadError, path));
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    WriteError(new ErrorRecord(ex, "GetHardLinkError", ErrorCategory.PermissionDenied, path));
                 }
             }
         }

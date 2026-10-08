@@ -47,7 +47,9 @@ namespace NTFSSecurity
             //as this cmdlet retreives also the current working folder to show the permissions.
             if (includeRootFolder & isFirstFolder)
             {
-                string rootPath = System.IO.Path.GetDirectoryName(paths[0]);
+                // Resolved first, so that a relative path with a single folder name has the current location as its
+                // parent folder; before 5.0.0-rc6, such a path had no parent folder in the result.
+                string rootPath = System.IO.Path.GetDirectoryName(GetRelativePath(paths[0]));
 
                 if (!string.IsNullOrEmpty(rootPath))
                 {

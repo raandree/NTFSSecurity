@@ -1,5 +1,7 @@
 ﻿using Alphaleonis.Win32.Filesystem;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Management.Automation;
 
 namespace NTFSSecurity
@@ -74,7 +76,18 @@ namespace NTFSSecurity
 
                 if (passThru)
                 {
-                    var links = File.EnumerateHardlinks(path);
+                    IEnumerable<string> links;
+                    try
+                    {
+                        links = File.EnumerateHardlinks(path).ToList();
+                    }
+                    // Windows can't list the names of a file on a network share: (50) The request is not supported.
+                    // The link exists; before 5.0.0-rc6, this stopped the cmdlet with a terminating error.
+                    catch (System.IO.IOException ex)
+                    {
+                        WriteError(new ErrorRecord(ex, "GetHardLinkError", ErrorCategory.ReadError, path));
+                        return;
+                    }
 
                     foreach (var link in links)
                     {

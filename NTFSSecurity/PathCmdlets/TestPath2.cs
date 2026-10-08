@@ -45,30 +45,49 @@ namespace NTFSSecurity
         {
             foreach (var path in paths)
             {
+                FileSystemInfo item = null;
                 try
                 {
-                    FileSystemInfo item;
                     TryGetFileSystemInfo2(path, out item);
-
-                    if (item == null)
-                        WriteObject(false);
-                    else
-                    {
-                        if (PathType == TestPathType.Any)
-                            WriteObject(true);
-                        else if (PathType == TestPathType.Container & item is DirectoryInfo)
-                            WriteObject(true);
-                        else if (PathType == TestPathType.Leaf & item is FileInfo)
-                            WriteObject(true);
-                        else
-                            WriteObject(false);
-                    }
                 }
                 catch (System.IO.FileNotFoundException ex)
                 {
                     WriteError(new ErrorRecord(ex, "PathNotFound", ErrorCategory.ObjectNotFound, path));
+                    continue;
+                }
+                // In Windows PowerShell, .NET rejects a path with a character that Windows doesn't allow in names.
+                // Such an item can't exist, so the cmdlet writes $false, as in PowerShell 7 and like Test-Path.
+                catch (System.ArgumentException ex)
+                {
+                    WriteInvalidPath(path, ex);
+                    continue;
+                }
+                catch (System.NotSupportedException ex)
+                {
+                    WriteInvalidPath(path, ex);
+                    continue;
+                }
+
+                if (item == null)
+                    WriteObject(false);
+                else
+                {
+                    if (PathType == TestPathType.Any)
+                        WriteObject(true);
+                    else if (PathType == TestPathType.Container & item is DirectoryInfo)
+                        WriteObject(true);
+                    else if (PathType == TestPathType.Leaf & item is FileInfo)
+                        WriteObject(true);
+                    else
+                        WriteObject(false);
                 }
             }
+        }
+
+        private void WriteInvalidPath(string path, System.Exception exception)
+        {
+            WriteDebug(string.Format("'{0}' is not a valid path: {1}", path, exception.Message));
+            WriteObject(false);
         }
 
         protected override void EndProcessing()

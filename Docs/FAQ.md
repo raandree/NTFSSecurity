@@ -71,5 +71,7 @@ No. The cmdlets read and write the file system directly through the AlphaFS
 library, not through the PowerShell providers, so they don't know drives
 that `New-PSDrive` created, or drives of other providers such as `HKLM:`.
 Use the file system path instead, such as `C:\Data` or `\\server\share`. A
-relative path is resolved against the current file system location. See
+relative path is resolved against the current file system location, also a
+name that starts with a dot, such as `.gitignore`; before 5.0.0-rc6, the
+cmdlets dropped the first two characters of such a name. See
 [Long paths](Concepts.md#long-paths).

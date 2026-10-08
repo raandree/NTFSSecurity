@@ -21,21 +21,29 @@ namespace Security2
 
             if (getInheritedFrom)
             {
-                inheritedFrom = Win32.GetInheritedFrom(sd.Item, sd.SecurityDescriptor);
+                inheritedFrom = Win32.GetInheritedFrom(sd.Item, sd.SecurityDescriptor, true);
             }
 
+            // All entries, so that each entry gets the source at its index in the SACL; before 5.0.0-rc6, the entries of
+            // -ExcludeExplicit got the sources of other entries. The filter follows.
             var aceCounter = 0;
             var acl = !sd.IsFile ?
-                ((DirectorySecurity)sd.SecurityDescriptor).GetAuditRules(includeExplicit, includeInherited, typeof(SecurityIdentifier)) :
-                ((FileSecurity)sd.SecurityDescriptor).GetAuditRules(includeExplicit, includeInherited, typeof(SecurityIdentifier));
+                ((DirectorySecurity)sd.SecurityDescriptor).GetAuditRules(true, true, typeof(SecurityIdentifier)) :
+                ((FileSecurity)sd.SecurityDescriptor).GetAuditRules(true, true, typeof(SecurityIdentifier));
 
             foreach (FileSystemAuditRule ace in acl)
             {
-                var ace2 = new FileSystemAuditRule2(ace) { FullName = sd.Item.FullName, InheritanceEnabled = !sd.SecurityDescriptor.AreAuditRulesProtected };
-                if (getInheritedFrom)
+                var source = getInheritedFrom && aceCounter < inheritedFrom.Count ? inheritedFrom[aceCounter] : null;
+                aceCounter++;
+                if (ace.IsInherited ? !includeInherited : !includeExplicit)
                 {
-                    ace2.inheritedFrom = string.IsNullOrEmpty(inheritedFrom[aceCounter]) ? "" : inheritedFrom[aceCounter].Substring(0, inheritedFrom[aceCounter].Length - 1);
-                    aceCounter++;
+                    continue;
+                }
+
+                var ace2 = new FileSystemAuditRule2(ace) { FullName = sd.Item.FullName, InheritanceEnabled = !sd.SecurityDescriptor.AreAuditRulesProtected };
+                if (getInheritedFrom && inheritedFrom.Count > 0)
+                {
+                    ace2.inheritedFrom = string.IsNullOrEmpty(source) ? "" : source.Substring(0, source.Length - 1);
                 }
 
                 aceList.Add(ace2);

@@ -300,7 +300,7 @@ With `-PassThru`, the cmdlet writes all access control entries, explicit and inh
 
 When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.
 
-If the ACL of an item cannot be written because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.
+If the ACL of an item cannot be written because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. That fallback only succeeds when the account can take ownership of the item, through the Take Ownership right on the item or the Take Ownership privilege, and can set the previous owner back, which needs the Restore privilege unless that owner is the account itself or one of its groups. When the owner changes, Windows removes the entries for OWNER RIGHTS of the item.
 
 Removing rights from an entry that does not exist is not an error; the cmdlet leaves the ACL unchanged.
 
