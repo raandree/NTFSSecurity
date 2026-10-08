@@ -119,12 +119,23 @@ Before you open a pull request, check the following:
 - The Pester tests in `Tests` pass. They test the module in
   `NTFSSecurity\bin\Release`, for example that `Get-Help` shows every page,
   and the conversion to the wiki. The CI workflow runs them in Windows
-  PowerShell 5.1 and in PowerShell 7 with Pester 5.7.1:
+  PowerShell 5.1 and in PowerShell 7 with Pester 5.7.1, in the elevated
+  session of the runner and again as a basic user:
 
   ```powershell
   Install-Module -Name Pester -RequiredVersion 5.7.1 -SkipPublisherCheck
   Import-Module -Name Pester -RequiredVersion 5.7.1
   Invoke-Pester -Path .\Tests -Output Detailed
+  ```
+
+  A test that needs a privilege skips without it, and a test that needs a
+  session without the privileges of an administrator skips in an elevated
+  session. To run the tests as a basic user from an elevated session, as the
+  CI workflow does, use `Invoke-TestsAsBasicUser.ps1`:
+
+  ```powershell
+  .\.github\scripts\Invoke-TestsAsBasicUser.ps1 `
+      -ResultPath TestResults\BasicUser.xml -Title 'As a basic user'
   ```
 
   The [live tests](../../Tests/Lab/README.md) in `Tests\Lab` need a lab with

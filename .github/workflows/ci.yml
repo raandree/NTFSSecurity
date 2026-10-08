@@ -121,6 +121,18 @@ jobs:
         shell: pwsh
         run: ./.github/scripts/Invoke-Tests.ps1 -ResultPath TestResults/PowerShell7.xml -Title 'PowerShell 7'
 
+      # Without the privileges and the Administrators group of the runner account, so the tests that an elevated
+      # session skips run as well
+      - name: Run the tests in Windows PowerShell 5.1 as a basic user
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: powershell
+        run: .\.github\scripts\Invoke-TestsAsBasicUser.ps1 -ResultPath TestResults\WindowsPowerShell-BasicUser.xml -Title 'Windows PowerShell 5.1 as a basic user'
+
+      - name: Run the tests in PowerShell 7 as a basic user
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: pwsh
+        run: ./.github/scripts/Invoke-TestsAsBasicUser.ps1 -ResultPath TestResults/PowerShell7-BasicUser.xml -Title 'PowerShell 7 as a basic user'
+
       - name: Upload the test results
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
