@@ -151,6 +151,22 @@ namespace NTFSSecurity
 
         #region WriteMissingDestinationFolderError
         /// <summary>
+        /// Returns the folder of a destination path when that folder doesn't exist.
+        /// </summary>
+        /// <param name="destinationPath">The full path of the item that the operation would create.</param>
+        /// <returns>The missing folder, or null when the folder exists or the path has none, such as a share root.</returns>
+        protected string GetMissingDestinationFolder(string destinationPath)
+        {
+            var folder = Alphaleonis.Win32.Filesystem.Path.GetDirectoryName(destinationPath.TrimEnd('\\'));
+            if (string.IsNullOrEmpty(folder) || Alphaleonis.Win32.Filesystem.Directory.Exists(folder))
+            {
+                return null;
+            }
+
+            return folder;
+        }
+
+        /// <summary>
         /// Writes an error that names the folder of a destination path when that folder doesn't exist. Before
         /// 5.0.0-rc6, AlphaFS reported such a destination as the source path that could not be found (#21), and
         /// Copy-Item2 created the missing folders for a folder.
@@ -160,8 +176,8 @@ namespace NTFSSecurity
         /// <returns>Whether the folder is missing and the error was written.</returns>
         protected bool WriteMissingDestinationFolderError(string destinationPath, string errorId)
         {
-            var folder = Alphaleonis.Win32.Filesystem.Path.GetDirectoryName(destinationPath.TrimEnd('\\'));
-            if (string.IsNullOrEmpty(folder) || Alphaleonis.Win32.Filesystem.Directory.Exists(folder))
+            var folder = GetMissingDestinationFolder(destinationPath);
+            if (folder == null)
             {
                 return false;
             }

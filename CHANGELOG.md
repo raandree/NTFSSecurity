@@ -297,8 +297,9 @@ The format is based on
   an error that named the source item
   ([#21](https://github.com/raandree/NTFSSecurity/issues/21)); they now
   write `DestinationFileAlreadyExists` and an error that names the missing
-  folder. `Copy-Item2` no longer creates the missing folders of the
-  destination when it copies a folder, which the prereleases of 5.0.0 did
+  folder, and with `-WhatIf` a verbose message that names it. `Copy-Item2`
+  no longer creates the missing folders of the destination when it copies a
+  folder, which the prereleases of 5.0.0 did
 - Fix `Get-NTFSHardLink`, which stopped for all remaining paths at a folder
   and at a file on a network share, where Windows can't list the names of
   a file, and `New-NTFSHardLink -PassThru`, which stopped with a

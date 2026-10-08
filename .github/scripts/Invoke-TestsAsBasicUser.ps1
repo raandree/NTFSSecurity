@@ -14,7 +14,8 @@
     Specifies the path of the result file in the NUnit format.
 
 .PARAMETER Title
-    Specifies the heading of the test results in the job summary.
+    Specifies the heading of the test results in the job summary. It can't contain a double quote or a percent sign,
+    which would change the command line of cmd.exe.
 
 .EXAMPLE
     .\.github\scripts\Invoke-TestsAsBasicUser.ps1 -ResultPath TestResults\WindowsPowerShell-BasicUser.xml -Title 'Windows PowerShell 5.1 as a basic user'
@@ -30,6 +31,8 @@ param (
 
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
+    # cmd.exe gets the title in a quoted argument and expands environment variables also inside quotes.
+    [ValidatePattern('^[^"%]+$')]
     [string]
     $Title
 )
@@ -48,6 +51,7 @@ public static class NTFSSecurityBasicUserProcess
     private const uint SaferLevelOpen = 1;
     private const uint CreateNoWindow = 0x08000000;
     private const uint Infinite = 0xFFFFFFFF;
+    private const uint WaitObject0 = 0;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct StartupInfo
@@ -129,7 +133,11 @@ public static class NTFSSecurityBasicUserProcess
 
             try
             {
-                WaitForSingleObject(processInformation.hProcess, Infinite);
+                if (WaitForSingleObject(processInformation.hProcess, Infinite) != WaitObject0)
+                {
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+
                 uint exitCode;
                 if (!GetExitCodeProcess(processInformation.hProcess, out exitCode))
                 {
@@ -175,7 +183,7 @@ $executable = (Get-Process -Id $PID).Path
 $testScript = Join-Path -Path $PSScriptRoot -ChildPath 'Invoke-Tests.ps1'
 # cmd redirects the output of the tests, which have no console of their own.
 $commandLine = 'cmd.exe /d /s /c ""{0}" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{1}" -ResultPath "{2}" -Title "{3}" > "{4}" 2>&1"' -f
-    $executable, $testScript, $runResultPath, $Title.Replace('"', "'"), $logPath
+    $executable, $testScript, $runResultPath, $Title, $logPath
 
 $stepSummary = $env:GITHUB_STEP_SUMMARY
 $env:GITHUB_STEP_SUMMARY = $summaryPath

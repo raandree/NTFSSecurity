@@ -98,6 +98,14 @@ namespace NTFSSecurity
                     {
                         WriteVerbose(string.Format("The destination '{0}' already exists; without -Force, the move would fail", actualDestination));
                     }
+                    else
+                    {
+                        var missingFolder = GetMissingDestinationFolder(actualDestination);
+                        if (missingFolder != null)
+                        {
+                            WriteVerbose(string.Format("The destination folder '{0}' does not exist; the move would fail", missingFolder));
+                        }
+                    }
 
                     continue;
                 }

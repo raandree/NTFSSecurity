@@ -316,6 +316,37 @@ Describe 'Copy-Item2, Move-Item2, and Remove-Item2 with several paths' {
 
         @($messages | Where-Object -FilterScript { "$_" -like "*'$existing' already exists*" }) | Should -HaveCount 1
     }
+
+    # Before 5.0.0-rc6, -WhatIf didn't tell that the operation would fail because the folder of the destination is
+    # missing.
+    It '<_> should name the missing folder of the destination in a verbose message with -WhatIf, and write no error' -ForEach @('Copy-Item2', 'Move-Item2') {
+        $missingFolder = Join-Path -Path $folder -ChildPath 'MissingFolder'
+        $target = Join-Path -Path $missingFolder -ChildPath 'Item'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $missingFolder, $target
+
+        $messages = & $_ -Path $first -Destination $target -WhatIf -Verbose -ErrorVariable itemErrors -ErrorAction SilentlyContinue 4>&1
+
+        $itemErrors | Should -BeNullOrEmpty
+        @($messages | Where-Object -FilterScript { "$_" -like "*'$missingFolder' does not exist*" }) | Should -HaveCount 1
+        $first | Should -Exist
+        $missingFolder | Should -Not -Exist
+    }
+
+    # The folder of a destination on a share that doesn't exist is the share itself, which the error names.
+    It '<Command> should name the missing share of a UNC destination' -ForEach @(
+        @{ Command = 'Copy-Item2'; ErrorId = 'CopyError' }
+        @{ Command = 'Move-Item2'; ErrorId = 'MoveError' }
+    ) {
+        $missingShare = '\\localhost\NTFSSecurityMissing-{0}' -f [guid]::NewGuid().ToString('N').Substring(0, 8)
+        $target = Join-Path -Path $missingShare -ChildPath 'Item.txt'
+
+        & $Command -Path $first -Destination $target -ErrorVariable itemErrors -ErrorAction SilentlyContinue
+
+        $itemErrors | Should -HaveCount 1
+        $itemErrors[0].FullyQualifiedErrorId | Should -BeLike "$ErrorId,*"
+        $itemErrors[0].Exception.Message | Should -BeLike "*'$missingShare'*"
+        $first | Should -Exist
+    }
 }
 
 Describe 'Copy-Item2' {

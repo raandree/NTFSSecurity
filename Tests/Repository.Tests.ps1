@@ -107,3 +107,23 @@ Describe 'Release metadata' {
             Should -Not -Match '\d+\.\d+\.\d+-[A-Za-z]'
     }
 }
+
+Describe 'Invoke-TestsAsBasicUser.ps1' {
+    BeforeAll {
+        # Only the parameters of the script, so that a test binds them without running the tests as a basic user
+        $path = Join-Path -Path $PSScriptRoot -ChildPath '..\.github\scripts\Invoke-TestsAsBasicUser.ps1'
+        $tokens = $parseErrors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref] $tokens, [ref] $parseErrors)
+        $bindParameters = [scriptblock]::Create($ast.ParamBlock.Extent.Text)
+    }
+
+    # The title goes into a quoted argument of cmd.exe, which expands environment variables also inside quotes.
+    It 'Should refuse a title with the character <_>, which would change the command line of cmd.exe' -ForEach @('%', '"') {
+        { & $bindParameters -ResultPath 'TestResults\Refused.xml' -Title "CI run $_ 1" } |
+            Should -Throw -ExpectedMessage "*'Title'*"
+    }
+
+    It 'Should accept the title <_> of the CI workflow' -ForEach @('Windows PowerShell 5.1 as a basic user', 'PowerShell 7 as a basic user') {
+        { & $bindParameters -ResultPath 'TestResults\Accepted.xml' -Title $_ } | Should -Not -Throw
+    }
+}
