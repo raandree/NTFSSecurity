@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-07
+last-verified: 2026-10-08
 owner: active-agent
 source: current task evidence
 ---
@@ -9,50 +9,58 @@ source: current task evidence
 
 ## Current focus
 
-5.0.0-rc5, prepared on the branch `ai/release-5.0.0-rc5`: the live tests
-in `Tests\Lab` (Decision 20) and the fix of
-`Get-NTFSEffectiveAccess -ServerName` that they found. The maintainer
-pushes the branch, opens and merges the pull request, and tags
-`5.0.0-rc5`; CI publishes it (Decision 12). Then, with the tester feedback
-in #34, he decides on 5.0.0. After 5.0.0 the repository is archived in
-favor of WindowsAccessControl (Decision 18).
+Phase 2 of the quality gate before 5.0.0 (Decision 21), on the branch
+`ai/release-5.0.0-rc6`, released as 5.0.0-rc6: tests until every code
+path is tested or explained, live tests for the remaining cmdlets, and
+test-first fixes of the known defects. The maintainer approved it on
+2026-10-08. Then Phase 3 and 5.0.0; after 5.0.0 the repository is archived
+in favor of WindowsAccessControl (Decision 18).
 
 ## Evidence
 
-- 2026-10-07: the live tests ran in the lab of WindowsAccessControl
-  (`F1ADC1`, `F1AFile2`, `F1AFile1` in `a.forest1.net`) against the Gallery
-  packages of 5.0.0-rc2 and 5.0.0-rc4 and against the branch build, in
-  Windows PowerShell 5.1 and PowerShell 7, with the same results in both:
-  - Case 1 (#34 over SMB): rc2 fails `Add-NTFSAccess`, `Clear-NTFSAccess`,
-    and `Set-NTFSSecurityDescriptor` with error 1307, on folders with and
-    without the auto-inherit flag; the other four cmdlets succeed in rc2
-    too. rc4 passes all seven and keeps Administrators as the owner.
-  - Case 2: the administrators of the file server read, add, and remove
-    audit entries over SMB; the delegated account gets the errors that the
-    cmdlet pages describe, and the folders stay unchanged. Same in rc2.
-  - Case 3: with `-ServerName` of the file server, the result includes its
-    local group, without a warning; without it, only the domain groups
-    count. With a computer that can't be reached, rc2 and rc4 returned no
-    access, because error 1722 was swallowed; fixed on the branch.
-  - Case 4, long paths on the share, and #108 pass; #108 fails in rc2.
-  - The branch build passes every live test, and the 499 tests of `Tests`
-    in both editions.
-- One `security-reviewer` pass approved the branch with minor findings;
-  the assertion of the fallback warning and the path guard of the live
-  tests were hardened. Deferred: the bare `catch` in
-  `Win32.GetEffectiveAccess`, which still swallows any other error of the
-  remote initialization (not reproducible: for a user who isn't an
-  administrator of the file server, the cmdlet writes "Access is denied");
-  the unchecked `AUTHZ_ACCESS_REPLY.Error`; a fallback warning that names
-  the server and the error, which would change behavior (Decision 16).
-- #34: no report from the tester by 16:00 UTC on 2026-10-07; he announced
-  results against two file servers, one of them IBM ESS, for that day.
-- The lab keeps the accounts, the share, and the folders of the last run;
-  `Invoke-NTFSSecurityLabTest.ps1 -RemoveFixture` removes them.
+- 2026-10-08, Phase 1, measured on 5.0.0-rc5 (`fcb370e`):
+  - The published package passes the live tests in both editions: 8 role
+    runs, no failure.
+  - As a basic user, the 11 tests that CI skips pass in both editions. The
+    one failure, `Enable-Privileges should write one object per
+    privilege`, assumes more than one privilege. Every test runs in at
+    least one of four configurations (elevated or basic user, two
+    editions), but CI runs only elevated.
+  - The suite runs 55.9% of the C# lines and 37.4% of the branches
+    (`techContext.md`, Validation). No line of `Test-Path2` and
+    `Get-DiskSpace` runs; `Set-NTFSOwner` (46%) runs only as a setup step
+    of another test; `Clear-NTFSAccess` and the access inheritance cmdlets
+    run about 43%, `FileSystemSecurity2` 42%. No cmdlet calls the registry
+    classes, `SimpleFileSystemAuditRule`, `PrivilegeEnabler`, or
+    `FileSystemEffectivePermissionEntry` (244 lines).
+  - 19 of the 36 cmdlets never ran over SMB, among them `Get-NTFSOwner`,
+    `Set-NTFSOwner`, the audit inheritance cmdlets, and `Clear-NTFSAudit`;
+    no account of another domain or forest ran; both ends of the lab run
+    Windows Server 2025.
+- Known defects from the reviews of #113 and #114 (`progress.md`, open
+  work 3): `Move-Item2 -PassThru` returns the source item; the conflict
+  checks of `Copy-Item2` and `Move-Item2` use `File.Exists` also for
+  folders, maybe the cause of #21; an error while restoring the owner can
+  hide the original one (R4); `Set-NTFSSecurityDescriptor -PassThru` reads
+  the item again inside the retry (R5); the access check doesn't read
+  `AUTHZ_ACCESS_REPLY.Error`, and its buffers aren't initialized. #110
+  lists seven test follow-ups.
+- #34: no reply from the tester by 06:44 UTC on 2026-10-08.
 
 ## Next step
 
-The maintainer runs the push and pull request commands of the session of
-2026-10-07, merges, and tags `5.0.0-rc5`. Then check the published package
-with `Invoke-NTFSSecurityLabTest.ps1 -Version 5.0.0-rc5`, wait for the #34
-feedback, and release 5.0.0 as `progress.md` describes.
+Phase 2, one step at a time, each with evidence before the next:
+
+1. Tests for the cmdlets without tests of their own: `Test-Path2`,
+   `Get-DiskSpace`, `Set-NTFSOwner`, the link cmdlets,
+   `Get-NTFSOrphanedAudit`, and `Get-NTFSSimpleAccess`.
+2. The other parameter sets and error paths, such as the
+   `-SecurityDescriptor` sets of the inheritance cmdlets and of
+   `Clear-NTFSAccess`.
+3. The paths of `Security2` that no test runs, and #110.
+4. Test-first fixes of the known defects; behavior changes go to the
+   maintainer (Decision 16).
+5. A CI job as a basic user, live tests for the other cmdlets over SMB and
+   for accounts of other forests, and a lab run.
+6. Measure the coverage again, explain what remains, review, and prepare
+   5.0.0-rc6.

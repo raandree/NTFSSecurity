@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-07
+last-verified: 2026-10-08
 owner: active-agent
 source: repository evidence
 ---
@@ -72,16 +72,19 @@ source: repository evidence
 - The third workstation (`ExHost`, a Windows Server 2025 VM, x64, used since
   2026-10-07) runs the agent session elevated and hosts the AutomatedLab lab
   `WindowsAccessControlLab` (Decision 20) with Hyper-V and AutomatedLab
-  5.61.704. It has no NuGet cache, platyPS, or GitHub CLI: check each
+  5.61.704. It has no NuGet cache or platyPS: check each
   nuget.org package against the SHA-512 `packageHash` of its catalog entry
   (`https://api.nuget.org/v3/registration5-semver1/<id>/<version>.json`,
   then `catalogEntry`), and each Gallery package against `PackageHash` of
   `api/v2/Packages(Id='<id>',Version='<version>')`. Pester 5.7.1 is in
-  `V:\Git\WindowsAccessControl\output\RequiredModules`; read issues and pull
-  requests through the GitHub REST API. The lab domains `a.forest1.net` and
-  `b.forest1.net` had a maximum password age of 42 days, so the password of
-  `install` expired on 2026-09-15 and AutomatedLab got access denied; it
-  never expires since 2026-10-07, as in `forest1.net`.
+  `V:\Git\WindowsAccessControl\output\RequiredModules`. The GitHub CLI
+  2.102.0 is in `C:\Program Files\GitHub CLI`, outside the PATH, and signed
+  in as `raandree` since 2026-10-08; `Block-RemoteMutation` denies its
+  mutating commands, so the agent uses it read-only. The lab domains
+  `a.forest1.net` and `b.forest1.net` had a maximum password age of 42
+  days, so the password of `install` expired on 2026-09-15 and AutomatedLab
+  got access denied; it never expires since 2026-10-07, as in
+  `forest1.net`.
 
 ## Constraints
 
@@ -96,7 +99,8 @@ source: repository evidence
 - PowerShell Gallery versions (publish dates): 4.0.0 (2015-08-19), 4.2.2
   (2016-05-18), 4.2.3 (2016-05-19), 4.2.4 (2018-08-13), 4.2.5 (2019-07-11),
   4.2.6 (2019-07-12), none with release notes; 5.0.0-rc1 (2026-10-04),
-  5.0.0-rc2 (2026-10-05), 5.0.0-rc3 and 5.0.0-rc4 (2026-10-06), published
+  5.0.0-rc2 (2026-10-05), 5.0.0-rc3 and 5.0.0-rc4 (2026-10-06), 5.0.0-rc5
+  (2026-10-08), published
   by CI. Older versions were released on CodePlex only, and their dates are
   lost. The git history starts on 2016-10-10, when the project moved from
   CodePlex.
@@ -175,6 +179,21 @@ source: repository evidence
   session. Run them as a basic user with `runas /trustlevel:0x20000`, and
   give Windows PowerShell its own `PSModulePath`; that token holds one
   privilege, so the `Enable-Privileges -PassThru` count test fails there.
+  `runas` returns at once, so the script it starts writes its own log.
+  Pester reports a skipped `-ForEach` test under its template name, such as
+  `<_> should ...`, and a test that ran under the expanded name: compare
+  runs by template.
+- C# coverage (Decision 21): AltCover 9.0.145 (`tools\net472\AltCover.exe`
+  of the nuget.org package) instruments a copy of the local Release build,
+  which has the PDB files that the published package lacks: `--save`,
+  `--reportFormat=OpenCover`, AlphaFS and `System.Management.Automation`
+  excluded with `--assemblyFilter`. Put the instrumented module in
+  `NTFSSecurity\bin\Release` of a `git worktree`, run
+  `.github\scripts\Invoke-Tests.ps1` elevated and as a basic user in both
+  editions, then `AltCover.exe runner --collect --recorderDirectory=<the
+  instrumented folder>`. Baseline of the rc5 tree on 2026-10-08: 55.9% of
+  the lines (1,943 of 3,476), 37.4% of the branches (700 of 1,873); 60.1%
+  of the lines without 244 lines in classes that no cmdlet calls.
 - Live tests (Decision 20): in an elevated Windows PowerShell 5.1 session
   on the lab host, `Tests\Lab\Invoke-NTFSSecurityLabTest.ps1` with
   `-Version` for Gallery packages or `-ModulePath` for a build; it writes

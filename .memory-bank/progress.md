@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-07
+last-verified: 2026-10-08
 owner: active-agent
 source: repository evidence
 ---
@@ -9,15 +9,15 @@ source: repository evidence
 
 ## Current status
 
-5.0.0-rc4 is on the PowerShell Gallery and in the GitHub releases,
-published by CI from the tag `5.0.0-rc4` on `master` (`01d9264`, the merge
-of #113) on 2026-10-06 (Decision 12). It adds to 5.0.0-rc3 the fixes of the
-issues #41, #108, #109, and #111 and of the leftovers of the rc3 review.
-5.0.0-rc5 is prepared on the branch `ai/release-5.0.0-rc5`: the live tests
-in a lab (Decision 20) and the fix of `Get-NTFSEffectiveAccess -ServerName`
-that they found. The stable Gallery version is still 4.2.6. NTFSSecurity
-will be archived soon; its users move to WindowsAccessControl
-(Decision 18).
+5.0.0-rc5 is on the PowerShell Gallery and in the GitHub releases,
+published by CI on 2026-10-08 from the tag `5.0.0-rc5` on `master`
+(`fcb370e`, the merge of #114; Decision 12). It adds to 5.0.0-rc4 the live
+tests in a lab (Decision 20) and the fix of
+`Get-NTFSEffectiveAccess -ServerName` that they found. Before 5.0.0, the
+maintainer wants the highest quality with everything tested: the quality
+gate of Decision 21, now in Phase 2, which ends with 5.0.0-rc6. The stable
+Gallery version is still 4.2.6. NTFSSecurity will be archived soon; its
+users move to WindowsAccessControl (Decision 18).
 
 ## Recent milestones
 
@@ -68,6 +68,14 @@ will be archived soon; its users move to WindowsAccessControl
   to fix it test-first in 5.0.0-rc5; the branch build passes all live tests
   and the suite. One `security-reviewer` pass approved it with minor
   findings (`activeContext.md`).
+- 2026-10-08: #114 merged (`fcb370e`); the tag `5.0.0-rc5` published it to
+  the Gallery and the GitHub releases, whose `NTFSSecurity.zip` holds the
+  same 11 files. Phase 1 of the quality gate (Decision 21) measured rc5:
+  the published package passes the live tests in both editions; the 11
+  tests that need a session without the Security privilege pass as a basic
+  user, so every test runs in at least one configuration, but CI runs only
+  elevated; the suite runs 55.9% of the C# lines and 37.4% of the branches.
+  The maintainer approved Phase 2.
 
 ## Stable capabilities
 
@@ -82,14 +90,14 @@ will be archived soon; its users move to WindowsAccessControl
 
 ## Open work
 
-1. Publish 5.0.0-rc5 (merge, then tag), check its package in the lab with
-   `Tests\Lab\Invoke-NTFSSecurityLabTest.ps1 -Version 5.0.0-rc5`, and then
-   release 5.0.0 through CI (Decision 12) with the tester feedback in #34:
-   remove the label, date `[Unreleased]` as `[5.0.0]`, add `5.0.0-rc5` to
-   `$publishedVersions`, and tag `5.0.0` (steps in
-   `Docs/Contributing/05-Releasing.md`). #34 stays open with Bug and Help
-   Wanted until a tester with a file server that refuses the owner
-   confirms the fix, or until 5.0.0 ships.
+1. Quality gate before 5.0.0 (Decision 21): Phase 2 on the branch
+   `ai/release-5.0.0-rc6` (`activeContext.md`), released as 5.0.0-rc6;
+   Phase 3 runs the live tests on more operating systems. Then release
+   5.0.0 through CI (Decision 12): remove the label, date `[Unreleased]` as
+   `[5.0.0]`, add the last prerelease to `$publishedVersions`, and tag
+   `5.0.0` (steps in `Docs/Contributing/05-Releasing.md`). #34 stays open
+   with Bug and Help Wanted until a tester with a file server that refuses
+   the owner confirms the fix, or until 5.0.0 ships.
 2. Issues: #110 (tests) is the open follow-up of the review findings; #68
    tracks `-WhatIf` and `-Confirm` for every cmdlet that changes security.
    The labels follow Decision 17; #16, #21, #45, and #89 wait for their

@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-07
+last-verified: 2026-10-08
 owner: active-agent
 source: repository evidence
 ---
@@ -67,6 +67,7 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 | 18 | [NTFSSecurity will be archived](decisions/0018-archive-for-windowsaccesscontrol.md) |
 | 19 | [Cmdlets write only the sections that they change](decisions/0019-write-only-changed-sections.md) |
 | 20 | [Live tests in a lab live in Tests\Lab](decisions/0020-live-tests-in-tests-lab.md) |
+| 21 | [A quality gate before 5.0.0](decisions/0021-quality-gate-before-5.0.0.md) |
 
 ## Patterns
 
