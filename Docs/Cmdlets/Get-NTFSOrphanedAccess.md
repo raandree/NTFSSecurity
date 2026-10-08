@@ -172,7 +172,7 @@ One object per orphaned access control entry. The `Account` property holds the u
 
 When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.
 
-If the ACL of an item cannot be read because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Changing the owner of an item requires the Take Ownership and Restore privileges, so this fallback only succeeds in an elevated session of an account that holds them.
+If the ACL of an item cannot be read because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Reading the owner, which that fallback needs first, requires the same Read Permissions right as reading the ACL, so the cmdlet then writes a non-terminating `ReadSecurityError` and continues with the next item. Before 5.0.0, it reported that error as an `AddAceError`.
 
 Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor`, and after a path whose ACL could not be read, it returned the orphaned entries of the previous item again.
 

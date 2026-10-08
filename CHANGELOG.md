@@ -304,5 +304,8 @@ The format is based on
   for a descriptor that the cmdlet wrote as the owner, and which turned a
   failed read after a successful write into another attempt of the write
   and a `WriteSdError`; it now writes a `ReadSecurityError` for that read
+- Fix `Get-NTFSOrphanedAccess`, which reported an item that it couldn't
+  read as an `AddAceError`; it now writes a `ReadSecurityError`, like
+  `Get-NTFSAccess`
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

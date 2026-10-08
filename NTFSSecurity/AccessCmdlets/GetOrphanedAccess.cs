@@ -55,7 +55,8 @@ namespace NTFSSecurity
                     }
                     catch (Exception ex2)
                     {
-                        this.WriteError(new ErrorRecord(ex2, "AddAceError", ErrorCategory.WriteError, path));
+                        // A read error; before 5.0.0-rc6, it was reported as an AddAceError.
+                        this.WriteError(new ErrorRecord(ex2, "ReadSecurityError", ErrorCategory.ReadError, path));
                         continue;
                     }
                 }

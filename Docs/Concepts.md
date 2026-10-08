@@ -209,7 +209,13 @@ state.
 When reading or changing an item fails with an access-denied error, most of
 these cmdlets make the current user the owner of the item, retry, and then
 restore the previous owner, also when the retry fails. Before 5.0.0, a failed
-retry left the current user as the owner. This requires the privileges above.
+retry left the current user as the owner. Taking ownership needs the Take
+Ownership right on the item or the Take Ownership privilege, and setting the
+previous owner back needs the Restore privilege unless that owner is the user
+or one of its groups. When the owner of an item changes, Windows removes its
+entries for OWNER RIGHTS, so the retry removes such entries as well. For
+reading, the retry doesn't help: the cmdlet must read the owner first, which
+needs the same right as reading the permissions.
 
 Reading or changing audit entries always requires the Security privilege.
 Without it, the audit cmdlets fail, and `Get-NTFSEffectiveAccess` warns that
