@@ -99,8 +99,9 @@ Describe 'Current location' {
             Should -Not -Throw
     }
 
+    # The error for the folder is non-terminating since 5.0.0-rc6, so -ErrorAction Stop turns it into the exception.
     It 'Get-NTFSHardLink should report the folder of the current location, not a NullReferenceException' {
-        { Invoke-WithShadowedPwd -Command { Get-NTFSHardLink -ErrorAction SilentlyContinue } } |
+        { Invoke-WithShadowedPwd -Command { Get-NTFSHardLink -ErrorAction Stop } } |
             Should -Throw -ExpectedMessage '*must be a file*'
     }
 }
