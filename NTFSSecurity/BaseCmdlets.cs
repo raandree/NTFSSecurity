@@ -182,12 +182,18 @@ namespace NTFSSecurity
         #endregion
     }
 
-    public class BaseCmdletWithPrivControl : BaseCmdlet
+    public class BaseCmdletWithPrivControl : BaseCmdlet, IDisposable
     {
         protected PrivilegeAndAttributesCollection privileges = null;
         protected PrivilegeControl privControl = new PrivilegeControl();
         private List<string> enabledPrivileges = new List<string>();
         Hashtable privateData = null;
+
+        // A cmdlet that enables the privileges for the session, such as Enable-Privileges, keeps them enabled.
+        protected virtual bool KeepEnabledPrivileges
+        {
+            get { return false; }
+        }
 
         protected override void BeginProcessing()
         {
@@ -208,13 +214,38 @@ namespace NTFSSecurity
 
                 //disable all privileges that have been enabled by this cmdlet
                 WriteVerbose(string.Format("Disabeling all {0} enabled privileges...", enabledPrivileges.Count));
-                foreach (var privilege in enabledPrivileges)
+                foreach (var privilege in DisableEnabledPrivileges())
                 {
-                    DisablePrivilege((Privilege)Enum.Parse(typeof(Privilege), privilege));
                     WriteVerbose(string.Format("\t{0} disabled", privilege));
                 }
                 WriteVerbose(string.Format("...finished"));
             }
+        }
+
+        // PowerShell calls Dispose also when a later command or a terminating error stops the pipeline, and then
+        // skips EndProcessing. Before 5.0.0-rc6, the privileges that the cmdlet had enabled stayed enabled in the
+        // session in that case.
+        public void Dispose()
+        {
+            DisableEnabledPrivileges();
+            GC.SuppressFinalize(this);
+        }
+
+        // Disables the privileges that this cmdlet enabled, once, and returns their names.
+        private List<string> DisableEnabledPrivileges()
+        {
+            var disabled = new List<string>();
+            if (!KeepEnabledPrivileges)
+            {
+                foreach (var privilege in enabledPrivileges)
+                {
+                    DisablePrivilege((Privilege)Enum.Parse(typeof(Privilege), privilege));
+                    disabled.Add(privilege);
+                }
+            }
+
+            enabledPrivileges.Clear();
+            return disabled;
         }
 
         protected void EnablePrivilege(Privilege privilege)

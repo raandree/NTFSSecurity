@@ -119,3 +119,44 @@ Describe 'Inheritance cmdlets' {
         }
     }
 }
+
+Describe 'Privileges when the pipeline stops early' {
+    BeforeAll {
+        $files = 1..3 | ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name "Stopped$_" }
+        $missing = Join-Path -Path $sandbox -ChildPath 'StoppedMissing.txt'
+    }
+
+    BeforeEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    AfterEach {
+        # A failing test must not leave the privileges enabled for the tests that follow.
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    # Before 5.0.0-rc6, a cmdlet disabled the privileges that it had enabled only in EndProcessing, which PowerShell
+    # skips when a later command or a terminating error stops the pipeline. The Backup, Restore, Take Ownership, and
+    # Security privileges then stayed enabled in the session.
+    It 'Should disable the privileges after Select-Object -First stops the pipeline' -Skip:(-not $holdsPrivileges) {
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+
+        Get-NTFSOwner -Path $files | Select-Object -First 1 | Out-Null
+
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+    }
+
+    It 'Should disable the privileges after a terminating error' -Skip:(-not $holdsPrivileges) {
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+
+        { Get-NTFSAccess -Path $missing, $files[0] -ErrorAction Stop } | Should -Throw
+
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+    }
+
+    It 'Enable-Privileges should keep the privileges enabled also when the pipeline stops early' -Skip:(-not $holdsPrivileges) {
+        Enable-Privileges -PassThru | Select-Object -First 1 | Out-Null
+
+        Get-BackupPrivilegeState | Should -Be 'Enabled'
+    }
+}

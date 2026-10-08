@@ -269,5 +269,9 @@ The format is based on
 - Fix `Get-NTFSEffectiveAccess`, which returned no access when the computer
   of `-ServerName` couldn't be reached, although it warned that it had
   calculated the result on this computer; it now returns that result
+- Fix the cmdlets that enable the Backup, Restore, Take Ownership, and
+  Security privileges, which left them enabled in the session when a later
+  command, such as `Select-Object -First`, or a terminating error stopped
+  the pipeline early; they now disable them also then
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD
