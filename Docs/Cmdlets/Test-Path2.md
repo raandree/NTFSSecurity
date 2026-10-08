@@ -117,7 +117,7 @@ For each path, the cmdlet writes `$true` when the item exists and matches `-Path
 
 The cmdlet resolves paths through the AlphaFS library, which is not bound by the 260-character `MAX_PATH` limit of the Windows PowerShell file system provider. Use `Test-Path2` instead of `Test-Path` when a path can be longer than that limit.
 
-A path that does not exist is not an error condition. The cmdlet writes `$false` and continues with the next path. This also applies to a path with a character that Windows doesn't allow in names, such as `|` or `<`; before 5.0.0, such a path stopped the cmdlet with the terminating error "Illegal characters in path" in Windows PowerShell.
+A path that does not exist is not an error condition. The cmdlet writes `$false` and continues with the next path. This also applies to a path with a character that Windows doesn't allow in names, such as `|` or `<`; Windows PowerShell rejects such a path, and the cmdlet writes the reason as a debug message. Before 5.0.0, such a path stopped the cmdlet with the terminating error "Illegal characters in path" in Windows PowerShell.
 
 ## RELATED LINKS
 

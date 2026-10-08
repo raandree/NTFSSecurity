@@ -319,6 +319,22 @@ Describe 'Test-Path2' {
         $testErrors | Should -BeNullOrEmpty
         $result -join ',' | Should -Be 'False,True'
     }
+
+    # PowerShell 7 accepts these characters and finds no item, so only Windows PowerShell rejects the path. Before
+    # 5.0.0-rc6, the cmdlet wrote $false for a rejected path without saying why. -Debug would prompt in Windows
+    # PowerShell, so the test sets the preference.
+    It 'Should say in a debug message why it writes $false for a path that Windows PowerShell rejects' -Skip:($PSVersionTable.PSEdition -ne 'Desktop') {
+        $invalid = Join-Path -Path $folder -ChildPath 'a|b'
+        $DebugPreference = 'Continue'
+
+        $output = @(Test-Path2 -Path $invalid -ErrorAction Stop 5>&1)
+
+        $messages = @($output | Where-Object -FilterScript { $_ -is [Management.Automation.DebugRecord] } |
+                Where-Object -Property Message -Like -Value '*is not a valid path*')
+        $messages | Should -HaveCount 1
+        $messages[0].Message.Contains("'$invalid'") | Should -BeTrue
+        $output | Where-Object -FilterScript { $_ -is [bool] } | Should -BeFalse
+    }
 }
 
 Describe 'Get-DiskSpace' {
