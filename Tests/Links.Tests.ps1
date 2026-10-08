@@ -146,6 +146,8 @@ Describe 'New-NTFSHardLink' {
         $linkErrors | ForEach-Object -Process { $_.FullyQualifiedErrorId | Should -BeLike 'CreateHardLinkError,*' }
         ($linkErrors | ForEach-Object -Process { $_.CategoryInfo.Category }) -join ',' | Should -Be 'ResourceExists,ObjectNotFound,InvalidArgument'
         ($linkErrors | ForEach-Object -Process { $_.TargetObject }) -join '|' | Should -Be (($existing, $missingLink, $folderLink) -join '|')
+        # Since 5.0.0-rc7, the error for a folder as -Target names the folder.
+        $linkErrors[2].Exception.Message | Should -BeLike ("*'{0}'*" -f [WildcardPattern]::Escape($folder))
         $link | Should -Exist
         $missingLink | Should -Not -Exist
         $folderLink | Should -Not -Exist
@@ -374,6 +376,78 @@ Describe 'New-NTFSSymbolicLink' {
         $linkErrors[0].FullyQualifiedErrorId | Should -BeLike 'CreateSymbolicLinkError,*'
         '0x{0:X8}' -f $linkErrors[0].Exception.HResult | Should -Be '0x80070522'
         Test-Path2 -Path $link | Should -BeFalse
+    }
+}
+
+# Each error names its item, so that the errors of many links can be told apart. Before 5.0.0-rc7, the errors of
+# New-NTFSSymbolicLink for an existing -Path and a missing -Target named no path. No link is created, so the tests run
+# without the right to create symbolic links as well.
+Describe 'Errors of the cmdlets that create links' {
+    It '<Command> should name the existing -Path and the missing -Target in its errors' -ForEach @(
+        @{ Command = 'New-NTFSHardLink' }
+        @{ Command = 'New-NTFSSymbolicLink' }
+    ) {
+        $target = New-TestSandboxItem -Sandbox $sandbox -Name 'NamedTarget'
+        $existing = New-TestSandboxItem -Sandbox $sandbox -Name 'NamedExisting'
+        $missing = Join-Path -Path $sandbox -ChildPath ('NamedMissing-{0}.txt' -f [guid]::NewGuid().ToString('N').Substring(0, 8))
+        $link = Join-Path -Path $sandbox -ChildPath ('NamedLink-{0}.txt' -f [guid]::NewGuid().ToString('N').Substring(0, 8))
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $missing, $link
+        $requests = @(
+            [pscustomobject]@{ Path = $existing; Target = $target }
+            [pscustomobject]@{ Path = $link; Target = $missing }
+        )
+
+        $requests | & $Command -ErrorVariable linkErrors -ErrorAction SilentlyContinue
+
+        $linkErrors | Should -HaveCount 2
+        $linkErrors[0].Exception.Message | Should -BeLike ("*'{0}'*" -f [WildcardPattern]::Escape($existing))
+        $linkErrors[1].Exception.Message | Should -BeLike ("*'{0}'*" -f [WildcardPattern]::Escape($missing))
+        Test-Path2 -Path $link | Should -BeFalse
+    }
+
+    # Both cmdlets check -Path before -Target. Before 5.0.0-rc7, New-NTFSSymbolicLink checked -Target first and
+    # reported a missing target instead.
+    It '<Command> should report an existing -Path before a missing -Target' -ForEach @(
+        @{ Command = 'New-NTFSHardLink' }
+        @{ Command = 'New-NTFSSymbolicLink' }
+    ) {
+        $existing = New-TestSandboxItem -Sandbox $sandbox -Name 'FirstExisting'
+        $missing = Join-Path -Path $sandbox -ChildPath ('FirstMissing-{0}.txt' -f [guid]::NewGuid().ToString('N').Substring(0, 8))
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $missing
+
+        & $Command -Path $existing -Target $missing -ErrorVariable linkErrors -ErrorAction SilentlyContinue
+
+        $linkErrors | Should -HaveCount 1
+        $linkErrors[0].CategoryInfo.Category | Should -Be 'ResourceExists'
+        $linkErrors[0].TargetObject | Should -Be $existing
+        Get-Content -LiteralPath $existing | Should -Be 'FirstExisting'
+    }
+}
+
+# Windows PowerShell rejects a character that Windows doesn't allow in a path, such as |, before Windows sees the path.
+# Before 5.0.0-rc7, that stopped the pipeline in Windows PowerShell, and PowerShell 7 reported it as a WriteError.
+Describe 'Paths that Windows does not allow in the cmdlets that create links' {
+    It '<Command> should write a non-terminating InvalidArgument error and continue with the next link' -ForEach @(
+        @{ Command = 'New-NTFSHardLink'; ErrorId = 'CreateHardLinkError' }
+        @{ Command = 'New-NTFSSymbolicLink'; ErrorId = 'CreateSymbolicLinkError' }
+    ) {
+        $target = New-TestSandboxItem -Sandbox $sandbox -Name 'InvalidTarget'
+        $existing = New-TestSandboxItem -Sandbox $sandbox -Name 'InvalidExisting'
+        $invalid = Join-Path -Path $sandbox -ChildPath 'Invalid|Link.txt'
+        # The second link exists, so that the cmdlet rejects it before it creates anything, also without the right to
+        # create symbolic links; its error shows that the cmdlet went on.
+        $requests = @(
+            [pscustomobject]@{ Path = $invalid; Target = $target }
+            [pscustomobject]@{ Path = $existing; Target = $target }
+        )
+
+        $requests | & $Command -ErrorVariable linkErrors -ErrorAction SilentlyContinue
+
+        $linkErrors | Should -HaveCount 2
+        $linkErrors | ForEach-Object -Process { $_.FullyQualifiedErrorId | Should -BeLike "$ErrorId,*" }
+        ($linkErrors | ForEach-Object -Process { $_.CategoryInfo.Category }) -join ',' | Should -Be 'InvalidArgument,ResourceExists'
+        $linkErrors[0].TargetObject | Should -Be $invalid
+        Get-Content -LiteralPath $existing | Should -Be 'InvalidExisting'
     }
 }
 

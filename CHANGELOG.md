@@ -83,9 +83,10 @@ The format is based on
   `New-NTFSSymbolicLink -Path Link` created a link to the current folder
 - **Breaking:** write a non-terminating error in `New-NTFSHardLink` and
   `New-NTFSSymbolicLink` for a link that they can't create, such as for an
-  existing `-Path` or a missing `-Target`, and continue with the next link;
-  they stopped with a terminating error. A script that relies on the stop
-  needs `-ErrorAction Stop`
+  existing `-Path`, a missing `-Target`, or a path with a character that
+  Windows doesn't allow, and continue with the next link; they stopped
+  with a terminating error. A script that relies on the stop needs
+  `-ErrorAction Stop`
 - Name the computer in the warning of `Get-NTFSEffectiveAccess` when the
   computer of `-ServerName` can't be reached
 
@@ -357,5 +358,9 @@ The format is based on
 - Fix `New-NTFSHardLink` and `New-NTFSSymbolicLink`, which failed with
   `GetDefaultValueFailed` for every object piped to them, such as the rows
   of a CSV file with the columns `Path` and `Target`
+- Fix the errors of `New-NTFSSymbolicLink` for an existing `-Path` and a
+  missing `-Target`, and of `New-NTFSHardLink` for a folder as `-Target`,
+  which named no path. `New-NTFSSymbolicLink` now checks `-Path` first,
+  like `New-NTFSHardLink`
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

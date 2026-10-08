@@ -55,27 +55,36 @@ namespace NTFSSecurity
 
         protected override void ProcessRecord()
         {
-            var path = GetRelativePath(paths[0]);
-            var targetPath = GetRelativePath(target);
-
-            // Non-terminating errors, so that the links that follow in the pipeline are created as well. Before
-            // 5.0.0-rc7, an existing path and a failure to create the link stopped the pipeline.
-            FileSystemInfo targetItem = null;
+            string path;
+            string targetPath;
             try
             {
-                targetItem = GetFileSystemInfo2(targetPath);
+                path = GetRelativePath(paths[0]);
+                targetPath = GetRelativePath(target);
             }
-            catch (System.IO.FileNotFoundException ex)
+            // Windows PowerShell rejects a character that Windows doesn't allow in a path, such as |, already here.
+            catch (ArgumentException ex)
             {
-                WriteError(new ErrorRecord(ex, "CreateSymbolicLinkError", ErrorCategory.ObjectNotFound, path));
+                WriteError(new ErrorRecord(ex, "CreateSymbolicLinkError", ErrorCategory.InvalidArgument, paths[0]));
                 return;
             }
 
+            // Non-terminating errors, so that the links that follow in the pipeline are created as well. Before
+            // 5.0.0-rc7, an existing path and a failure to create the link stopped the pipeline, the cmdlet checked
+            // the target first, and its errors named neither path.
             FileSystemInfo temp;
             if (TryGetFileSystemInfo2(path, out temp))
             {
-                var exists = new ArgumentException("The path does already exist, cannot create link");
+                var exists = new ArgumentException(string.Format("The path '{0}' does already exist, cannot create the link", path));
                 WriteError(new ErrorRecord(exists, "CreateSymbolicLinkError", ErrorCategory.ResourceExists, path));
+                return;
+            }
+
+            FileSystemInfo targetItem;
+            if (!TryGetFileSystemInfo2(targetPath, out targetItem))
+            {
+                var missing = new System.IO.FileNotFoundException(string.Format("The target '{0}' does not exist, cannot create the link", targetPath), targetPath);
+                WriteError(new ErrorRecord(missing, "CreateSymbolicLinkError", ErrorCategory.ObjectNotFound, path));
                 return;
             }
 
@@ -86,7 +95,7 @@ namespace NTFSSecurity
             // Without the right to create symbolic links: (1314) A required privilege is not held by the client.
             catch (Exception ex)
             {
-                WriteError(new ErrorRecord(ex, "CreateSymbolicLinkError", ex is UnauthorizedAccessException ? ErrorCategory.PermissionDenied : ErrorCategory.WriteError, path));
+                WriteError(new ErrorRecord(ex, "CreateSymbolicLinkError", NewHardLink.GetErrorCategory(ex), path));
                 return;
             }
 

@@ -21,7 +21,7 @@ New-NTFSSymbolicLink [-Path] <String> [-Target] <String> [-PassThru] [<CommonPar
 
 The `New-NTFSSymbolicLink` cmdlet creates a symbolic link that redirects to another file or folder. `-Path` is the new link that the cmdlet creates, and `-Target` is the existing item that the link points to. Read the command as "create *Path*, which points to *Target*". Both parameters are required.
 
-The cmdlet inspects the target first and creates a file symbolic link when the target is a file and a directory symbolic link when the target is a folder, so you do not select the link type yourself. `-Target` must exist when the link is created, and `-Path` must not exist yet, so the cmdlet never overwrites an existing item.
+Before it creates the link, the cmdlet inspects the target and creates a file symbolic link when the target is a file and a directory symbolic link when the target is a folder, so you do not select the link type yourself. `-Target` must exist when the link is created, and `-Path` must not exist yet, so the cmdlet never overwrites an existing item.
 
 Relative paths are resolved against the current location before the link is created, which means that the link always stores an absolute target path.
 
@@ -128,7 +128,11 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ### System.String
 
-You can pass the path of the new link and the path of the target as strings, or pipe objects whose `Path` or `FullName` property names the new link and whose `Target` property names its target.
+You can pass the path of the new link and the path of the target as strings.
+
+### System.Management.Automation.PSObject
+
+You can pipe objects whose `Path` or `FullName` property names the new link and whose `Target` property names its target, such as the rows of a CSV file that `Import-Csv` reads.
 
 ## OUTPUTS
 
@@ -146,11 +150,11 @@ Creating a symbolic link on Windows requires the "Create symbolic links" user ri
 
 Unlike a hard link, a symbolic link is a separate file system entry that stores a path, so it can point to an item on another volume and the link and its target can be managed independently. The cmdlet still requires the target to exist at the moment the link is created. If the target is removed later, the link remains and stops resolving.
 
-If `-Path` already exists or `-Target` is missing, the cmdlet writes a non-terminating `CreateSymbolicLinkError` with the category `ResourceExists` or `ObjectNotFound`, leaves the file system unchanged, and continues with the next object from the pipeline. When Windows refuses the link, such as with error 1314 without the right to create symbolic links, the cmdlet writes a `CreateSymbolicLinkError` as well.
+If `-Path` already exists, `-Target` is missing, or a path contains a character that Windows doesn't allow, such as `|`, the cmdlet writes a non-terminating `CreateSymbolicLinkError` with the category `ResourceExists`, `ObjectNotFound`, or `InvalidArgument`, leaves the file system unchanged, and continues with the next object from the pipeline. It checks `-Path` before `-Target`, and the error for an existing `-Path` or a missing `-Target` names that path. When Windows refuses the link, such as with error 1314 without the right to create symbolic links, the cmdlet writes a `CreateSymbolicLinkError` as well.
 
 Deleting a symbolic link removes the link only and leaves the target untouched. Delete a directory symbolic link as a link rather than recursively, so that the content of the target folder is not affected.
 
-Before 5.0.0-rc7, `-Path` and `-Target` were optional: without `-Path`, the cmdlet failed with an index error, and without `-Target`, it created a link to the current folder. It stopped with a terminating error for an existing `-Path` or a link that Windows refused, and every object piped to it failed with `GetDefaultValueFailed`.
+Before 5.0.0-rc7, `-Path` and `-Target` were optional: without `-Path`, the cmdlet failed with an index error, and without `-Target`, it created a link to the current folder. It stopped with a terminating error for an existing `-Path` or a link that Windows refused, in Windows PowerShell also for a path with a character that Windows doesn't allow, and every object piped to it failed with `GetDefaultValueFailed`. It checked `-Target` before `-Path`, and its errors for an existing `-Path` and a missing `-Target` named no path.
 
 ## RELATED LINKS
 

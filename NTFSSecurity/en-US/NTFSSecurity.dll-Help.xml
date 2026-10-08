@@ -7143,7 +7143,15 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           <maml:name>System.String</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>You can pass the path of the new link and the path of the target as strings, or pipe objects whose `Path` or `FullName` property names the new link and whose `Target` property names its target.</maml:para>
+          <maml:para>You can pass the path of the new link and the path of the target as strings.</maml:para>
+        </maml:description>
+      </command:inputType>
+      <command:inputType>
+        <dev:type>
+          <maml:name>System.Management.Automation.PSObject</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>You can pipe objects whose `Path` or `FullName` property names the new link and whose `Target` property names its target, such as the rows of a CSV file that `Import-Csv` reads.</maml:para>
         </maml:description>
       </command:inputType>
     </command:inputTypes>
@@ -7169,10 +7177,10 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <maml:alert>
         <maml:para>Windows supports hard links only for files on the same NTFS volume. A link that points to a file on another volume, or a target on a file system that does not implement hard links, cannot be created.</maml:para>
         <maml:para>The cmdlet creates hard links on a network share as well, but Windows can't list the names of a file there. With `-PassThru` on a share, the cmdlet creates the link and writes a non-terminating `GetHardLinkError` with the message "The request is not supported" instead of the objects. Before 5.0.0, it stopped with a terminating error after it had created the link.</maml:para>
-        <maml:para>The cmdlet does not overwrite anything. If `-Path` already exists, or if `-Target` is missing or is a folder, the cmdlet writes a non-terminating `CreateHardLinkError` with the category `ResourceExists`, `ObjectNotFound`, or `InvalidArgument`, leaves the file system unchanged, and continues with the next object from the pipeline. When Windows refuses the link, such as for a target on another volume, the cmdlet writes a `CreateHardLinkError` as well.</maml:para>
+        <maml:para>The cmdlet does not overwrite anything. If `-Path` already exists, if `-Target` is missing or is a folder, or if a path contains a character that Windows doesn't allow, such as `|`, the cmdlet writes a non-terminating `CreateHardLinkError` with the category `ResourceExists`, `ObjectNotFound`, or `InvalidArgument`, leaves the file system unchanged, and continues with the next object from the pipeline. It checks `-Path` before `-Target`, and the error for an existing `-Path`, a missing `-Target`, or a folder as `-Target` names that path. When Windows refuses the link, such as for a target on another volume, the cmdlet writes a `CreateHardLinkError` as well.</maml:para>
         <maml:para>Because all names of a file share the same data, the number of hard links is a property of the file, not of an individual name. Use `Get-NTFSHardLink` to list them, and delete a link with `Remove-Item2` or `Remove-Item`, which removes only that name as long as other names remain.</maml:para>
         <maml:para>Before 5.0.0, the error for a missing `-Target` said "The target path exist", the opposite of the cause.</maml:para>
-        <maml:para>Before 5.0.0-rc7, `-Path` and `-Target` were optional: without `-Path`, the cmdlet failed with an index error, and without `-Target`, it used the current location, which is a folder. It stopped with a terminating error for an existing `-Path`, a missing `-Target`, a folder as `-Target`, or a link that Windows refused, and every object piped to it failed with `GetDefaultValueFailed`.</maml:para>
+        <maml:para>Before 5.0.0-rc7, `-Path` and `-Target` were optional: without `-Path`, the cmdlet failed with an index error, and without `-Target`, it used the current location, which is a folder. It stopped with a terminating error for an existing `-Path`, a missing `-Target`, a folder as `-Target`, or a link that Windows refused, in Windows PowerShell also for a path with a character that Windows doesn't allow, and every object piped to it failed with `GetDefaultValueFailed`.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -7246,7 +7254,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
     </command:details>
     <maml:description>
       <maml:para>The `New-NTFSSymbolicLink` cmdlet creates a symbolic link that redirects to another file or folder. `-Path` is the new link that the cmdlet creates, and `-Target` is the existing item that the link points to. Read the command as "create Path , which points to Target ". Both parameters are required.</maml:para>
-      <maml:para>The cmdlet inspects the target first and creates a file symbolic link when the target is a file and a directory symbolic link when the target is a folder, so you do not select the link type yourself. `-Target` must exist when the link is created, and `-Path` must not exist yet, so the cmdlet never overwrites an existing item.</maml:para>
+      <maml:para>Before it creates the link, the cmdlet inspects the target and creates a file symbolic link when the target is a file and a directory symbolic link when the target is a folder, so you do not select the link type yourself. `-Target` must exist when the link is created, and `-Path` must not exist yet, so the cmdlet never overwrites an existing item.</maml:para>
       <maml:para>Relative paths are resolved against the current location before the link is created, which means that the link always stores an absolute target path.</maml:para>
       <maml:para>To create several links, pipe objects with the properties `Path` and `Target` to the cmdlet, one link per object. For a link that it can't create, the cmdlet writes a non-terminating error and continues with the next object.</maml:para>
       <maml:para>By default the cmdlet produces no output. With `-PassThru` it returns an object for the new link: a file object for a link to a file, and a folder object for a link to a folder.</maml:para>
@@ -7335,7 +7343,15 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           <maml:name>System.String</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>You can pass the path of the new link and the path of the target as strings, or pipe objects whose `Path` or `FullName` property names the new link and whose `Target` property names its target.</maml:para>
+          <maml:para>You can pass the path of the new link and the path of the target as strings.</maml:para>
+        </maml:description>
+      </command:inputType>
+      <command:inputType>
+        <dev:type>
+          <maml:name>System.Management.Automation.PSObject</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>You can pipe objects whose `Path` or `FullName` property names the new link and whose `Target` property names its target, such as the rows of a CSV file that `Import-Csv` reads.</maml:para>
         </maml:description>
       </command:inputType>
     </command:inputTypes>
@@ -7361,9 +7377,9 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <maml:alert>
         <maml:para>Creating a symbolic link on Windows requires the "Create symbolic links" user right, `SeCreateSymbolicLinkPrivilege`, which is granted to the Administrators group by default. Without that right, Windows rejects the operation with error 1314, "A required privilege is not held by the client", so run the cmdlet from an elevated session or grant the right to the account. Windows Developer Mode doesn't change this: it lets accounts without that right create symbolic links only in programs that request it, such as `mklink`, and the cmdlet doesn't.</maml:para>
         <maml:para>Unlike a hard link, a symbolic link is a separate file system entry that stores a path, so it can point to an item on another volume and the link and its target can be managed independently. The cmdlet still requires the target to exist at the moment the link is created. If the target is removed later, the link remains and stops resolving.</maml:para>
-        <maml:para>If `-Path` already exists or `-Target` is missing, the cmdlet writes a non-terminating `CreateSymbolicLinkError` with the category `ResourceExists` or `ObjectNotFound`, leaves the file system unchanged, and continues with the next object from the pipeline. When Windows refuses the link, such as with error 1314 without the right to create symbolic links, the cmdlet writes a `CreateSymbolicLinkError` as well.</maml:para>
+        <maml:para>If `-Path` already exists, `-Target` is missing, or a path contains a character that Windows doesn't allow, such as `|`, the cmdlet writes a non-terminating `CreateSymbolicLinkError` with the category `ResourceExists`, `ObjectNotFound`, or `InvalidArgument`, leaves the file system unchanged, and continues with the next object from the pipeline. It checks `-Path` before `-Target`, and the error for an existing `-Path` or a missing `-Target` names that path. When Windows refuses the link, such as with error 1314 without the right to create symbolic links, the cmdlet writes a `CreateSymbolicLinkError` as well.</maml:para>
         <maml:para>Deleting a symbolic link removes the link only and leaves the target untouched. Delete a directory symbolic link as a link rather than recursively, so that the content of the target folder is not affected.</maml:para>
-        <maml:para>Before 5.0.0-rc7, `-Path` and `-Target` were optional: without `-Path`, the cmdlet failed with an index error, and without `-Target`, it created a link to the current folder. It stopped with a terminating error for an existing `-Path` or a link that Windows refused, and every object piped to it failed with `GetDefaultValueFailed`.</maml:para>
+        <maml:para>Before 5.0.0-rc7, `-Path` and `-Target` were optional: without `-Path`, the cmdlet failed with an index error, and without `-Target`, it created a link to the current folder. It stopped with a terminating error for an existing `-Path` or a link that Windows refused, in Windows PowerShell also for a path with a character that Windows doesn't allow, and every object piped to it failed with `GetDefaultValueFailed`. It checked `-Target` before `-Path`, and its errors for an existing `-Path` and a missing `-Target` named no path.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>

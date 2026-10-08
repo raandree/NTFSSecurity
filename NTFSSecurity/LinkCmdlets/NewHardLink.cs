@@ -57,8 +57,19 @@ namespace NTFSSecurity
 
         protected override void ProcessRecord()
         {
-            var path = GetRelativePath(paths[0]);
-            var targetPath = GetRelativePath(target);
+            string path;
+            string targetPath;
+            try
+            {
+                path = GetRelativePath(paths[0]);
+                targetPath = GetRelativePath(target);
+            }
+            // Windows PowerShell rejects a character that Windows doesn't allow in a path, such as |, already here.
+            catch (ArgumentException ex)
+            {
+                WriteError(new ErrorRecord(ex, "CreateHardLinkError", ErrorCategory.InvalidArgument, paths[0]));
+                return;
+            }
             var root = System.IO.Path.GetPathRoot(path);
 
             // Non-terminating errors, so that the links that follow in the pipeline are created as well. Before
@@ -80,7 +91,7 @@ namespace NTFSSecurity
 
             if (temp is DirectoryInfo)
             {
-                var folder = new ArgumentException("The target is not a file, cannot create the link");
+                var folder = new ArgumentException(string.Format("The target '{0}' is not a file, cannot create the link", targetPath));
                 WriteError(new ErrorRecord(folder, "CreateHardLinkError", ErrorCategory.InvalidArgument, path));
                 return;
             }
@@ -91,7 +102,7 @@ namespace NTFSSecurity
             }
             catch (Exception ex)
             {
-                WriteError(new ErrorRecord(ex, "CreateHardLinkError", ex is UnauthorizedAccessException ? ErrorCategory.PermissionDenied : ErrorCategory.WriteError, path));
+                WriteError(new ErrorRecord(ex, "CreateHardLinkError", GetErrorCategory(ex), path));
                 return;
             }
 
@@ -122,6 +133,18 @@ namespace NTFSSecurity
         protected override void EndProcessing()
         {
             base.EndProcessing();
+        }
+
+        // In PowerShell 7, AlphaFS rejects a character that Windows doesn't allow in a path only when it creates the link.
+        internal static ErrorCategory GetErrorCategory(Exception ex)
+        {
+            if (ex is UnauthorizedAccessException)
+                return ErrorCategory.PermissionDenied;
+
+            if (ex is ArgumentException)
+                return ErrorCategory.InvalidArgument;
+
+            return ErrorCategory.WriteError;
         }
     }
 }
