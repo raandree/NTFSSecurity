@@ -635,6 +635,65 @@ Describe 'Add-NTFSAccess' {
             @($acl.GetAccessRules($false, $true, $sidType)) | Should -HaveCount $inheritedCount
         }
     }
+
+    # The page: -PassThru writes all entries, explicit and inherited, of every item that the cmdlet changed.
+    Context 'With -PassThru' {
+        It 'Should write all entries of the item after the change' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'AddPassThru'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+
+            $result = @(Add-NTFSAccess -Path $file -Account 'S-1-1-0' -AccessRights ReadData -PassThru)
+
+            $result | ForEach-Object -Process { $_ | Should -BeOfType [Security2.FileSystemAccessRule2] }
+            $result | Should -HaveCount @(Get-NTFSAccess -Path $file).Count
+            @($result | Where-Object -FilterScript { $_.IsInherited }) | Should -Not -BeNullOrEmpty
+            $added = @($result | Where-Object -FilterScript { $_.Account.Sid -eq 'S-1-1-0' -and -not $_.IsInherited })
+            $added | Should -HaveCount 1
+            $added[0].AccessRights.HasFlag([Security2.FileSystemRights2]::ReadData) | Should -BeTrue
+        }
+
+        It 'Should write all entries of a security descriptor after the change and leave the item unchanged' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'AddPassThruDescriptor'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+
+            $result = @(Add-NTFSAccess -SecurityDescriptor $sd -Account 'S-1-1-0' -AccessRights ReadData -PassThru)
+
+            $result | Should -HaveCount @($sd.SecurityDescriptor.GetAccessRules($true, $true, $sidType)).Count
+            @($result | Where-Object -FilterScript { $_.Account.Sid -eq 'S-1-1-0' -and -not $_.IsInherited }) | Should -HaveCount 1
+            @((Get-Acl -LiteralPath $file).GetAccessRules($true, $false, $sidType) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) | Should -BeNullOrEmpty
+        }
+    }
+
+    Context 'With -InheritanceFlags and -PropagationFlags' {
+        It 'Should add an entry with the flags to a folder' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'AddFlags' -Directory
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $folder
+
+            Add-NTFSAccess -Path $folder -Account 'S-1-5-32-546' -AccessRights ReadData -InheritanceFlags ContainerInherit -PropagationFlags InheritOnly
+
+            $rules = @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, $sidType) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-32-546' })
+            $rules | Should -HaveCount 1
+            $rules[0].InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags]::ContainerInherit)
+            $rules[0].PropagationFlags | Should -Be ([System.Security.AccessControl.PropagationFlags]::InheritOnly)
+        }
+
+        # The page: inheritance and propagation flags are ignored on files.
+        It 'Should add an entry without flags to a file' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'AddFlagsFile'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+
+            Add-NTFSAccess -Path $file -Account 'S-1-5-32-546' -AccessRights ReadData -InheritanceFlags 'ContainerInherit, ObjectInherit' -PropagationFlags InheritOnly
+
+            $rules = @((Get-Acl -LiteralPath $file).GetAccessRules($true, $false, $sidType) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-32-546' })
+            $rules | Should -HaveCount 1
+            $rules[0].InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags]::None)
+            $rules[0].PropagationFlags | Should -Be ([System.Security.AccessControl.PropagationFlags]::None)
+        }
+    }
 }
 
 Describe 'Security descriptor parameter sets' {

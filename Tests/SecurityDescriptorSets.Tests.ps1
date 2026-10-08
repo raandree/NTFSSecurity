@@ -50,6 +50,24 @@ Describe 'Cmdlets that change a security descriptor in memory' {
         Get-ExplicitAccessCount -Acl (Get-Acl -LiteralPath $file) | Should -Be 0
     }
 
+    # Like the Path parameter set, the cmdlet doesn't copy the inherited entries, so the DACL ends up empty.
+    It 'Clear-NTFSAccess -DisableInheritance should leave the descriptor with an empty, protected DACL' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'ClearAccessProtected'
+        Add-NTFSAccess -Path $file -Account 'S-1-1-0' -AccessRights ReadData
+        $daclBefore = (Get-Acl -LiteralPath $file).GetSecurityDescriptorSddlForm('Access')
+        $sd = Get-NTFSSecurityDescriptor -Path $file
+
+        Clear-NTFSAccess -SecurityDescriptor $sd -DisableInheritance -ErrorAction Stop
+
+        $sd.SecurityDescriptor.AreAccessRulesProtected | Should -BeTrue
+        @($sd.SecurityDescriptor.GetAccessRules($true, $true, $sidType)) | Should -BeNullOrEmpty
+        (Get-Acl -LiteralPath $file).GetSecurityDescriptorSddlForm('Access') | Should -Be $daclBefore
+        Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorAction Stop
+        $acl = Get-Acl -LiteralPath $file
+        $acl.AreAccessRulesProtected | Should -BeTrue
+        @($acl.GetAccessRules($true, $true, $sidType)) | Should -BeNullOrEmpty
+    }
+
     It 'Disable-NTFSAccessInheritance should protect the DACL of the descriptor and keep the inherited entries' {
         $file = New-TestSandboxItem -Sandbox $sandbox -Name 'DisableAccess'
         $inheritedCount = @((Get-Acl -LiteralPath $file).GetAccessRules($false, $true, $sidType)).Count
