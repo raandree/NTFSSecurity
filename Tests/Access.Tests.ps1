@@ -353,14 +353,27 @@ Describe 'Get-NTFSSimpleAccess' {
         }
 
         # Before 5.0.0-rc7, a drive root after the first path was left out as well, because it has no parent folder;
-        # after another folder whose parent was reported, it was compared with that unrelated parent.
+        # after another folder whose parent was reported, it was compared with that unrelated parent. The test reads the
+        # entries of the drive root and changes nothing there.
         It 'Should report all entries of a drive root, which has no parent folder' {
             $root = [IO.Path]::GetPathRoot($child)
+            $rootAlone = @(Get-NTFSSimpleAccess -Path $root -IncludeRootFolder:$false -ErrorAction Stop)
+            $rootAlone | Should -Not -BeNullOrEmpty
 
             $result = @(Get-NTFSSimpleAccess -Path $child, $root -IncludeRootFolder:$false -ErrorVariable simpleErrors -ErrorAction SilentlyContinue)
 
             $simpleErrors | Should -BeNullOrEmpty
-            @($result | Where-Object -Property FullName -EQ -Value $root) | Should -Not -BeNullOrEmpty
+            @($result | Where-Object -Property FullName -EQ -Value $root) | Should -HaveCount $rootAlone.Count
+        }
+
+        # Windows doesn't distinguish paths by case. Before 5.0.0-rc7, the cmdlet didn't recognize the parent folder of a
+        # folder whose path differed from it in case, and left the folder out.
+        It 'Should compare a folder with its parent folder also when their paths differ in case' {
+            $result = @(Get-NTFSSimpleAccess -Path $parent, $child.ToUpperInvariant() -IncludeRootFolder:$false -ErrorAction Stop)
+
+            $childEntries = @($result | Where-Object -Property FullName -EQ -Value $child)
+            $childEntries | Should -HaveCount 1
+            $childEntries[0].Identity.Sid | Should -Be 'S-1-5-21-1-2-3-3101'
         }
 
         It 'Should report the parent folder of the first path first by default' {

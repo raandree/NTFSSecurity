@@ -347,8 +347,9 @@ The format is based on
 - Fix `Get-NTFSSimpleAccess`, which left out a folder whose parent folder it
   hadn't reported, and with it all of its subfolders, and which compared a
   drive root with the parent folder of the folder before it; such folders
-  are now reported with all of their entries. A folder that came after its
-  parent folder a second time failed with a `ReadError`
+  are now reported with all of their entries, and a parent folder is found
+  also when its path differs in case. A folder that came after its parent
+  folder a second time failed with a `ReadError`
 - Fix `Move-Item2` for a folder on another volume, which Windows can't
   move: the cmdlet copied and deleted it instead, so that an empty folder
   was deleted without being created at the destination, and a folder with
