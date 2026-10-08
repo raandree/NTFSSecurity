@@ -249,8 +249,23 @@ Describe 'Set-NTFSSecurityDescriptor' {
             $result | Should -BeNullOrEmpty
             $setErrors | Should -HaveCount 1
             $setErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadSecurityError,*'
-            # Get-Acl of an elevated Windows PowerShell still reads the item, so .NET checks that the entry was written.
-            { [System.IO.File]::GetAccessControl($file) } | Should -Throw
+            # Get-Acl of an elevated Windows PowerShell still reads the item, so .NET checks that the entry was written;
+            # .NET Core has the method as an extension method.
+            $info = New-Object -TypeName 'System.IO.FileInfo' -ArgumentList $file
+            $denied = $null
+            try {
+                if ($PSVersionTable.PSEdition -eq 'Desktop') {
+                    $null = $info.GetAccessControl()
+                }
+                else {
+                    $null = [System.IO.FileSystemAclExtensions]::GetAccessControl($info)
+                }
+            }
+            catch {
+                $denied = $_.Exception.GetBaseException()
+            }
+
+            $denied | Should -BeOfType [System.UnauthorizedAccessException]
         }
     }
 }
