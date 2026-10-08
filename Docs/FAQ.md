@@ -75,3 +75,21 @@ relative path is resolved against the current file system location, also a
 name that starts with a dot, such as `.gitignore`; before 5.0.0-rc6, the
 cmdlets dropped the first two characters of such a name. See
 [Long paths](Concepts.md#long-paths).
+
+## How do I compare the permissions of two items?
+
+Compare the properties of the entries, not the entries themselves. Each
+entry that `Get-NTFSAccess` returns is an object of its own, and like the
+access rules of .NET, two entries are equal only when they are the same
+object, even when they grant the same rights to the same account.
+`Compare-Object` with `-Property` lists the entries that only one of the
+items has:
+
+```powershell
+$properties = 'Account', 'AccessRights', 'AccessControlType', 'InheritanceFlags', 'PropagationFlags'
+Compare-Object -ReferenceObject (Get-NTFSAccess -Path C:\Data\A) -DifferenceObject (Get-NTFSAccess -Path C:\Data\B) -Property $properties
+```
+
+The same works for the entries of `Get-NTFSAudit`, with `AuditFlags` in
+place of `AccessControlType`. See
+[Get-NTFSAccess](Cmdlets/Get-NTFSAccess.md).
