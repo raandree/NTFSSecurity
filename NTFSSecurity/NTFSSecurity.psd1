@@ -102,7 +102,7 @@
             ProjectUri   = 'https://github.com/raandree/NTFSSecurity'
             ReleaseNotes = 'https://github.com/raandree/NTFSSecurity/blob/master/CHANGELOG.md'
             # Remove the prerelease label for the final release, see Docs/Contributing/05-Releasing.md
-            Prerelease   = 'rc5'
+            Prerelease   = 'rc6'
         }
     }
 }

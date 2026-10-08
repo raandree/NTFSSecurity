@@ -97,7 +97,7 @@ Describe 'Release metadata' {
     # The PowerShell Gallery doesn't accept a version twice. Add every published version to this list
     # (Docs/Contributing/05-Releasing.md).
     It 'Should not reuse a version that the PowerShell Gallery already has' {
-        $publishedVersions = '4.0', '4.2.2', '4.2.3', '4.2.4', '4.2.5', '4.2.6', '5.0.0-rc1', '5.0.0-rc2', '5.0.0-rc3', '5.0.0-rc4'
+        $publishedVersions = '4.0', '4.2.2', '4.2.3', '4.2.4', '4.2.5', '4.2.6', '5.0.0-rc1', '5.0.0-rc2', '5.0.0-rc3', '5.0.0-rc4', '5.0.0-rc5'
 
         $publishedVersions | Should -Not -Contain $version
     }
