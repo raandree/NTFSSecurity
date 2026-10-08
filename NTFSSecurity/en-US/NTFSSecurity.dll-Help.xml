@@ -6624,7 +6624,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>The simplified rights hide which exact rights an account holds. Use `Get-NTFSAccess` when you need the full access control entry, and `Get-NTFSEffectiveAccess` when you need the rights that result from all entries together.</maml:para>
-        <maml:para>Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor`, and its output had no table view.</maml:para>
+        <maml:para>Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor`, and its output had no table view. It also showed no rights for an entry that grants only `ReadData`, which other tools than .NET create, and it left out the parent folder of a relative path with a single folder name, such as `Data`.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>

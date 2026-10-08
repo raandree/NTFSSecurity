@@ -283,5 +283,9 @@ The format is based on
   another command in the pipeline, such as `Disable-Privileges`, had
   disabled one of them; a privilege that they can't disable now gives a
   warning, and they still disable the others
+- Fix `Get-NTFSSimpleAccess`, which showed no rights for an entry that
+  grants only `ReadData`, and which left out the parent folder of a
+  relative path with a single folder name, although `-IncludeRootFolder` is
+  on by default
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

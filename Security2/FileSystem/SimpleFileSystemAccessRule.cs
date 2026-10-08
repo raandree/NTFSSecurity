@@ -42,6 +42,10 @@ namespace Security2
                 if ((accessRights & FileSystemRights2.Read) == FileSystemRights2.Read)
                 { result |= SimpleFileSystemAccessRights.Read; }
 
+                // An entry with ReadData alone, which other tools than .NET create, was None before 5.0.0-rc6.
+                if ((accessRights & FileSystemRights2.ReadData) == FileSystemRights2.ReadData)
+                { result |= SimpleFileSystemAccessRights.Read; }
+
                 if ((accessRights & FileSystemRights2.CreateFiles) == FileSystemRights2.CreateFiles)
                 { result |= SimpleFileSystemAccessRights.Write; }
 

@@ -190,7 +190,7 @@ When the module setting `EnablePrivileges` is `$true` (the default in the `Priva
 
 The simplified rights hide which exact rights an account holds. Use `Get-NTFSAccess` when you need the full access control entry, and `Get-NTFSEffectiveAccess` when you need the rights that result from all entries together.
 
-Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor`, and its output had no table view.
+Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor`, and its output had no table view. It also showed no rights for an entry that grants only `ReadData`, which other tools than .NET create, and it left out the parent folder of a relative path with a single folder name, such as `Data`.
 
 ## RELATED LINKS
 
