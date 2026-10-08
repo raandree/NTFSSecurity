@@ -73,6 +73,10 @@ The format is based on
   also an unchanged owner, which failed with error 1307 where the account
   may not assign that owner
   ([#34](https://github.com/raandree/NTFSSecurity/issues/34))
+- Document that `Get-NTFSEffectiveAccess -ServerName` works only for the
+  administrators of the named computer and the members of its group Access
+  Control Assistance Operators; any other account gets the error "Access is
+  denied" and no result
 
 ### Deprecated
 

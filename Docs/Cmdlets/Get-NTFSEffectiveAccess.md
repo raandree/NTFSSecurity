@@ -31,7 +31,7 @@ Calculates the rights an account really has on a file or a folder and writes the
 
 The calculation covers the NTFS permissions of the item only. Share permissions are stored in a separate security descriptor and are not part of the result, so access over a network share can be more restrictive than this cmdlet reports.
 
-When `-Account` is omitted, the account that runs the session is used. `-ServerName` selects the computer whose authorization manager resolves the group memberships of the account and defaults to `localhost`; when the remote authorization manager of the named computer cannot be reached, the cmdlet falls back to the local one and warns that the result is based on the group memberships known on this computer and may be inaccurate. Reading effective access relies on the Security privilege, and the cmdlet warns when the account does not hold it or the privilege is disabled.
+When `-Account` is omitted, the account that runs the session is used. `-ServerName` selects the computer whose authorization manager resolves the group memberships of the account and defaults to `localhost`; when the remote authorization manager of the named computer cannot be reached, the cmdlet falls back to the local one and warns that the result is based on the group memberships known on this computer and may be inaccurate. The authorization manager of the named computer answers only the administrators of that computer and the members of its local group Access Control Assistance Operators; for any other account, the cmdlet writes an error and doesn't fall back. Reading effective access relies on the Security privilege, and the cmdlet warns when the account does not hold it or the privilege is disabled.
 
 When `-Path` is omitted, the cmdlet calculates the effective access to the current location. In the `SecurityDescriptor` parameter set, it calculates the effective access from a `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, without reading the item again.
 
@@ -139,7 +139,7 @@ Accept wildcard characters: False
 
 ### -ServerName
 
-Specifies the computer whose authorization manager resolves the group memberships of the account. The default is `localhost`. Name the computer that stores the item when you query a network path, because the group memberships known there determine the result; if that computer cannot be reached, the cmdlet falls back to the local authorization manager and warns that the result may be inaccurate.
+Specifies the computer whose authorization manager resolves the group memberships of the account. The default is `localhost`. Name the computer that stores the item when you query a network path, because the group memberships known there determine the result; if that computer cannot be reached, the cmdlet falls back to the local authorization manager and warns that the result may be inaccurate. The authorization manager of a computer answers only its administrators and the members of its local group Access Control Assistance Operators; for any other account, the cmdlet writes a non-terminating `GetEffectiveAccessError` with the message "Access is denied" and returns no result for the item.
 
 ```yaml
 Type: String
