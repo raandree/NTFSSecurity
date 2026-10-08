@@ -77,6 +77,8 @@ The format is based on
   administrators of the named computer and the members of its group Access
   Control Assistance Operators; any other account gets the error "Access is
   denied" and no result
+- Name the computer in the warning of `Get-NTFSEffectiveAccess` when the
+  computer of `-ServerName` can't be reached
 
 ### Deprecated
 

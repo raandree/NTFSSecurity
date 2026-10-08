@@ -159,9 +159,10 @@ namespace NTFSSecurity
         {
             if (!result.FromRemote)
             {
-                WriteWarning("The effective rights can only be computed based on group membership on this" +
-                              " computer. For more accurate results, calculate effective access rights on " +
-                              "the target computer");
+                // Since 5.0.0-rc7, the warning names the computer, which a command with many items can't tell otherwise.
+                WriteWarning(string.Format("The effective rights can only be computed based on group membership on this computer, " +
+                    "because the computer '{0}' can't be reached for a remote access check. " +
+                    "For more accurate results, calculate effective access rights on that computer.", serverName));
             }
 
             if (result.OperationFailed)

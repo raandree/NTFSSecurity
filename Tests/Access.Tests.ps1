@@ -145,8 +145,10 @@ Describe 'Get-NTFSEffectiveAccess' {
             $accessErrors | Should -BeNullOrEmpty
             $result | Should -HaveCount 1
             $result[0].AccessRights | Should -Be $expected.AccessRights
-            $accessWarnings.Message | Should -Contain ('The effective rights can only be computed based on group membership on this computer. ' +
-                'For more accurate results, calculate effective access rights on the target computer')
+            # Before 5.0.0-rc7, the warning didn't name the computer.
+            $accessWarnings.Message | Should -Contain ("The effective rights can only be computed based on group membership on this computer, " +
+                "because the computer 'ntfssecurity-test.invalid' can't be reached for a remote access check. " +
+                'For more accurate results, calculate effective access rights on that computer.')
         }
     }
 }
