@@ -28,7 +28,9 @@ source: maintainer decision of 2026-10-08
     of the matrix.
 - Rationale: rc5 passed every test that ran, but the tests ran 55.9% of
   the code lines and 37.4% of the branches; five cmdlets had no tests of
-  their own, and 19 cmdlets never ran over SMB.
+  their own, and 19 cmdlets never ran over SMB. (That measurement counted
+  only one of the four test runs; with all four, rc5 runs 58.1% of the
+  lines and 38.0% of the branches, see `techContext.md`.)
 - Open: behavior changes found on the way stay the maintainer's decision
   (Decision 16); so do the 244 lines of classes that no cmdlet calls, the
   operating systems of Phase 3, and how to cover file servers that aren't

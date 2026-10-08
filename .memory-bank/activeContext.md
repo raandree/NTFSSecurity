@@ -9,95 +9,70 @@ source: current task evidence
 
 ## Current focus
 
-Phase 2 of the quality gate before 5.0.0 (Decision 21), on the branch
-`ai/release-5.0.0-rc6`, released as 5.0.0-rc6: tests until every code
-path is tested or explained, live tests for the remaining cmdlets, and
-test-first fixes of the known defects. The maintainer approved it on
-2026-10-08. Then Phase 3 and 5.0.0; after 5.0.0 the repository is archived
-in favor of WindowsAccessControl (Decision 18).
+Phase 2 of the quality gate before 5.0.0 (Decision 21) is complete on the
+local branch `ai/release-5.0.0-rc6`, candidate `7b0781f`. The maintainer
+pushes the branch, merges the pull request after CI, and tags 5.0.0-rc6.
+Then Phase 3 (live tests on more operating systems) and 5.0.0; after
+5.0.0 the repository is archived in favor of WindowsAccessControl
+(Decision 18).
 
 ## Evidence
 
-- 2026-10-08, Phase 1, measured on 5.0.0-rc5 (`fcb370e`):
-  - The published package passes the live tests in both editions: 8 role
-    runs, no failure.
-  - As a basic user, the 11 tests that CI skips pass in both editions. The
-    one failure, `Enable-Privileges should write one object per
-    privilege`, assumes more than one privilege. Every test runs in at
-    least one of four configurations (elevated or basic user, two
-    editions), but CI runs only elevated.
-  - The suite runs 55.9% of the C# lines and 37.4% of the branches
-    (`techContext.md`, Validation). No line of `Test-Path2` and
-    `Get-DiskSpace` runs; `Set-NTFSOwner` (46%) runs only as a setup step
-    of another test; `Clear-NTFSAccess` and the access inheritance cmdlets
-    run about 43%, `FileSystemSecurity2` 42%. No cmdlet calls the registry
-    classes, `SimpleFileSystemAuditRule`, `PrivilegeEnabler`, or
-    `FileSystemEffectivePermissionEntry` (244 lines).
-  - 19 of the 36 cmdlets never ran over SMB, among them `Get-NTFSOwner`,
-    `Set-NTFSOwner`, the audit inheritance cmdlets, and `Clear-NTFSAudit`;
-    no account of another domain or forest ran; both ends of the lab run
-    Windows Server 2025.
-- Known defects from the reviews of #113 and #114 (`progress.md`, open
-  work 3): `Move-Item2 -PassThru` returns the source item; the conflict
-  checks of `Copy-Item2` and `Move-Item2` use `File.Exists` also for
-  folders, maybe the cause of #21; an error while restoring the owner can
-  hide the original one (R4); `Set-NTFSSecurityDescriptor -PassThru` reads
-  the item again inside the retry (R5); the access check doesn't read
-  `AUTHZ_ACCESS_REPLY.Error`, and its buffers aren't initialized. #110
-  lists seven test follow-ups.
-- #34: no reply from the tester by 06:44 UTC on 2026-10-08.
-- Phase 2, step 1, first part (2026-10-08, commits `82969ba` to
-  `ff74100`): 34 new tests for `Set-NTFSOwner`, `Test-Path2`, and
-  `Get-DiskSpace`, and two defects found and fixed test-first. Every
-  cmdlet that enables privileges left the Backup, Restore, Take Ownership,
-  and Security privileges enabled in the session when a later command or a
-  terminating error stopped the pipeline; `Test-Path2` stopped with
-  "Illegal characters in path" in Windows PowerShell for a path such as
-  `C:\a|b`.
-- Phase 2, step 1, link cmdlets (2026-10-08, `4d5c8c4`, `09eb337`): 18 new
-  tests for `New-NTFSHardLink`, `Get-NTFSHardLink`, and
-  `New-NTFSSymbolicLink` pass elevated and as a basic user in both
-  editions; no code defect. The page of `New-NTFSSymbolicLink` was wrong
-  twice: `-PassThru` returns a folder object for a link to a folder since
-  5.0.0, and Windows Developer Mode doesn't help, because AlphaFS 2.2.1
-  passes only the File or Directory flag to `CreateSymbolicLinkW`. Lab
-  check on `F1AFile1` as `NtfsLiveServerAdmin` (no administrator):
-  with Developer Mode on, `mklink` created a link and the cmdlet of
-  5.0.0-rc5 failed with error 1314; the setting was restored.
-- Security review of `fcb370e..00c3646` (`security-reviewer`, 2026-10-08):
-  the `Dispose` approach is sound; two Major findings, both one root cause
-  that 4.2.6 already had: the privilege cleanup decided on the states read
-  in `BeginProcessing` and stopped at the first failure. Reproduced: a
-  privilege that another command in the pipeline disabled left the others
-  enabled (silently after an early stop), and
-  `Get-NTFSOwner ... | ForEach-Object { Disable-Privileges; $_ }` stopped
-  with "Priviledge already disabled". Two Minor findings: the early-stop
-  tests could pass vacuously, and `Test-Path2` gave no reason for `$false`.
-  The maintainer chose to fix all four; fixed test-first in `578042f` and
-  `b241441`. The suite (555 tests) passes elevated in both editions
-  (534/0/21 and 504/0/51), and the changed test files pass as a basic user.
+- 2026-10-08, Phase 2 on `ai/release-5.0.0-rc6`, 31 commits on `fcb370e`
+  (5.0.0-rc5); the candidate is `7b0781f`:
+  - The suite has 684 tests. Elevated: 662 passed and 22 skipped in
+    Windows PowerShell 5.1, 632 and 52 in PowerShell 7. As a basic user
+    through `Invoke-TestsAsBasicUser.ps1`: 590 and 94, 560 and 124. No
+    failure, and no test is skipped in all four configurations; CI runs
+    all four since this branch.
+  - C# coverage of all four configurations (AltCover without `--save`,
+    `techContext.md`): 68.1% of the lines and 44.3% of the branches on
+    `1b9edbb`; rc5 58.1% and 38.0%. The earlier figures counted one of
+    the four runs. Of the 972 points that no test ran at `e2b6b24`
+    (without the classes that no cmdlet calls), 400 are code that nothing
+    calls, 107 defensive guards, 74 need a failure of Windows, 4 need the
+    lab, and 387 are reachable; 51 of those ran in runs that the first
+    measurement missed, and the top items of the rest are in
+    `progress.md`, open work 7.
+  - Fixed test-first: `Get-NTFSSimpleAccess` (`ReadData`, the parent of a
+    relative path); `Copy-Item2` and `Move-Item2` (a folder at the
+    destination, the missing destination folder of #21, also with
+    `-WhatIf`); the hard-link cmdlets on shares and at folders;
+    `Set-NTFSSecurityDescriptor -PassThru` (R5); the error ID of
+    `Get-NTFSOrphanedAccess`; relative paths that start with a dot, which
+    every cmdlet shortened by two characters (`Remove-Item2 .x` removed
+    another item); comparing entries and descriptors
+    (`InvalidCastException`, also `Compare-Object` in PowerShell 7) and
+    their conversions; `InheritedFrom` with `-ExcludeExplicit` and for a
+    descriptor with audit entries (`ArgumentOutOfRangeException`).
+    `Copy-Item2` no longer creates the missing folders of a destination
+    for a folder (assumption, flagged for the maintainer).
+  - Live tests: cases 4b to 9 and accounts of `b.forest1.net`,
+    `forest2.net`, and `forest3.net`. The lab acceptance passed for
+    `acfe3af`, `1b9edbb`, and `7b0781f` (326 tests each, none failed;
+    `Tests/Lab/Acceptance-2026-10-08-5.0.0-rc6.md`). Baseline: the
+    published 5.0.0-rc5 fails only the two hard-link tests of case 8. The
+    fixture was removed and the removal checked after each run; three
+    checkpoints `ntfs-rc6-*-before-acceptance` stay on six machines.
+  - `Get-NTFSEffectiveAccess -ServerName` needs administrators or
+    Access Control Assistance Operators on the named computer (lab probe,
+    documented).
+  - Two `security-reviewer` passes approved the branch with no Blocker or
+    Major finding: `fcb370e..e2b6b24` (findings 1, 4, 5, 10 fixed in
+    `acfe3af`) and `e2b6b24..1b9edbb` (findings 1, 2, 6, 7 fixed in
+    `7b0781f`). Not fixed: a failed privilege disable isn't tried again,
+    and a non-qualified ACE could shift `InheritedFrom` (neither
+    reproducible); `New-NTFSHardLink` stays terminating for a folder (a
+    behavior change for the maintainer).
+- #34: no reply from the tester since 2026-10-06.
 
 ## Next step
 
-Phase 2, one step at a time, each with evidence before the next:
-
-1. Tests for the cmdlets without tests of their own: done for
-   `Set-NTFSOwner`, `Test-Path2`, `Get-DiskSpace`, and the link cmdlets;
-   open for `Get-NTFSOrphanedAudit` and `Get-NTFSSimpleAccess`.
-2. The other parameter sets and error paths, such as the
-   `-SecurityDescriptor` sets of the inheritance cmdlets and of
-   `Clear-NTFSAccess`.
-3. The paths of `Security2` that no test runs, and #110.
-4. Test-first fixes of the known defects; behavior changes go to the
-   maintainer (Decision 16).
-5. A CI job as a basic user, live tests for the other cmdlets over SMB and
-   for accounts of other forests, and a lab run.
-6. Measure the coverage again, explain what remains, review, and prepare
-   5.0.0-rc6. The final review covers the whole branch, including the fix
-   round of `578042f` and `b241441`.
-
-Open question for the maintainer, not planned: `New-NTFSSymbolicLink`
-could request unprivileged creation with
-`SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE`, so that Developer Mode
-works. That is a behavior change (Decision 16) and needs a fallback for
-Windows versions before 10 1703, which don't know the flag.
+1. The maintainer pushes the branch, opens the pull request, merges it
+   after CI, and tags `5.0.0-rc6`; then the live tests run against the
+   published package (`-Version 5.0.0-rc6`). The first CI run is the first
+   run of `Invoke-TestsAsBasicUser.ps1` on a GitHub runner.
+2. The maintainer decides the behavior changes in `progress.md`, open
+   work 4 (Decision 16), and the scope of Phase 3: the operating systems,
+   the code that nothing calls, and file servers that aren't Windows
+   (#34).

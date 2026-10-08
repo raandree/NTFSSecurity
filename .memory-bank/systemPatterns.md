@@ -99,9 +99,20 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 - A test that changes files, links, or security descriptors uses
   `Tests\TestHelpers.psm1`: its own sandbox, `Assert-TestSandboxPath`
   before each change, `Remove-TestSandbox`. Cases that need a privilege
-  skip with `Test-PrivilegeHeld` and run in CI (elevated). `Block-Test*`
-  make a read or a write fail without elevation; `Set-TestOwner` with
+  skip with `Test-PrivilegeHeld`, cases that need its absence skip when
+  elevated; CI runs the suite elevated and as a basic user in both
+  editions, so each case runs somewhere. `Block-Test*` make a read or a
+  write fail without elevation; `Set-TestOwner` with
   `EnablePrivileges = $false` reproduces an owner the user can't assign.
+- Fixtures write a DACL with `SetAccessControl`, never with `Set-Acl`:
+  `Set-Acl` compares `AreAuditRulesProtected` of the new descriptor with
+  `AreAccessRulesProtected` of the item (`FileSystemSecurity.cs` of
+  PowerShell), so for an item with a protected DACL it writes the audit
+  section too. Without the Security privilege that fails with
+  `PrivilegeNotHeldException`; with it, `Set-Acl` writes every section and
+  drops the audit entries. Windows PowerShell has
+  `FileInfo`/`DirectoryInfo.SetAccessControl`; PowerShell 7 has
+  `[System.IO.FileSystemAclExtensions]::SetAccessControl`.
 - `Get-Help -Online` tests run only in Windows PowerShell, which honors the
   hook `BypassOnlineHelpRetrieval`. `Manifest.Tests.ps1` and
   `Release.Tests.ps1` check the manifest, the version (Decision 10), the
