@@ -183,24 +183,92 @@ Describe 'Add-NTFSAudit' {
 Describe 'Get-NTFSOrphanedAudit' {
     BeforeAll {
         $orphanedFile = New-TestSandboxItem -Sandbox $sandbox -Name 'OrphanedAudit'
+        $missing = Join-Path -Path $sandbox -ChildPath 'MissingOrphanedAudit.txt'
     }
 
-    # Before 5.0.0, the cmdlet wrote the entries of an item as one collection and ignored -Account.
-    It 'Should return one object per entry whose account cannot be resolved' -Skip:(-not $canReadAudit) {
-        foreach ($sid in 'S-1-5-21-1-2-3-1001', 'S-1-5-21-1-2-3-1002') {
-            Add-NTFSAudit -Path $orphanedFile -Account $sid -AccessRights ReadData -InheritanceFlags None -PropagationFlags None
+    Context 'With the Security privilege' {
+        BeforeAll {
+            # Two entries of accounts that don't exist and one of Everyone, which resolves. Each test reads them, so
+            # none depends on another one.
+            foreach ($sid in 'S-1-5-21-1-2-3-1001', 'S-1-5-21-1-2-3-1002', 'S-1-1-0') {
+                Add-NTFSAudit -Path $orphanedFile -Account $sid -AccessRights ReadData -InheritanceFlags None -PropagationFlags None -ErrorAction Stop
+            }
+
+            $orphanedFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'OrphanedAuditFolder' -Directory
+            Add-NTFSAudit -Path $orphanedFolder -Account 'S-1-5-21-1-2-3-1003' -AccessRights Delete -ErrorAction Stop
+            $inheritingFile = Join-Path -Path $orphanedFolder -ChildPath 'File.txt'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $inheritingFile
+            Set-Content -LiteralPath $inheritingFile -Value 'File'
         }
 
-        $result = @(Get-NTFSOrphanedAudit -Path $orphanedFile)
+        # Before 5.0.0, the cmdlet wrote the entries of an item as one collection and ignored -Account.
+        It 'Should return one object per entry whose account cannot be resolved' -Skip:(-not $canReadAudit) {
+            $result = @(Get-NTFSOrphanedAudit -Path $orphanedFile)
 
-        $result | Should -HaveCount 2
-        $result | ForEach-Object -Process { $_ | Should -BeOfType [Security2.FileSystemAuditRule2] }
+            $result | Should -HaveCount 2
+            $result | ForEach-Object -Process { $_ | Should -BeOfType [Security2.FileSystemAuditRule2] }
+            $result.Account.Sid | Should -Not -Contain 'S-1-1-0'
+        }
+
+        It 'Should return only the entries of -Account' -Skip:(-not $canReadAudit) {
+            $result = @(Get-NTFSOrphanedAudit -Path $orphanedFile -Account 'S-1-5-21-1-2-3-1002')
+
+            $result | Should -HaveCount 1
+            $result[0].Account.Sid | Should -Be 'S-1-5-21-1-2-3-1002'
+        }
+
+        It 'Should read the entries of a security descriptor' -Skip:(-not $canReadAudit) {
+            $result = @(Get-NTFSSecurityDescriptor -Path $orphanedFile | Get-NTFSOrphanedAudit -ErrorAction Stop)
+
+            $result | Should -HaveCount 2
+            $result | ForEach-Object -Process { $_.FullName | Should -Be $orphanedFile }
+        }
+
+        It 'Should return an inherited entry, and nothing with -ExcludeInherited' -Skip:(-not $canReadAudit) {
+            $result = @(Get-NTFSOrphanedAudit -Path $inheritingFile -ErrorAction Stop)
+            $explicitResult = @(Get-NTFSOrphanedAudit -Path $inheritingFile -ExcludeInherited -ErrorAction Stop)
+
+            $result | Should -HaveCount 1
+            $result[0].Account.Sid | Should -Be 'S-1-5-21-1-2-3-1003'
+            $result[0].IsInherited | Should -BeTrue
+            $explicitResult | Should -BeNullOrEmpty
+        }
+
+        It 'Should report the number of orphaned entries of each item in a verbose message' -Skip:(-not $canReadAudit) {
+            $messages = @(Get-NTFSOrphanedAudit -Path $orphanedFile -Verbose 4>&1 | Where-Object -FilterScript {
+                    $_ -is [System.Management.Automation.VerboseRecord] })
+
+            $messages.Message | Should -Contain "Item $orphanedFile knows about 2 orphaned SIDs in its ACL"
+        }
     }
 
-    It 'Should return only the entries of -Account' -Skip:(-not $canReadAudit) {
-        $result = @(Get-NTFSOrphanedAudit -Path $orphanedFile -Account 'S-1-5-21-1-2-3-1002')
+    It 'Should write an error for a path that does not exist and continue with the next path' {
+        $result = @(Get-NTFSOrphanedAudit -Path $missing, $orphanedFile -ErrorVariable orphanedErrors -ErrorAction SilentlyContinue)
 
-        $result | Should -HaveCount 1
+        $orphanedErrors | Should -HaveCount 1
+        $orphanedErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadError,*'
+        $orphanedErrors[0].TargetObject | Should -Be $missing
+        $result | ForEach-Object -Process { $_.FullName | Should -Be $orphanedFile }
+    }
+
+    It 'Should write an error for a security descriptor that was read without the audit entries' {
+        $sd = New-Object -TypeName 'Security2.FileSystemSecurity2' -ArgumentList (
+            (Get-Item2 -Path $orphanedFile), [System.Security.AccessControl.AccessControlSections]::Access
+        )
+
+        $result = @($sd | Get-NTFSOrphanedAudit -ErrorVariable orphanedErrors -ErrorAction SilentlyContinue)
+
+        $result | Should -BeNullOrEmpty
+        $orphanedErrors | Should -HaveCount 1
+        $orphanedErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadSecurityError,*'
+    }
+
+    # The cmdlet page: without the privilege, the cmdlet reads no audit entries and reports none.
+    It 'Should return nothing and write no error without the Security privilege' -Skip:$canReadAudit {
+        $result = @(Get-NTFSOrphanedAudit -Path $orphanedFile -ErrorVariable orphanedErrors -ErrorAction SilentlyContinue)
+
+        $orphanedErrors | Should -BeNullOrEmpty
+        $result | Should -BeNullOrEmpty
     }
 }
 
