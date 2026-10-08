@@ -9,18 +9,26 @@ source: current task evidence
 
 ## Current focus
 
-The behavior changes that Phase 2 of the quality gate found (Decision 16)
-are decided as assumptions for the maintainer's review (Decision 22) and
-implemented test-first on the local branch `ai/release-5.0.0-rc7`, stacked
-on #115 (5.0.0-rc6, head `be04cb7`, CI green, not merged yet). The
-maintainer reviews the choices, merges #115 and tags 5.0.0-rc6, and
-publishes the branch as 5.0.0-rc7. Then Phase 3 and 5.0.0; after 5.0.0
-the repository is archived in favor of WindowsAccessControl (Decision 18).
+5.0.0-rc6 is on the PowerShell Gallery (tag `5.0.0-rc6` on `b51d970`, the
+merge of #115); its GitHub release waits for a rerun of the failed Release
+job. #116 (`ai/release-5.0.0-rc7`, base `master`) holds the behavior
+changes that Phase 2 found, decided as assumptions for the maintainer's
+review (Decision 22), and waits for that review. Then 5.0.0-rc7, Phase 3,
+and 5.0.0; after 5.0.0 the repository is archived in favor of
+WindowsAccessControl (Decision 18).
 
 ## Evidence
 
-- 2026-10-08, `ai/release-5.0.0-rc7`, 11 commits on `be04cb7` (`3899228`
-  to `1063b29`) and two commits of records:
+- 2026-10-08, 5.0.0-rc6: the Release job of the tag (run `37839669028`)
+  published the package at 20:40 UTC and failed after it, because
+  `Publish-PSResource` gave up waiting after 100 seconds and its retry got
+  409 (`progress.md`, open work 8). The live tests of rc7 ran with
+  `-Version 5.0.0-rc6`, which checks the hash of the Gallery, in both
+  editions, 20:43 to 21:00 UTC: all passed except the warning text that
+  rc7 changed, which matches the live tests of rc6. The fixture was
+  removed at 21:03 UTC and its removal checked.
+- 2026-10-08, #116, 11 commits on `be04cb7` (`3899228` to `1063b29`) and
+  commits of records:
   - Decision 22: items 1, 2, 5, 6, 7, and 8 changed, 7 and 8 breaking (the
     link cmdlets require `-Path` and `-Target` and write non-terminating
     errors); items 3, 4, 9, and 10 kept, 9 with an FAQ entry. New defects,
@@ -44,17 +52,19 @@ the repository is archived in favor of WindowsAccessControl (Decision 18).
     same counts. The fixture was removed at 16:21 and 16:44 UTC, and its
     removal checked each time.
 - #115 passed CI in all four configurations on `be04cb7`, with the first
-  runs of `Invoke-TestsAsBasicUser.ps1` on GitHub runners.
+  runs of `Invoke-TestsAsBasicUser.ps1` on GitHub runners; #116 passed CI
+  on `ebe91fe` against the rc6 branch.
 - #34: no reply from the tester since 2026-10-06.
 
 ## Next step
 
-1. The maintainer reviews the choices of Decision 22, each its own commit,
-   above all the two breaking changes of the link cmdlets.
-2. He pushes the branch and opens its pull request with the base
-   `ai/release-5.0.0-rc6`; after #115 is merged and tagged, he changes the
-   base to `master`, merges with a merge commit (Decision 15), and tags
-   `5.0.0-rc7`. The live tests then run against the published package
-   (`-Version 5.0.0-rc7`).
-3. He decides the scope of Phase 3: the operating systems, the code that
-   nothing calls, and file servers that aren't Windows (#34).
+1. The maintainer reruns the failed Release job of 5.0.0-rc6, which skips
+   the published package and creates the GitHub release, and closes #110.
+2. He pushes the records to #116 and reviews the choices of Decision 22,
+   each its own commit, above all the two breaking changes of the link
+   cmdlets. After the CI of the push, he merges #116 with a merge commit
+   (Decision 15) and tags `5.0.0-rc7`; the live tests then run against the
+   published package (`-Version 5.0.0-rc7`).
+3. He decides the fix of the publish step (`progress.md`, open work 8) and
+   the scope of Phase 3: the operating systems, the code that nothing
+   calls, and file servers that aren't Windows (#34).

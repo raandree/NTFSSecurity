@@ -9,16 +9,16 @@ source: repository evidence
 
 ## Current status
 
-5.0.0-rc5 is on the PowerShell Gallery and in the GitHub releases,
-published by CI on 2026-10-08 from the tag `5.0.0-rc5` on `master`
-(`fcb370e`, the merge of #114; Decision 12). Phase 2 of the quality gate
-(Decision 21) is complete: #115 (`ai/release-5.0.0-rc6`, head `be04cb7`)
-passed CI in all four configurations and waits for the maintainer to merge
-it and tag 5.0.0-rc6. The behavior changes that Phase 2 found are decided
-as assumptions for his review (Decision 22) on the local branch
-`ai/release-5.0.0-rc7`, stacked on #115. Phase 3 follows. The stable
-Gallery version is still 4.2.6. NTFSSecurity will be archived soon; its
-users move to WindowsAccessControl (Decision 18).
+5.0.0-rc6 is on the PowerShell Gallery, published by CI on 2026-10-08 at
+20:40 UTC from the tag `5.0.0-rc6` on `master` (`b51d970`, the merge of
+pull request #115; Decision 12). The Release job failed after the upload,
+so the GitHub release waits for a rerun of the failed job. The published
+package passed the live tests. Phase 2 of the quality gate (Decision 21)
+is complete. The pull request #116 (`ai/release-5.0.0-rc7`) holds the
+behavior changes that Phase 2 found, decided as assumptions for the
+maintainer's review (Decision 22), and waits for that review. Phase 3
+follows. The stable Gallery version is still 4.2.6. NTFSSecurity will be
+archived soon; its users move to WindowsAccessControl (Decision 18).
 
 ## Recent milestones
 
@@ -110,6 +110,14 @@ users move to WindowsAccessControl (Decision 18).
   and `Get-NTFSEffectiveAccess` warned for names of this computer. One
   `security-reviewer` pass (no Blocker or Major; its findings fixed but
   one, declined). Suite and lab acceptance in `activeContext.md`.
+- 2026-10-08: #115 merged (`b51d970`) and tagged `5.0.0-rc6`. The Release
+  job published the package at 20:40 UTC, then failed: `Publish-PSResource`
+  gave up waiting after 100 seconds while the Gallery accepted the upload,
+  and its retry got 409, so the job didn't create the GitHub release. The
+  published package passed the live tests of rc7 in both editions except
+  the one test whose expected warning text rc7 changed
+  (`Tests/Lab/Acceptance-2026-10-08-5.0.0-rc6.md`, After the release).
+  #116 (5.0.0-rc7) was opened on the rc6 branch and moved to `master`.
 
 ## Stable capabilities
 
@@ -124,19 +132,20 @@ users move to WindowsAccessControl (Decision 18).
 
 ## Open work
 
-1. Quality gate before 5.0.0 (Decision 21): Phase 2 is done; the
-   maintainer merges #115 and tags 5.0.0-rc6, reviews the choices of
-   Decision 22 on `ai/release-5.0.0-rc7`, and publishes them as
-   5.0.0-rc7. Phase 3 runs the live tests on more operating systems. Then
-   release 5.0.0 through CI (Decision 12): remove the label, date
+1. Quality gate before 5.0.0 (Decision 21): the maintainer reruns the
+   failed Release job of 5.0.0-rc6, which creates the GitHub release;
+   reviews the choices of Decision 22 in #116; merges #116 and tags
+   5.0.0-rc7, whose published package then runs the live tests. Phase 3
+   runs the live tests on more operating systems. Then release 5.0.0
+   through CI (Decision 12): remove the label, date
    `[Unreleased]` as `[5.0.0]`, add the last prerelease to
    `$publishedVersions`, and tag `5.0.0` (steps in
    `Docs/Contributing/05-Releasing.md`). #34 stays open with Bug and Help
    Wanted until a tester with a file server that refuses the owner
    confirms the fix, or until 5.0.0 ships.
-2. Issues: the rc6 branch addresses the seven items of #110 (tests); the
-   pull request names it without a closing keyword, so the maintainer
-   closes it after the merge. #21 (a misleading error of `Move-Item2`) got
+2. Issues: 5.0.0-rc6 addresses the seven items of #110 (tests); #115
+   named it without a closing keyword, so the maintainer closes it now.
+   #21 (a misleading error of `Move-Item2`) got
    a fix in rc6 that names the missing destination folder; the folder
    moves to another volume that rc7 fixes are a different defect. #68
    tracks `-WhatIf` and `-Confirm` for every cmdlet that changes security.
@@ -185,3 +194,10 @@ users move to WindowsAccessControl (Decision 18).
    `Set-NTFSInheritance`. A display limit, not a defect: a conditional ACE
    shows as an unconditional entry, because the .NET rules have no
    condition.
+8. The publish step of the Release job fails when `Publish-PSResource`
+   gives up waiting after 100 seconds while the Gallery accepts the
+   package, because its retry gets 409 (5.0.0-rc6). Proposed for the
+   maintainer (Decision 16, not reproducible on demand; he was asked on
+   2026-10-08 and didn't answer, so it stays open): treat the error as
+   success when `Find-PSResource` then lists the version, in a script with
+   Pester tests. Until then, rerun the failed job.
