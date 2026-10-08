@@ -328,5 +328,9 @@ The format is based on
   entry, and `Get-NTFSAccess -SecurityDescriptor` stopped with an
   `ArgumentOutOfRangeException` for a descriptor with audit entries, such
   as one that `Get-NTFSSecurityDescriptor` reads in an elevated session
+- Fix `Get-NTFSOrphanedAudit`, which returned nothing without the Security
+  privilege, as for an item without orphaned entries, and wrote a warning
+  for an item that it couldn't read; it now writes a `ReadSecurityError`,
+  like `Get-NTFSAudit`
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

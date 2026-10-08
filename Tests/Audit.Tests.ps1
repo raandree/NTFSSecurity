@@ -242,13 +242,26 @@ Describe 'Get-NTFSOrphanedAudit' {
         }
     }
 
-    It 'Should write an error for a path that does not exist and continue with the next path' {
+    It 'Should write an error for a path that does not exist and continue with the next path' -Skip:(-not $canReadAudit) {
         $result = @(Get-NTFSOrphanedAudit -Path $missing, $orphanedFile -ErrorVariable orphanedErrors -ErrorAction SilentlyContinue)
 
         $orphanedErrors | Should -HaveCount 1
         $orphanedErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadError,*'
         $orphanedErrors[0].TargetObject | Should -Be $missing
         $result | ForEach-Object -Process { $_.FullName | Should -Be $orphanedFile }
+    }
+
+    # Since 5.0.0-rc7, the next path has an error of its own without the Security privilege, which shows that the cmdlet
+    # continued with it.
+    It 'Should write an error for a path that does not exist and continue with the next path without the Security privilege' -Skip:$canReadAudit {
+        $result = @(Get-NTFSOrphanedAudit -Path $missing, $orphanedFile -ErrorVariable orphanedErrors -ErrorAction SilentlyContinue)
+
+        $result | Should -BeNullOrEmpty
+        $orphanedErrors | Should -HaveCount 2
+        $orphanedErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadError,*'
+        $orphanedErrors[0].TargetObject | Should -Be $missing
+        $orphanedErrors[1].FullyQualifiedErrorId | Should -BeLike 'ReadSecurityError,*'
+        $orphanedErrors[1].TargetObject | Should -Be $orphanedFile
     }
 
     It 'Should write an error for a security descriptor that was read without the audit entries' {
@@ -263,12 +276,15 @@ Describe 'Get-NTFSOrphanedAudit' {
         $orphanedErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadSecurityError,*'
     }
 
-    # The cmdlet page: without the privilege, the cmdlet reads no audit entries and reports none.
-    It 'Should return nothing and write no error without the Security privilege' -Skip:$canReadAudit {
+    # Before 5.0.0-rc7, the cmdlet read the item without its audit entries and returned nothing, as for an item without
+    # orphaned entries; it now writes the error of Get-NTFSAudit.
+    It 'Should write a ReadSecurityError without the Security privilege instead of returning nothing' -Skip:$canReadAudit {
         $result = @(Get-NTFSOrphanedAudit -Path $orphanedFile -ErrorVariable orphanedErrors -ErrorAction SilentlyContinue)
 
-        $orphanedErrors | Should -BeNullOrEmpty
         $result | Should -BeNullOrEmpty
+        $orphanedErrors | Should -HaveCount 1
+        $orphanedErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadSecurityError,*'
+        $orphanedErrors[0].TargetObject | Should -Be $orphanedFile
     }
 }
 

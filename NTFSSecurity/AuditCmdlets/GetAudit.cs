@@ -130,9 +130,11 @@ namespace NTFSSecurity
             }
         }
 
-        private IEnumerable<FileSystemAuditRule2> GetAuditRules(FileSystemInfo item)
+        /// <summary>
+        /// Reads only the SACL of an item. Without the Security privilege, this fails instead of returning no entries.
+        /// </summary>
+        protected IEnumerable<FileSystemAuditRule2> GetAuditRules(FileSystemInfo item)
         {
-            // Reading only the SACL fails without the Security privilege, instead of returning no entries.
             var sd = new FileSystemSecurity2(item, System.Security.AccessControl.AccessControlSections.Audit);
             return FileSystemAuditRule2.GetFileSystemAuditRules(sd, !excludeExplicit, !excludeInherited, getInheritedFrom);
         }
