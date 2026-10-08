@@ -35,7 +35,11 @@ NTFSSecurity.dll ── cmdlets ──> Security2.dll (FileSystemAccessRule2,
   ownership and restores the previous owner on every exit path.
 - `BaseCmdletWithPrivControl` enables Backup, Restore, TakeOwnership, and
   Security in `BeginProcessing` when `PrivateData.EnablePrivileges` is
-  `$true`, and disables the ones it enabled in `EndProcessing`.
+  `$true`, and disables the ones it enabled in `EndProcessing` and, since
+  5.0.0-rc6, in `Dispose`: PowerShell skips `EndProcessing` when a later
+  command, such as `Select-Object -First`, or a terminating error stops the
+  pipeline, but calls `Dispose`. `Enable-Privileges` keeps them
+  (`KeepEnabledPrivileges`).
 - `PrivateData` switches: `EnablePrivileges`, `GetInheritedFrom`,
   `GetFileSystemModeProperty`, `IdentifyHardLinks`, `ShowAccountSid`.
 - Cmdlets accept `-Path` (alias `FullName`) or `-SecurityDescriptor`; the

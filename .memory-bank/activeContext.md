@@ -46,14 +46,22 @@ in favor of WindowsAccessControl (Decision 18).
   `AUTHZ_ACCESS_REPLY.Error`, and its buffers aren't initialized. #110
   lists seven test follow-ups.
 - #34: no reply from the tester by 06:44 UTC on 2026-10-08.
+- Phase 2, step 1, first part (2026-10-08, commits `82969ba` to
+  `ff74100`): 34 new tests for `Set-NTFSOwner`, `Test-Path2`, and
+  `Get-DiskSpace`, and two defects found and fixed test-first. Every
+  cmdlet that enables privileges left the Backup, Restore, Take Ownership,
+  and Security privileges enabled in the session when a later command or a
+  terminating error stopped the pipeline; `Test-Path2` stopped with
+  "Illegal characters in path" in Windows PowerShell for a path such as
+  `C:\a|b`. The suite (533 tests) passes elevated in both editions.
 
 ## Next step
 
 Phase 2, one step at a time, each with evidence before the next:
 
-1. Tests for the cmdlets without tests of their own: `Test-Path2`,
-   `Get-DiskSpace`, `Set-NTFSOwner`, the link cmdlets,
-   `Get-NTFSOrphanedAudit`, and `Get-NTFSSimpleAccess`.
+1. Tests for the cmdlets without tests of their own: done for
+   `Set-NTFSOwner`, `Test-Path2`, and `Get-DiskSpace`; open for the link
+   cmdlets, `Get-NTFSOrphanedAudit`, and `Get-NTFSSimpleAccess`.
 2. The other parameter sets and error paths, such as the
    `-SecurityDescriptor` sets of the inheritance cmdlets and of
    `Clear-NTFSAccess`.
