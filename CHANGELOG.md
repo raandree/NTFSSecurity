@@ -300,5 +300,9 @@ The format is based on
   a file, and `New-NTFSHardLink -PassThru`, which stopped with a
   terminating error on a share after it had created the link; both now
   write a non-terminating `GetHardLinkError`
+- Fix `-PassThru` of `Set-NTFSSecurityDescriptor`, which returned nothing
+  for a descriptor that the cmdlet wrote as the owner, and which turned a
+  failed read after a successful write into another attempt of the write
+  and a `WriteSdError`; it now writes a `ReadSecurityError` for that read
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

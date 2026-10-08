@@ -52,11 +52,6 @@ namespace NTFSSecurity
                     }
 
                     sd.WriteChanges();
-
-                    if (passThru)
-                    {
-                        WriteObject(new FileSystemSecurity2(sd.Item));
-                    }
                 }
                 catch (UnauthorizedAccessException)
                 {
@@ -73,6 +68,21 @@ namespace NTFSSecurity
                 catch (Exception ex)
                 {
                     WriteError(new ErrorRecord(ex, "WriteSdError", ErrorCategory.WriteError, sd.Item));
+                    continue;
+                }
+
+                // After the write and outside its retry: before 5.0.0-rc6, a write that needed ownership wrote no
+                // object, and a denied read started a retry of the write and ended in a WriteSdError.
+                if (passThru)
+                {
+                    try
+                    {
+                        WriteObject(new FileSystemSecurity2(sd.Item));
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteError(new ErrorRecord(ex, "ReadSecurityError", ErrorCategory.ReadError, sd.Item));
+                    }
                 }
             }
         }

@@ -208,6 +208,50 @@ Describe 'Set-NTFSSecurityDescriptor' {
             $setErrors | Should -BeNullOrEmpty
             (Get-Acl -LiteralPath $file).GetOwner($sidType).Value | Should -Be 'S-1-5-32-544'
         }
+
+        # Before 5.0.0-rc6, the cmdlet wrote no object with -PassThru when it had to take ownership for the write.
+        It 'Should return the written descriptor with -PassThru also when it took ownership for the write' -Skip:(-not $canAssignAnyOwner) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'RetryPassThru'
+            Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ $currentUser = 'ChangePermissions' }
+            Set-TestOwner -Sandbox $sandbox -Path $file -Sid $trustedInstaller
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+            Add-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData
+            $sd.SecurityDescriptor.SetOwner((New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList 'S-1-5-32-544'))
+
+            $result = @(Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -PassThru -ErrorVariable setErrors -ErrorAction SilentlyContinue)
+
+            $setErrors | Should -BeNullOrEmpty
+            $result | Should -HaveCount 1
+            $result[0].FullName | Should -Be $file
+            $result[0].SecurityDescriptor.GetOwner($sidType).Value | Should -Be 'S-1-5-32-544'
+        }
+    }
+
+    Context 'When the written descriptor denies reading it again' {
+        BeforeAll {
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        # Before 5.0.0-rc6, the cmdlet read the item again for -PassThru inside the block that retries a denied write,
+        # so that a denied read started an ownership retry and ended in a WriteSdError, although the write succeeded.
+        It 'Should write the descriptor and report a read error for -PassThru, not a write error' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'PassThruDenied'
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+            # A deny entry for OWNER RIGHTS replaces the right of the owner to read the security descriptor.
+            Add-NTFSAccess -SecurityDescriptor $sd -Account 'S-1-3-4' -AccessRights ReadPermissions -AccessType Deny -AppliesTo ThisFolderOnly
+
+            $result = @(Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -PassThru -ErrorVariable setErrors -ErrorAction SilentlyContinue)
+
+            $result | Should -BeNullOrEmpty
+            $setErrors | Should -HaveCount 1
+            $setErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadSecurityError,*'
+            # Get-Acl of an elevated Windows PowerShell still reads the item, so .NET checks that the entry was written.
+            { [System.IO.File]::GetAccessControl($file) } | Should -Throw
+        }
     }
 }
 
