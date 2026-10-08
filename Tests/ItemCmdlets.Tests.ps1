@@ -185,6 +185,89 @@ Describe 'Copy-Item2, Move-Item2, and Remove-Item2 with several paths' {
 
         $result.FullName | Should -Be (Join-Path -Path $destination -ChildPath 'First.txt')
     }
+
+    It 'Move-Item2 -PassThru should return a folder at its new location' {
+        $sourceFolder = Join-Path -Path $folder -ChildPath 'MovedFolder'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $sourceFolder
+        New-Item -ItemType Directory -Path $sourceFolder | Out-Null
+
+        $result = Move-Item2 -Path $sourceFolder -Destination $destination -PassThru $true
+
+        $result | Should -BeOfType [Alphaleonis.Win32.Filesystem.DirectoryInfo]
+        $result.FullName | Should -Be (Join-Path -Path $destination -ChildPath 'MovedFolder')
+        $sourceFolder | Should -Not -Exist
+    }
+
+    # Before 5.0.0-rc6, the check for an existing destination looked for a file only. For a folder whose name existed
+    # in the destination, the cmdlets failed in the middle with a CopyError or a MoveError, and Copy-Item2 could copy
+    # a part of the folder.
+    It '<_> should write DestinationFileAlreadyExists for a folder that exists at the destination and change nothing' -ForEach @('Copy-Item2', 'Move-Item2') {
+        $sourceFolder = Join-Path -Path $folder -ChildPath 'Conflict'
+        $existingFolder = Join-Path -Path $destination -ChildPath 'Conflict'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $sourceFolder, $existingFolder
+        New-Item -ItemType Directory -Path $sourceFolder, $existingFolder | Out-Null
+        Set-Content -LiteralPath (Join-Path -Path $sourceFolder -ChildPath 'A.txt') -Value 'New'
+        Set-Content -LiteralPath (Join-Path -Path $sourceFolder -ChildPath 'B.txt') -Value 'New'
+        Set-Content -LiteralPath (Join-Path -Path $existingFolder -ChildPath 'A.txt') -Value 'Existing'
+
+        & $_ -Path $sourceFolder -Destination $destination -ErrorVariable itemErrors -ErrorAction SilentlyContinue
+
+        $itemErrors | Should -HaveCount 1
+        $itemErrors[0].FullyQualifiedErrorId | Should -BeLike 'DestinationFileAlreadyExists,*'
+        $itemErrors[0].TargetObject | Should -Be $existingFolder
+        Get-Content -LiteralPath (Join-Path -Path $existingFolder -ChildPath 'A.txt') | Should -Be 'Existing'
+        Join-Path -Path $existingFolder -ChildPath 'B.txt' | Should -Not -Exist
+        Join-Path -Path $sourceFolder -ChildPath 'A.txt' | Should -Exist
+    }
+
+    It 'Copy-Item2 -Force should copy a folder into an existing folder of the same name and replace the files in both' {
+        $sourceFolder = Join-Path -Path $folder -ChildPath 'Merge'
+        $existingFolder = Join-Path -Path $destination -ChildPath 'Merge'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $sourceFolder, $existingFolder
+        New-Item -ItemType Directory -Path $sourceFolder, $existingFolder | Out-Null
+        Set-Content -LiteralPath (Join-Path -Path $sourceFolder -ChildPath 'A.txt') -Value 'New'
+        Set-Content -LiteralPath (Join-Path -Path $sourceFolder -ChildPath 'B.txt') -Value 'New'
+        Set-Content -LiteralPath (Join-Path -Path $existingFolder -ChildPath 'A.txt') -Value 'Existing'
+        Set-Content -LiteralPath (Join-Path -Path $existingFolder -ChildPath 'C.txt') -Value 'Existing'
+
+        Copy-Item2 -Path $sourceFolder -Destination $destination -Force -ErrorVariable itemErrors -ErrorAction SilentlyContinue
+
+        $itemErrors | Should -BeNullOrEmpty
+        Get-Content -LiteralPath (Join-Path -Path $existingFolder -ChildPath 'A.txt') | Should -Be 'New'
+        Get-Content -LiteralPath (Join-Path -Path $existingFolder -ChildPath 'B.txt') | Should -Be 'New'
+        Get-Content -LiteralPath (Join-Path -Path $existingFolder -ChildPath 'C.txt') | Should -Be 'Existing'
+    }
+
+    # Before 5.0.0-rc6, the error named the source item as the path that wasn't found, also when the folder of the
+    # destination was missing (#21).
+    It '<Command> should name the missing folder of the destination for a <Kind> and change nothing' -ForEach @(
+        @{ Command = 'Copy-Item2'; Kind = 'file'; ErrorId = 'CopyError' }
+        @{ Command = 'Copy-Item2'; Kind = 'folder'; ErrorId = 'CopyError' }
+        @{ Command = 'Move-Item2'; Kind = 'file'; ErrorId = 'MoveError' }
+        @{ Command = 'Move-Item2'; Kind = 'folder'; ErrorId = 'MoveError' }
+    ) {
+        $source = $first
+        if ($Kind -eq 'folder') {
+            $source = Join-Path -Path $folder -ChildPath 'SourceFolder'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $source
+            New-Item -ItemType Directory -Path $source | Out-Null
+            Set-Content -LiteralPath (Join-Path -Path $source -ChildPath 'Inner.txt') -Value 'Inner'
+        }
+
+        $missingFolder = Join-Path -Path $folder -ChildPath 'MissingFolder'
+        $target = Join-Path -Path $missingFolder -ChildPath 'Item'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $missingFolder, $target
+
+        & $Command -Path $source -Destination $target -ErrorVariable itemErrors -ErrorAction SilentlyContinue
+
+        $itemErrors | Should -HaveCount 1
+        $itemErrors[0].FullyQualifiedErrorId | Should -BeLike "$ErrorId,*"
+        $itemErrors[0].Exception.Message | Should -BeLike "*'$missingFolder'*"
+        $itemErrors[0].TargetObject | Should -Be $target
+        $source | Should -Exist
+        $missingFolder | Should -Not -Exist
+    }
+
     # Before 5.0.0, -PassThru wrote the item also when -WhatIf skipped the operation.
     It '<_> should write nothing with -PassThru and -WhatIf' -ForEach @('Copy-Item2', 'Move-Item2', 'Remove-Item2') {
         $parameters = @{ Path = $first; PassThru = $true; WhatIf = $true }

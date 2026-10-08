@@ -287,5 +287,13 @@ The format is based on
   grants only `ReadData`, and which left out the parent folder of a
   relative path with a single folder name, although `-IncludeRootFolder` is
   on by default
+- Fix `Copy-Item2` and `Move-Item2`, which didn't detect a folder at the
+  destination, so that a copy failed in the middle after it had copied a
+  part of the folder, and which reported a missing destination folder with
+  an error that named the source item
+  ([#21](https://github.com/raandree/NTFSSecurity/issues/21)); they now
+  write `DestinationFileAlreadyExists` and an error that names the missing
+  folder. `Copy-Item2` no longer creates the missing folders of the
+  destination when it copies a folder, which the prereleases of 5.0.0 did
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

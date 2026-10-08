@@ -88,7 +88,8 @@ namespace NTFSSecurity
                     actualDestination = destination;
                 }
 
-                var destinationExists = !force && File.Exists(actualDestination);
+                // A folder at the destination counts as well; before 5.0.0-rc6, only a file did.
+                var destinationExists = !force && (File.Exists(actualDestination) || Directory.Exists(actualDestination));
 
                 // Report a conflict only for an operation that runs; -WhatIf names it in a verbose message (#108).
                 if (!ShouldProcess(resolvedPath, item is FileInfo ? "Move File" : "Move Directory"))
@@ -104,6 +105,11 @@ namespace NTFSSecurity
                 if (destinationExists)
                 {
                     WriteError(new ErrorRecord(new AlreadyExistsException(), "DestinationFileAlreadyExists", ErrorCategory.ResourceExists, actualDestination));
+                    continue;
+                }
+
+                if (WriteMissingDestinationFolderError(actualDestination, "MoveError"))
+                {
                     continue;
                 }
 

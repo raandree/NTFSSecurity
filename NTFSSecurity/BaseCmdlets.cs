@@ -149,6 +149,29 @@ namespace NTFSSecurity
         }
         #endregion
 
+        #region WriteMissingDestinationFolderError
+        /// <summary>
+        /// Writes an error that names the folder of a destination path when that folder doesn't exist. Before
+        /// 5.0.0-rc6, AlphaFS reported such a destination as the source path that could not be found (#21), and
+        /// Copy-Item2 created the missing folders for a folder.
+        /// </summary>
+        /// <param name="destinationPath">The full path of the item that the operation would create.</param>
+        /// <param name="errorId">The error ID of the cmdlet for a failed operation.</param>
+        /// <returns>Whether the folder is missing and the error was written.</returns>
+        protected bool WriteMissingDestinationFolderError(string destinationPath, string errorId)
+        {
+            var folder = Alphaleonis.Win32.Filesystem.Path.GetDirectoryName(destinationPath.TrimEnd('\\'));
+            if (string.IsNullOrEmpty(folder) || Alphaleonis.Win32.Filesystem.Directory.Exists(folder))
+            {
+                return false;
+            }
+
+            var exception = new System.IO.DirectoryNotFoundException(string.Format("The destination folder '{0}' does not exist.", folder));
+            WriteError(new ErrorRecord(exception, errorId, ErrorCategory.ObjectNotFound, destinationPath));
+            return true;
+        }
+        #endregion
+
         #region InvokeAsOwner
         /// <summary>
         /// Takes ownership of the item, runs the action, and restores the previous owner on every exit path.

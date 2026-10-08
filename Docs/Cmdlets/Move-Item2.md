@@ -24,7 +24,7 @@ The `Move-Item2` cmdlet moves the items in `-Path` to the location in `-Destinat
 
 How `-Destination` is interpreted depends on what is already there. If the value names an existing folder, the cmdlet keeps the name of the source item and moves it into that folder. In every other case the value is the full path of the new item, which lets you move and rename in one step, or rename an item in place. `-Destination` is resolved against the current location once, when the cmdlet starts.
 
-Without `-Force`, the cmdlet checks whether the destination file already exists and writes a `DestinationFileAlreadyExists` error instead of overwriting it; the move itself then runs with the `CopyAllowed` option, which allows a file to move to a different volume. With `-WhatIf`, the cmdlet names an existing destination file in a verbose message instead; before 5.0.0, it wrote the error also with `-WhatIf`. With `-Force`, the move runs with the `ReplaceExisting` option and overwrites an existing destination item.
+Without `-Force`, the cmdlet checks whether a file or folder already exists at the destination and writes a `DestinationFileAlreadyExists` error instead of overwriting it; the move itself then runs with the `CopyAllowed` option, which allows a file to move to a different volume. With `-WhatIf`, the cmdlet names an existing destination in a verbose message instead; before 5.0.0, it wrote the error also with `-WhatIf`. With `-Force`, the move runs with the `ReplaceExisting` option and overwrites an existing destination item. The folder that is to contain the moved item must exist; otherwise the cmdlet writes an error that names that folder.
 
 The cmdlet supports `-WhatIf` and `-Confirm`, and it writes nothing to the pipeline unless you specify `-PassThru $true`.
 
@@ -98,7 +98,7 @@ Accept wildcard characters: False
 
 ### -Force
 
-Indicates that the cmdlet replaces an existing destination item. Without `-Force`, an existing destination file causes the error `DestinationFileAlreadyExists` and the item is not moved.
+Indicates that the cmdlet replaces an existing destination item. Without `-Force`, an existing file or folder at the destination causes the error `DestinationFileAlreadyExists` and the item is not moved.
 
 ```yaml
 Type: SwitchParameter
@@ -190,9 +190,9 @@ With `-PassThru $true` the cmdlet returns a folder object for each folder that i
 
 Before 5.0.0, `-PassThru` also wrote the item when `-WhatIf` or a declined confirmation skipped the operation.
 
-The cmdlet chooses between two mutually exclusive move options. Without `-Force` it moves with `CopyAllowed`, which permits a file to cross volume boundaries because Windows then copies and deletes it. With `-Force` it moves with `ReplaceExisting`, which overwrites the destination but does not request `CopyAllowed`, so a move across volumes can fail when `-Force` is specified.
+The cmdlet chooses between two mutually exclusive move options. Without `-Force` it moves with `CopyAllowed`, which permits a file to cross volume boundaries because Windows then copies and deletes it. With `-Force` it moves with `ReplaceExisting`, which overwrites the destination but does not request `CopyAllowed`, so a move across volumes can fail when `-Force` is specified. A folder can't move to another volume: the cmdlet writes a `MoveError` and leaves the folder in place, so copy it with `Copy-Item2` and remove it with `Remove-Item2` instead.
 
-If a path in `-Path` does not exist or the destination file exists and `-Force` is missing, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call.
+If a path in `-Path` does not exist, a file or folder exists at the destination and `-Force` is missing, or the folder that is to contain the moved item does not exist, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call. Before 5.0.0, it also reported an existing destination folder as a `MoveError`, and a missing destination folder as a `DirectoryNotFoundException` that named the source item ([#21](https://github.com/raandree/NTFSSecurity/issues/21)).
 
 ## RELATED LINKS
 
