@@ -277,6 +277,7 @@ function Add-TestDenyRule {
     )
 
     Assert-TestSandboxPath -Sandbox $Sandbox -Path $Path
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
     $acl = Get-Acl -LiteralPath $Path
     foreach ($sid in $Rights.Keys) {
         $identity = New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList $sid
@@ -286,7 +287,15 @@ function Add-TestDenyRule {
         )
         $acl.AddAccessRule($rule)
     }
-    Set-Acl -LiteralPath $Path -AclObject $acl
+    # Not Set-Acl: it compares AreAuditRulesProtected with AreAccessRulesProtected, so it also writes the audit
+    # section of an item whose DACL is protected, which fails without the Security privilege. With the privilege, it
+    # writes all sections and drops the audit entries. SetAccessControl writes only the DACL, the section that changed.
+    if ($PSVersionTable.PSEdition -eq 'Core') {
+        [System.IO.FileSystemAclExtensions]::SetAccessControl($item, $acl)
+    }
+    else {
+        $item.SetAccessControl($acl)
+    }
 }
 
 function Set-TestOwner {

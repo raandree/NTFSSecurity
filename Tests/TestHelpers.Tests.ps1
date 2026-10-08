@@ -11,6 +11,8 @@ BeforeDiscovery {
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
     # Assigning an owner other than the user or one of its groups needs the Restore privilege.
     $canAssignAnyOwner = Test-PrivilegeHeld -Name 'SeRestorePrivilege'
+    # Reading and writing audit entries needs the Security privilege.
+    $holdsSecurityPrivilege = Test-PrivilegeHeld -Name 'SeSecurityPrivilege'
 }
 
 BeforeAll {
@@ -210,6 +212,41 @@ Describe 'Test helpers' {
                     Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-32-546' })
             $rules | Should -HaveCount 1
             $rules[0].AccessControlType | Should -Be 'Deny'
+        }
+
+        # Set-Acl also writes the audit section of an item whose DACL is protected, which fails without the Security
+        # privilege.
+        It 'Should add a deny entry to an item whose DACL is protected' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Protected'
+            & icacls.exe $file /inheritance:d *> $null
+            $LASTEXITCODE | Should -Be 0
+
+            Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ 'S-1-5-32-546' = 'ReadData' }
+
+            $acl = Get-Acl -LiteralPath $file
+            $acl.AreAccessRulesProtected | Should -BeTrue
+            $rules = @($acl.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-32-546' })
+            $rules | Should -HaveCount 1
+            $rules[0].AccessControlType | Should -Be 'Deny'
+        }
+
+        # With the Security privilege, Set-Acl writes all sections, so the audit entries of the item would be lost.
+        It 'Should keep the audit entries of the item' -Skip:(-not $holdsSecurityPrivilege) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'Audited'
+            $auditAcl = Get-Acl -LiteralPath $file -Audit
+            $auditAcl.AddAuditRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList (
+                        (New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList 'S-1-1-0'),
+                        [System.Security.AccessControl.FileSystemRights]::Delete,
+                        [System.Security.AccessControl.AuditFlags]::Success
+                    )))
+            Set-Acl -LiteralPath $file -AclObject $auditAcl
+
+            Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ 'S-1-5-32-546' = 'ReadData' }
+
+            $auditRules = @((Get-Acl -LiteralPath $file -Audit).GetAuditRules($true, $false, [System.Security.Principal.SecurityIdentifier]))
+            $auditRules | Should -HaveCount 1
+            $auditRules[0].IdentityReference.Value | Should -Be 'S-1-1-0'
         }
 
         It 'Should refuse an item outside the sandbox' {
