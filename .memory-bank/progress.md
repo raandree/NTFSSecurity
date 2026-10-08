@@ -76,6 +76,13 @@ users move to WindowsAccessControl (Decision 18).
   user, so every test runs in at least one configuration, but CI runs only
   elevated; the suite runs 55.9% of the C# lines and 37.4% of the branches.
   The maintainer approved Phase 2.
+- 2026-10-08: Phase 2, step 1 on `ai/release-5.0.0-rc6` (local): tests for
+  `Set-NTFSOwner`, `Test-Path2`, `Get-DiskSpace`, and the link cmdlets
+  (suite: 555 tests). Fixed test-first: the privileges stayed enabled after
+  an early stop; `Test-Path2` stopped for invalid characters in Windows
+  PowerShell; and, from one `security-reviewer` pass, the privilege cleanup
+  decided on stale states, a defect since 4.2.6. The page of
+  `New-NTFSSymbolicLink` was corrected after a lab check of Developer Mode.
 
 ## Stable capabilities
 

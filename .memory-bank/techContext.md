@@ -199,7 +199,11 @@ source: repository evidence
   `-Version` for Gallery packages or `-ModulePath` for a build; it writes
   the results to `$env:TEMP\NTFSSecurityLab\Results`. A run of two versions
   in both editions takes about 30 minutes; `-RemoveFixture` removes its
-  accounts, share, and folders from the lab.
+  accounts, share, and folders from the lab. For a check on the client as
+  an account without administrator rights, use `NtfsLiveServerAdmin`
+  (Remote Management Users on the client, CredSSP by IP address like the
+  controller): reset its password on the PDC emulator to a random value
+  in memory; the next run of the controller sets a new one anyway.
 - Markdown lint: `npx markdownlint-cli2` with `MD013` limited to prose
   (tables, code, and headings excluded) on the conceptual pages; for
   `CHANGELOG.md` also `MD024` with `siblings_only: true`, because every

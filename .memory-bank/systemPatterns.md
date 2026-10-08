@@ -39,7 +39,11 @@ NTFSSecurity.dll ── cmdlets ──> Security2.dll (FileSystemAccessRule2,
   5.0.0-rc6, in `Dispose`: PowerShell skips `EndProcessing` when a later
   command, such as `Select-Object -First`, or a terminating error stops the
   pipeline, but calls `Dispose`. `Enable-Privileges` keeps them
-  (`KeepEnabledPrivileges`).
+  (`KeepEnabledPrivileges`). The cleanup reads the current state of each
+  privilege, because another command in the pipeline can have changed it,
+  and tries every privilege even when one fails: `EndProcessing` warns,
+  `Dispose` stays silent, because PowerShell ignores exceptions thrown
+  there and no stream is open anymore.
 - `PrivateData` switches: `EnablePrivileges`, `GetInheritedFrom`,
   `GetFileSystemModeProperty`, `IdentifyHardLinks`, `ShowAccountSid`.
 - Cmdlets accept `-Path` (alias `FullName`) or `-SecurityDescriptor`; the

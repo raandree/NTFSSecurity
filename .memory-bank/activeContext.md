@@ -53,15 +53,37 @@ in favor of WindowsAccessControl (Decision 18).
   and Security privileges enabled in the session when a later command or a
   terminating error stopped the pipeline; `Test-Path2` stopped with
   "Illegal characters in path" in Windows PowerShell for a path such as
-  `C:\a|b`. The suite (533 tests) passes elevated in both editions.
+  `C:\a|b`.
+- Phase 2, step 1, link cmdlets (2026-10-08, `4d5c8c4`, `09eb337`): 18 new
+  tests for `New-NTFSHardLink`, `Get-NTFSHardLink`, and
+  `New-NTFSSymbolicLink` pass elevated and as a basic user in both
+  editions; no code defect. The page of `New-NTFSSymbolicLink` was wrong
+  twice: `-PassThru` returns a folder object for a link to a folder since
+  5.0.0, and Windows Developer Mode doesn't help, because AlphaFS 2.2.1
+  passes only the File or Directory flag to `CreateSymbolicLinkW`. Lab
+  check on `F1AFile1` as `NtfsLiveServerAdmin` (no administrator):
+  with Developer Mode on, `mklink` created a link and the cmdlet of
+  5.0.0-rc5 failed with error 1314; the setting was restored.
+- Security review of `fcb370e..00c3646` (`security-reviewer`, 2026-10-08):
+  the `Dispose` approach is sound; two Major findings, both one root cause
+  that 4.2.6 already had: the privilege cleanup decided on the states read
+  in `BeginProcessing` and stopped at the first failure. Reproduced: a
+  privilege that another command in the pipeline disabled left the others
+  enabled (silently after an early stop), and
+  `Get-NTFSOwner ... | ForEach-Object { Disable-Privileges; $_ }` stopped
+  with "Priviledge already disabled". Two Minor findings: the early-stop
+  tests could pass vacuously, and `Test-Path2` gave no reason for `$false`.
+  The maintainer chose to fix all four; fixed test-first in `578042f` and
+  `b241441`. The suite (555 tests) passes elevated in both editions
+  (534/0/21 and 504/0/51), and the changed test files pass as a basic user.
 
 ## Next step
 
 Phase 2, one step at a time, each with evidence before the next:
 
 1. Tests for the cmdlets without tests of their own: done for
-   `Set-NTFSOwner`, `Test-Path2`, and `Get-DiskSpace`; open for the link
-   cmdlets, `Get-NTFSOrphanedAudit`, and `Get-NTFSSimpleAccess`.
+   `Set-NTFSOwner`, `Test-Path2`, `Get-DiskSpace`, and the link cmdlets;
+   open for `Get-NTFSOrphanedAudit` and `Get-NTFSSimpleAccess`.
 2. The other parameter sets and error paths, such as the
    `-SecurityDescriptor` sets of the inheritance cmdlets and of
    `Clear-NTFSAccess`.
@@ -71,4 +93,11 @@ Phase 2, one step at a time, each with evidence before the next:
 5. A CI job as a basic user, live tests for the other cmdlets over SMB and
    for accounts of other forests, and a lab run.
 6. Measure the coverage again, explain what remains, review, and prepare
-   5.0.0-rc6.
+   5.0.0-rc6. The final review covers the whole branch, including the fix
+   round of `578042f` and `b241441`.
+
+Open question for the maintainer, not planned: `New-NTFSSymbolicLink`
+could request unprivileged creation with
+`SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE`, so that Developer Mode
+works. That is a behavior change (Decision 16) and needs a fallback for
+Windows versions before 10 1703, which don't know the flag.
