@@ -64,6 +64,25 @@ Read only task-relevant records; the index controls routing.
 - Pipeline getters never throw; per-item errors name input and allow continuation.
 - Folder moves never use CopyAllowed; preserve cross-volume source folders.
 - Apply implied Hidden/Force before deciding to emit, including the first item.
+- A catch-all for the failures of one item must pass on what a later command
+  raises through a Write call. A downstream throw is an ordinary exception,
+  so a type check finds only the end of the pipeline, break, and continue.
+  BaseCmdlet notes the exception that its WriteObject, WriteError,
+  WriteVerbose, and WriteDebug raised (WriteWarning is not noted: no catch-all
+  encloses it); `IsFromLaterCommand` recognizes it, and the type check
+  `PipelineControl.IsEnd` backs it up for other calls into PowerShell. A write
+  inside a helper, such as the owner restore of `InvokeAsOwner`, is an
+  accepted gap: its handler reports the item's own error, which raises too.
+  Prefer writing outside the try. `Tests/PipelineControl.Tests.ps1` has rows
+  for every cmdlet: add a row for a new one, and keep the typed-throw rows
+  (they fail if PowerShell stops wrapping a thrown exception).
+- Record an enabled privilege before the next write, which a later command
+  can answer with an exception: Dispose disables only what is recorded.
+- `Get-ChildItem2 -Filter` has two matchers: the AlphaFS enumeration, whose
+  dot rules also differ from those of `Get-ChildItem` (probe: `Report.*` and
+  `Rep*.` in both editions), and a PowerShell wildcard on the name, where only
+  `*` and `?` are special. `*.*` is treated as `*`; the other dot patterns are
+  pinned by `ItemCmdlets.Tests` and are an open maintainer decision.
 
 ### Tests and documentation
 
@@ -73,9 +92,24 @@ Read only task-relevant records; the index controls routing.
 - Assert persisted state, errors/targets, continuation, and no failed
   PassThru output. Prove new characterization guards with bounded mutations;
   restore source exactly and rebuild before green validation or packaging.
+  Apply the mutations of one round together only when no guard can fail
+  because of another mutation; otherwise split the rounds.
+- A test that arranges a retry asserts its precondition (the plain write is
+  denied), or it can pass without reaching the retry.
+- A test variable must not take the name of an automatic variable such as
+  `$foreach`: Pester runs the block inside a foreach, and the value is lost.
+- The CI scripts set `$ErrorActionPreference = 'Stop'`; focused runs do the
+  same, and a test that needs a non-terminating error (for example to take it
+  through `2>&1`) names `-ErrorAction Continue`.
 - Fixture DACLs use .NET SetAccessControl, not Set-Acl's unintended SACL writes.
 - Scope/descendant expectations are independent of the production converter.
+- Drive-root tests map a sandbox folder with `subst` through
+  `New-TestDriveMapping` (elevated only; the basic token cannot). Tests that
+  need a letter without a volume take the lowest free one.
 - Desktop platyPS: generate help, rebuild, round-trip unchanged, check links.
+  platyPS 0.14.2 turns a pair of asterisks in a paragraph into emphasis, also
+  inside backticks, and the help drops them: write the words, put patterns in
+  example code blocks, and check the generated XML.
 - Live tests use only approved lab targets, SMB then independent server state;
   Get/SetFileSecurity preserves stored DACLs; rights oracles use S4U tokens.
 

@@ -115,19 +115,42 @@ source: repository and executable evidence
 - Report sequence points, not unique source lines. Four-run baselines:
   rc5 2,020/3,476 (58.1%), branches 711/1,873 (38.0%);
   rc6 2,412/3,540 (68.14%), branches 850/1,918 (44.32%);
-  follow-up `3442194` 2,641/3,559 (74.21%), 974/1,933 (50.39%).
-  NTFSSecurity assembly: 1,769/2,099 (84.28%). Different code changes
-  denominators; never present these as same-source incremental percentages.
-- Final suite: 914 per configuration, zero failures. Passed/skipped:
-  elevated Desktop 890/24, Core 860/54; basic Desktop 749/165, Core 719/195.
+  follow-up `3442194` 2,641/3,559 (74.21%), 974/1,933 (50.39%);
+  Handoff 1 `5a5d58b` 3,192/3,634 (87.84%), 1,273/1,978 (64.36%). Different
+  code changes denominators; never present these as same-source incremental
+  percentages. The branch summary counts 820 compiler-generated points (185
+  visited); report the explicit branch points as well (1,088/1,158, 93.96%).
+- Suite at `5a5d58b`: 1,310 per configuration, zero failures. Passed/skipped:
+  elevated Desktop 1,286/24, Core 1,255/55; basic Desktop 1,076/234,
+  Core 1,045/265.
 - NUnit skipped ForEach names retain placeholders and parameter tuples,
-  executed names expand them. Strip trailing data tuples and match templates;
-  raw-name intersection or positional alignment is invalid across editions.
-  139 skipped templates have eligible executed counterparts. Inspect input
-  eligibility when an individual data row has a condition of its own.
-- Remaining inventory: 918 points, including 244 in cmdlet-unused classes,
-  112 parameter-getter points, and 562 awaiting finer classification/testing.
-  Preserve raw XML, eligibility CSV, logs, commit identity, and build hashes.
+  executed names expand them; raw-name intersection and positional alignment
+  are invalid. Skip eligibility is checked by row: run the suite once per
+  configuration with Pester PassThru (`Get-DiscoveryRows2.ps1 -Run` in the
+  session evidence) and match skipped with executed rows by file, line,
+  path, name, and data. Discovery alone misses tests that skip themselves
+  while they run, and `ConvertTo-Json` of rich data rows never finishes:
+  write primitives and type names.
+- Remaining inventory: 442 points in 231 methods, classified by rule with
+  evidence (probe, IL scan, source reading); see `Tests/Coverage`. Preserve
+  raw XML, row CSVs, logs, commit identity, and build hashes. The frozen
+  Build rewrites the hash file each time: save the hashes of the measured
+  assemblies (AltCover `__Saved` copies) before any mutation build.
+- Bounded mutations: one script per round on the frozen worktree, with
+  guards that no other mutation of the round can trip (an escape can be an
+  overlap or an equivalent mutant: check before changing a test). Restore
+  the source exactly and rebuild.
+- Red/green matrix, to show afterwards that a guard fails without its fix:
+  build each state of the branch (base, then each fix commit) in its own
+  Release worktree, lay the final `Tests` over it (`git checkout <final> --
+  Tests`), run the guarding files with the focused runner (it sets
+  `$ErrorActionPreference` to `Stop` like the CI wrappers) in all four
+  configurations, and count failed rows per name with their multiplicity (a
+  block whose `BeforeAll` fails lists its data rows under one unexpanded
+  template name). The last state is the control and must have no failure.
+  Keep the logs and a manifest with their hashes, and hash each build: the
+  first red runs of Handoff 1 were deleted and could not be reproduced, and
+  the frozen runner rewrites its hash file at each build.
 
 ## Lab acceptance
 
