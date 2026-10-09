@@ -613,3 +613,28 @@ Describe 'Audit changes with the Security privilege disabled' {
         }
     }
 }
+Describe 'Clear-NTFSAudit descriptor inheritance' {
+    It 'Should clear and protect the descriptor SACL without writing the <Type>' -Skip:(-not $canReadAudit) -ForEach @(
+        @{ Type = 'file' }
+        @{ Type = 'folder' }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'ClearAuditDescriptor' -Directory:($Type -eq 'folder')
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $path
+        Add-NTFSAudit -Path $path -Account 'S-1-1-0' -AccessRights Delete -AuditFlags Success -AppliesTo ThisFolderOnly
+        $before = Get-NTFSSecurityDescriptor -Path $path
+        $auditBefore = $before.SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit')
+        $daclBefore = (Get-Acl -LiteralPath $path).Sddl
+        $sd = Get-NTFSSecurityDescriptor -Path $path
+
+        Clear-NTFSAudit -SecurityDescriptor $sd -DisableInheritance -ErrorAction Stop
+
+        $sd.SecurityDescriptor.AreAuditRulesProtected | Should -BeTrue
+        @($sd.SecurityDescriptor.GetAuditRules($true, $true, $sidType)) | Should -BeNullOrEmpty
+        (Get-NTFSSecurityDescriptor -Path $path).SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit') |
+            Should -BeExactly $auditBefore
+        Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorAction Stop
+        (Get-NTFSInheritance -Path $path).AuditInheritanceEnabled | Should -BeFalse
+        @(Get-NTFSAudit -Path $path) | Should -BeNullOrEmpty
+        (Get-Acl -LiteralPath $path).Sddl | Should -BeExactly $daclBefore
+    }
+}

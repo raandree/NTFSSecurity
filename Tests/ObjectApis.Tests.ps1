@@ -261,3 +261,64 @@ Describe 'Legacy effective-permission output objects' {
         }
     }
 }
+Describe 'Simplified entry comparison branches' {
+    It 'Should distinguish identities, rights and types in <Kind> entries and keep equal hashes consistent' -ForEach @(
+        @{ Kind = 'access' }
+        @{ Kind = 'audit' }
+    ) {
+        $typeName = if ($Kind -eq 'access') { 'Security2.SimpleFileSystemAccessRule' } else { 'Security2.SimpleFileSystemAuditRule' }
+        $arguments = @($objectPath, $identity, [Security2.FileSystemRights2]::Read)
+        if ($Kind -eq 'access') { $arguments += [System.Security.AccessControl.AccessControlType]::Allow }
+        $first = New-Object -TypeName $typeName -ArgumentList $arguments
+        $equal = New-Object -TypeName $typeName -ArgumentList $arguments
+        $arguments[1] = [Security2.IdentityReference2] 'S-1-5-32-546'
+        $differentIdentity = New-Object -TypeName $typeName -ArgumentList $arguments
+        $arguments[1] = $identity
+        $arguments[2] = [Security2.FileSystemRights2]::Delete
+        $differentRights = New-Object -TypeName $typeName -ArgumentList $arguments
+
+        $first.Equals($equal) | Should -BeTrue
+        $first.GetHashCode() | Should -Be $equal.GetHashCode()
+        $first.Equals($differentIdentity) | Should -BeFalse
+        $first.Equals($differentRights) | Should -BeFalse
+        $first.Equals($null) | Should -BeFalse
+        $equal.AccessControlType = 'Deny'
+        $first.Equals($equal) | Should -BeFalse
+        $first.Name | Should -BeExactly 'Rule.txt'
+    }
+
+    It 'Should reduce the generic <Rights> mask in access entries' -ForEach @(
+        @{ Rights = 'GenericRead'; Expected = 'Read' }
+        @{ Rights = 'GenericWrite'; Expected = 'Write' }
+        @{ Rights = 'GenericExecute'; Expected = 'Read' }
+        @{ Rights = 'GenericAll'; Expected = 'Read, Write, Delete' }
+    ) {
+        $entry = New-Object -TypeName 'Security2.SimpleFileSystemAccessRule' -ArgumentList (
+            $objectPath, $identity, [Security2.FileSystemRights2] $Rights,
+            [System.Security.AccessControl.AccessControlType]::Allow
+        )
+
+        $entry.AccessRights | Should -Be ([Security2.SimpleFileSystemAccessRights] $Expected)
+    }
+
+    It 'Should convert an identity implicitly to its resolved display name and reject an unresolved name' {
+        $conversion = [Security2.IdentityReference2].GetMethods([Reflection.BindingFlags] 'Public, Static') |
+            Where-Object { $_.Name -eq 'op_Implicit' -and $_.ReturnType -eq [string] }
+        $conversion.Invoke($null, [object[]] @($identity.PSObject.BaseObject)) | Should -BeExactly $identity.ToString()
+        $unresolved = [Security2.IdentityReference2] 'S-1-5-21-1-2-3-1001'
+        $unresolved.Equals('Not-resolved') | Should -BeFalse
+        $identity.Equals($identity.AccountName) | Should -BeTrue
+    }
+
+    It 'Should compare different privilege values as unequal' {
+        $constructor = [ProcessPrivileges.PrivilegeAndAttributes].GetConstructor(
+            [Reflection.BindingFlags] 'NonPublic, Instance', $null,
+            [type[]] @([ProcessPrivileges.Privilege], [ProcessPrivileges.PrivilegeAttributes]), $null
+        )
+        $first = $constructor.Invoke(@([ProcessPrivileges.Privilege]::Backup, [ProcessPrivileges.PrivilegeAttributes]::Disabled))
+        $different = $constructor.Invoke(@([ProcessPrivileges.Privilege]::Restore, [ProcessPrivileges.PrivilegeAttributes]::Disabled))
+
+        $first.Equals($different) | Should -BeFalse
+        [ProcessPrivileges.PrivilegeAndAttributes]::op_Inequality($first, $different) | Should -BeTrue
+    }
+}
