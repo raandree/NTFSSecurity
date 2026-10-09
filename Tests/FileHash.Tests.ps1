@@ -61,6 +61,17 @@ Describe 'Get-FileHash2' {
             $hashError.FullyQualifiedErrorId | Should -BeLike 'HashAlgorithmNotAvailable,*'
         }
 
+        # PowerShell binds only the named algorithms to -Algorithm, so a program that calls the public method with an
+        # undefined value is the only way to get here.
+        It 'Should refuse an algorithm that the enumeration does not define when the public method creates it' {
+            $unknown = [Enum]::ToObject([Security2.FileSystem.FileInfo.HashAlgorithms], 99)
+
+            $failure = { [Security2.FileSystem.FileInfo.Extensions]::CreateHashAlgorithm($unknown) } | Should -Throw -PassThru
+
+            $failure.Exception.GetBaseException() | Should -BeOfType [System.ArgumentOutOfRangeException]
+            $failure.Exception.GetBaseException().ParamName | Should -BeExactly 'algorithm'
+        }
+
         It 'Should warn once that MACTripleDES is deprecated' -Skip:$isCore {
             $results = @(Get-FileHash2 -Path $first, $second -Algorithm MACTripleDES -WarningVariable hashWarnings -WarningAction SilentlyContinue)
 

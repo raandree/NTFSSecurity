@@ -146,6 +146,32 @@ Describe 'Get-ChildItem2' {
             $result | Should -HaveCount 1
             $childErrors | Should -BeNullOrEmpty
         }
+
+        # The second file comes from a sub folder, so the pipeline stops while the cmdlet is inside the recursion.
+        It 'Should stop a recursive pipeline inside a sub folder without recording an enumeration error' {
+            $result = @(Get-ChildItem2 -Path $tree -Recurse -File -ErrorVariable childErrors -ErrorAction SilentlyContinue | Select-Object -First 2)
+
+            $result | Should -HaveCount 2
+            $childErrors | Should -BeNullOrEmpty
+        }
+
+        # A break or continue in a later pipeline stage passes through the cmdlet as an exception, which it must not
+        # report as a failed folder.
+        It 'Should end a recursive enumeration for <Keyword> in a later pipeline stage without recording an enumeration error' -ForEach @(
+            @{ Keyword = 'break' }
+            @{ Keyword = 'continue' }
+        ) {
+            $names = [System.Collections.Generic.List[string]]::new()
+            foreach ($round in 1) {
+                Get-ChildItem2 -Path $tree -Recurse -File -ErrorVariable childErrors -ErrorAction SilentlyContinue | ForEach-Object -Process {
+                    $names.Add($_.Name)
+                    if ($Keyword -eq 'break') { break } else { continue }
+                }
+            }
+
+            $names | Should -HaveCount 1
+            $childErrors | Should -BeNullOrEmpty
+        }
     }
 
     Context 'Unreadable directories' {
@@ -200,6 +226,31 @@ Describe 'Get-ChildItem2' {
             $result[0].FullName | Should -Be $link
             Get-Content -LiteralPath $file | Should -Be 'Target'
         }
+
+        # A junction whose target is gone passes the existence check, but the folder behind it can't be opened. The
+        # error belongs to that folder, and the enumeration goes on with the next one.
+        It 'Should report a junction whose target was removed as a DirUnspecifiedError and continue with the next folder' {
+            $root = New-TestSandboxItem -Sandbox $sandbox -Name 'BrokenJunction' -Directory
+            $target = New-TestSandboxItem -Sandbox $sandbox -Name 'RemovedTarget' -Directory
+            $link = Join-Path -Path $root -ChildPath 'Broken'
+            $sibling = Join-Path -Path $root -ChildPath 'Sibling'
+            $file = Join-Path -Path $sibling -ChildPath 'Sibling.txt'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $link, $sibling, $file
+            New-Item -ItemType Directory -Path $sibling | Out-Null
+            Set-Content -LiteralPath $file -Value 'Sibling'
+            New-Item -ItemType Junction -Path $link -Value $target | Out-Null
+            Remove-Item -LiteralPath $target -Force
+
+            $result = @(Get-ChildItem2 -Path $root -Recurse -ErrorVariable childErrors -ErrorAction SilentlyContinue)
+
+            $childErrors | Should -HaveCount 1
+            $childErrors[0].FullyQualifiedErrorId | Should -BeLike 'DirUnspecifiedError,*'
+            $childErrors[0].CategoryInfo.Category | Should -Be 'NotSpecified'
+            $childErrors[0].TargetObject | Should -Be $link
+            $childErrors[0].Exception | Should -BeOfType [System.IO.DirectoryNotFoundException]
+            @($result.FullName | Sort-Object) | Should -Be @(@($link, $sibling, $file) | Sort-Object)
+            Get-Content -LiteralPath $file | Should -Be 'Sibling'
+        }
     }
 
     Context 'Optional object properties' {
@@ -243,6 +294,29 @@ Describe 'Get-ChildItem2' {
             $item = Get-ChildItem2 -Path $file -Force -ErrorAction Stop
 
             $item.Mode | Should -BeExactly '--rhs'
+        }
+
+        # Windows can't list the hard links of a file on a network share, (50) "The request is not supported". The cmdlet
+        # still returns the file, without HardLinkCount, and says why in a debug message. The test sets the preference,
+        # because -Debug would prompt in Windows PowerShell.
+        It 'Should return a file on a network share without HardLinkCount and say why in a debug message' -Skip:(-not $canUseAdminShare) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ShareProperties' -Directory
+            $file = Join-Path -Path $folder -ChildPath 'Share.txt'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+            Set-Content -LiteralPath $file -Value 'Share'
+            $sharePath = ConvertTo-TestAdminSharePath -Sandbox $sandbox -Path $file
+            $settings['IdentifyHardLinks'] = $true
+            $DebugPreference = 'Continue'
+
+            $output = @(Get-ChildItem2 -Path $sharePath -ErrorVariable childErrors -ErrorAction SilentlyContinue 5>&1)
+
+            $childErrors | Should -BeNullOrEmpty
+            $items = @($output | Where-Object -FilterScript { $_ -isnot [Management.Automation.DebugRecord] })
+            $items | Should -HaveCount 1
+            $items[0].Name | Should -BeExactly 'Share.txt'
+            $items[0].PSObject.Properties['HardLinkCount'] | Should -BeNullOrEmpty
+            $messages = @($output | Where-Object -FilterScript { $_ -is [Management.Automation.DebugRecord] } | ForEach-Object -Process { $_.Message })
+            $messages | Should -Contain "Could not read hard links for '$sharePath'"
         }
     }
 
@@ -556,6 +630,58 @@ Describe 'Copy-Item2, Move-Item2, and Remove-Item2 with several paths' {
         $itemErrors[0].FullyQualifiedErrorId | Should -BeLike "$ErrorId,*"
         $itemErrors[0].Exception.Message | Should -BeLike "*'$missingShare'*"
         $first | Should -Exist
+    }
+
+    # A sharing violation is an IOException, which both cmdlets write as InvalidData; the error belongs to its source
+    # only, and no object comes out for it with -PassThru.
+    It '<Command> should write a <ErrorId> for a source that another process has locked and continue with the next path' -ForEach @(
+        @{ Command = 'Copy-Item2'; ErrorId = 'CopyError' }
+        @{ Command = 'Move-Item2'; ErrorId = 'MoveError' }
+    ) {
+        $stream = [IO.File]::Open($first, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::None)
+        try {
+            $result = @(& $Command -Path $first, $second -Destination $destination -PassThru $true -ErrorVariable itemErrors -ErrorAction SilentlyContinue)
+        }
+        finally {
+            $stream.Dispose()
+        }
+
+        $itemErrors | Should -HaveCount 1
+        $itemErrors[0].FullyQualifiedErrorId | Should -BeLike "$ErrorId,*"
+        $itemErrors[0].CategoryInfo.Category | Should -Be 'InvalidData'
+        $itemErrors[0].TargetObject | Should -Be $first
+        $itemErrors[0].Exception | Should -BeOfType [System.IO.IOException]
+        $result | Should -HaveCount 1
+        $result[0].FullName | Should -Be (Join-Path -Path $destination -ChildPath 'Second.txt')
+        Join-Path -Path $destination -ChildPath 'First.txt' | Should -Not -Exist
+        Get-Content -LiteralPath $first | Should -Be 'First'
+        Get-Content -LiteralPath (Join-Path -Path $destination -ChildPath 'Second.txt') | Should -Be 'Second'
+    }
+
+    # Any other failure of Windows is not an IOException, and both cmdlets write it as NotSpecified. A deny entry for
+    # Everyone also applies to an administrator, who doesn't bypass the DACL without a backup privilege.
+    It '<Command> should write a <ErrorId> for each source when the destination folder denies new files' -ForEach @(
+        @{ Command = 'Copy-Item2'; ErrorId = 'CopyError' }
+        @{ Command = 'Move-Item2'; ErrorId = 'MoveError' }
+    ) {
+        $denied = Join-Path -Path $folder -ChildPath 'Denied'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $denied
+        New-Item -ItemType Directory -Path $denied | Out-Null
+        Add-TestDenyRule -Sandbox $sandbox -Path $denied -Rights @{ 'S-1-1-0' = 'CreateFiles' }
+
+        $result = @(& $Command -Path $first, $second -Destination $denied -PassThru $true -ErrorVariable itemErrors -ErrorAction SilentlyContinue)
+
+        $itemErrors | Should -HaveCount 2
+        for ($index = 0; $index -lt 2; $index++) {
+            $itemErrors[$index].FullyQualifiedErrorId | Should -BeLike "$ErrorId,*"
+            $itemErrors[$index].CategoryInfo.Category | Should -Be 'NotSpecified'
+            $itemErrors[$index].TargetObject | Should -Be @($first, $second)[$index]
+            $itemErrors[$index].Exception | Should -BeOfType [System.UnauthorizedAccessException]
+        }
+        $result | Should -BeNullOrEmpty
+        @(Get-ChildItem -LiteralPath $denied -Force) | Should -BeNullOrEmpty
+        Get-Content -LiteralPath $first | Should -Be 'First'
+        Get-Content -LiteralPath $second | Should -Be 'Second'
     }
 }
 

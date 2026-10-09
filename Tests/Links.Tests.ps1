@@ -159,6 +159,25 @@ Describe 'New-NTFSHardLink' {
         $linkErrors[0].FullyQualifiedErrorId | Should -BeLike 'GetHardLinkError,*'
         $result | Should -BeNullOrEmpty
     }
+
+    It 'Should write a PermissionDenied error and create no link in a folder that denies new files' {
+        $target = New-TestSandboxItem -Sandbox $sandbox -Name 'DeniedTarget'
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'DeniedFolder' -Directory
+        $link = Join-Path -Path $folder -ChildPath 'Link.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $link
+        Add-TestDenyRule -Sandbox $sandbox -Path $folder -Rights @{ 'S-1-1-0' = 'CreateFiles' }
+
+        $result = @(New-NTFSHardLink -Path $link -Target $target -PassThru -ErrorVariable linkErrors -ErrorAction SilentlyContinue)
+
+        $linkErrors | Should -HaveCount 1
+        $linkErrors[0].FullyQualifiedErrorId | Should -BeLike 'CreateHardLinkError,*'
+        $linkErrors[0].CategoryInfo.Category | Should -Be 'PermissionDenied'
+        $linkErrors[0].TargetObject | Should -Be $link
+        $linkErrors[0].Exception | Should -BeOfType [System.UnauthorizedAccessException]
+        $result | Should -BeNullOrEmpty
+        $link | Should -Not -Exist
+        Get-Content -LiteralPath $target | Should -Be 'DeniedTarget'
+    }
 }
 
 Describe 'Get-NTFSHardLink' {
@@ -368,6 +387,26 @@ Describe 'New-NTFSSymbolicLink' {
         '0x{0:X8}' -f $linkErrors[0].Exception.HResult | Should -Be '0x80070522'
         Test-Path2 -Path $link | Should -BeFalse
     }
+
+    # With the right to create symbolic links, Windows refuses the link only for the folder of the link, which denies
+    # new files here.
+    It 'Should write a PermissionDenied error and create no link in a folder that denies new files' -Skip:(-not $canCreateSymbolicLinks) {
+        $target = New-TestSandboxItem -Sandbox $sandbox -Name 'SymbolicDeniedTarget'
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'SymbolicDeniedFolder' -Directory
+        $link = Join-Path -Path $folder -ChildPath 'Link.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $link
+        Add-TestDenyRule -Sandbox $sandbox -Path $folder -Rights @{ 'S-1-1-0' = 'CreateFiles' }
+
+        $result = @(New-NTFSSymbolicLink -Path $link -Target $target -PassThru -ErrorVariable linkErrors -ErrorAction SilentlyContinue)
+
+        $linkErrors | Should -HaveCount 1
+        $linkErrors[0].FullyQualifiedErrorId | Should -BeLike 'CreateSymbolicLinkError,*'
+        $linkErrors[0].CategoryInfo.Category | Should -Be 'PermissionDenied'
+        $linkErrors[0].TargetObject | Should -Be $link
+        $linkErrors[0].Exception | Should -BeOfType [System.UnauthorizedAccessException]
+        $result | Should -BeNullOrEmpty
+        Test-Path2 -Path $link | Should -BeFalse
+    }
 }
 
 # Each error names its item, so that the errors of many links can be told apart. Before 5.0.0-rc7, the errors of
@@ -455,5 +494,19 @@ Describe 'Parameters of the cmdlets that create links' {
 
         $sets | Should -Not -BeNullOrEmpty
         $sets | ForEach-Object -Process { $_.IsMandatory | Should -BeTrue }
+    }
+
+    # PowerShell reads a parameter that takes pipeline input before it binds the input, so the getter must not fail
+    # while the cmdlet has no -Path. Before 5.0.0-rc7, it threw an index error, and every piped object failed with
+    # GetDefaultValueFailed.
+    It '<Type> should return no -Path until it has one, and the first one afterwards' -ForEach @(
+        @{ Type = 'NTFSSecurity.NewHardLink' }
+        @{ Type = 'NTFSSecurity.NewSymbolicLink' }
+    ) {
+        $cmdlet = New-Object -TypeName $Type
+
+        $cmdlet.Path | Should -BeNullOrEmpty
+        $cmdlet.Path = 'C:\NTFSSecurity\Link.txt'
+        $cmdlet.Path | Should -BeExactly 'C:\NTFSSecurity\Link.txt'
     }
 }

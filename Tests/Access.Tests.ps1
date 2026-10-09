@@ -388,6 +388,19 @@ Describe 'Get-NTFSSimpleAccess' {
             @($result | Where-Object -Property FullName -EQ -Value $root) | Should -HaveCount $rootAlone.Count
         }
 
+        # With -IncludeRootFolder, the default, the cmdlet reports the parent folder of the first path first. A drive root
+        # has none, so it reports the root itself, once. The test reads the entries of the drive root only.
+        It 'Should report no parent folder in front of a drive root by default' {
+            $root = [IO.Path]::GetPathRoot($child)
+            $rootAlone = @(Get-NTFSSimpleAccess -Path $root -IncludeRootFolder:$false -ErrorAction Stop)
+
+            $result = @(Get-NTFSSimpleAccess -Path $root -ErrorVariable simpleErrors -ErrorAction SilentlyContinue)
+
+            $simpleErrors | Should -BeNullOrEmpty
+            $result | Should -HaveCount $rootAlone.Count
+            $result | ForEach-Object -Process { $_.FullName | Should -Be $root }
+        }
+
         # Windows doesn't distinguish paths by case. Before 5.0.0-rc7, the cmdlet didn't recognize the parent folder of a
         # folder whose path differed from it in case, and left the folder out.
         It 'Should compare a folder with its parent folder also when their paths differ in case' {
