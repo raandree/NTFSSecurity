@@ -395,6 +395,23 @@ Describe 'Access rule helpers that take a path' {
         @(Get-ExplicitEntries -Path $path -Account 'S-1-5-32-545') | Should -HaveCount 1
     }
 
+    It 'Should add the deny entries of several accounts without Synchronize when the result is enumerated' {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'DenyListByPath'
+        $accounts = New-AccountList
+        $deny = [System.Security.AccessControl.AccessControlType]::Deny
+
+        @([Security2.FileSystemAccessRule2]::AddFileSystemAccessRule(
+                $path, $accounts, [Security2.FileSystemRights2]::ReadData, $deny, $noInheritance, $noPropagation
+            )) | Should -HaveCount 2
+
+        foreach ($account in 'S-1-1-0', 'S-1-5-32-545') {
+            $entries = @(Get-ExplicitEntries -Path $path -Account $account)
+            $entries | Should -HaveCount 1
+            $entries[0].AccessControlType | Should -Be 'Deny'
+            $entries[0].FileSystemRights | Should -Be ([System.Security.AccessControl.FileSystemRights]::ReadData)
+        }
+    }
+
     It 'Should add and remove a deny entry by its path without adding Synchronize' {
         $path = New-TestSandboxItem -Sandbox $sandbox -Name 'DenyByPath'
         $deny = [System.Security.AccessControl.AccessControlType]::Deny
@@ -438,8 +455,11 @@ Describe 'Access rule helpers that take a path' {
 
     # RemoveSpecific removes only an entry that matches exactly; without it, Windows removes the named rights from the
     # matching entry.
-    It 'Should remove only an exactly matching entry with removeSpecific and the named rights without it' {
-        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveByPath'
+    It 'Should remove only an exactly matching entry of a <Kind> with removeSpecific and the named rights without it' -ForEach @(
+        @{ Kind = 'file'; Directory = $false }
+        @{ Kind = 'folder'; Directory = $true }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveByPath' -Directory:$Directory
         [void] [Security2.FileSystemAccessRule2]::AddFileSystemAccessRule(
             $path, $identity, [Security2.FileSystemRights2] 'ReadData, WriteData', $allow, $noInheritance, $noPropagation
         )
@@ -462,8 +482,11 @@ Describe 'Access rule helpers that take a path' {
         @(Get-ExplicitEntries -Path $path) | Should -BeNullOrEmpty
     }
 
-    It 'Should remove the entries of several accounts by path' {
-        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveListByPath'
+    It 'Should remove the entries of several accounts of a <Kind> by path' -ForEach @(
+        @{ Kind = 'file'; Directory = $false }
+        @{ Kind = 'folder'; Directory = $true }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveListByPath' -Directory:$Directory
         $accounts = New-AccountList
         @([Security2.FileSystemAccessRule2]::AddFileSystemAccessRule(
                 $path, $accounts, [Security2.FileSystemRights2]::ReadData, $allow, $noInheritance, $noPropagation
