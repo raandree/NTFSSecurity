@@ -475,3 +475,37 @@ Describe 'A later command that ends the pipeline' {
         Assert-StreamStop -Name $Name -Stream $Stream -Style $Style
     }
 }
+
+# A cmdlet also meets the end of the pipeline where it did not write: another call of PowerShell can raise it too. The
+# check that every catch makes recognizes the exceptions by their types. PowerShell keeps the exceptions of break and
+# continue internal, so they are recognized by the name of their base type, which a stand-in with that name shows.
+Describe 'Recognizing the end of a pipeline by the type of the exception' {
+    BeforeAll {
+        if (-not ('NtfsSecurityTests.StandInForBreak' -as [type])) {
+            # The compiler warns that the stand-in has the name of an imported type, and Add-Type treats a warning as an error.
+            Add-Type -IgnoreWarnings -TypeDefinition @'
+namespace System.Management.Automation { public class FlowControlException : System.Exception { } }
+namespace NtfsSecurityTests { public class StandInForBreak : System.Management.Automation.FlowControlException { } }
+'@
+        }
+
+        $isEnd = [NTFSSecurity.BaseCmdlet].Assembly.GetType('NTFSSecurity.PipelineControl').GetMethod(
+            'IsEnd', [System.Reflection.BindingFlags] 'NonPublic, Static')
+    }
+
+    It 'Should recognize a PipelineStoppedException' {
+        $isEnd.Invoke($null, @([System.Management.Automation.PipelineStoppedException]::new())) | Should -BeTrue
+    }
+
+    It 'Should recognize an exception whose base type is the flow control exception of PowerShell' {
+        $isEnd.Invoke($null, @([NtfsSecurityTests.StandInForBreak]::new())) | Should -BeTrue
+    }
+
+    It 'Should not recognize <Description>' -ForEach @(
+        @{ Description = 'a failure of an item'; Exception = [System.InvalidOperationException]::new('Failure') }
+        @{ Description = 'an access denial'; Exception = [System.UnauthorizedAccessException]::new('Denied') }
+        @{ Description = 'a failure with an inner exception that ends the pipeline'; Exception = [System.InvalidOperationException]::new('Failure', [System.Management.Automation.PipelineStoppedException]::new()) }
+    ) {
+        $isEnd.Invoke($null, @($Exception)) | Should -BeFalse
+    }
+}
