@@ -15,7 +15,7 @@ namespace NTFSSecurity
     /// as the error of that item, they would end nothing, and the cmdlet would go on with the next item. BaseCmdlet
     /// notes the exception that each of its Write methods but WriteWarning raises, which includes everything that a
     /// later command can throw; this check by type is a second line of defense for calls into PowerShell that are not
-    /// noted, such as ShouldProcess in the try blocks of Remove-Item2, Copy-Item2, and Move-Item2. See
+    /// noted, such as ShouldProcess in the try block of Remove-Item2. See
     /// BaseCmdlet.IsFromLaterCommand.
     /// </summary>
     internal static class PipelineControl
