@@ -33,7 +33,7 @@ In the `Path` parameter set the cmdlet reads the item from disk; relative paths 
 
 By default both explicit and inherited entries are returned. `-ExcludeInherited` limits the result to the entries defined on the item itself, `-ExcludeExplicit` limits it to the entries the item inherits from its parents, and combining both returns nothing. `-Account` filters the result to a single account; an entry matches when the account resolves to the same SID.
 
-When the module setting `GetInheritedFrom` is `$true`, which is the default in the `PrivateData` section of NTFSSecurity.psd1, the `InheritedFrom` property of every inherited entry contains the path of the folder the entry originates from. The default table view shows the account, the rights, the scope of the ACE in the wording of the Windows security dialog, the access type, and the inheritance information; setting `ShowAccountSid` to `$true` adds the SID to the account column.
+When the module setting `GetInheritedFrom` is `$true`, which is the default in the `PrivateData` section of NTFSSecurity.psd1, the `InheritedFrom` property of every inherited entry contains the path of the folder the entry originates from, or `unknown parent` when Windows cannot name that folder, for example because the user cannot read a folder above the item. The default table view shows the account, the rights, the scope of the ACE in the wording of the Windows security dialog, the access type, and the inheritance information; setting `ShowAccountSid` to `$true` adds the SID to the account column.
 
 ## EXAMPLES
 
@@ -187,6 +187,8 @@ Entries whose account cannot be translated into a name are returned with their S
 Before 5.0.0, after a path whose ACL could not be read, the cmdlet returned the entries of the previous item again.
 
 Before 5.0.0-rc6, with `-ExcludeExplicit`, each inherited entry showed the `InheritedFrom` path of another entry, and for a security descriptor with audit entries, such as one that `Get-NTFSSecurityDescriptor` reads in an elevated session, the cmdlet stopped with an `ArgumentOutOfRangeException`.
+
+Before 5.0.0, when Windows could not name the folder of an inherited entry, `InheritedFrom` read `unknown paren`, and the explicit entries of the item showed it as well.
 
 For the root of a drive, such as `C:\`, or of a volume, such as `\\?\Volume{GUID}\`, the cmdlets that read and change security use the root folder of the volume, like Explorer, `icacls`, and `Get-Acl`. Before 5.0.0, they read and changed the security descriptor of the drive itself, a device object with other entries.
 

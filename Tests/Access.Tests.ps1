@@ -969,6 +969,30 @@ Describe 'InheritedFrom of access entries' {
         $inherited | ForEach-Object -Process { $_.InheritedFrom | Should -BeNullOrEmpty }
     }
 
+    # Windows can't name the folders when the item is gone, for example deleted by another process after its security
+    # descriptor was read, or when a folder above it can't be read. The entries still come back. Before 5.0.0, the
+    # text lost its last character, and an explicit entry, which has no source, got it as well.
+    It 'Should name an unknown parent for an inherited entry and no source for an explicit entry when Windows cannot resolve the folders' {
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritedFromGone' -Directory
+        $file = Join-Path -Path $folder -ChildPath 'Gone.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+        Set-Content -LiteralPath $file -Value 'Gone'
+        Add-NTFSAccess -Path $file -Account 'S-1-1-0' -AccessRights ReadData -ErrorAction Stop
+        $sd = Get-NTFSSecurityDescriptor -Path $file -ErrorAction Stop
+        Remove-Item -LiteralPath $file -Force
+
+        $entries = @([Security2.FileSystemAccessRule2]::GetFileSystemAccessRules($sd, $true, $true, $true))
+
+        $inherited = @($entries | Where-Object -FilterScript { $_.IsInherited })
+        $inherited | Should -Not -BeNullOrEmpty
+        foreach ($entry in $inherited) {
+            $entry.InheritedFrom | Should -BeExactly 'unknown parent'
+        }
+        $explicit = @($entries | Where-Object -FilterScript { -not $_.IsInherited })
+        $explicit | Should -HaveCount 1
+        $explicit[0].InheritedFrom | Should -BeNullOrEmpty
+    }
+
     It 'Should read a security descriptor with audit entries and name the same folders' -Skip:(-not $holdsSecurityPrivilege) {
         $file = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritedFromAudit'
         Add-NTFSAccess -Path $file -Account 'S-1-1-0' -AccessRights ReadData

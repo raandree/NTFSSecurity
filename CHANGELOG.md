@@ -118,7 +118,11 @@ The format is based on
   after they took ownership of an item that the user owned already and left a
   DACL without the right to set an owner, they failed to set the same owner
   back
-
+- Fix `InheritedFrom` of `Get-NTFSAccess` and `Get-NTFSAudit` for an entry
+  whose folder Windows cannot name, such as for an item that was deleted
+  after it was read or a folder above it that the user cannot read: the text
+  read `unknown paren`, and the explicit entries showed it as well. An
+  inherited entry now shows `unknown parent`, and an explicit entry no source
 - Fix `Get-Help`, which showed only the syntax: ship the help file
   `en-US\NTFSSecurity.dll-Help.xml` generated from the cmdlet documentation,
   including the links that `Get-Help -Online` opens, instead of the outdated

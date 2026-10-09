@@ -45,10 +45,12 @@ namespace Security2
                 }
                 catch
                 {
+                    // Windows can't name the folders, for example because the item is gone or a folder above it can't
+                    // be read. An explicit entry has no source in any case.
                     inheritedFrom = new List<string>();
                     for (int i = 0; i < aceCount; i++)
                     {
-                        inheritedFrom.Add("unknown parent");
+                        inheritedFrom.Add(acl[i].IsInherited ? "unknown parent" : string.Empty);
                     }
                 }
             }

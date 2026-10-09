@@ -33,7 +33,7 @@ In the `Path` parameter set the cmdlet reads the security descriptor of every it
 
 By default the cmdlet returns explicit and inherited entries. Use `-ExcludeInherited` to return only the entries that are set on the item itself, and `-ExcludeExplicit` to return only the entries that the item inherits from a parent folder. `-Account` filters the result to a single account; the comparison is made on the security identifier (SID), so an account name and its SID select the same entries.
 
-The `InheritedFrom` property is filled only when the module setting `GetInheritedFrom` is `$true`, which is the default in the `PrivateData` section of `NTFSSecurity.psd1`.
+The `InheritedFrom` property is filled only when the module setting `GetInheritedFrom` is `$true`, which is the default in the `PrivateData` section of `NTFSSecurity.psd1`. It contains `unknown parent` for an inherited entry when Windows cannot name the folder that the entry comes from.
 
 ## EXAMPLES
 
@@ -186,6 +186,8 @@ If reading the audit entries is denied, the cmdlet writes a `ReadSecurityError` 
 Before 5.0.0, the cmdlet returned no entries and no error without the Security privilege, and after a path whose security descriptor could not be read, it returned the entries of the previous item again. The `InheritanceEnabled` property of the entries also reported whether the access entries were inherited instead of the audit entries.
 
 Before 5.0.0-rc6, with `-ExcludeExplicit`, each inherited entry showed the `InheritedFrom` path of another entry.
+
+Before 5.0.0, when Windows could not name the folder of an inherited entry, `InheritedFrom` read `unknown paren`, and the explicit entries of the item showed it as well.
 
 ## RELATED LINKS
 

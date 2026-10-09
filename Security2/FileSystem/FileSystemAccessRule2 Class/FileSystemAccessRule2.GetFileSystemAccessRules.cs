@@ -43,7 +43,8 @@ namespace Security2
                 var ace2 = new FileSystemAccessRule2(ace) { FullName = sd.Item.FullName, InheritanceEnabled = !sd.SecurityDescriptor.AreAccessRulesProtected };
                 if (getInheritedFrom && inheritedFrom.Count > 0)
                 {
-                    ace2.inheritedFrom = string.IsNullOrEmpty(source) ? "" : source.Substring(0, source.Length - 1);
+                    // Windows names a folder with a trailing backslash; the text for an unknown parent has none.
+                    ace2.inheritedFrom = string.IsNullOrEmpty(source) ? "" : source.TrimEnd('\\');
                 }
 
                 aceList.Add(ace2);

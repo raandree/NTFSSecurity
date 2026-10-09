@@ -512,6 +512,29 @@ Describe 'InheritedFrom of audit entries' {
         $inherited[0].InheritedFrom | Should -Be $folder
     }
 
+    # Windows names the folders of audit entries only for a caller whose Security privilege is enabled, and the cmdlets
+    # enable it. A caller of the library that doesn't gets the entries without sources. Before 5.0.0, the text lost its
+    # last character, and an explicit entry, which has no source, got it as well.
+    It 'Should name an unknown parent for an inherited entry and no source for an explicit entry when the privilege is disabled' -Skip:(-not $canReadAudit) {
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritedFromDisabled' -Directory
+        Add-NTFSAudit -Path $folder -Account 'S-1-1-0' -AccessRights ReadData -InheritanceFlags 'ContainerInherit, ObjectInherit' -PropagationFlags None
+        $file = Join-Path -Path $folder -ChildPath 'File.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+        Set-Content -LiteralPath $file -Value 'File'
+        Add-NTFSAudit -Path $file -Account 'S-1-5-32-546' -AccessRights Delete -InheritanceFlags None -PropagationFlags None
+        $sd = Get-NTFSSecurityDescriptor -Path $file -ErrorAction Stop
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+
+        $entries = @([Security2.FileSystemAuditRule2]::GetFileSystemAuditRules($sd, $true, $true, $true))
+
+        $inherited = @($entries | Where-Object -FilterScript { $_.IsInherited })
+        $inherited | Should -HaveCount 1
+        $inherited[0].InheritedFrom | Should -BeExactly 'unknown parent'
+        $explicit = @($entries | Where-Object -FilterScript { -not $_.IsInherited })
+        $explicit | Should -HaveCount 1
+        $explicit[0].InheritedFrom | Should -BeNullOrEmpty
+    }
+
     # The module setting GetInheritedFrom turns off the lookup of the sources, which costs a call for each item.
     It 'Should leave InheritedFrom empty when the module setting GetInheritedFrom is off' -Skip:(-not $canReadAudit) {
         $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritedFromOff' -Directory
