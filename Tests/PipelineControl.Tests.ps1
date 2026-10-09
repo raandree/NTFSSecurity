@@ -43,12 +43,12 @@ BeforeDiscovery {
         @{ Name = $name }
     }
     $failureCases = foreach ($name in $names) {
-        foreach ($style in 'throw', 'throw UnauthorizedAccessException', 'Write-Error -ErrorAction Stop') {
+        foreach ($style in 'throw', 'Write-Error -ErrorAction Stop') {
             @{ Name = $name; Style = $style }
         }
     }
     $auditFailureCases = foreach ($name in $auditNames) {
-        foreach ($style in 'throw', 'throw UnauthorizedAccessException', 'Write-Error -ErrorAction Stop') {
+        foreach ($style in 'throw', 'Write-Error -ErrorAction Stop') {
             @{ Name = $name; Style = $style }
         }
     }
@@ -353,8 +353,8 @@ BeforeAll {
     }
 
     # A later command that fails with a terminating error ends the pipeline for the commands before it. The error is the
-    # caller's: the cmdlet must neither report it as an error of an item nor go on with the next item. The second style
-    # raises the type that some catch of the cmdlets handles on its own, for a folder that cannot be read.
+    # caller's: the cmdlet must neither report it as an error of an item nor go on with the next item. PowerShell wraps
+    # the exception of a throw, so the cmdlet never sees the type that was thrown.
     function Assert-DownstreamFailure {
         param ([string] $Name, [string] $Style)
 
@@ -366,11 +366,8 @@ BeforeAll {
         try {
             & $case.Run $context | ForEach-Object -Process {
                 $emitted++
-                switch ($Style) {
-                    'throw' { throw 'Downstream failure' }
-                    'throw UnauthorizedAccessException' { throw [System.UnauthorizedAccessException]::new('Downstream failure') }
-                    default { Write-Error -Message 'Downstream failure' -ErrorAction Stop }
-                }
+                if ($Style -eq 'throw') { throw 'Downstream failure' }
+                Write-Error -Message 'Downstream failure' -ErrorAction Stop
             }
         }
         catch {

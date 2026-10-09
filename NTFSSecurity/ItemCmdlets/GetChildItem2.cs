@@ -263,7 +263,7 @@ namespace NTFSSecurity
                     }
                 }
             }
-            catch (UnauthorizedAccessException ex) when (!IsFromLaterCommand(ex))
+            catch (UnauthorizedAccessException ex)
             {
                 WriteError(new ErrorRecord(ex, "DirUnauthorizedAccessError", ErrorCategory.PermissionDenied, di.FullName));
             }
