@@ -35,6 +35,7 @@ BeforeDiscovery {
         @{ Command = 'Set-NTFSOwner'; Parameters = @{ Account = $currentUser }; ErrorId = 'ReadFileError'; Output = $false }
         @{ Command = 'Get-NTFSSecurityDescriptor'; Parameters = @{}; ErrorId = 'ReadFileError'; Output = $true }
         @{ Command = 'Get-Item2'; Parameters = @{}; ErrorId = 'FileNotFound'; Output = $true }
+        @{ Command = 'Get-ChildItem2'; Parameters = @{}; ErrorId = 'FileNotFound'; Output = $true }
         @{ Command = 'Get-FileHash2'; Parameters = @{}; ErrorId = 'ReadFileError'; Output = $true }
         @{ Command = 'Get-NTFSHardLink'; Parameters = @{}; ErrorId = 'FileNotFound'; Output = $true }
     )
@@ -257,6 +258,43 @@ Describe 'An item whose owner may not change its permissions' {
         $acl = Get-TestAcl -Path $file
         $acl.GetOwner($sidType).Value | Should -Be $owner
         @($acl.GetAccessRules($true, $false, $sidType)) | Should -BeNullOrEmpty
+    }
+
+    # With the DACL cleared and protected, nobody keeps the right to set an owner, so setting the previous owner back
+    # fails. The user owned the item already, so there is no owner to set back.
+    It 'Clear-NTFSAccess -DisableInheritance should take ownership, clear and protect the DACL, and not set an unchanged owner back' {
+        $user = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        Set-TestOwner -Sandbox $sandbox -Path $file -Sid $user
+        Add-NTFSAccess -Path $file -Account 'S-1-1-0' -AccessRights ReadData
+        Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ 'S-1-3-4' = 'ChangePermissions' }
+
+        Clear-NTFSAccess -Path $file -DisableInheritance -ErrorVariable changeErrors -ErrorAction SilentlyContinue
+
+        $changeErrors | Should -BeNullOrEmpty
+        $acl = Get-TestAcl -Path $file
+        $acl.GetOwner($sidType).Value | Should -Be $user
+        $acl.AreAccessRulesProtected | Should -BeTrue
+        @($acl.GetAccessRules($true, $true, $sidType)) | Should -BeNullOrEmpty
+    }
+
+    # Windows lets the owner of an item set another owner only with the Restore privilege, which the tests turn off, or
+    # with the right in the DACL, which the cleared DACL no longer holds. The cmdlet reports the owner it cannot set back.
+    It 'Clear-NTFSAccess -DisableInheritance should report RestoreOwnerError for a previous owner that it cannot set back' -Skip:(-not $holdsRestorePrivilege) {
+        $user = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        $owner | Should -Not -Be $user
+        Add-NTFSAccess -Path $file -Account 'S-1-1-0' -AccessRights ReadData
+        Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ 'S-1-3-4' = 'ChangePermissions' }
+
+        Clear-NTFSAccess -Path $file -DisableInheritance -ErrorVariable changeErrors -ErrorAction SilentlyContinue
+
+        $changeErrors | Should -HaveCount 1
+        $changeErrors[0].FullyQualifiedErrorId | Should -BeLike 'RestoreOwnerError,*'
+        $changeErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+        $changeErrors[0].TargetObject | Should -Be $file
+        $acl = Get-TestAcl -Path $file
+        $acl.GetOwner($sidType).Value | Should -Be $user
+        $acl.AreAccessRulesProtected | Should -BeTrue
+        @($acl.GetAccessRules($true, $true, $sidType)) | Should -BeNullOrEmpty
     }
 
     It 'Disable-NTFSAccessInheritance should take ownership, protect the DACL, and set the owner back' {

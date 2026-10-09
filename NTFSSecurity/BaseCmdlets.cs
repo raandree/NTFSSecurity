@@ -192,6 +192,8 @@ namespace NTFSSecurity
         /// <summary>
         /// Takes ownership of the item, runs the action, and restores the previous owner on every exit path.
         /// A failure to restore the owner is written as a RestoreOwnerError and doesn't hide an error of the action.
+        /// An owner that the action did not change, because the current user owned the item already, isn't set again:
+        /// an action such as clearing the DACL can leave nobody the right to do so.
         /// </summary>
         /// <param name="item">The file or folder to take ownership of.</param>
         /// <param name="path">The path the user specified, used as the error target.</param>
@@ -199,8 +201,9 @@ namespace NTFSSecurity
         protected void InvokeAsOwner(Alphaleonis.Win32.Filesystem.FileSystemInfo item, string path, Action action)
         {
             var previousOwner = FileSystemOwner.GetOwner(item).Owner;
+            IdentityReference2 currentUser = System.Security.Principal.WindowsIdentity.GetCurrent().User;
 
-            FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
+            FileSystemOwner.SetOwner(item, currentUser);
 
             try
             {
@@ -208,13 +211,16 @@ namespace NTFSSecurity
             }
             finally
             {
-                try
+                if (previousOwner != currentUser)
                 {
-                    FileSystemOwner.SetOwner(item, previousOwner);
-                }
-                catch (Exception ex)
-                {
-                    WriteError(new ErrorRecord(ex, "RestoreOwnerError", ErrorCategory.WriteError, path));
+                    try
+                    {
+                        FileSystemOwner.SetOwner(item, previousOwner);
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteError(new ErrorRecord(ex, "RestoreOwnerError", ErrorCategory.WriteError, path));
+                    }
                 }
             }
         }

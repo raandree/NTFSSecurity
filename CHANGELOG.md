@@ -113,6 +113,11 @@ The format is based on
 - Compare boxed privilege output values by their privilege and attributes;
   the object overload rejected privilege values and recursively compared
   an attributes enum instead
+- Fix `Clear-NTFSAccess -DisableInheritance` and `Set-NTFSSecurityDescriptor`,
+  which reported a `RestoreOwnerError` for an owner that had not changed:
+  after they took ownership of an item that the user owned already and left a
+  DACL without the right to set an owner, they failed to set the same owner
+  back
 
 - Fix `Get-Help`, which showed only the syntax: ship the help file
   `en-US\NTFSSecurity.dll-Help.xml` generated from the cmdlet documentation,

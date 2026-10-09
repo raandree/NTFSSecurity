@@ -225,6 +225,44 @@ Describe 'Set-NTFSSecurityDescriptor' {
             $result[0].FullName | Should -Be $file
             $result[0].SecurityDescriptor.GetOwner($sidType).Value | Should -Be 'S-1-5-32-544'
         }
+
+        # With a cleared, protected DACL, nobody keeps the right to set an owner, so setting the previous owner back would
+        # fail. The user owned the item already, so there is no owner to set back.
+        It 'Should not report an owner that did not change when the write that took ownership leaves an empty DACL' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'RetryUnchangedOwner'
+            Set-TestOwner -Sandbox $sandbox -Path $file -Sid $currentUser
+            Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ 'S-1-3-4' = 'ChangePermissions' }
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+            Clear-NTFSAccess -SecurityDescriptor $sd -DisableInheritance -ErrorAction Stop
+
+            Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorVariable setErrors -ErrorAction SilentlyContinue
+
+            $setErrors | Should -BeNullOrEmpty
+            $acl = Get-Acl -LiteralPath $file
+            $acl.GetOwner($sidType).Value | Should -Be $currentUser
+            $acl.AreAccessRulesProtected | Should -BeTrue
+            @($acl.GetAccessRules($true, $true, $sidType)) | Should -BeNullOrEmpty
+        }
+
+        # Without the Restore privilege, the user can't set an owner such as TrustedInstaller back. The cmdlet reports it
+        # after it wrote the descriptor.
+        It 'Should report RestoreOwnerError for a previous owner that it cannot set back after the write' -Skip:(-not $canAssignAnyOwner) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'RetryRestoreDenied'
+            Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ $currentUser = 'ChangePermissions' }
+            Set-TestOwner -Sandbox $sandbox -Path $file -Sid $trustedInstaller
+            Get-RestorePrivilegeState | Should -Be 'Disabled'
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+            Add-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData
+
+            Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorVariable setErrors -ErrorAction SilentlyContinue
+
+            $setErrors | Should -HaveCount 1
+            $setErrors[0].FullyQualifiedErrorId | Should -BeLike 'RestoreOwnerError,*'
+            $setErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+            $setErrors[0].TargetObject.FullName | Should -Be $file
+            @(Get-EveryoneRule -Path $file) | Should -HaveCount 1
+            (Get-Acl -LiteralPath $file).GetOwner($sidType).Value | Should -Be $currentUser
+        }
     }
 
     Context 'A descriptor that cannot be written' {
