@@ -227,6 +227,57 @@ Describe 'Set-NTFSSecurityDescriptor' {
         }
     }
 
+    Context 'A descriptor that cannot be written' {
+        BeforeEach {
+            $savedPrivileges = $privateData['EnablePrivileges']
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterEach {
+            $privateData['EnablePrivileges'] = $savedPrivileges
+        }
+
+        It 'Should report a denied write, return no failed item, and write the next descriptor' {
+            $blocked = New-TestSandboxItem -Sandbox $sandbox -Name 'DescriptorWriteDenied'
+            $next = New-TestSandboxItem -Sandbox $sandbox -Name 'DescriptorWriteNext'
+            Block-TestWritePermission -Sandbox $sandbox -Path $blocked
+            $before = (Get-Acl -LiteralPath $blocked).Sddl
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $blocked, $next)
+            $descriptors | Should -HaveCount 2
+            Add-NTFSAccess -SecurityDescriptor $descriptors -Account 'S-1-1-0' -AccessRights ReadData -ErrorAction Stop
+
+            $result = @($descriptors | Set-NTFSSecurityDescriptor -PassThru -ErrorVariable setErrors -ErrorAction SilentlyContinue)
+
+            $setErrors | Should -HaveCount 1
+            $setErrors[0].FullyQualifiedErrorId | Should -BeLike 'WriteSdError,*'
+            $setErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+            $setErrors[0].TargetObject.FullName | Should -Be $blocked
+            (Get-Acl -LiteralPath $blocked).Sddl | Should -BeExactly $before
+            $result | Should -HaveCount 1
+            $result[0].FullName | Should -Be $next
+            @(Get-EveryoneRule -Path $next) | Should -HaveCount 1
+        }
+
+        It 'Should report a deleted target and still write the next descriptor' {
+            $deleted = New-TestSandboxItem -Sandbox $sandbox -Name 'DescriptorDeleted'
+            $next = New-TestSandboxItem -Sandbox $sandbox -Name 'DescriptorAfterDeleted'
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $deleted, $next)
+            Add-NTFSAccess -SecurityDescriptor $descriptors -Account 'S-1-1-0' -AccessRights ReadData -ErrorAction Stop
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $deleted
+            Remove-Item -LiteralPath $deleted
+
+            $result = @(Set-NTFSSecurityDescriptor -SecurityDescriptor $descriptors -PassThru -ErrorVariable setErrors -ErrorAction SilentlyContinue)
+
+            $setErrors | Should -HaveCount 1
+            $setErrors[0].FullyQualifiedErrorId | Should -BeLike 'WriteSdError,*'
+            $setErrors[0].TargetObject.FullName | Should -Be $deleted
+            $deleted | Should -Not -Exist
+            $result | Should -HaveCount 1
+            $result[0].FullName | Should -Be $next
+            @(Get-EveryoneRule -Path $next) | Should -HaveCount 1
+        }
+    }
+
     Context 'When the written descriptor denies reading it again' {
         BeforeAll {
             $privateData['EnablePrivileges'] = $false

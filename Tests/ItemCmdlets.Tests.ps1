@@ -425,6 +425,25 @@ Describe 'Copy-Item2, Move-Item2, and Remove-Item2 with several paths' {
         Join-Path -Path $sourceFolder -ChildPath 'A.txt' | Should -Exist
     }
 
+    It 'Move-Item2 -Force should replace an existing file with PassThru=<_>' -ForEach @($false, $true) {
+        $target = Join-Path -Path $destination -ChildPath 'First.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $target
+        Set-Content -LiteralPath $target -Value 'Previous'
+        $expected = Get-Content -LiteralPath $first -Raw
+
+        $result = @(Move-Item2 -Path $first -Destination $destination -Force -PassThru $_ -ErrorAction Stop)
+
+        $first | Should -Not -Exist
+        Get-Content -LiteralPath $target -Raw | Should -BeExactly $expected
+        if ($_) {
+            $result | Should -HaveCount 1
+            $result[0].FullName | Should -Be $target
+        }
+        else {
+            $result | Should -BeNullOrEmpty
+        }
+    }
+
     It 'Copy-Item2 -Force should copy a folder into an existing folder of the same name and replace the files in both' {
         $sourceFolder = Join-Path -Path $folder -ChildPath 'Merge'
         $existingFolder = Join-Path -Path $destination -ChildPath 'Merge'
