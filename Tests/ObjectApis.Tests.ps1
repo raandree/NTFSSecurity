@@ -336,6 +336,9 @@ Describe 'Access rule helpers that take a path' {
         $users = [Security2.IdentityReference2] 'S-1-5-32-545'
 
         function Get-ExplicitEntries {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseSingularNouns', '', Justification = 'The helper returns the explicit entries of an item.'
+            )]
             param ([string] $Path, [string] $Account = 'S-1-1-0')
 
             $acl = Get-Acl -LiteralPath $Path
@@ -344,6 +347,11 @@ Describe 'Access rule helpers that take a path' {
         }
 
         function New-AccountList {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only creates a list.'
+            )]
+            param ()
+
             $accounts = New-Object -TypeName 'System.Collections.Generic.List[Security2.IdentityReference2]'
             $accounts.Add($identity)
             $accounts.Add($users)
@@ -479,6 +487,9 @@ Describe 'Audit rule helpers that take a path' -Skip:(-not $holdsSecurityPrivile
         $users = [Security2.IdentityReference2] 'S-1-5-32-545'
 
         function Get-AuditEntries {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseSingularNouns', '', Justification = 'The helper returns the audit entries of an item.'
+            )]
             param ([string] $Path, [string] $Account = 'S-1-1-0')
 
             $descriptor = Get-NTFSSecurityDescriptor -Path $Path
