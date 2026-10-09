@@ -9,8 +9,9 @@ source: current task evidence
 
 ## Current focus
 
-Handoff 1 of the quality gate is finished locally on `ai/quality-gate-paths`,
-from the reviewed head `f11ff41` of #117: 28 commits, nothing pushed. Both
+Handoff 1 of the quality gate is finished on `ai/quality-gate-paths`, from the
+reviewed head `f11ff41` of #117: 28 commits, which the maintainer pushed as
+draft #118 (CI green on `83149ee`). Both
 stacked PRs stay open and green; rc6 remains the latest published
 candidate and 4.2.6 the stable Gallery version. Every C# method that no test
 visits is classified (223 explained, 8 open for the maintainer), and the
@@ -19,9 +20,12 @@ with a regression guard that is red before the fix and green after it (owner
 restore, `InheritedFrom`, a later command that ends the pipeline or throws,
 also at the error, verbose, and debug streams, `-Filter` brackets, null, and
 `*.*`, public object APIs, a privilege left enabled); the leak of a native
-buffer has no observable guard. Gate 3 must repeat the affected lab acceptance
-before the next candidate is published. Decisions 21/22 and stable 5.0.0
-remain gated; Decision 22 is proposed, not accepted.
+buffer has no observable guard. The lab acceptance of those fixes was repeated
+on 2026-10-09 (below); the published package still needs its own acceptance
+in gate 3. Decisions 21/22 and stable 5.0.0
+remain gated; Decision 22 is proposed: the agent confirmed all ten choices
+on 2026-10-09 under the maintainer's delegation, and his own confirmation is
+open.
 
 ## Evidence
 
@@ -86,6 +90,16 @@ remain gated; Decision 22 is proposed, not accepted.
 - Six checkpoints exist but report Standard, even after a successful
   temporary ProductionOnly probe; policy restored, no restore performed.
   Do not claim verified Production rollback evidence.
+- Lab acceptance of the paths fixes, 20:41 to 21:42 UTC on 2026-10-09: the
+  candidate `83149ee` and its base `f11ff41` ran the same 244 tests per
+  edition (78 new, case 10) from their extracted packages. Candidate 486
+  passed, 0 failed, 2 expected skips; baseline 338 passed, 148 failed, each
+  green on the candidate; both editions gave the same counts. Fixture removal
+  verified by a separate read-only check in four domains and on both file
+  machines; six checkpoints (Standard type, no restore). Record, results CSV,
+  and limits: `Tests/Lab/Acceptance-2026-10-09-quality-gate-paths.md`. This
+  covers the gate-3 handoff table of the path report, except the published
+  package and the other operating systems.
 - Wider matrix not deployed: 13 Server 2025 VMs; Windows 11/2019/2022
   media present, OS detection cache empty. #34 has no reply since Oct 6.
 - Full evidence: session artifact `quality-gate-3442194-20261009`;
@@ -99,10 +113,9 @@ remain gated; Decision 22 is proposed, not accepted.
    lazy path overloads, abandoned `PrivilegeEnabler`, dot patterns of
    `Get-ChildItem2 -Filter`, the 17 owner-restore handlers without the
    later-command check, unused classes (Decisions 21/22).
-2. Gate 3: repeat the affected packaged acceptance (the report's handoff
-   table: owner restore, `InheritedFrom`, later-command exceptions, filter,
-   privileges, public objects) before the next candidate is published. No
-   local upload.
+2. Gate 3: the affected live acceptance of the paths fixes is repeated (record
+   above). Accept the published package again before the next candidate counts
+   as accepted; no local upload.
 3. Retain stacked-PR order (15), obtain Decision 22 review, finish the OS
    matrix and obtain or explicitly accept #34 feedback through other gates.
 4. Do not release stable 5.0.0 or equate a percentage with gate closure.

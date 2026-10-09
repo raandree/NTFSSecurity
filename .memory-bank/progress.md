@@ -12,8 +12,8 @@ source: repository and validation evidence
 5.0.0-rc6 is published on the Gallery and GitHub; its failed Release job
 recovered in attempt 2 on 2026-10-09. #116 (rc7, `d25647d`, base `master`)
 is open and green, not merged or published. Further quality-gate work is
-local: `ai/quality-gate-coverage` (#117) and `ai/quality-gate-paths`, which
-classifies every remaining unvisited path; the open items are the
+`ai/quality-gate-coverage` (#117) and `ai/quality-gate-paths` (draft #118),
+which classifies every remaining unvisited path; the open items are the
 maintainer's decisions. Stable Gallery version: 4.2.6.
 After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 
@@ -74,6 +74,11 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   through the error stream) and a privilege left enabled. Nine static
   passes of the built-in code-review agent: no Blocker or Major. Report in
   `Tests/Coverage`.
+- 2026-10-09: lab acceptance of those fixes, `83149ee` against its base
+  `f11ff41` with the same 244 tests per edition (78 new, case 10): candidate
+  486 passed, 0 failed, 2 expected skips; baseline 338 passed, 148 failed, all
+  148 green on the candidate; fixture removed and verified clean on six
+  machines. Record: `Tests/Lab/Acceptance-2026-10-09-quality-gate-paths.md`.
 
 ## Stable capabilities
 

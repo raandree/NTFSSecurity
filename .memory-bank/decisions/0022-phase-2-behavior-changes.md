@@ -1,9 +1,9 @@
 ---
 status: proposed
 date: 2026-10-08
-last-verified: 2026-10-08
+last-verified: 2026-10-09
 owner: shared
-source: agent choices in autopilot on 2026-10-08, for the maintainer's review
+source: agent choices in autopilot on 2026-10-08, for the maintainer's review; confirmed by the agent under his delegation on 2026-10-09
 ---
 
 # Decision 22: The behavior changes of Phase 2
@@ -51,3 +51,43 @@ source: agent choices in autopilot on 2026-10-08, for the maintainer's review
   (3); the conventions of .NET and PowerShell (4, 9, 10).
 - Open: the maintainer accepts or reverts each choice; then this record
   becomes `accepted`.
+
+## Confirmed under delegation, 2026-10-09
+
+- Context: on the evening of 2026-10-09 the maintainer went to bed and told
+  the agent to continue with the next work and, for any decision that comes
+  up, to "do it and report about it later". The handoff for this record asks
+  for one question per item, which nobody could answer overnight. The agent
+  checked each choice against the source, the tests, the cmdlet pages, and
+  the changelog, and confirmed all ten. This is the agent's decision under
+  that delegation, not the maintainer's own, so the status stays `proposed`
+  until he confirms it or reverts an item. Nothing in the code, the tests,
+  or the help changed.
+- Impact for a caller, and where the choice is documented (the changelog
+  under [Unreleased], and the page of each cmdlet in `Docs\Cmdlets`):
+
+| # | Impact for a caller | Documented |
+| --- | --- | --- |
+| 1 | Without the Security privilege, `Get-NTFSOrphanedAudit` writes a non-terminating `ReadSecurityError` per item and goes on; an empty result no longer hides unread items. A script that took empty output for "nothing orphaned" now sees errors | `Get-NTFSOrphanedAudit` page, notes |
+| 2 | A recursive `Get-NTFSSimpleAccess` reports the folders that earlier versions left out, with their subfolders; the output can have more rows | `Get-NTFSSimpleAccess` page, notes |
+| 3 | None: `New-NTFSSymbolicLink` still needs the right to create symbolic links; Developer Mode doesn't help | `New-NTFSSymbolicLink` page, notes |
+| 4 | With `-WhatIf`, a conflict at the destination is a verbose message, so `-WhatIf -ErrorAction Stop` no longer stops on it | `Move-Item2` page, description; the changelog |
+| 5 | The warning of `Get-NTFSEffectiveAccess` names the computer; a script that matches the old text must change | the changelog |
+| 6 | `Move-Item2` writes a `MoveError` for a folder on another volume and leaves the folder in place; before, AlphaFS copied and deleted it, which lost empty folders | `Move-Item2` page, notes; the changelog |
+| 7 | **Breaking:** the link cmdlets write a non-terminating error per link and go on; a script that relies on the stop needs `-ErrorAction Stop` | both link pages, notes; the changelog, **Breaking** |
+| 8 | **Breaking:** `-Path` and `-Target` are required; a script that omitted one must pass it | both link pages, notes; the changelog, **Breaking** |
+| 9 | None: entries and descriptors are equal only as the same .NET object, as in .NET; `Compare-Object -Property` compares values | `Docs\FAQ.md` |
+| 10 | Only against the earlier 5.0.0 prereleases: `Copy-Item2` no longer creates the missing folders of the destination of a folder copy, like `Copy-Item` and `Move-Item2` | `Copy-Item2` page; the changelog |
+
+- Why all ten stand: 5.0.0 is a major version, so documented breaking
+  changes are allowed (7 and 8 have a **Breaking:** entry and a migration
+  hint); 1, 2, and 6 replace a result that looked valid with an error or a
+  complete result; 3, 4, 9, and 10 follow the conventions of .NET and
+  PowerShell and add no feature before the archive; 5 is a clearer message.
+  Reverting item 8 would bring back the failure for every object piped to
+  the link cmdlets (found on the way, above).
+- To revert an item: revert its commit (the range in Context), regenerate
+  the help from `Docs`, adjust the changelog and the cmdlet page, and run
+  the four test configurations again; a later commit on the same page or
+  test can conflict.
+- Open: the maintainer confirms (`accepted`) or reverts each item.

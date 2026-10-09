@@ -175,5 +175,13 @@ source: repository and executable evidence
 - Remote Authz answers administrators and Access Control Assistance
   Operators (S-1-5-32-579); other accounts get access denied. Check firewall
   when remote resource-manager RPC fails. Expected rights use S4U tokens.
+- A live test is evidence of a fix only when it fails on the build without
+  the fix: run the same tests, controller, and lab against the candidate and
+  the base of the branch, a new process per edition, and join both result
+  sets by edition, role, and full test name; the tests that pass on both are
+  controls (`Tests\Lab\Acceptance-2026-10-09-quality-gate-paths.md`). A
+  validator must not name a loop variable like a typed parameter: PowerShell
+  variables ignore case, so `$edition` overwrote `$Edition` and every edition
+  in the CSV became `System.String[]`.
 - RemoveFixture after the run; verify OUs/accounts, share, folders, local
   memberships, and test profiles removed. Credentials must never be printed.
