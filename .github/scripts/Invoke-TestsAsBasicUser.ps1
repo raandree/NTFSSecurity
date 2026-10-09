@@ -11,7 +11,7 @@
     results through a file of this account, which the restricted token can write.
 
 .PARAMETER ResultPath
-    Specifies the path of the result file in the NUnit format.
+    Specifies an absolute path, or a path relative to the repository, for the result file in the NUnit format.
 
 .PARAMETER Title
     Specifies the heading of the test results in the job summary. It can't contain a double quote, a percent sign, or a
@@ -167,7 +167,7 @@ public static class NTFSSecurityBasicUserProcess
 '@
 
 $repositoryPath = (Resolve-Path -LiteralPath (Join-Path -Path $PSScriptRoot -ChildPath '..\..')).ProviderPath
-$resultFullPath = [IO.Path]::GetFullPath((Join-Path -Path $repositoryPath -ChildPath $ResultPath))
+$resultFullPath = [IO.Path]::GetFullPath([IO.Path]::Combine($repositoryPath, $ResultPath))
 $resultFolder = Split-Path -Path $resultFullPath -Parent
 if (-not (Test-Path -LiteralPath $resultFolder)) {
     New-Item -ItemType Directory -Path $resultFolder | Out-Null
