@@ -1,57 +1,27 @@
 ---
 status: current
-last-verified: 2026-10-08
+last-verified: 2026-10-09
 owner: active-agent
-source: repository evidence
+source: repository and regression evidence
 ---
 
 # System patterns
 
 ## Architecture
 
-```text
-NTFSSecurity.psd1 ─┬─ ScriptsToProcess: NTFSSecurity.Init.ps1
-                   │    Add-Type: Security2.dll, PrivilegeControl.dll,
-                   │    ProcessPrivileges.dll, inline NTFS.DriveInfoExt;
-                   │    Update-FormatData -PrependPath format.ps1xml
-                   ├─ TypesToProcess: NTFSSecurity.types.ps1xml
-                   │    (Owner, IsInheritanceBlocked, LengthOnDisk on
-                   │    FileInfo/DirectoryInfo; AccountType on ACEs)
-                   ├─ RootModule: NTFSSecurity.psm1 (aliases)
-                   ├─ NestedModules: NTFSSecurity.dll (36 cmdlets)
-                   └─ en-US\NTFSSecurity.dll-Help.xml (Get-Help; generated
-                        from Docs/Cmdlets, Decision 8)
-NTFSSecurity.dll ── cmdlets ──> Security2.dll (FileSystemAccessRule2,
-                                FileSystemAuditRule2, IdentityReference2,
-                                FileSystemInheritanceInfo, EffectiveAccess)
-                 ── long paths ──> AlphaFS
-                 ── privileges ──> PrivilegeControl / ProcessPrivileges
-```
-
-- `BaseCmdlet` resolves only relative paths, against the current file
-  system location of the session (not `$PWD`, #86). Path parameters carry
-  `[FileSystemPathTransformation]`, which binds file objects as full paths.
-- On access denied, most cmdlets retry through `InvokeAsOwner`, which takes
-  ownership and restores the previous owner on every exit path.
-- `BaseCmdletWithPrivControl` enables Backup, Restore, TakeOwnership, and
-  Security in `BeginProcessing` when `PrivateData.EnablePrivileges` is
-  `$true`, and disables the ones it enabled in `EndProcessing` and, since
-  5.0.0-rc6, in `Dispose`: PowerShell skips `EndProcessing` when a later
-  command, such as `Select-Object -First`, or a terminating error stops the
-  pipeline, but calls `Dispose`. `Enable-Privileges` keeps them
-  (`KeepEnabledPrivileges`). The cleanup reads the current state of each
-  privilege, because another command in the pipeline can have changed it,
-  and tries every privilege even when one fails: `EndProcessing` warns,
-  `Dispose` stays silent, because PowerShell ignores exceptions thrown
-  there and no stream is open anymore.
-- `PrivateData` switches: `EnablePrivileges`, `GetInheritedFrom`,
-  `GetFileSystemModeProperty`, `IdentifyHardLinks`, `ShowAccountSid`.
-- Cmdlets accept `-Path` (alias `FullName`) or `-SecurityDescriptor`; the
-  SD sets change the object in memory until `Set-NTFSSecurityDescriptor`.
+| Component | Responsibility |
+| --- | --- |
+| `NTFSSecurity.psd1` | Root script, nested binary, initialization, types, help |
+| `NTFSSecurity.Init.ps1` | Loads Security2/privilege assemblies and prepends formatting |
+| `NTFSSecurity.dll` | 36 PowerShell cmdlets; BaseCmdlet path/privilege behavior |
+| `Security2.dll` | DACL/SACL objects, owners, inheritance, effective access, Win32 |
+| AlphaFS | Long-path files/directories/links |
+| PrivilegeControl / ProcessPrivileges | Token privilege operations |
+| `en-US/NTFSSecurity.dll-Help.xml` | Committed help generated from cmdlet Markdown |
 
 ## Decisions
 
-Each Decision record is a file in `decisions/`; read only the relevant ones.
+Read only task-relevant records; the index controls routing.
 
 | # | Decision |
 | --- | --- |
@@ -80,65 +50,45 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 
 ## Patterns
 
-### Writing cmdlets
+### Cmdlets and security sections
 
-- A parameter that takes pipeline input needs a getter that doesn't
-  throw: PowerShell reads it before it binds each input object, and an
-  exception turns every object into `GetDefaultValueFailed` (the link
-  cmdlets before 5.0.0-rc7).
-- An error for one item is non-terminating, so that the cmdlet goes on
-  with the next path or pipeline object; since 5.0.0-rc7, the link cmdlets
-  too. Its message names the item, and its target object is the item that
-  the cmdlet was asked to process. Resolving a path can throw in Windows
-  PowerShell for an invalid character, so that belongs inside the
-  per-item error handling.
-- Folders move without `MoveOptions.CopyAllowed`: for another volume,
-  AlphaFS then copies and deletes, which lost empty folders. Windows
-  refuses such a move with `NotSameDeviceException` (17). Tests reach
-  another volume through `\\localhost\C$`, elevated only.
+- BaseCmdlet resolves relative paths against the current filesystem
+  location; file-object input binds FullName through path transformation.
+- Write only changed/read sections (Decision 19); a descriptor parameter
+  changes memory until `Set-NTFSSecurityDescriptor` persists it.
+- Access denial can retry through InvokeAsOwner; restore the previous owner
+  on every exit, except a successful descriptor write that intentionally
+  sets the owner. Restoration failures must report RestoreOwnerError.
+- Privilege cleanup runs in EndProcessing and Dispose, reads current states,
+  attempts all cleanup, and preserves explicit enables. Dispose has no stream.
+- Pipeline getters never throw; per-item errors name input and allow continuation.
+- Folder moves never use CopyAllowed; preserve cross-volume source folders.
+- Apply implied Hidden/Force before deciding to emit, including the first item.
 
-### Verifying documentation
+### Tests and documentation
 
-- Run platyPS in Windows PowerShell 5.1 against a Release build; a copy of
-  `Docs/Cmdlets` must round-trip through `Update-MarkdownHelp` unchanged.
-  Keep cmdlet pages ASCII-only. platyPS takes `Position` and `Required` from
-  the shipped help file: after such a change, edit the page YAML, run
-  `New-ExternalHelp`, rebuild, and check the round trip.
-- MarkdownLinkCheck checks relative `Docs` links, `Tests\Wiki.Tests.ps1`
-  the wiki links and anchors. The wiki is generated from `Docs` (never edit
-  it); `Docs/README.md` becomes Home, its cmdlet groups the sidebar.
-- In cmdlet pages, end a sentence with a link (platyPS drops the space
-  after it). Verify examples in a `$env:TEMP` sandbox, never on real data.
+- Tests import Release in isolated processes, both editions and privilege
+  modes. File/ACL/link fixtures use shared sandbox guards and cleanup.
+  Privilege-dependent skips must have eligible counterparts in the matrix.
+- Assert persisted state, errors/targets, continuation, and no failed
+  PassThru output. Prove new characterization guards with bounded mutations;
+  restore source exactly and rebuild before green validation or packaging.
+- Fixture DACLs use .NET SetAccessControl, not Set-Acl's unintended SACL writes.
+- Scope/descendant expectations are independent of the production converter.
+- Desktop platyPS: generate help, rebuild, round-trip unchanged, check links.
+- Live tests use only approved lab targets, SMB then independent server state;
+  Get/SetFileSecurity preserves stored DACLs; rights oracles use S4U tokens.
 
-### Testing the module
+### CI results and publication
 
-- Pester 5 tests in `Tests/*.Tests.ps1` import the Release build; CI runs
-  them in Windows PowerShell 5.1 and PowerShell 7 (Decision 11).
-- A test that changes files, links, or security descriptors uses
-  `Tests\TestHelpers.psm1`: its own sandbox, `Assert-TestSandboxPath`
-  before each change, `Remove-TestSandbox`. Cases that need a privilege
-  skip with `Test-PrivilegeHeld`, cases that need its absence skip when
-  elevated; CI runs the suite elevated and as a basic user in both
-  editions, so each case runs somewhere. `Block-Test*` make a read or a
-  write fail without elevation; `Set-TestOwner` with
-  `EnablePrivileges = $false` reproduces an owner the user can't assign.
-- Fixtures write a DACL with `SetAccessControl`, never with `Set-Acl`:
-  `Set-Acl` compares `AreAuditRulesProtected` of the new descriptor with
-  `AreAccessRulesProtected` of the item (`FileSystemSecurity.cs` of
-  PowerShell), so for an item with a protected DACL it writes the audit
-  section too. Without the Security privilege that fails with
-  `PrivilegeNotHeldException`; with it, `Set-Acl` writes every section and
-  drops the audit entries. Windows PowerShell has
-  `FileInfo`/`DirectoryInfo.SetAccessControl`; PowerShell 7 has
-  `[System.IO.FileSystemAclExtensions]::SetAccessControl`.
-- `Get-Help -Online` tests run only in Windows PowerShell, which honors the
-  hook `BypassOnlineHelpRetrieval`. `Manifest.Tests.ps1` and
-  `Release.Tests.ps1` check the manifest, the version (Decision 10), the
-  release notes, and the packages.
-- The live tests in `Tests\Lab` (Decision 20) run as domain accounts in a
-  lab: on the client over SMB, then on the file server, which checks what
-  the client runs left. They read and write descriptors as Windows stores
-  them with `GetFileSecurity` and `SetFileSecurity`, because
-  `GetNamedSecurityInfo` converts a DACL without the auto-inherit flag and
-  returns its owner. The expected effective rights come from the S4U tokens
-  of the file server and the client, like the Effective Access tab.
+- Use Path.Combine then GetFullPath for a rooted-or-repository-relative
+  result path; Join-Path appends even a rooted child and corrupts it.
+- Discovery handles only expected PackageNotFound as absence; repository,
+  authentication, and network errors remain failures.
+- Rerun/uncertain-upload success requires Gallery SHA-512 equality with the
+  exact build artifact. Base64 is case-sensitive: use ordinal comparison.
+  Missing/different/unverifiable metadata preserves the upload error.
+- Secrets stay by environment reference, never in process arguments/logs.
+  Test all external publication commands with mocks; no test may upload.
+- AltCover aggregates all four sequential runs without --save. Report
+  sequence points, not unique source lines; keep unmatched paths visible.

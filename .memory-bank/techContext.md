@@ -1,251 +1,156 @@
 ---
 status: current
-last-verified: 2026-10-08
+last-verified: 2026-10-09
 owner: active-agent
-source: repository evidence
+source: repository and executable evidence
 ---
 
 # Tech context
 
 ## Stack
 
-- C# class libraries, old-style `.csproj`, .NET Framework 4.5.2,
-  solution `NTFSSecurity.sln` (Visual Studio 2017 format).
-- Projects: `NTFSSecurity` (cmdlets), `Security2` (ACL object model, Win32
-  interop), `PrivilegeControl` and `ProcessPrivileges` (token privileges),
-  `Log`, `TestClient`, `NTFSSecurityTest` (MSTest, minimal coverage).
-- NuGet (`packages.config`): AlphaFS 2.2.x for long paths;
-  `System.Management.Automation.dll` 10.0.10586.0. For a drive or volume
-  root, AlphaFS `DirectoryInfo` reaches the device object, while
-  `Directory.Get/SetAccessControl('C:\')` reaches the root folder (#41).
-- Module: `NTFSSecurity.psd1` loads `NTFSSecurity.psm1` (aliases `dir2`,
-  `gi2`, `rm2`, `del2`), `NTFSSecurity.Init.ps1` (Add-Type of the helper
-  assemblies, prepends `NTFSSecurity.format.ps1xml`), and `NTFSSecurity.dll`.
-- Documentation: Markdown in `Docs` and `README.md`, rendered by GitHub and
-  published to the wiki by CI; no documentation site (Decisions 9 and 11).
-  Cmdlet pages are platyPS 0.14 markdown (schema 2.0.0) in `Docs/Cmdlets`.
-- Help: `NTFSSecurity\en-US\NTFSSecurity.dll-Help.xml`, generated from
-  `Docs/Cmdlets` and committed (Decision 8).
-- Tests: Pester 5 in `Tests`, one file per area, against the Release
-  build; `Wiki.Tests.ps1` (wiki conversion) runs without a build.
-- CI: GitHub Actions, `.github/workflows/ci.yml` with the scripts in
-  `.github/scripts` (Decision 11).
+- Legacy C# projects, .NET Framework 4.5.2, `NTFSSecurity.sln`.
+  Cmdlets depend on Security2, PrivilegeControl/ProcessPrivileges, and
+  AlphaFS 2.2.x. System.Management.Automation reference: 10.0.10586.0.
+- Module supports Windows PowerShell 5.1 and PowerShell 7; 36 cmdlets.
+  Manifest initializes helper assemblies, aliases, type data, formatting,
+  and committed help generated from `Docs/Cmdlets` (platyPS 0.14/schema 2).
+- CI: `.github/workflows/ci.yml`, scripts in `.github/scripts`; GitHub
+  renders Docs and publishes a generated wiki. No separate docs site.
 
-## Environment
+## Current environment
 
-- Windows only (NTFS, Win32 security APIs).
-- The Debug build writes straight into
-  `C:\Program Files\WindowsPowerShell\Modules\NTFSSecurity\`.
-- No Visual Studio MSBuild or .NET Framework targeting pack on the
-  workstation. A local build works with the .NET Framework MSBuild
-  (`%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe`) plus
-  `/p:CscToolPath` to the Roslyn `csc.exe` of the `Microsoft.Net.Compilers`
-  package; the legacy C# 5 compiler fails with CS0136. `dotnet msbuild`
-  fails on the binary resources in `Resources.resx` (MSB3822, MSB3823).
-- platyPS 0.14.2, Pester 5.7.1, PSScriptAnalyzer, and powershell-yaml are
-  installed only for PowerShell 7. Windows PowerShell 5.1, started from
-  PowerShell 7, imports platyPS and Pester by full path
-  (`~\OneDrive\Documents\PowerShell\Modules\platyPS\0.14.2`,
-  `C:\Program Files\PowerShell\Modules\Pester\5.7.1`). Leave
-  `$env:PSModulePath` alone: PowerShell 7 hands the child the Windows
-  PowerShell default path, and clearing it leaves Windows PowerShell without
-  its core modules (Pester fails: `Add-Member` not found).
-- MarkdownLinkCheck is not installed, and `Save-Module` crashed (FailFast)
-  in PowerShell 7.6 on 2026-10-04. Download the 0.2.0 package from
-  `https://www.powershellgallery.com/api/v2/package/MarkdownLinkCheck/0.2.0`
-  into `$env:TEMP`, extract it, and import it by path.
-- The first workstation is ARM64; PowerShell 7 runs as x64 under emulation.
-- The NuGet cache (`~\.nuget\packages`) holds every build dependency: copy
-  `alphafs\2.2.1`, `system.management.automation.dll\10.0.10586`, and
-  `microsoft.netframework.referenceassemblies.net452\1.0.3` into
-  `packages\<Id>.<Version>`, and point `CscToolPath` at
-  `microsoft.net.compilers\4.2.0\tools`.
-- The second workstation (x64, used since 2026-10-05) runs the agent
-  session elevated, so the tests that need privileges run there as in CI.
-  It has no NuGet cache with these packages: download each from
-  `https://api.nuget.org/v3-flatcontainer/<id>/<version>/<id>.<version>.nupkg`,
-  extract the first three into `packages\<Id>.<Version>` and the compilers
-  into `$env:TEMP`; Pester 5.7.1 comes from the Gallery package API the
-  same way, its folder first on `$env:PSModulePath` of the test process.
-  The GitHub CLI is in `C:\Program Files\GitHub CLI`, outside the PATH of
-  sessions started before its installation.
-- The third workstation (`ExHost`, a Windows Server 2025 VM, x64, used since
-  2026-10-07) runs the agent session elevated and hosts the AutomatedLab lab
-  `WindowsAccessControlLab` (Decision 20) with Hyper-V and AutomatedLab
-  5.61.704. It has no NuGet cache or platyPS: check each
-  nuget.org package against the SHA-512 `packageHash` of its catalog entry
-  (`https://api.nuget.org/v3/registration5-semver1/<id>/<version>.json`,
-  then `catalogEntry`), and each Gallery package against `PackageHash` of
-  `api/v2/Packages(Id='<id>',Version='<version>')`. Pester 5.7.1 is in
-  `V:\Git\WindowsAccessControl\output\RequiredModules`. The GitHub CLI
-  2.102.0 is in `C:\Program Files\GitHub CLI`, outside the PATH, and signed
-  in as `raandree` since 2026-10-08; `Block-RemoteMutation` denies its
-  mutating commands, so the agent uses it read-only. The lab domains
-  `a.forest1.net` and `b.forest1.net` had a maximum password age of 42
-  days, so the password of `install` expired on 2026-09-15 and AutomatedLab
-  got access denied; it never expires since 2026-10-07, as in
-  `forest1.net`.
+- Host `ExHost`: Windows Server 2025 VM, native x64, elevated agent;
+  repository `V:\Git\NTFSSecurity`. AutomatedLab 5.61.704, Hyper-V,
+  approved lab `WindowsAccessControlLab` (Decision 20).
+- Build Release only: Debug writes to Program Files. Native .NET Framework
+  MSBuild plus Roslyn `Microsoft.Net.Compilers` 4.2.0 and .NET 4.5.2
+  reference assemblies work; legacy compiler fails CS0136, dotnet MSBuild
+  fails binary resources MSB3822/MSB3823. Build packages are already cached
+  in `packages`; compiler/tools are under TEMP `ntfs-build`.
+- Pester 5.7.1 is in
+  `V:\Git\WindowsAccessControl\output\RequiredModules\Pester\5.7.1`.
+  platyPS 0.14.2 and MarkdownLinkCheck 0.2.0 are under TEMP `ntfs-docs-tools`.
+  PSScriptAnalyzer and PSResourceGet are available in PowerShell 7.
+- Use Desktop's module paths in Desktop children, not inherited Core-only
+  paths. Never import NTFSSecurity in the agent shell; every package/build
+  runs in a new process. Current prereleases share assembly version 5.0.0.0.
+- GitHub CLI: `C:\Program Files\GitHub CLI\gh.exe`, signed in as raandree.
+  Read-only queries work; remote mutations belong to the maintainer.
+- LabSources: `V:\LabSources`. All 13 deployed machines are Server 2025.
+  Windows 11 consumer/enterprise-evaluation media and Server 2019/2022
+  ISO files exist. OS cache is empty; exact detected editions are not yet
+  verified. Do not equate present media with a deployed/tested OS matrix.
 
 ## Constraints
 
-- `ModuleVersion` is `5.0.0` with the prerelease label `rc6` on the branch
-  `ai/release-5.0.0-rc6` (`rc5` on `master`).
-  The latest stable tag and Gallery release is `4.2.6`. The manifest
-  requires PowerShell 5.1 and .NET Framework 4.5.2, uses `RootModule`, and
-  lists exactly 36 cmdlets; `Test-ModuleManifest` passes in Windows
-  PowerShell 5.1 and PowerShell 7.6.
-- The module source at `master` differs from tag `4.2.6` by the changes
-  that `CHANGELOG.md` lists under `[Unreleased]`, the release notes of each
-  5.0.0 prerelease.
-- PowerShell Gallery versions (publish dates): 4.0.0 (2015-08-19), 4.2.2
-  (2016-05-18), 4.2.3 (2016-05-19), 4.2.4 (2018-08-13), 4.2.5 (2019-07-11),
-  4.2.6 (2019-07-12), none with release notes; 5.0.0-rc1 (2026-10-04),
-  5.0.0-rc2 (2026-10-05), 5.0.0-rc3 and 5.0.0-rc4 (2026-10-06), 5.0.0-rc5
-  (2026-10-08), published
-  by CI. Older versions were released on CodePlex only, and their dates are
-  lost. The git history starts on 2016-10-10, when the project moved from
-  CodePlex.
-- Releases up to 4.2.6 were Debug builds published by hand, with the whole
-  output folder; their tags carry the previous version. From 5.0.0 on, CI
-  publishes on a version tag (Decision 12). GitHub releases attach
-  `NTFSSecurity.zip`.
-- CI: GitHub Actions on pull requests, pushes to `master`, and version tags
-  (Decision 11); AppVeyor and Read the Docs aren't used (Decision 9).
-- `CHANGELOG.md` lists user-visible changes only; CI and build-only changes
-  get no entry
-  ([Decision 7](decisions/0007-changelog-user-visible-only.md)).
-- Remote mutations are the maintainer's: the user-level preToolUse hook
-  `Block-RemoteMutation.ps1` denies `git push` and mutating `gh` commands
-  (`pr create`, `pr close`, and others) from the agent session, even after
-  an explicit request. Its override, `COPILOT_ATELIER_ALLOW_REMOTE=1`, is
-  read from the environment that VS Code starts the hook with; setting it
-  inside an agent command has no effect (verified 2026-10-04). The hook
-  matches the whole command text, so a commit message that quotes such a
-  command is blocked too. Prepare the commands and descriptions; the
-  maintainer runs them. Hand over each command as its own fenced code block
-  at the end of the reply, which the chat shows with a copy button, and end
-  the turn there; the maintainer reports back in the chat. The question
-  dialog joins the lines of its text, has no copy button, and covers the
-  reply before it (maintainer, 2026-10-06). A long question also hides its
-  choices, so that it can't be answered: keep it to a few short sentences
-  (2026-10-07). A pull request description
-  names an issue without a closing keyword (fixes, closes, resolves) unless
-  the merge should close it: "fixes #34" in #112 closed #34. Simulated `gh`
-  commands in offline tests must print what the real ones print, such as
-  the URL of a new comment.
+- Source manifest: ModuleVersion 5.0.0, prerelease rc7 on #116/follow-up.
+  Latest stable: 4.2.6; latest published prerelease: rc6 (2026-10-08).
+  GitHub rc6 release recovered 2026-10-09. rc7 publication is pending.
+- Changed-section writes preserve unchanged owner/group/DACL/SACL (19).
+  Roots use root-folder APIs, not AlphaFS device security (#41).
+- CHANGELOG contains user-visible changes only (7); tests and CI-only fixes
+  get no entry. No stable release until Decision 21 gates close.
+- Honor separate topic branches, no amendment, two AI co-author trailers.
+  Never work around remote-mutation blocking. Provide each maintainer
+  command separately at reply end, no question dialog after commands.
+  Issue references use no closing keyword unless closure is intended.
+- Lab passwords stay in memory and are lab-only; no secret in repository,
+  logs, or process arguments. Live ACL mutations occur only in the lab.
+- Existing expired installation passwords of a.forest1/b.forest1 were
+  configured not to expire on 2026-10-07, matching the root domain.
 
-## Validation
+## Build and focused checks
 
-- CI (`.github/workflows/ci.yml`): job `build` on `windows-2025` installs
-  platyPS 0.14.2, MarkdownLinkCheck 0.2.0, and Pester 5.7.1 for all users,
-  restores `packages.config` per project plus
-  `Microsoft.NETFramework.ReferenceAssemblies.net452` 1.0.3, builds
-  `NTFSSecurity.csproj` in Release with the MSBuild that `vswhere` finds,
-  then: 01 `Update-MarkdownHelp` and fail on `git diff -- Docs/Cmdlets`; 02
-  `Get-MarkdownLink -BrokenOnly`; 03 regenerate the help file and fail on
-  `git status --porcelain -- NTFSSecurity/en-US`; 04 `Invoke-Tests.ps1` in
-  Windows PowerShell 5.1 and in PowerShell 7, then
-  `Invoke-TestsAsBasicUser.ps1` in both editions (since 5.0.0-rc6). Job
-  `wiki` on `ubuntu-latest`
-  (read-only) clones the wiki (`gh auth setup-git` with the built-in token),
-  runs `Export-WikiContent.ps1`, and lists the changed pages in the job
-  summary; job `publish-wiki` (`contents: write`) repeats that and publishes,
-  for `master` only. After the tests, `build` runs
-  `New-ModulePackage.ps1` and uploads the artifact `packages` (nupkg and
-  `NTFSSecurity.zip`). Job `release` runs only for tags matching
-  `[0-9]+.[0-9]+.[0-9]+` or `[0-9]+.[0-9]+.[0-9]+-*`, in the environment
-  `powershell-gallery` (secret `PSGALLERY_API_KEY`); see Decision 12.
-  Actions are pinned by commit SHA: `actions/checkout` v7.0.1,
-  `actions/upload-artifact` v7.0.1, `actions/download-artifact` v8.0.1;
-  Dependabot proposes updates weekly, one week after a release.
-- Packaging needs PSResourceGet (`Compress-PSResource`, PowerShell 7.4 or
-  later); its tests skip in Windows PowerShell. Dry run locally: run
-  `New-ModulePackage.ps1` against `NTFSSecurity\bin\Release` into
-  `$env:TEMP`, then extract the nupkg into a folder and import it there.
-- Read CI runs with `gh run list --repo raandree/NTFSSecurity --workflow
-  ci.yml`, `gh pr checks <number>`, and `gh run view <id> --log-failed`
-  (read-only).
-- Workflow lint: actionlint (download the release zip into `$env:TEMP` and
-  check its SHA-256 against the checksum file; 1.7.12 on 2026-10-08);
-  PowerShell steps check
-  `$LASTEXITCODE` after every native command, because GitHub checks only
-  the last one.
-- Run platyPS in Windows PowerShell 5.1 to avoid PowerShell 7.4+
-  `-ProgressAction` noise.
-- Placeholder check: no `{{` left in `Docs/Cmdlets/*.md`.
-- Help file: `New-ExternalHelp -Path .\Docs\Cmdlets -OutputPath
-  .\NTFSSecurity\en-US -Force` must leave `git status` unchanged.
-- Pester: run detached (`Start-DetachedPowerShell.ps1`) in Windows
-  PowerShell 5.1: the launcher starts `pwsh`, and its payload runs
-  `powershell.exe -NoProfile -EncodedCommand` with Pester imported by full
-  path. A run without `bin\Release\en-US` must fail.
-- Tests that run only without a privilege skip in an elevated session.
-  `.github\scripts\Invoke-TestsAsBasicUser.ps1` runs the suite from an
-  elevated session with a token of the SAFER level Normal User, like
-  `runas /trustlevel:0x20000`, and CI runs it in both editions. For a
-  single file, `runas /trustlevel:0x20000` works too; give Windows
-  PowerShell its own `PSModulePath`, and note that `runas` returns at once,
-  so the script it starts writes its own log. Both tokens hold only the
-  privilege to bypass traverse checking.
-  Pester reports a skipped `-ForEach` test under its template name, such as
-  `<_> should ...`, and a test that ran under the expanded name: compare
-  runs by template.
-- C# coverage (Decision 21): AltCover 9.0.145 (`tools\net472\AltCover.exe`
-  of the nuget.org package) instruments a copy of the local Release build,
-  which has the PDB files that the published package lacks:
-  `--reportFormat=OpenCover`, AlphaFS and `System.Management.Automation`
-  excluded with `--assemblyFilter`, and no `--save`: then every process
-  writes its hits into the report when it exits. With `--save`, each
-  process writes a recorder file, and `runner --collect` keeps only the
-  first one (verified 2026-10-08), so the numbers measured that way held
-  only the main process of the elevated Windows PowerShell run. Put the
-  instrumented module in `NTFSSecurity\bin\Release` of a `git worktree`,
-  run `.github\scripts\Invoke-Tests.ps1` elevated and
-  `Invoke-TestsAsBasicUser.ps1` in both editions, then
-  `AltCover.exe runner --collect --recorderDirectory=<the instrumented
-  folder>`, which recalculates the summary of the report from the hits.
-  All four configurations, 2026-10-08: the rc5 tree 58.1% of the lines
-  (2,020 of 3,476) and 38.0% of the branches (711 of 1,873), 62.5% without
-  244 lines in classes that no cmdlet calls; the rc6 candidate (`1b9edbb`)
-  68.1% of the lines (2,412 of 3,540) and 44.3% of the branches (850 of
-  1,918), 73.2% without those classes, the `NTFSSecurity` assembly 78.1%.
-  The earlier figures, 55.9% for rc5 and 65.6% for rc6, used `--save`.
-- Live tests (Decision 20): in an elevated Windows PowerShell 5.1 session
-  on the lab host, `Tests\Lab\Invoke-NTFSSecurityLabTest.ps1` with
-  `-Version` for Gallery packages or `-ModulePath` for a build; it writes
-  the results to `$env:TEMP\NTFSSecurityLab\Results`. A run of two versions
-  in both editions takes about 30 minutes; `-RemoveFixture` removes its
-  accounts, share, and folders from the lab. For a check on the client as
-  an account without administrator rights, use `NtfsLiveServerAdmin`
-  (Remote Management Users on the client, CredSSP by IP address like the
-  controller): reset its password on the PDC emulator to a random value
-  in memory; the next run of the controller sets a new one anyway.
-- Lab acceptance of a candidate (modeled on the WindowsAccessControl
-  handoff 07): build once, package it with `New-ModulePackage.ps1`, and
-  record the SHA-256 of the packages and module files; check WinRM, LDAP
-  (RootDSE), Kerberos (`klist get`), the secure channel, and the clock of
-  the six VMs; take a Production checkpoint named
-  `ntfs-<label>-<commit>-before-acceptance` of `F1ADC1`, `F1BDC1`,
-  `F2DC1`, `F3DC1`, `F1AFile1`, and `F1AFile2`; run the controller with
-  `-ModulePath` of the extracted `NTFSSecurity.zip` in both editions; then
-  `-RemoveFixture` and check that the accounts, share, folders, group
-  memberships, and profiles are gone.
-- `Get-NTFSEffectiveAccess -ServerName`: the authorization manager of the
-  named computer answers only its administrators and the members of its
-  group Access Control Assistance Operators (S-1-5-32-579); others get
-  "Access is denied" (5). Lab probe of 2026-10-08 on `F1AFile2`.
-- Markdown lint: `npx markdownlint-cli2` with `MD013` limited to prose
-  (tables, code, and headings excluded) on the conceptual pages; for
-  `CHANGELOG.md` also `MD024` with `siblings_only: true`, because every
-  version repeats the category headings.
-- Gallery packages: download
-  `https://www.powershellgallery.com/api/v2/package/NTFSSecurity/<version>`
-  into `$env:TEMP` and extract it; dates come from the OData endpoint
-  `api/v2/FindPackagesById()?id='NTFSSecurity'`. Import each version in its
-  own process: every version's `NTFSSecurity.dll` has assembly version
-  4.2.1.0, so a second version in the same process reuses the first DLL.
-- YAML: `ConvertFrom-Yaml` (powershell-yaml) on `.github/workflows/ci.yml`.
-- Links: the CI step 02 (MarkdownLinkCheck 0.2.0) checks only relative
-  links in `Docs`; it strips anchors and skips absolute URLs.
-  `Wiki.Tests.ps1` checks the wiki links with their anchors; check the
-  links in `README.md` and `CHANGELOG.md` with a script.
+- Build `NTFSSecurity\NTFSSecurity.csproj` with Configuration=Release,
+  Framework MSBuild, TargetFrameworkRootPath/FrameworkPathOverride to
+  `packages\Microsoft.NETFramework.ReferenceAssemblies.net452.1.0.3\build`,
+  CscToolPath to the cached compiler. Expected legacy CS1591/CS0618 warnings
+  are not new failures. Never copy a mutated DLL into acceptance artifacts.
+- Pester/builds run in detached monitored child processes through
+  `Start-DetachedPowerShell.ps1`; use unique TEMP logs/result paths and an
+  explicit-PID watcher. No foreground sleep/poll loop. Long payloads use
+  a script file: nested Base64 encoding can exceed Windows command limits.
+- Focused helper: TEMP `ntfs-focused\Start-FocusedRuns.ps1`; detach that
+  driver too because its internal wait loop must not block the agent shell.
+- TEMP `ntfs-docs-tools\Invoke-ChangeChecks.ps1 -File <relative paths>`
+  performs AST/analyzer/lint/help checks. Absolute input paths misroute
+  cmdlet pages. Check actual analyzer/lint output, not just helper exit.
+- actionlint 1.7.12 checks the workflow. Script changes use AST parse and
+  PSScriptAnalyzer; prose Markdown uses MD013 and changelog siblings-only
+  repeated-heading allowance. Native error codes must be checked explicitly.
+- Documentation: run platyPS in Desktop, generate external help, rebuild,
+  require an unchanged Markdown round trip. Links in Docs are checked
+  relatively; Wiki tests cover generated anchors, not arbitrary web URLs.
+
+## CI and packaging
+
+- CI `build` on windows-2025 installs tools, restores dependencies, builds
+  Release, round-trips pages/help, checks links, and runs the suite in
+  Desktop/Core, elevated/basic user. Lab tests are explicitly excluded.
+- `.github/scripts/Invoke-TestsAsBasicUser.ps1` launches a SAFER Normal User
+  token. Result paths may be absolute or repository-relative: Path.Combine
+  then GetFullPath, not Join-Path with a rooted child.
+- Packaging needs Compress-PSResource (Core 7.4+). New-ModulePackage copies
+  only FileList, validates the manifest, creates nupkg plus NTFSSecurity.zip.
+  Check package/file hashes and test the extracted artifact, not build extras.
+- Release runs only for validated version tags in powershell-gallery.
+  API key stays as PSGALLERY_API_KEY environment reference. Helper
+  Publish-ModulePackage treats only PackageNotFound as expected absence;
+  existing-version skip and uncertain-upload recovery require exact Gallery
+  SHA-512 equality. Base64 comparison is case-sensitive. Unverifiable,
+  missing, and different outcomes preserve errors. No test uploads.
+- Read status through gh pr checks / gh run view --log-failed. A successful
+  Gallery upload followed by HTTP 409 does not prove its retry chronology.
+
+## Coverage and test eligibility
+
+- AltCover 9.0.145 net472 instruments a copied Release build with PDBs,
+  OpenCover format, localSource, excluding AlphaFS/System.Management.Automation.
+  Do not use --save: collection previously retained only one process's hits.
+- Freeze a git worktree, instrument its NTFSSecurity\bin\Release, run all
+  four configurations sequentially with the real CI wrappers, then
+  AltCover runner --collect recalculates the report. Compute option paths
+  before passing native arguments, not inline Join-Path expressions.
+- Report sequence points, not unique source lines. Four-run baselines:
+  rc5 2,020/3,476 (58.1%), branches 711/1,873 (38.0%);
+  rc6 2,412/3,540 (68.14%), branches 850/1,918 (44.32%);
+  follow-up `3442194` 2,641/3,559 (74.21%), 974/1,933 (50.39%).
+  NTFSSecurity assembly: 1,769/2,099 (84.28%). Different code changes
+  denominators; never present these as same-source incremental percentages.
+- Final suite: 914 per configuration, zero failures. Passed/skipped:
+  elevated Desktop 890/24, Core 860/54; basic Desktop 749/165, Core 719/195.
+- NUnit skipped ForEach names retain placeholders and parameter tuples,
+  executed names expand them. Strip trailing data tuples and match templates;
+  raw-name intersection or positional alignment is invalid across editions.
+  139 skipped templates have eligible executed counterparts. Inspect input
+  eligibility when an individual data row has a condition of its own.
+- Remaining inventory: 918 points, including 244 in cmdlet-unused classes,
+  112 parameter-getter points, and 562 awaiting finer classification/testing.
+  Preserve raw XML, eligibility CSV, logs, commit identity, and build hashes.
+
+## Lab acceptance
+
+- Defaults: F1ADC1 (domain), F1AFile2 (server), F1AFile1 (client), all in
+  a.forest1.net. Foreign accounts use F1BDC1, F2DC1, F3DC1 and existing trusts.
+  Controller accepts alternate machines; changing topology/OS scope waits
+  for a maintainer decision. Do not repurpose another project's shared VMs.
+- Before a run: authenticated WinRM, LDAP RootDSE, Kerberos tickets, member
+  secure channels, clocks; checkpoint only approved targets. Inspect actual
+  checkpoint kind: new checkpoints reported Standard even after a successful
+  temporary ProductionOnly request. Policy restored; no rollback performed;
+  Production classification remains unverified, not a passed safety check.
+- Run Tests\Lab\Invoke-NTFSSecurityLabTest.ps1 in elevated Desktop with
+  -Version for hash-checked Gallery packages or -ModulePath for the extracted
+  build artifact, both editions. Per version/edition: Delegate, ServerAdmin,
+  Admin on client, then Server independently checks persisted state.
+- Controller writes Summary.json even when tests fail: validate every role,
+  exit code, failure name, and total; DONE alone is not acceptance evidence.
+  Desktop ConvertFrom-Json can wrap arrays; explicitly enumerate the result
+  and compare full Describe-prefixed names. Never gate cleanup on the global
+  Error.Count, which includes handled errors; independently verify footprint.
+- Remote Authz answers administrators and Access Control Assistance
+  Operators (S-1-5-32-579); other accounts get access denied. Check firewall
+  when remote resource-manager RPC fails. Expected rights use S4U tokens.
+- RemoveFixture after the run; verify OUs/accounts, share, folders, local
+  memberships, and test profiles removed. Credentials must never be printed.
