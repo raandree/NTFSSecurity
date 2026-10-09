@@ -98,8 +98,18 @@ Describe 'Get-FileHash2' {
     }
 
     Context 'When the file cannot be read after taking ownership' {
-        # Before 5.0.0, the account that ran the cmdlet stayed the owner when the second attempt failed. Only an
-        # elevated process can make another account the owner first, so the test runs in CI.
+        BeforeAll {
+            $privateData = (Get-Module -Name NTFSSecurity).PrivateData
+            $enablePrivileges = $privateData['EnablePrivileges']
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        # Disable automatic privileges so that the deny entry reaches the ownership retry even in an elevated process.
+        # Administrators is an assignable owner for that process, unlike TrustedInstaller.
         It 'Should restore the previous owner' -Skip:(-not $isElevated) {
             $denied = New-TestSandboxItem -Sandbox $sandbox -Name 'Denied'
             Assert-TestSandboxPath -Sandbox $sandbox -Path $denied
@@ -107,14 +117,28 @@ Describe 'Get-FileHash2' {
             Add-NTFSAccess -Path $denied -Account 'S-1-1-0' -AccessRights ReadData -AccessType Deny
 
             $results = @(Get-FileHash2 -Path $denied -ErrorVariable hashErrors -ErrorAction SilentlyContinue)
-            if (-not $hashErrors) {
-                Set-ItResult -Inconclusive -Because 'the elevated process could read the file despite the deny entry'
-            }
 
             $hashErrors | Should -HaveCount 1
             $hashErrors[0].FullyQualifiedErrorId | Should -BeLike 'GetHashError,*'
             $results | Should -BeNullOrEmpty
             (Get-NTFSOwner -Path $denied).Owner.Sid | Should -Be 'S-1-5-32-544'
+        }
+
+        It 'Should report both the failed read and the failed owner restoration without returning a hash' -Skip:(-not $isElevated) {
+            $denied = New-TestSandboxItem -Sandbox $sandbox -Name 'RestoreDenied'
+            Add-TestDenyRule -Sandbox $sandbox -Path $denied -Rights @{ 'S-1-1-0' = 'ReadData' }
+            $originalOwner = 'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'
+            Set-TestOwner -Sandbox $sandbox -Path $denied -Sid $originalOwner
+            (Get-Privileges | Where-Object -Property Privilege -EQ -Value 'Restore').PrivilegeState | Should -Be 'Disabled'
+
+            $result = @(Get-FileHash2 -Path $denied -ErrorVariable hashErrors -ErrorAction SilentlyContinue)
+
+            $result | Should -BeNullOrEmpty
+            $hashErrors | Should -HaveCount 2
+            $hashErrors[0].FullyQualifiedErrorId | Should -BeLike 'RestoreOwnerError,*'
+            $hashErrors[1].FullyQualifiedErrorId | Should -BeLike 'GetHashError,*'
+            $hashErrors | ForEach-Object -Process { $_.TargetObject | Should -Be $denied }
+            (Get-NTFSOwner -Path $denied).Owner.Sid | Should -Be ([Security.Principal.WindowsIdentity]::GetCurrent().User.Value)
         }
     }
 }
