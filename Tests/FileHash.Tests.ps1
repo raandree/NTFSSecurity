@@ -80,6 +80,14 @@ Describe 'Get-FileHash2' {
             $hashWarnings | Should -HaveCount 1
             $hashWarnings[0].Message | Should -BeLike '*MACTripleDES*random key*deprecated*'
         }
+
+        # PowerShell calls the cmdlet once for each object in the pipeline; the warning belongs to the command.
+        It 'Should warn once that MACTripleDES is deprecated for several objects in the pipeline' -Skip:$isCore {
+            $results = @($first, $second | Get-FileHash2 -Algorithm MACTripleDES -WarningVariable hashWarnings -WarningAction SilentlyContinue)
+
+            $results | Should -HaveCount 2
+            $hashWarnings | Should -HaveCount 1
+        }
     }
     Context 'When -Path contains a folder' {
         It 'Should skip the folder and hash the files that follow it' {

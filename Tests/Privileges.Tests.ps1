@@ -380,3 +380,56 @@ Describe 'The PrivilegeEnabler class' {
         [ProcessPrivileges.ProcessExtensions]::GetPrivilegeState($attributes) | Should -Be $Expected
     }
 }
+
+Describe 'The PrivilegeControl class' {
+    BeforeAll {
+        $privateData['EnablePrivileges'] = $false
+        $control = New-Object -TypeName 'Security2.PrivilegeControl'
+        $backup = [ProcessPrivileges.Privilege]::Backup
+    }
+
+    AfterAll {
+        $privateData['EnablePrivileges'] = $enablePrivileges
+    }
+
+    BeforeEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    AfterEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    It 'Should refuse to <Operation> a privilege that the access token does not hold' -ForEach @(
+        @{ Operation = 'enable' }
+        @{ Operation = 'disable' }
+    ) {
+        $failure = {
+            if ($Operation -eq 'enable') {
+                $control.EnablePrivilege([ProcessPrivileges.Privilege]::CreateToken)
+            }
+            else {
+                $control.DisablePrivilege([ProcessPrivileges.Privilege]::CreateToken)
+            }
+        } | Should -Throw -PassThru
+
+        $failure.Exception.InnerException | Should -BeOfType [System.Security.AccessControl.PrivilegeNotHeldException]
+        $failure.Exception.InnerException.PrivilegeName | Should -BeExactly 'CreateToken'
+    }
+
+    It 'Should enable and disable a held privilege and refuse to repeat either' -Skip:(-not $holdsPrivileges) {
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+        $failure = { $control.DisablePrivilege($backup) } | Should -Throw -PassThru
+        $failure.Exception.InnerException | Should -BeOfType [Security2.AdjustPriviledgeException]
+        $failure.Exception.InnerException.Message | Should -BeExactly 'Priviledge already disabled'
+
+        $control.EnablePrivilege($backup) | Should -Be 'PrivilegeModified'
+        Get-BackupPrivilegeState | Should -Be 'Enabled'
+        $failure = { $control.EnablePrivilege($backup) } | Should -Throw -PassThru
+        $failure.Exception.InnerException | Should -BeOfType [Security2.AdjustPriviledgeException]
+        $failure.Exception.InnerException.Message | Should -BeExactly 'Priviledge already enabled'
+
+        $control.DisablePrivilege($backup) | Should -Be 'PrivilegeModified'
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+    }
+}

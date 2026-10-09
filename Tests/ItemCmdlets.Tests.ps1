@@ -683,6 +683,30 @@ Describe 'Copy-Item2, Move-Item2, and Remove-Item2 with several paths' {
         Get-Content -LiteralPath $first | Should -Be 'First'
         Get-Content -LiteralPath $second | Should -Be 'Second'
     }
+
+    # A destination on a drive letter without a volume has no folder that the cmdlet could name, so Windows reports the
+    # drive as not ready, which AlphaFS raises as an IOException.
+    It '<Command> should write a <ErrorId> for a destination on a drive that does not exist and keep the source' -ForEach @(
+        @{ Command = 'Copy-Item2'; ErrorId = 'CopyError' }
+        @{ Command = 'Move-Item2'; ErrorId = 'MoveError' }
+    ) {
+        $used = @((Get-PSDrive -PSProvider FileSystem).Name) + @([System.IO.DriveInfo]::GetDrives() | ForEach-Object -Process { $_.Name.Substring(0, 1) })
+        $letter = [char[]](68..90) | Where-Object -FilterScript { [string] $_ -notin $used } | Select-Object -Last 1
+        if (-not $letter) {
+            Set-ItResult -Skipped -Because 'every drive letter is in use'
+            return
+        }
+
+        $result = @(& $Command -Path $first -Destination "${letter}:\" -PassThru $true -ErrorVariable itemErrors -ErrorAction SilentlyContinue)
+
+        $itemErrors | Should -HaveCount 1
+        $itemErrors[0].FullyQualifiedErrorId | Should -BeLike "$ErrorId,*"
+        $itemErrors[0].CategoryInfo.Category | Should -Be 'InvalidData'
+        $itemErrors[0].TargetObject | Should -Be $first
+        $itemErrors[0].Exception | Should -BeOfType [System.IO.IOException]
+        $result | Should -BeNullOrEmpty
+        Get-Content -LiteralPath $first | Should -Be 'First'
+    }
 }
 
 Describe 'Move-Item2' {
@@ -763,6 +787,45 @@ Describe 'Copy-Item2' {
             Join-Path -Path $destination -ChildPath 'File.txt' | Should -Exist
             Join-Path -Path $destination -ChildPath 'Subfolder\Other.txt' | Should -Exist
         }
+    }
+}
+
+Describe 'Relative paths' {
+    BeforeAll {
+        $parent = New-TestSandboxItem -Sandbox $sandbox -Name 'RelativeParent' -Directory
+        $child = Join-Path -Path $parent -ChildPath 'Child'
+        $sibling = Join-Path -Path $parent -ChildPath 'Sibling'
+        $siblingFile = Join-Path -Path $sibling -ChildPath 'Sibling.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $child, $sibling, $siblingFile
+        New-Item -ItemType Directory -Path $child, $sibling | Out-Null
+        Set-Content -LiteralPath $siblingFile -Value 'Sibling'
+    }
+
+    It 'Get-Item2 should resolve <Path> against the current location' -ForEach @(
+        @{ Path = '.'; Expected = 'Child' }
+        @{ Path = '.\'; Expected = 'Child' }
+        @{ Path = '..'; Expected = 'Parent' }
+        @{ Path = '..\Sibling'; Expected = 'Sibling' }
+        @{ Path = '..\Sibling\Sibling.txt'; Expected = 'SiblingFile' }
+        @{ Path = '..\..'; Expected = 'Grandparent' }
+    ) {
+        $expectedPath = switch ($Expected) {
+            'Child' { $child }
+            'Parent' { $parent }
+            'Sibling' { $sibling }
+            'SiblingFile' { $siblingFile }
+            'Grandparent' { Split-Path -Path $parent -Parent }
+        }
+        Push-Location -LiteralPath $child
+        try {
+            $result = @(Get-Item2 -Path $Path -ErrorAction Stop)
+        }
+        finally {
+            Pop-Location
+        }
+
+        $result | Should -HaveCount 1
+        $result[0].FullName.TrimEnd('\') | Should -Be $expectedPath
     }
 }
 
