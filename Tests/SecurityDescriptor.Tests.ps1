@@ -263,6 +263,24 @@ Describe 'Set-NTFSSecurityDescriptor' {
             @(Get-EveryoneRule -Path $file) | Should -HaveCount 1
             (Get-Acl -LiteralPath $file).GetOwner($sidType).Value | Should -Be $currentUser
         }
+
+        # The user can set a group of its access token back as the owner without the Restore privilege, such as the group
+        # Administrators of an elevated session, so the cmdlet restores the owner and reports nothing.
+        It 'Should set a previous owner back that the user can assign after the write that took ownership' -Skip:(-not $canAssignAnyOwner) {
+            $administrators = 'S-1-5-32-544'
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'RetryRestored'
+            Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ $currentUser = 'ChangePermissions' }
+            Set-TestOwner -Sandbox $sandbox -Path $file -Sid $administrators
+            Get-RestorePrivilegeState | Should -Be 'Disabled'
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+            Add-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData
+
+            Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorVariable setErrors -ErrorAction SilentlyContinue
+
+            $setErrors | Should -BeNullOrEmpty
+            @(Get-EveryoneRule -Path $file) | Should -HaveCount 1
+            (Get-Acl -LiteralPath $file).GetOwner($sidType).Value | Should -Be $administrators
+        }
     }
 
     Context 'A descriptor that cannot be written' {
