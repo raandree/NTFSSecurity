@@ -856,6 +856,24 @@ Describe 'Security descriptor parameter sets' {
             Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }
         $rule.InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags]::None)
     }
+
+    # A deny entry has no Synchronize right to add or remove, unlike an allow entry.
+    It 'Remove-NTFSAccess should remove a deny entry from the descriptor and leave the item unchanged' {
+        $item = New-TestSandboxItem -Sandbox $sandbox -Name 'DenyInMemory'
+        $sd = Get-NTFSSecurityDescriptor -Path $item
+        Add-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData -AccessType Deny
+        $entries = @($sd.SecurityDescriptor.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
+        $entries | Should -HaveCount 1
+        $entries[0].AccessControlType | Should -Be 'Deny'
+
+        Remove-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData -AccessType Deny -ErrorAction Stop
+
+        @($sd.SecurityDescriptor.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) | Should -BeNullOrEmpty
+        @((Get-Acl -LiteralPath $item).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) | Should -BeNullOrEmpty
+    }
 }
 
 Describe 'Clear-NTFSAccess' {

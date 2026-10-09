@@ -265,12 +265,13 @@ Describe 'Set-NTFSSecurityDescriptor' {
         }
 
         # The user can set a group of its access token back as the owner without the Restore privilege, such as the group
-        # Administrators of an elevated session, so the cmdlet restores the owner and reports nothing.
+        # Administrators of an elevated session, so the cmdlet restores the owner and reports nothing. A deny entry for
+        # OWNER RIGHTS stops the first write, also for the owner; taking ownership drops that entry.
         It 'Should set a previous owner back that the user can assign after the write that took ownership' -Skip:(-not $canAssignAnyOwner) {
             $administrators = 'S-1-5-32-544'
             $file = New-TestSandboxItem -Sandbox $sandbox -Name 'RetryRestored'
-            Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ $currentUser = 'ChangePermissions' }
             Set-TestOwner -Sandbox $sandbox -Path $file -Sid $administrators
+            Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ 'S-1-3-4' = 'ChangePermissions' }
             Get-RestorePrivilegeState | Should -Be 'Disabled'
             $sd = Get-NTFSSecurityDescriptor -Path $file
             Add-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData
