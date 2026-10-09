@@ -22,7 +22,8 @@ without a lab they skip every test.
 | 9 | Delegate, Admin | `Get-NTFSSimpleAccess` compares a share folder with its parent. For the accounts of another domain and of other forests, `Get-NTFSAccess` returns their names, `Get-NTFSOrphanedAccess` doesn't report them, `Add-NTFSAccess` and `Remove-NTFSAccess` find them by name, and `Get-NTFSEffectiveAccess -ServerName` returns the rights that the file server's own token of each account gets. |
 | Long paths | Admin | `Get-ChildItem2` and `Get-NTFSAccess` with a share path longer than 260 characters. |
 | [#108][issue-108] | Admin | `Copy-Item2` and `Move-Item2` with `-WhatIf` onto an existing file on the share write no error. |
-| State | Server | After the runs on the client, the file server checks the owners, the audit entries, the items, the links, and the entries of the foreign accounts itself, without the module. |
+| 10 | Delegate, ServerAdmin, Admin | The behavior that the quality-gate fixes before 5.0.0 changed, and that the lab can observe. The delegated account, which owns the items it creates, clears and protects the DACL of an item whose OWNER RIGHTS entry denies it the right to change the DACL, and the cmdlets report no `RestoreOwnerError` for the unchanged owner. `InheritedFrom` names an `unknown parent` for entries that Windows can't resolve, for a deleted file and below a folder whose permissions the account can't read, and no source for an explicit entry. A later command that stops the pipeline with `Select-Object -First 1` or throws leaves the second item of `Remove-Item2`, `Copy-Item2`, `Move-Item2`, `Set-NTFSOwner`, and `Set-NTFSSecurityDescriptor` as it was, also at a verbose message, and `Get-ChildItem2` passes on what a later command throws for the error of a folder it can't read. `Get-ChildItem2 -Filter` finds a name with brackets and returns every item for `*.*`. The privileges that the cmdlets enable are disabled again when a later command stops the pipeline or throws at a debug message. |
+| State | Server | After the runs on the client, the file server checks the owners, the audit entries, the items, the links, the entries of the foreign accounts, and which items a later command changed, itself, without the module. |
 
 Case 1 uses two kinds of folders. Before 5.0.0-rc3, the cmdlets wrote back the
 owner that Windows returns with a DACL without the auto-inherit flag, and the
@@ -122,7 +123,10 @@ A version before 5.0.0-rc3 fails case 1 with error 1307, a version before
 test of case 3 with a computer that can't be reached: it returned no access
 instead of the result of the client. A version before 5.0.0-rc6 fails two
 tests of case 8: `Get-NTFSHardLink` and `New-NTFSHardLink -PassThru` stopped
-on the share with the terminating error (50).
+on the share with the terminating error (50). A build without the fixes of the
+quality gate before 5.0.0 fails case 10 and the matching test of the State
+role: 74 of the 244 tests of each edition (see the
+[record of that run](Acceptance-2026-10-09-quality-gate-paths.md)).
 
 ## Acceptance of a release candidate
 
@@ -142,10 +146,11 @@ and record the evidence in this folder:
    share, folders, group memberships, and profiles are gone.
 
 Records: [5.0.0-rc6](Acceptance-2026-10-08-5.0.0-rc6.md),
-[5.0.0-rc7](Acceptance-2026-10-08-5.0.0-rc7.md), and
-[quality-gate follow-up](Acceptance-2026-10-09-quality-gate.md). The review
-of the code that no unit test visits, with the fixes that the lab has to
-repeat, is in
+[5.0.0-rc7](Acceptance-2026-10-08-5.0.0-rc7.md),
+[quality-gate follow-up](Acceptance-2026-10-09-quality-gate.md), and
+[quality-gate paths follow-up](Acceptance-2026-10-09-quality-gate-paths.md).
+The review of the code that no unit test visits, with the fixes that the lab
+has to repeat, is in
 [Tests/Coverage](../Coverage/Quality-Gate-Paths-2026-10-09.md).
 
 ## Files

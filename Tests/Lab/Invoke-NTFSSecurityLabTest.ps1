@@ -723,6 +723,27 @@ $fixtureScript = {
         }
     )
 
+    # Case 10: the behavior that the fixes of the quality gate before 5.0.0 changed. The tests create their items below the
+    # folder of their role, which the delegated group fully controls. Administrators own the folder Locked, whose
+    # permissions the delegated account denies itself, and the files that Set-NTFSOwner changes: a file that the account
+    # created would be owned by the account already.
+    $null = New-FixtureFolder -RelativePath 'Case10' -AccessRule $delegatesFullControl
+    $null = New-FixtureFolder -RelativePath 'Case10\Locked'
+    foreach ($role in 'Admin', 'ServerAdmin', 'Delegate') {
+        foreach ($style in 'Select', 'Throw') {
+            foreach ($ownerFolder in "SetOwner-$style", "SetOwner-Debug$style") {
+                $ownerPath = New-FixtureFolder -RelativePath "Case10\$role\LaterCommand\$ownerFolder"
+                foreach ($name in 'First', 'Second') {
+                    $file = Join-Path -Path $ownerPath -ChildPath "$name.txt"
+                    Set-Content -LiteralPath $file -Value $name -NoNewline
+                    if ((Get-LabSecurityDescriptor -Path $file).Owner.Value -ne 'S-1-5-32-544') {
+                        throw "Administrators don't own '$file'."
+                    }
+                }
+            }
+        }
+    }
+
     # The rights that the file server's own token of each foreign account gets on the folder, like case 3. A token
     # that the file server can't create is reported as -1, which fails only the effective-access test of the account.
     $foreignDescriptor = Get-LabSecurityDescriptor -Path $foreignPath
