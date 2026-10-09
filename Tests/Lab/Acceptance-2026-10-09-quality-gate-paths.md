@@ -31,10 +31,16 @@ is a control.
   of its commit, packaged by `.github/scripts/New-ModulePackage.ps1`. Both
   carry the label `5.0.0-rc7` and one assembly version, so every run used a
   new process. All 11 files of each tested module folder equal the extracted
-  `NTFSSecurity.zip` byte for byte (SHA-256).
+  `NTFSSecurity.zip` byte for byte (SHA-256). The first packaging attempt, at
+  20:41 UTC, stopped in both builds at the check of the build script that
+  compares the package folder with the extracted zip ("The extracted ZIP
+  differs from the module folder"); the logs of that attempt are kept. I
+  changed the script (20:43) and built both again; the files that the lab
+  tested are those of the second attempt, and the cause of the first
+  mismatch wasn't recorded.
 - Test source, identical in both runs (last written 20:56 and 20:54 UTC,
-  before the first run started): `NTFSSecurity.Live.Tests.ps1` (Git blob
-  `67b85efeb45af67070538f241c203c4afa38b6f4`) and
+  before the candidate run started at 21:02): `NTFSSecurity.Live.Tests.ps1`
+  (Git blob `67b85efeb45af67070538f241c203c4afa38b6f4`) and
   `Invoke-NTFSSecurityLabTest.ps1` (blob
   `0b46427bc32b0b15449e283a2a6cf67879937541`). Both are in the commit that
   adds this record.
@@ -54,7 +60,7 @@ Administrators own for the cases of `Set-NTFSOwner`.
 | InheritedFrom of audit entries that Windows cannot resolve (ServerAdmin, Admin) | 2 | 2 | 0 | `2909a1c` |
 | InheritedFrom of an item below a folder whose permissions the account cannot read (Delegate) | 2 | 1 | 0 | `2909a1c` |
 | A later command that ends the pipeline or throws, for the item cmdlets (3 roles; 16 each) | 48 | 48 | 0 | `c77ecbf`, `40bf6a8` |
-| A later command and the error of a folder that Get-ChildItem2 cannot read (Delegate) | 3 | 2 | 0 | `d44a200` |
+| A later command and the error of a folder that Get-ChildItem2 cannot read (Delegate) | 3 | 2 | 0 | `c77ecbf` (break), `d44a200` (throw) |
 | Get-ChildItem2 -Filter (3 roles; brackets, `*.*`, null) | 9 | 9 | 0 | `ee7c105`, `40bf6a8`, `ae3078f` |
 | Privileges when a later command takes the debug messages (Delegate, Admin) | 6 | 4 | 0 | `d44a200` |
 | State of the file server: only the first item changed (Server; one per role) | 3 | 3 | 0 | `c77ecbf`, `40bf6a8` |
@@ -85,15 +91,18 @@ check covers.
 `WindowsAccessControlLab`: F1ADC1, F1BDC1, F2DC1, F3DC1, F1AFile1 (client),
 and F1AFile2 (file server), all Windows Server 2025 (10.0.26100). At
 20:41 UTC, authenticated WinRM, LDAP RootDSE, Kerberos tickets, member secure
-channels, and clocks (skew at most 7 s) passed on all six machines. No
-`NTFSSecurityLive` OU or `NtfsLive*` account existed before the run. No VM,
-operating system, or network changed, and no other session or controller
-process used the lab.
+channels, and clocks (skew at most 7 s) passed on all six machines. At 20:43
+UTC, before the first test run, no `NTFSSecurityLive` OU or `NtfsLive*`
+account existed. The runs changed no VM, operating system, or network
+setting. A process listing at the start showed no other controller of these
+tests on the host; it wasn't kept as a log.
 
 Six checkpoints named `ntfs-qg-paths-83149ee-before-acceptance` were taken
-at 20:45 to 20:46 UTC, one per machine. The policy of each machine is
-Production, but Hyper-V reports the type Standard. As before, Production
-classification is unverified, and no checkpoint was restored.
+at 20:45 to 20:46 UTC, one per machine; the Hyper-V listing that shows the
+names is kept with the evidence. The policy of each machine is Production,
+but Hyper-V reports the type Standard. As before, Production classification
+is unverified, and no checkpoint was restored or deleted. Every machine now
+carries seven checkpoints of the acceptances since 2026-10-08, F1AFile1 eight.
 
 ## Live results
 
@@ -117,27 +126,61 @@ the test that needs the module in the Server role, which doesn't import it.
 Baseline, both editions: 338 passed, 148 failed, two skipped. Every role
 exited 0 on the candidate. A joined verification of the result files (not of
 the counts) found the same 488 tests in both builds, no duplicate, and every
-one of the 148 baseline failures passed on the candidate. All 148 failures are
-among the 156 tests of case 10 and the state test, which
-[the results file](Acceptance-2026-10-09-quality-gate-paths-Results.csv)
-lists with both results and the first line of the baseline message.
+one of the 148 baseline failures passed on the candidate. The 148 failures
+are 74 tests in each edition, all among the 78 new tests of each edition
+(case 10 and the state test); the four that pass on both builds are
+preconditions. [The results file](Acceptance-2026-10-09-quality-gate-paths-Results.csv)
+lists the 156 results (78 tests in two editions) with both outcomes and the
+first line of the baseline message.
 
 What the baseline shows, from its messages:
 
 - Owner: `RestoreOwnerError ... (5) Access is denied` for the unchanged owner.
 - `InheritedFrom`: a text of 13 characters instead of the 14 of
   `unknown parent`.
-- Later command: the second item changed after `Select-Object -First 1`; the
-  `Downstream failure` of a `throw` never reached the caller; and a `break`
-  of a later command didn't leave the caller's loop.
+- Later command: the `Downstream failure` of a `throw` never reached the
+  caller (the messages read `Expected like wildcard '*Downstream failure*' to
+  match $null`), and a `break` of a later command didn't leave the caller's
+  loop. For `Select-Object -First 1`, see the next section.
 - `-Filter`: no result for a name with brackets; `*.*` returned only the
   three names with a dot and dropped `NoExtension` and `NoExtensionFolder`;
   `$null` gave `ArgumentNull` instead of the parameter validation error.
 - Privileges: `TakeOwnership` still enabled after the pipeline stopped.
 
-The 21 `Select-Object -First 1` tests per edition carry no message on the
-baseline and no line in the Pester log. The State test shows independently
-that the baseline changed the second item for each role.
+### Baseline failures without a message
+
+Seven tests of each role, 21 per edition and 42 in all, fail on the baseline
+with an empty message, and Pester prints no line for them: `Select-Object
+-First 1` for the five item cmdlets, the verbose stop of
+`Set-NTFSSecurityDescriptor`, and the debug stop of `Set-NTFSOwner`. This lab
+run doesn't show what the baseline did in them. The State test of the Server
+role shows it only for `Remove-Item2`: in each role, the second item was
+removed after `Select-Object -First 1`. That test stops at its first failed
+assertion, so it says nothing about the other cmdlets, and its assertions for
+the debug and verbose stops check only that the second item is as it was,
+which is also true when the client test never ran.
+
+To close the gap, the bodies of these tests ran afterwards on this host, in a
+sandbox below TEMP, with the settings of the runner (Pester 5.7.1,
+`ErrorActionPreference` Stop), one build in one edition per process
+(`Acceptance\Probe-LaterCommand.ps1`; it isn't part of the acceptance, and
+it didn't run on a share). The result is the same in Windows PowerShell 5.1
+and PowerShell 7:
+
+| Cmdlet | Baseline `f11ff41`, after `Select-Object -First 1` and after `throw` | Candidate `83149ee` |
+| --- | --- | --- |
+| `Remove-Item2` | both items removed | the second item stays |
+| `Copy-Item2` | both items copied | only the first is copied |
+| `Move-Item2` | both items moved | the second item stays |
+| `Set-NTFSOwner` | both owners changed, also at the debug stop | the second owner stays Administrators |
+| `Set-NTFSSecurityDescriptor` | both descriptors written | only the first is written |
+
+All 12 tests of the probe (seven stop rows, five `throw` rows) fail on the
+baseline, the seven stop rows with no error record, as in the lab, and the
+`throw` rows with the message of the lab; all 12 pass on the candidate. At the
+verbose stop of `Set-NTFSSecurityDescriptor`, neither build writes a
+descriptor, because the stop comes before the first write, so that failure on
+the baseline isn't a change of state.
 
 ## Cleanup and review
 
@@ -151,6 +194,26 @@ F1AFile2 no share, no `C:\NTFSSecurityLive` or `C:\NTFSSecurityLab`, no
 `NtfsLiveLocal` group, no fixture member of Administrators, Access Control
 Assistance Operators, or Remote Management Users, and no profile of the ten
 SIDs. No checkpoint was restored.
+
+One independent, read-only, static review of the finished change (tests,
+fixture, README, this record and its results file, and Decision 22) ran
+before the first commit. The custom `security-reviewer` can't start because
+its configured model is unavailable, so the built-in code-review agent did
+it. Verdict: approve with Minor; no Blocker and no Major. It confirmed that
+the new tests can't pass vacuously (every precondition is asserted, the data
+rows are not empty, nothing is shared between rows), that the fixture stays
+below the guarded folders and throws when Administrators don't own the
+files, and that the counts, the hashes, the 156 results, and the cleanup
+facts of this record match the evidence. Its findings, all corrected in the
+commit that follows the first: the fix that this record credited for the
+`break` row, the claims about the State test and the 42 messageless
+failures (now the section above, with the diagnostic), this heading, the
+count of results, the wording about the folders before the run, the
+truncated messages in the results file, the README row of case 10, and the
+migration hint of item 8 and the comparison with `Copy-Item` in Decision 22.
+It could not run anything, so the run state and the lab-wide claims rest on
+the logs; the diagnostic above and the checkpoint listing close two of its
+open points.
 
 ## Limits
 
@@ -166,11 +229,23 @@ SIDs. No checkpoint was restored.
   other gates. The stable version remains 4.2.6.
 - The candidate and the baseline differ only by the 28 commits; the test and
   controller files are the same.
+- What the baseline did in the 42 failures without a message is shown by a
+  local diagnostic, not by this lab run. A State test split per cmdlet and
+  stop style would show it on the share too, and would need both lab runs
+  again.
 
 ## Evidence
 
 The result files, logs, hashes, readiness, checkpoint, snapshot, and cleanup
 logs of both runs are in the session artifact
-`4b12e2f4-d4c7-4a5d-883a-ddb7421c4848\files\lab-qg-paths` (local, not in Git).
-The per-test results of case 10 are in
-[the results file](Acceptance-2026-10-09-quality-gate-paths-Results.csv).
+`4b12e2f4-d4c7-4a5d-883a-ddb7421c4848\files\lab-qg-paths` (local, not in Git);
+so are the Hyper-V listing of the checkpoint names
+(`checkpoints-83149ee-names.csv`) and the outputs of the diagnostic
+(`runs\diagnostic-mute`, and `runs\diagnostic-mute-first-run` from before the
+probe listed owners and entries). The per-test results of case 10 are in
+[the results file](Acceptance-2026-10-09-quality-gate-paths-Results.csv). The
+scripts that build, package, run, and clean up in this acceptance contain
+paths of the session folder and stay in the session artifact; the generic
+ones that it used, `Validate-LabResults.ps1` (the check of the result files)
+and `Probe-LaterCommand.ps1` (the diagnostic), are in the folder
+[Acceptance](Acceptance).
