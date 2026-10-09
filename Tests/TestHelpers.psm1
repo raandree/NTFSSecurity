@@ -341,6 +341,58 @@ function Set-TestOwner {
     }
 }
 
+function Set-TestNullDacl {
+    <#
+    .SYNOPSIS
+        Replaces the DACL of an item in the sandbox with a NULL DACL, which gives everyone every access.
+    .DESCRIPTION
+        Neither Set-Acl nor icacls can write a NULL DACL, so the helper calls SetNamedSecurityInfo. The DACL is
+        protected, so the item inherits no entries. Everyone can delete the item, so Remove-TestSandbox removes it.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+        'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only writes to sandboxes.'
+    )]
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [string]
+        $Sandbox,
+
+        [Parameter(Mandatory)]
+        [string]
+        $Path
+    )
+
+    Assert-TestSandboxPath -Sandbox $Sandbox -Path $Path
+    if (-not ('NtfsSecurityTests.NativeAcl' -as [type])) {
+        Add-Type -TypeDefinition @'
+namespace NtfsSecurityTests
+{
+    public static class NativeAcl
+    {
+        [System.Runtime.InteropServices.DllImport("advapi32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern uint SetNamedSecurityInfoW(string objectName, int objectType, uint securityInfo,
+            System.IntPtr owner, System.IntPtr group, System.IntPtr dacl, System.IntPtr sacl);
+
+        // SE_FILE_OBJECT, with DACL_SECURITY_INFORMATION and PROTECTED_DACL_SECURITY_INFORMATION and no DACL
+        public static uint SetNullDacl(string path)
+        {
+            return SetNamedSecurityInfoW(path, 1, 0x00000004u | 0x80000000u,
+                System.IntPtr.Zero, System.IntPtr.Zero, System.IntPtr.Zero, System.IntPtr.Zero);
+        }
+    }
+}
+'@
+    }
+
+    $location = (Get-Location -PSProvider FileSystem).ProviderPath
+    $fullName = [IO.Path]::GetFullPath([IO.Path]::Combine($location, $Path))
+    $result = [NtfsSecurityTests.NativeAcl]::SetNullDacl($fullName)
+    if ($result -ne 0) {
+        throw "SetNamedSecurityInfo could not set a NULL DACL on '$fullName' (error $result)."
+    }
+}
+
 function Test-IsElevated {
     <#
     .SYNOPSIS
@@ -529,6 +581,6 @@ function Test-DriveMappingAvailable {
 }
 
 Export-ModuleMember -Function New-TestSandbox, Assert-TestSandboxPath, Remove-TestSandbox, New-TestSandboxItem,
-    Block-TestReadPermission, Block-TestWritePermission, Add-TestDenyRule, Set-TestOwner, Test-IsElevated,
+    Block-TestReadPermission, Block-TestWritePermission, Add-TestDenyRule, Set-TestOwner, Set-TestNullDacl, Test-IsElevated,
     Test-PrivilegeHeld, Test-AdminShareAvailable, ConvertTo-TestAdminSharePath, New-TestDriveMapping,
     Remove-TestDriveMapping, Test-DriveMappingAvailable

@@ -137,6 +137,28 @@ Describe 'Add-NTFSAudit' {
         }
     }
 
+    # .NET refuses to build an audit entry without rights. The cmdlet reports the exception for the item and goes on.
+    Context 'With -AccessRights None' -Skip:(-not $canReadAudit) {
+        It 'Should write an AddAceError for each item, change nothing, and return nothing with -PassThru' {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'AuditNoneFirst'
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'AuditNoneSecond'
+            $before = @((Get-Acl -LiteralPath $first -Audit).Sddl, (Get-Acl -LiteralPath $second -Audit).Sddl)
+
+            $result = @(Add-NTFSAudit -Path $first, $second -Account 'Everyone' -AccessRights None -AuditFlags Success -PassThru -ErrorVariable auditErrors -ErrorAction SilentlyContinue)
+
+            $result | Should -BeNullOrEmpty
+            $auditErrors | Should -HaveCount 2
+            for ($index = 0; $index -lt 2; $index++) {
+                $auditErrors[$index].FullyQualifiedErrorId | Should -BeLike 'AddAceError,*'
+                $auditErrors[$index].CategoryInfo.Category | Should -Be 'WriteError'
+                $auditErrors[$index].TargetObject | Should -BeExactly @($first, $second)[$index]
+                $auditErrors[$index].Exception | Should -BeOfType [System.ArgumentException]
+            }
+            (Get-Acl -LiteralPath $first -Audit).Sddl | Should -BeExactly $before[0]
+            (Get-Acl -LiteralPath $second -Audit).Sddl | Should -BeExactly $before[1]
+        }
+    }
+
     Context 'When the item has an owner that the user cannot assign' {
         BeforeAll {
             $privateData['EnablePrivileges'] = $false

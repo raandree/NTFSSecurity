@@ -257,6 +257,40 @@ Describe 'Test helpers' {
         }
     }
 
+    Context 'Set-TestNullDacl' {
+        BeforeAll {
+            $sandbox = New-TestSandbox -Name 'Helpers'
+        }
+
+        AfterAll {
+            Remove-TestSandbox -Sandbox $sandbox
+        }
+
+        It 'Should replace the DACL of an item in the sandbox with a protected NULL DACL' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'NullDacl'
+            $before = [System.Security.AccessControl.RawSecurityDescriptor]::new((Get-Acl -LiteralPath $file).GetSecurityDescriptorBinaryForm(), 0)
+            $before.ControlFlags.HasFlag([System.Security.AccessControl.ControlFlags]::DiscretionaryAclPresent) | Should -BeTrue
+
+            Set-TestNullDacl -Sandbox $sandbox -Path $file
+
+            $after = [System.Security.AccessControl.RawSecurityDescriptor]::new((Get-Acl -LiteralPath $file).GetSecurityDescriptorBinaryForm(), 0)
+            $after.ControlFlags.HasFlag([System.Security.AccessControl.ControlFlags]::DiscretionaryAclPresent) | Should -BeFalse
+            $after.ControlFlags.HasFlag([System.Security.AccessControl.ControlFlags]::DiscretionaryAclProtected) | Should -BeTrue
+        }
+
+        It 'Should refuse an item outside the sandbox' {
+            { Set-TestNullDacl -Sandbox $sandbox -Path "$sandbox-Other\File.txt" } |
+                Should -Throw -ExpectedMessage 'Refusing to change*'
+        }
+
+        It 'Should throw its own error when Windows refuses' {
+            $missing = Join-Path -Path $sandbox -ChildPath 'Missing.txt'
+
+            { Set-TestNullDacl -Sandbox $sandbox -Path $missing } |
+                Should -Throw -ExpectedMessage 'SetNamedSecurityInfo could not set a NULL DACL*'
+        }
+    }
+
     Context 'Test-IsElevated and Test-PrivilegeHeld' {
         It 'Should tell whether the process is elevated' {
             Test-IsElevated | Should -BeOfType [bool]

@@ -256,6 +256,24 @@ Describe 'Get-NTFSHardLink' {
         $linkErrors[0].TargetObject | Should -Be $sharePath
         $result.FullName | Should -Be $other
     }
+
+    # Windows lists the names of a file without opening it, so no deny entry stops the cmdlet. This is why a test cannot
+    # reach the handler for an UnauthorizedAccessException of the cmdlet.
+    It 'Should list the names of a file whose read rights are denied for its owner and for the user' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'ReadDenied'
+        $link = Join-Path -Path $sandbox -ChildPath 'ReadDeniedLink.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $link
+        New-NTFSHardLink -Path $link -Target $file -ErrorAction Stop
+        $readRights = 'ReadAttributes, ReadData, ReadPermissions'
+        $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ 'S-1-3-4' = $readRights; $currentUser = $readRights }
+        { Get-Content -LiteralPath $file -ErrorAction Stop } | Should -Throw
+
+        $result = @(Get-NTFSHardLink -Path $file -ErrorVariable linkErrors -ErrorAction SilentlyContinue)
+
+        $linkErrors | Should -BeNullOrEmpty
+        ($result.FullName | Sort-Object) -join '|' | Should -Be ((@($file, $link) | Sort-Object) -join '|')
+    }
 }
 
 Describe 'New-NTFSSymbolicLink' {

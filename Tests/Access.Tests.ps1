@@ -528,6 +528,29 @@ Describe 'Remove-NTFSAccess' {
         }
     }
 
+    # .NET refuses to build a deny entry without rights, also to find the entry to remove. The cmdlet reports the
+    # exception for the item and goes on.
+    Context 'With -AccessRights None for a deny entry' {
+        It 'Should write a RemoveAceError for each item, change nothing, and return nothing with -PassThru' {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveDenyNoneFirst'
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveDenyNoneSecond'
+            $before = @((Get-Acl -LiteralPath $first).Sddl, (Get-Acl -LiteralPath $second).Sddl)
+
+            $result = @(Remove-NTFSAccess -Path $first, $second -Account 'Everyone' -AccessRights None -AccessType Deny -PassThru -ErrorVariable removeErrors -ErrorAction SilentlyContinue)
+
+            $result | Should -BeNullOrEmpty
+            $removeErrors | Should -HaveCount 2
+            for ($index = 0; $index -lt 2; $index++) {
+                $removeErrors[$index].FullyQualifiedErrorId | Should -BeLike 'RemoveAceError,*'
+                $removeErrors[$index].CategoryInfo.Category | Should -Be 'WriteError'
+                $removeErrors[$index].TargetObject | Should -BeExactly @($first, $second)[$index]
+                $removeErrors[$index].Exception | Should -BeOfType [System.ArgumentException]
+            }
+            (Get-Acl -LiteralPath $first).Sddl | Should -BeExactly $before[0]
+            (Get-Acl -LiteralPath $second).Sddl | Should -BeExactly $before[1]
+        }
+    }
+
     Context 'When the item has an owner that the user cannot assign' {
         BeforeAll {
             $privateData['EnablePrivileges'] = $false
@@ -704,6 +727,28 @@ Describe 'Add-NTFSAccess' {
             $addErrors | Should -HaveCount 1
             $addErrors[0].FullyQualifiedErrorId | Should -BeLike 'AddAceError,*'
             $result | Should -BeNullOrEmpty
+        }
+    }
+
+    # .NET refuses to build a deny entry without rights. The cmdlet reports the exception for the item and goes on.
+    Context 'With -AccessRights None for a deny entry' {
+        It 'Should write an AddAceError for each item, change nothing, and return nothing with -PassThru' {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'DenyNoneFirst'
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'DenyNoneSecond'
+            $before = @((Get-Acl -LiteralPath $first).Sddl, (Get-Acl -LiteralPath $second).Sddl)
+
+            $result = @(Add-NTFSAccess -Path $first, $second -Account 'Everyone' -AccessRights None -AccessType Deny -PassThru -ErrorVariable addErrors -ErrorAction SilentlyContinue)
+
+            $result | Should -BeNullOrEmpty
+            $addErrors | Should -HaveCount 2
+            for ($index = 0; $index -lt 2; $index++) {
+                $addErrors[$index].FullyQualifiedErrorId | Should -BeLike 'AddAceError,*'
+                $addErrors[$index].CategoryInfo.Category | Should -Be 'WriteError'
+                $addErrors[$index].TargetObject | Should -BeExactly @($first, $second)[$index]
+                $addErrors[$index].Exception | Should -BeOfType [System.ArgumentException]
+            }
+            (Get-Acl -LiteralPath $first).Sddl | Should -BeExactly $before[0]
+            (Get-Acl -LiteralPath $second).Sddl | Should -BeExactly $before[1]
         }
     }
 
@@ -1056,6 +1101,21 @@ Describe 'InheritedFrom of access entries' {
         foreach ($entry in @($result | Where-Object -FilterScript { $_.IsInherited })) {
             $entry.InheritedFrom | Should -Be $expectedSource["$($entry.Account.Sid)"]
         }
+    }
+
+    # A NULL DACL gives everyone every access. It has no entries, so Windows names no source, and .NET reports one
+    # entry for Everyone nevertheless. The sources are looked up by the index of an entry, which this entry exceeds.
+    It 'Should return the one entry that .NET reports for a NULL DACL, without a source' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritedFromNullDacl'
+        Set-TestNullDacl -Sandbox $sandbox -Path $file
+        $privateData['GetInheritedFrom'] | Should -BeTrue
+
+        $entries = @(Get-NTFSAccess -Path $file -ErrorAction Stop)
+
+        $entries | Should -HaveCount 1
+        "$($entries[0].Account.Sid)" | Should -Be 'S-1-1-0'
+        $entries[0].IsInherited | Should -BeFalse
+        $entries[0].InheritedFrom | Should -BeNullOrEmpty
     }
 }
 Describe 'Get-NTFSEffectiveAccess for an unresolved identity' {

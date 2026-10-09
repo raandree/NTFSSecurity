@@ -808,3 +808,96 @@ Describe 'Generic access rights and identity errors' {
         $failure.Exception.InnerException | Should -BeOfType $Expected
     }
 }
+
+# The helpers of the cmdlets are public extension methods, so a script can call them. The cmdlets pass what the guards
+# of ForEach refuse and a parent that is a folder, never a file; the generic method is invoked through reflection,
+# because Windows PowerShell can't name the type argument of a call.
+Describe 'The extension methods of the cmdlets' {
+    BeforeAll {
+        $forEachMethod = [NTFSSecurity.Extensions].GetMethod('ForEach').MakeGenericMethod([string])
+
+        function New-ItemObject {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only creates an object.'
+            )]
+            param ([string] $Library, [string] $Path)
+
+            if ($Library -eq 'AlphaFS') {
+                [Alphaleonis.Win32.Filesystem.FileInfo]::new($Path)
+            }
+            else {
+                [System.IO.FileInfo]::new($Path)
+            }
+        }
+    }
+
+    It 'ForEach should reject <Case>' -ForEach @(
+        @{ Case = 'a source that is null'; NullSource = $true }
+        @{ Case = 'an action that is null'; NullSource = $false }
+    ) {
+        $arguments = [object[]]::new(2)
+        if ($NullSource) {
+            $arguments[1] = [System.Action[string]] { param ($Element) $null = $Element }
+        }
+        else {
+            $arguments[0] = [string[]] @('One')
+        }
+
+        $failure = { $forEachMethod.Invoke($null, $arguments) } | Should -Throw -PassThru
+
+        # Reflection wraps the exception of the method, and PowerShell wraps that in turn.
+        $failure.Exception.GetBaseException() | Should -BeOfType [System.ArgumentException]
+    }
+
+    It 'ForEach should run the action for each element in order' {
+        $seen = New-Object -TypeName 'System.Collections.Generic.List[string]'
+        $arguments = [object[]]::new(2)
+        $arguments[0] = [string[]] @('One', 'Two', 'Three')
+        $arguments[1] = [System.Action[string]] { param ($Element) $seen.Add($Element) }
+
+        $forEachMethod.Invoke($null, $arguments) | Out-Null
+
+        $seen -join ',' | Should -BeExactly 'One,Two,Three'
+    }
+
+    Context 'GetParent' {
+        BeforeAll {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ParentFolder' -Directory
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'ParentFile'
+            $inFolder = Join-Path -Path $folder -ChildPath 'Child.txt'
+            $belowFile = Join-Path -Path $file -ChildPath 'Child.txt'
+            $belowMissing = Join-Path -Path $sandbox -ChildPath 'Missing\Child.txt'
+        }
+
+        It 'Should return a folder as a DirectoryInfo of <Library>' -ForEach @(
+            @{ Library = 'AlphaFS'; TypeName = 'Alphaleonis.Win32.Filesystem.DirectoryInfo' }
+            @{ Library = 'System.IO'; TypeName = 'System.IO.DirectoryInfo' }
+        ) {
+            $parent = [NTFSSecurity.Extensions]::GetParent((New-ItemObject -Library $Library -Path $inFolder))
+
+            $parent.GetType().FullName | Should -BeExactly $TypeName
+            $parent.FullName | Should -BeExactly $folder
+        }
+
+        # A FileInfo can name a path below a file, which no file system holds, so the parent path names a file.
+        It 'Should return a parent path that names a file as a FileInfo of <Library>' -ForEach @(
+            @{ Library = 'AlphaFS'; TypeName = 'Alphaleonis.Win32.Filesystem.FileInfo' }
+            @{ Library = 'System.IO'; TypeName = 'System.IO.FileInfo' }
+        ) {
+            $parent = [NTFSSecurity.Extensions]::GetParent((New-ItemObject -Library $Library -Path $belowFile))
+
+            $parent.GetType().FullName | Should -BeExactly $TypeName
+            $parent.FullName | Should -BeExactly $file
+        }
+
+        It 'Should throw a FileNotFoundException for a parent that does not exist, for <Library>' -ForEach @(
+            @{ Library = 'AlphaFS' }
+            @{ Library = 'System.IO' }
+        ) {
+            $failure = { [NTFSSecurity.Extensions]::GetParent((New-ItemObject -Library $Library -Path $belowMissing)) } |
+                Should -Throw -PassThru
+
+            $failure.Exception.GetBaseException() | Should -BeOfType [System.IO.FileNotFoundException]
+        }
+    }
+}
