@@ -395,6 +395,35 @@ Describe 'Access rule helpers that take a path' {
         @(Get-ExplicitEntries -Path $path -Account 'S-1-5-32-545') | Should -HaveCount 1
     }
 
+    It 'Should add and remove a deny entry by its path without adding Synchronize' {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'DenyByPath'
+        $deny = [System.Security.AccessControl.AccessControlType]::Deny
+
+        [void] [Security2.FileSystemAccessRule2]::AddFileSystemAccessRule(
+            $path, $identity, [Security2.FileSystemRights2]::ReadData, $deny, $noInheritance, $noPropagation
+        )
+
+        $entries = @(Get-ExplicitEntries -Path $path)
+        $entries | Should -HaveCount 1
+        $entries[0].AccessControlType | Should -Be 'Deny'
+        $entries[0].FileSystemRights | Should -Be ([System.Security.AccessControl.FileSystemRights]::ReadData)
+
+        [Security2.FileSystemAccessRule2]::RemoveFileSystemAccessRule(
+            $path, $identity, [Security2.FileSystemRights2]::ReadData, $deny, $noInheritance, $noPropagation
+        )
+
+        @(Get-ExplicitEntries -Path $path) | Should -BeNullOrEmpty
+    }
+
+    It 'Should return no entries for an empty DACL when the sources of inherited entries are requested' {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'EmptyDacl'
+        Clear-NTFSAccess -Path $path -DisableInheritance -ErrorAction Stop
+
+        $rules = @([Security2.FileSystemAccessRule2]::GetFileSystemAccessRules($path, $true, $true, $true))
+
+        $rules | Should -BeNullOrEmpty
+    }
+
     It 'Should add the entry of a rule that carries its path' {
         $path = New-TestSandboxItem -Sandbox $sandbox -Name 'AddRule'
         $raw = New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (

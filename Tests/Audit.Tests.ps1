@@ -511,7 +511,29 @@ Describe 'InheritedFrom of audit entries' {
         $inherited | Should -HaveCount 1
         $inherited[0].InheritedFrom | Should -Be $folder
     }
+
+    # The module setting GetInheritedFrom turns off the lookup of the sources, which costs a call for each item.
+    It 'Should leave InheritedFrom empty when the module setting GetInheritedFrom is off' -Skip:(-not $canReadAudit) {
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritedFromOff' -Directory
+        Add-NTFSAudit -Path $folder -Account 'S-1-1-0' -AccessRights ReadData -InheritanceFlags 'ContainerInherit, ObjectInherit' -PropagationFlags None
+        $file = Join-Path -Path $folder -ChildPath 'File.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+        Set-Content -LiteralPath $file -Value 'File'
+        $saved = $privateData['GetInheritedFrom']
+        $privateData['GetInheritedFrom'] = $false
+        try {
+            $result = @(Get-NTFSAudit -Path $file -ErrorAction Stop)
+        }
+        finally {
+            $privateData['GetInheritedFrom'] = $saved
+        }
+
+        $inherited = @($result | Where-Object -FilterScript { $_.IsInherited })
+        $inherited | Should -HaveCount 1
+        $inherited[0].InheritedFrom | Should -BeNullOrEmpty
+    }
 }
+
 Describe 'Audit changes with the Security privilege disabled' {
     BeforeAll {
         $holdsSecurityForOperations = Test-PrivilegeHeld -Name 'SeSecurityPrivilege'

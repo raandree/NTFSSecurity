@@ -953,6 +953,22 @@ Describe 'InheritedFrom of access entries' {
         $inherited[0].InheritedFrom | Should -Be $parent
     }
 
+    # The module setting GetInheritedFrom turns off the lookup of the sources, which costs a call for each item.
+    It 'Should leave InheritedFrom empty when the module setting GetInheritedFrom is off' {
+        $saved = $privateData['GetInheritedFrom']
+        $privateData['GetInheritedFrom'] = $false
+        try {
+            $result = @(Get-NTFSAccess -Path $inheritedFromFile -ErrorAction Stop)
+        }
+        finally {
+            $privateData['GetInheritedFrom'] = $saved
+        }
+
+        $inherited = @($result | Where-Object -FilterScript { $_.IsInherited })
+        $inherited | Should -Not -BeNullOrEmpty
+        $inherited | ForEach-Object -Process { $_.InheritedFrom | Should -BeNullOrEmpty }
+    }
+
     It 'Should read a security descriptor with audit entries and name the same folders' -Skip:(-not $holdsSecurityPrivilege) {
         $file = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritedFromAudit'
         Add-NTFSAccess -Path $file -Account 'S-1-1-0' -AccessRights ReadData
