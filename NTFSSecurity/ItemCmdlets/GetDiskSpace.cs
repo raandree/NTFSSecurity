@@ -1,4 +1,5 @@
 ﻿using Alphaleonis.Win32.Filesystem;
+using System;
 using System.Linq;
 using System.Management.Automation;
 
@@ -43,8 +44,13 @@ namespace NTFSSecurity
                         this.WriteObject(diskSpaceInfo);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    if (PipelineControl.IsEnd(ex))
+                    {
+                        throw;
+                    }
+
                     this.WriteWarning(string.Format("Could not get drive details for '{0}'", letter));
                 }
             }

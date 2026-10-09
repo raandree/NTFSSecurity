@@ -123,6 +123,13 @@ The format is based on
   after it was read or a folder above it that the user cannot read: the text
   read `unknown paren`, and the explicit entries showed it as well. An
   inherited entry now shows `unknown parent`, and an explicit entry no source
+- Fix `Remove-Item2`, `Copy-Item2`, `Move-Item2`, `Set-NTFSOwner`,
+  `Set-NTFSSecurityDescriptor`, `Get-NTFSSecurityDescriptor`,
+  `Get-NTFSSimpleAccess`, `Get-DiskSpace`, and `Get-ChildItem2` below the
+  first folder, which went on with the next item when a later command ended
+  the pipeline: a `break` or `continue` or `Select-Object -First` became an
+  error of the item, so that `Remove-Item2 -PassThru | Select-Object -First 1`
+  removed every item. They now stop and write no error
 - Fix `Get-Help`, which showed only the syntax: ship the help file
   `en-US\NTFSSecurity.dll-Help.xml` generated from the cmdlet documentation,
   including the links that `Get-Help -Online` opens, instead of the outdated

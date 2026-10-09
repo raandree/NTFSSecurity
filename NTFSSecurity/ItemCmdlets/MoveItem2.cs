@@ -160,6 +160,11 @@ namespace NTFSSecurity
                 }
                 catch (Exception ex)
                 {
+                    if (PipelineControl.IsEnd(ex))
+                    {
+                        throw;
+                    }
+
                     WriteError(new ErrorRecord(ex, "MoveError", ErrorCategory.NotSpecified, resolvedPath));
                 }
             }

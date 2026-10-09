@@ -64,12 +64,22 @@ namespace NTFSSecurity
                     }
                     catch (Exception ex2)
                     {
+                        if (PipelineControl.IsEnd(ex2))
+                        {
+                            throw;
+                        }
+
                         WriteError(new ErrorRecord(ex2, "ReadSecurityError", ErrorCategory.WriteError, path));
                         continue;
                     }
                 }
                 catch (Exception ex)
                 {
+                    if (PipelineControl.IsEnd(ex))
+                    {
+                        throw;
+                    }
+
                     WriteError(new ErrorRecord(ex, "ReadSecurityError", ErrorCategory.OpenError, path));
                 }
             }

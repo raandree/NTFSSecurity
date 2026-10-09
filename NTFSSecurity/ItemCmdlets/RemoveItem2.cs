@@ -102,6 +102,11 @@ namespace NTFSSecurity
                 }
                 catch (Exception ex)
                 {
+                    if (PipelineControl.IsEnd(ex))
+                    {
+                        throw;
+                    }
+
                     WriteError(new ErrorRecord(ex, "DeleteError", ErrorCategory.NotSpecified, path));
                 }
             }

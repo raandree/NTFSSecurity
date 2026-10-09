@@ -8,6 +8,37 @@ using System.Collections;
 
 namespace NTFSSecurity
 {
+    /// <summary>
+    /// Recognizes what a later command in the pipeline raises to end the pipeline or the loop around it: the end of the
+    /// pipeline, for example for Select-Object -First, and a break or continue in a script block. These exceptions pass
+    /// through a cmdlet while it writes an object. A catch for the failures of an item must pass them on: reported as
+    /// the error of that item, they would end nothing, and the cmdlet would go on with the next item.
+    /// </summary>
+    internal static class PipelineControl
+    {
+        /// <summary>
+        /// Whether the exception ends the pipeline or the loop around it. PowerShell doesn't make the exceptions of break
+        /// and continue public, so they are recognized by the name of their base type.
+        /// </summary>
+        internal static bool IsEnd(Exception exception)
+        {
+            if (exception is PipelineStoppedException)
+            {
+                return true;
+            }
+
+            for (var type = exception.GetType(); type != null; type = type.BaseType)
+            {
+                if (type.FullName == "System.Management.Automation.FlowControlException")
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
     public class BaseCmdlet : PSCmdlet
     {
         protected List<string> paths = new List<string>();

@@ -244,8 +244,15 @@ namespace NTFSSecurity
                     {
                         throw ex;
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
+                        // Not what a later command raises to end the pipeline or the loop around it, which this catch
+                        // would hide; the verbose message is for a folder that can't be listed.
+                        if (PipelineControl.IsEnd(ex))
+                        {
+                            throw;
+                        }
+
                         WriteVerbose(string.Format("Cannot access folder '{0}' for recursive operation", di));
                     }
                 }
@@ -260,11 +267,11 @@ namespace NTFSSecurity
             }
             catch (Exception ex)
             {
-                //System.Management.Automation.BreakException or System.Management.Automation.ContinueException cannot be caught due to its protection level in PowerShell v2
-                if (ex.GetType().FullName == "System.Management.Automation.BreakException" | ex.GetType().FullName == "System.Management.Automation.ContinueException")
+                if (PipelineControl.IsEnd(ex))
                 {
-                    throw ex;
+                    throw;
                 }
+
                 WriteError(new ErrorRecord(ex, "DirUnspecifiedError", ErrorCategory.NotSpecified, di.FullName));
             }
         }
