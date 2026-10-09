@@ -47,6 +47,7 @@ Read only task-relevant records; the index controls routing.
 | 20 | [Live tests in a lab live in Tests\Lab](decisions/0020-live-tests-in-tests-lab.md) |
 | 21 | [A quality gate before 5.0.0](decisions/0021-quality-gate-before-5.0.0.md) |
 | 22 | [The behavior changes of Phase 2 (proposed)](decisions/0022-phase-2-behavior-changes.md) |
+| 23 | [Non-Windows file servers before 5.0.0, #34 (proposed)](decisions/0023-non-windows-file-servers.md) |
 
 ## Patterns
 

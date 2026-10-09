@@ -116,6 +116,12 @@ open.
 2. Gate 3: the affected live acceptance of the paths fixes is repeated (record
    above). Accept the published package again before the next candidate counts
    as accepted; no local upload.
-3. Retain stacked-PR order (15), obtain Decision 22 review, finish the OS
-   matrix and obtain or explicitly accept #34 feedback through other gates.
-4. Do not release stable 5.0.0 or equate a percentage with gate closure.
+3. Retain stacked-PR order (15): #116, then #117, then #118; a local merge
+   in that order gives exactly the tree of #118. Confirm or change Decision
+   22.
+4. #34 stays open (Decision 23): the maintainer chooses between waiting for a
+   test of the published candidate on the NetApp, EMC, and IBM ESS servers of
+   the reporters (checklist: `Tests/Lab/Non-Windows-File-Server-Test.md`) and
+   accepting the untested risk with a release-note caveat. No agent can
+   accept it.
+5. Do not release stable 5.0.0 or equate a percentage with gate closure.
