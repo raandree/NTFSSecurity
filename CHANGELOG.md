@@ -137,11 +137,11 @@ The format is based on
   `Set-NTFSOwner`, and the errors of `Get-ChildItem2` for a folder that it
   cannot read, for example with `4>&1` or `2>&1`. They now stop and write no
   error, and the error of the later command reaches the caller
-- Fix the cmdlets that enable the privileges, which left a privilege enabled
-  in the session and hid the exception of a later command when that command
-  took the debug message after the enabling, for example with
-  `5>&1 | Select-Object -First 2`; they now disable the privilege and pass
-  the exception on
+- Fix the cmdlets that enable the privileges for the duration of their
+  command, which left a privilege enabled in the session and hid the
+  exception of a later command when that command took the debug message
+  after the enabling, for example with `5>&1 | Select-Object -First 2`; they
+  now disable the privilege and pass the exception on
 - Fix `Get-ChildItem2 -Filter`, which read a bracket as the start of a
   character class, so that it did not return a file with brackets in its name,
   such as `Report[1].txt`, for that name; only `*` and `?` are wildcards. A
@@ -336,10 +336,12 @@ The format is based on
   for such a path, as in PowerShell 7, and writes the reason as a debug
   message
 - Fix the cmdlets that enable the Backup, Restore, Take Ownership, and
-  Security privileges, which left them enabled in the session when a later
-  command, such as `Select-Object -First`, or a terminating error stopped
-  the pipeline early; they now disable them also then
-- Fix the cmdlets that enable the privileges, which stopped with the error
+  Security privileges for the duration of their command, which left them
+  enabled in the session when a later command, such as `Select-Object -First`,
+  or a terminating error stopped the pipeline early; they now disable them
+  also then. `Enable-Privileges` keeps them enabled by design
+- Fix the cmdlets that enable the privileges for the duration of their
+  command, which stopped with the error
   "Priviledge already disabled" and left the other privileges enabled when
   another command in the pipeline, such as `Disable-Privileges`, had
   disabled one of them; a privilege that they can't disable now gives a

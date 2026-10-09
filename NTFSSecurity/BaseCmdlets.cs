@@ -13,9 +13,10 @@ namespace NTFSSecurity
     /// pipeline, for example for Select-Object -First, and a break or continue in a script block. These exceptions pass
     /// through a cmdlet while it writes to a stream. A catch-all for the failures of an item must pass them on: reported
     /// as the error of that item, they would end nothing, and the cmdlet would go on with the next item. BaseCmdlet
-    /// notes the exception that each of its Write methods raises, which includes everything that a later command can
-    /// throw; this check by type is a second line of defense for the other calls into PowerShell, which also raise the
-    /// end of the pipeline. See BaseCmdlet.IsFromLaterCommand.
+    /// notes the exception that each of its Write methods but WriteWarning raises, which includes everything that a
+    /// later command can throw; this check by type is a second line of defense for calls into PowerShell that are not
+    /// noted, such as ShouldProcess in the try blocks of Remove-Item2, Copy-Item2, and Move-Item2. See
+    /// BaseCmdlet.IsFromLaterCommand.
     /// </summary>
     internal static class PipelineControl
     {
