@@ -296,6 +296,23 @@ Describe 'Get-ChildItem2' {
             $item.Mode | Should -BeExactly '--rhs'
         }
 
+        It 'Should render a folder with a d in the Mode property' {
+            $parent = New-TestSandboxItem -Sandbox $sandbox -Name 'ModeFolder' -Directory
+            $folder = Join-Path -Path $parent -ChildPath 'Inner'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $folder
+            New-Item -ItemType Directory -Path $folder | Out-Null
+            $settings['GetFileSystemModeProperty'] = $true
+
+            $item = Get-ChildItem2 -Path $parent -ErrorAction Stop
+
+            $item | Should -BeOfType [Alphaleonis.Win32.Filesystem.DirectoryInfo]
+            $item.Mode | Should -BeExactly 'd----'
+        }
+
+        It 'Should return an empty Mode for no object' {
+            [NTFSSecurity.FileSystemCodeMembers]::Mode($null) | Should -BeExactly ''
+        }
+
         # Windows can't list the hard links of a file on a network share, (50) "The request is not supported". The cmdlet
         # still returns the file, without HardLinkCount, and says why in a debug message. The test sets the preference,
         # because -Debug would prompt in Windows PowerShell.
