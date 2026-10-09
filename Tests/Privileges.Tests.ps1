@@ -262,3 +262,121 @@ Describe 'Privileges that another command in the pipeline changes' {
         Get-EnabledFileSystemPrivilege | Should -BeNullOrEmpty
     }
 }
+
+# The library class of the module that the cmdlets leave unused; the tests change only the privileges of the test process.
+Describe 'The PrivilegeEnabler class' {
+    BeforeAll {
+        $privateData['EnablePrivileges'] = $false
+        $backup = [ProcessPrivileges.Privilege]::Backup
+        $currentProcess = [System.Diagnostics.Process]::GetCurrentProcess()
+    }
+
+    AfterAll {
+        $privateData['EnablePrivileges'] = $enablePrivileges
+    }
+
+    BeforeEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    AfterEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    It 'Should enable a disabled privilege until it is disposed' -Skip:(-not $holdsPrivileges) {
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+
+        $enabler = New-Object -TypeName 'ProcessPrivileges.PrivilegeEnabler' -ArgumentList $currentProcess, $backup
+        try {
+            Get-BackupPrivilegeState | Should -Be 'Enabled'
+        }
+        finally {
+            $enabler.Dispose()
+        }
+
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+        $enabler.Dispose()
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+    }
+
+    It 'Should report a privilege that it modified once and leave it to the instance that enabled it' -Skip:(-not $holdsPrivileges) {
+        $first = New-Object -TypeName 'ProcessPrivileges.PrivilegeEnabler' -ArgumentList $currentProcess
+        $second = New-Object -TypeName 'ProcessPrivileges.PrivilegeEnabler' -ArgumentList $currentProcess
+        try {
+            $first.EnablePrivilege($backup) | Should -Be 'PrivilegeModified'
+            Get-BackupPrivilegeState | Should -Be 'Enabled'
+            $first.EnablePrivilege($backup) | Should -Be 'None'
+            $second.EnablePrivilege($backup) | Should -Be 'None'
+            $second.Dispose()
+            Get-BackupPrivilegeState | Should -Be 'Enabled'
+        }
+        finally {
+            $first.Dispose()
+            $second.Dispose()
+        }
+
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+    }
+
+    It 'Should not disable a privilege that was enabled before' -Skip:(-not $holdsPrivileges) {
+        $null = [ProcessPrivileges.ProcessExtensions]::EnablePrivilege($currentProcess, $backup)
+
+        $enabler = New-Object -TypeName 'ProcessPrivileges.PrivilegeEnabler' -ArgumentList $currentProcess, $backup
+        try {
+            $enabler.EnablePrivilege($backup) | Should -Be 'None'
+        }
+        finally {
+            $enabler.Dispose()
+        }
+
+        Get-BackupPrivilegeState | Should -Be 'Enabled'
+    }
+
+    It 'Should enable a privilege through an access token handle that the caller owns' -Skip:(-not $holdsPrivileges) {
+        $rights = [ProcessPrivileges.TokenAccessRights]::AdjustPrivileges -bor [ProcessPrivileges.TokenAccessRights]::Query
+        $handle = [ProcessPrivileges.ProcessExtensions]::GetAccessTokenHandle($currentProcess, $rights)
+        try {
+            $enabler = New-Object -TypeName 'ProcessPrivileges.PrivilegeEnabler' -ArgumentList $handle, $backup
+            Get-BackupPrivilegeState | Should -Be 'Enabled'
+            $enabler.Dispose()
+
+            Get-BackupPrivilegeState | Should -Be 'Disabled'
+            $handle.IsClosed | Should -BeFalse
+        }
+        finally {
+            $handle.Dispose()
+        }
+    }
+
+    # The access tokens of administrators don't hold the privilege to create a token, and those of basic users don't hold
+    # most of the others.
+    It 'Should leave a privilege that the access token does not hold alone' {
+        $removed = [ProcessPrivileges.Privilege]::CreateToken
+        [ProcessPrivileges.ProcessExtensions]::GetPrivilegeState($currentProcess, $removed) | Should -Be 'Removed'
+
+        $enabler = New-Object -TypeName 'ProcessPrivileges.PrivilegeEnabler' -ArgumentList $currentProcess
+        try {
+            $enabler.EnablePrivilege($removed) | Should -Be 'None'
+        }
+        finally {
+            $enabler.Dispose()
+        }
+
+        [ProcessPrivileges.ProcessExtensions]::GetPrivilegeState($currentProcess, $removed) | Should -Be 'Removed'
+    }
+
+    # The enabled flag decides first, then the removed flag; the attributes are not a flags enumeration in .NET.
+    It 'Should derive the state <Expected> from the attribute value <Value>' -ForEach @(
+        @{ Value = 0; Expected = 'Disabled' }
+        @{ Value = 1; Expected = 'Disabled' }
+        @{ Value = 2; Expected = 'Enabled' }
+        @{ Value = 3; Expected = 'Enabled' }
+        @{ Value = 4; Expected = 'Removed' }
+        @{ Value = 6; Expected = 'Enabled' }
+        @{ Value = -2147483648; Expected = 'Disabled' }
+    ) {
+        $attributes = [Enum]::ToObject([ProcessPrivileges.PrivilegeAttributes], $Value)
+
+        [ProcessPrivileges.ProcessExtensions]::GetPrivilegeState($attributes) | Should -Be $Expected
+    }
+}

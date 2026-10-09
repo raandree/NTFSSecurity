@@ -6,6 +6,11 @@
 )]
 param ()
 
+BeforeDiscovery {
+    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
+    $holdsSecurityPrivilege = Test-PrivilegeHeld -Name 'SeSecurityPrivilege'
+}
+
 BeforeAll {
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
     $modulePath = Join-Path -Path $PSScriptRoot -ChildPath '..\NTFSSecurity\bin\Release\NTFSSecurity.psd1'
@@ -320,5 +325,388 @@ Describe 'Simplified entry comparison branches' {
 
         $first.Equals($different) | Should -BeFalse
         [ProcessPrivileges.PrivilegeAndAttributes]::op_Inequality($first, $different) | Should -BeTrue
+    }
+}
+
+Describe 'Access rule helpers that take a path' {
+    BeforeAll {
+        $allow = [System.Security.AccessControl.AccessControlType]::Allow
+        $noInheritance = [System.Security.AccessControl.InheritanceFlags]::None
+        $noPropagation = [System.Security.AccessControl.PropagationFlags]::None
+        $users = [Security2.IdentityReference2] 'S-1-5-32-545'
+
+        function Get-ExplicitEntries {
+            param ([string] $Path, [string] $Account = 'S-1-1-0')
+
+            $acl = Get-Acl -LiteralPath $Path
+            @($acl.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq $Account })
+        }
+
+        function New-AccountList {
+            $accounts = New-Object -TypeName 'System.Collections.Generic.List[Security2.IdentityReference2]'
+            $accounts.Add($identity)
+            $accounts.Add($users)
+            , $accounts
+        }
+    }
+
+    It 'Should add an allow entry with Synchronize to a <Kind> by its path' -ForEach @(
+        @{ Kind = 'file'; Directory = $false }
+        @{ Kind = 'folder'; Directory = $true }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'AddByPath' -Directory:$Directory
+
+        $rule = [Security2.FileSystemAccessRule2]::AddFileSystemAccessRule(
+            $path, $identity, [Security2.FileSystemRights2]::ReadData, $allow, $noInheritance, $noPropagation
+        )
+
+        $rule.Account.Sid | Should -BeExactly 'S-1-1-0'
+        $entries = @(Get-ExplicitEntries -Path $path)
+        $entries | Should -HaveCount 1
+        $entries[0].AccessControlType | Should -Be 'Allow'
+        $entries[0].FileSystemRights | Should -Be ([System.Security.AccessControl.FileSystemRights] 'ReadData, Synchronize')
+    }
+
+    # The overload for several accounts is an iterator, so it writes nothing until the caller enumerates the result.
+    It 'Should add the entries of several accounts to a <Kind> by its path only when the result is enumerated' -ForEach @(
+        @{ Kind = 'file'; Directory = $false }
+        @{ Kind = 'folder'; Directory = $true }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'AddListByPath' -Directory:$Directory
+        $accounts = New-AccountList
+
+        $pending = [Security2.FileSystemAccessRule2]::AddFileSystemAccessRule(
+            $path, $accounts, [Security2.FileSystemRights2]::ReadData, $allow, $noInheritance, $noPropagation
+        )
+
+        @(Get-ExplicitEntries -Path $path) | Should -BeNullOrEmpty
+        @(Get-ExplicitEntries -Path $path -Account 'S-1-5-32-545') | Should -BeNullOrEmpty
+        @($pending) | Should -HaveCount 2
+        @(Get-ExplicitEntries -Path $path) | Should -HaveCount 1
+        @(Get-ExplicitEntries -Path $path -Account 'S-1-5-32-545') | Should -HaveCount 1
+    }
+
+    It 'Should add the entry of a rule that carries its path' {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'AddRule'
+        $raw = New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
+            $sid, [System.Security.AccessControl.FileSystemRights]::ReadData, $allow
+        )
+        $rule = New-Object -TypeName 'Security2.FileSystemAccessRule2' -ArgumentList $raw, $path
+
+        [Security2.FileSystemAccessRule2]::AddFileSystemAccessRule($rule)
+
+        @(Get-ExplicitEntries -Path $path) | Should -HaveCount 1
+    }
+
+    # RemoveSpecific removes only an entry that matches exactly; without it, Windows removes the named rights from the
+    # matching entry.
+    It 'Should remove only an exactly matching entry with removeSpecific and the named rights without it' {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveByPath'
+        [void] [Security2.FileSystemAccessRule2]::AddFileSystemAccessRule(
+            $path, $identity, [Security2.FileSystemRights2] 'ReadData, WriteData', $allow, $noInheritance, $noPropagation
+        )
+
+        [Security2.FileSystemAccessRule2]::RemoveFileSystemAccessRule(
+            $path, $identity, [Security2.FileSystemRights2]::ReadData, $allow, $noInheritance, $noPropagation, $true
+        )
+        @(Get-ExplicitEntries -Path $path)[0].FileSystemRights |
+            Should -Be ([System.Security.AccessControl.FileSystemRights] 'ReadData, WriteData, Synchronize')
+
+        [Security2.FileSystemAccessRule2]::RemoveFileSystemAccessRule(
+            $path, $identity, [Security2.FileSystemRights2]::ReadData, $allow, $noInheritance, $noPropagation, $false
+        )
+        @(Get-ExplicitEntries -Path $path)[0].FileSystemRights |
+            Should -Be ([System.Security.AccessControl.FileSystemRights] 'WriteData, Synchronize')
+
+        [Security2.FileSystemAccessRule2]::RemoveFileSystemAccessRule(
+            $path, $identity, [Security2.FileSystemRights2]::WriteData, $allow, $noInheritance, $noPropagation, $true
+        )
+        @(Get-ExplicitEntries -Path $path) | Should -BeNullOrEmpty
+    }
+
+    It 'Should remove the entries of several accounts by path' {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveListByPath'
+        $accounts = New-AccountList
+        @([Security2.FileSystemAccessRule2]::AddFileSystemAccessRule(
+                $path, $accounts, [Security2.FileSystemRights2]::ReadData, $allow, $noInheritance, $noPropagation
+            )) | Should -HaveCount 2
+
+        [Security2.FileSystemAccessRule2]::RemoveFileSystemAccessRule(
+            $path, $accounts, [Security2.FileSystemRights2]::ReadData, $allow, $noInheritance, $noPropagation, $false
+        )
+
+        @(Get-ExplicitEntries -Path $path) | Should -BeNullOrEmpty
+        @(Get-ExplicitEntries -Path $path -Account 'S-1-5-32-545') | Should -BeNullOrEmpty
+    }
+
+    It 'Should remove the entry that a rule object describes from an item' {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveRuleObject'
+        [void] [Security2.FileSystemAccessRule2]::AddFileSystemAccessRule(
+            $path, $identity, [Security2.FileSystemRights2]::ReadData, $allow, $noInheritance, $noPropagation
+        )
+        $raw = New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
+            $sid, [System.Security.AccessControl.FileSystemRights]::ReadData, $allow
+        )
+        $item = New-Object -TypeName 'Alphaleonis.Win32.Filesystem.FileInfo' -ArgumentList $path
+
+        [Security2.FileSystemAccessRule2]::RemoveFileSystemAccessRule($item, $raw, $false)
+
+        @(Get-ExplicitEntries -Path $path) | Should -BeNullOrEmpty
+    }
+
+    It 'Should return the explicit entries of a folder, and its inherited ones when asked, by its path' {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'GetByPath' -Directory
+        [void] [Security2.FileSystemAccessRule2]::AddFileSystemAccessRule(
+            $path, $identity, [Security2.FileSystemRights2]::ReadData, $allow, $noInheritance, $noPropagation
+        )
+
+        $explicit = @([Security2.FileSystemAccessRule2]::GetFileSystemAccessRules($path, $true, $false, $false))
+        $all = @([Security2.FileSystemAccessRule2]::GetFileSystemAccessRules($path, $true, $true, $true))
+
+        $explicit | Should -HaveCount 1
+        $explicit[0].Account.Sid | Should -BeExactly 'S-1-1-0'
+        $all.Count | Should -BeGreaterThan 1
+        @($all | Where-Object -FilterScript { $_.Account.Sid -eq 'S-1-1-0' }) | Should -HaveCount 1
+    }
+}
+
+Describe 'Audit rule helpers that take a path' -Skip:(-not $holdsSecurityPrivilege) {
+    BeforeAll {
+        $success = [System.Security.AccessControl.AuditFlags]::Success
+        $noInheritance = [System.Security.AccessControl.InheritanceFlags]::None
+        $noPropagation = [System.Security.AccessControl.PropagationFlags]::None
+        $users = [Security2.IdentityReference2] 'S-1-5-32-545'
+
+        function Get-AuditEntries {
+            param ([string] $Path, [string] $Account = 'S-1-1-0')
+
+            $descriptor = Get-NTFSSecurityDescriptor -Path $Path
+            @($descriptor.SecurityDescriptor.GetAuditRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq $Account })
+        }
+    }
+
+    It 'Should add an audit entry to a <Kind> by its path' -ForEach @(
+        @{ Kind = 'file'; Directory = $false }
+        @{ Kind = 'folder'; Directory = $true }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'AuditByPath' -Directory:$Directory
+
+        $rule = [Security2.FileSystemAuditRule2]::AddFileSystemAuditRule(
+            $path, $identity, [Security2.FileSystemRights2]::Delete, $success, $noInheritance, $noPropagation
+        )
+
+        $rule.Account.Sid | Should -BeExactly 'S-1-1-0'
+        $entries = @(Get-AuditEntries -Path $path)
+        $entries | Should -HaveCount 1
+        $entries[0].AuditFlags | Should -Be 'Success'
+        $entries[0].FileSystemRights | Should -Be ([System.Security.AccessControl.FileSystemRights]::Delete)
+    }
+
+    It 'Should add the entries of several accounts to a <Kind> by its path only when the result is enumerated, and remove them again' -ForEach @(
+        @{ Kind = 'file'; Directory = $false }
+        @{ Kind = 'folder'; Directory = $true }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'AuditListByPath' -Directory:$Directory
+        $accounts = New-Object -TypeName 'System.Collections.Generic.List[Security2.IdentityReference2]'
+        $accounts.Add($identity)
+        $accounts.Add($users)
+
+        $pending = [Security2.FileSystemAuditRule2]::AddFileSystemAuditRule(
+            $path, $accounts, [Security2.FileSystemRights2]::Delete, $success, $noInheritance, $noPropagation
+        )
+
+        @(Get-AuditEntries -Path $path) | Should -BeNullOrEmpty
+        @($pending) | Should -HaveCount 2
+        @(Get-AuditEntries -Path $path) | Should -HaveCount 1
+        @(Get-AuditEntries -Path $path -Account 'S-1-5-32-545') | Should -HaveCount 1
+        [Security2.FileSystemAuditRule2]::RemoveFileSystemAuditRule(
+            $path, $identity, [Security2.FileSystemRights2]::Delete, $success, $noInheritance, $noPropagation, $true
+        )
+        @(Get-AuditEntries -Path $path) | Should -BeNullOrEmpty
+        @(Get-AuditEntries -Path $path -Account 'S-1-5-32-545') | Should -HaveCount 1
+        [Security2.FileSystemAuditRule2]::RemoveFileSystemAuditRule(
+            $path, $users, [Security2.FileSystemRights2]::Delete, $success, $noInheritance, $noPropagation, $false
+        )
+        @(Get-AuditEntries -Path $path -Account 'S-1-5-32-545') | Should -BeNullOrEmpty
+    }
+
+    It 'Should name the item of a rule, replay it, read it by path, and remove it by its rule object' {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'AuditReplay'
+        $raw = New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList (
+            $sid, [System.Security.AccessControl.FileSystemRights]::Delete, $success
+        )
+        $item = New-Object -TypeName 'Alphaleonis.Win32.Filesystem.FileInfo' -ArgumentList $path
+        $rule = New-Object -TypeName 'Security2.FileSystemAuditRule2' -ArgumentList $raw, $item
+        $rule.FullName | Should -BeExactly $path
+        $rule.Name | Should -BeExactly (Split-Path -Path $path -Leaf)
+
+        [Security2.FileSystemAuditRule2]::AddFileSystemAuditRule($rule)
+
+        @(Get-AuditEntries -Path $path) | Should -HaveCount 1
+        $found = @([Security2.FileSystemAuditRule2]::GetFileSystemAuditRules($path, $true, $true))
+        $found | Should -HaveCount 1
+        $found[0].Account.Sid | Should -BeExactly 'S-1-1-0'
+        [Security2.FileSystemAuditRule2]::RemoveFileSystemAuditRule($item, $raw)
+        @(Get-AuditEntries -Path $path) | Should -BeNullOrEmpty
+    }
+
+    It 'Should remove a rule object from an item without audit entries and change nothing' {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'AuditNothing'
+        $raw = New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList (
+            $sid, [System.Security.AccessControl.FileSystemRights]::Delete, $success
+        )
+        $item = New-Object -TypeName 'Alphaleonis.Win32.Filesystem.FileInfo' -ArgumentList $path
+        $before = (Get-Acl -LiteralPath $path).Sddl
+
+        [Security2.FileSystemAuditRule2]::RemoveFileSystemAuditRule($item, $raw)
+
+        (Get-Acl -LiteralPath $path).Sddl | Should -BeExactly $before
+        @(Get-AuditEntries -Path $path) | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'Inheritance helpers that take a path' {
+    It 'Should block and restore the access inheritance of a <Kind> by its path' -ForEach @(
+        @{ Kind = 'file'; Directory = $false; Remove = $false }
+        @{ Kind = 'folder'; Directory = $true; Remove = $true }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritanceByPath' -Directory:$Directory
+        $inherited = @((Get-Acl -LiteralPath $path).GetAccessRules($false, $true, [System.Security.Principal.SecurityIdentifier])).Count
+        $inherited | Should -BeGreaterThan 0
+
+        [Security2.FileSystemInheritanceInfo]::DisableAccessInheritance($path, $Remove)
+
+        $acl = Get-Acl -LiteralPath $path
+        $acl.AreAccessRulesProtected | Should -BeTrue
+        @($acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier])).Count |
+            Should -Be $(if ($Remove) { 0 } else { $inherited })
+
+        [Security2.FileSystemInheritanceInfo]::EnableAccessInheritance($path, $Remove)
+
+        $acl = Get-Acl -LiteralPath $path
+        $acl.AreAccessRulesProtected | Should -BeFalse
+        @($acl.GetAccessRules($false, $true, [System.Security.Principal.SecurityIdentifier])).Count | Should -Be $inherited
+    }
+
+    It 'Should read the access inheritance of a file by its path and keep what the caller sets on the result' {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritanceInfo'
+
+        $info = [Security2.FileSystemInheritanceInfo]::GetFileSystemInheritanceInfo($path)
+
+        $info.AccessInheritanceEnabled | Should -BeTrue
+        $info.Item.FullName | Should -BeExactly $path
+        $info.AccessInheritanceEnabled = $false
+        $info.AuditInheritanceEnabled = $true
+        $info.Item = New-Object -TypeName 'Alphaleonis.Win32.Filesystem.FileInfo' -ArgumentList $path
+        $info.AccessInheritanceEnabled | Should -BeFalse
+        $info.AuditInheritanceEnabled | Should -BeTrue
+        (Get-Acl -LiteralPath $path).AreAccessRulesProtected | Should -BeFalse
+    }
+
+    It 'Should block and restore the audit inheritance of a <Kind> by its path' -Skip:(-not $holdsSecurityPrivilege) -ForEach @(
+        @{ Kind = 'file'; Directory = $false }
+        @{ Kind = 'folder'; Directory = $true }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'AuditInheritanceByPath' -Directory:$Directory
+        (Get-NTFSInheritance -Path $path).AuditInheritanceEnabled | Should -BeTrue
+
+        [Security2.FileSystemInheritanceInfo]::DisableAuditInheritance($path, $false)
+
+        (Get-NTFSInheritance -Path $path).AuditInheritanceEnabled | Should -BeFalse
+
+        [Security2.FileSystemInheritanceInfo]::EnableAuditInheritance($path, $false)
+
+        (Get-NTFSInheritance -Path $path).AuditInheritanceEnabled | Should -BeTrue
+    }
+}
+
+Describe 'Owner and descriptor objects' {
+    It 'Should name the item and the account of an owner object' {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'OwnerObject'
+
+        $owner = Get-NTFSOwner -Path $path
+
+        $owner.Item.FullName | Should -BeExactly $path
+        $owner.FullName | Should -BeExactly $path
+        $owner.Account.Sid | Should -BeExactly $owner.Owner.Sid
+    }
+
+    It 'Should read the owner of a drive root also for a lowercase drive letter' {
+        $root = [IO.Path]::GetPathRoot($sandbox)
+        $expected = (Get-NTFSOwner -Path $root).Owner.Sid
+
+        $owner = Get-NTFSOwner -Path $root.ToLowerInvariant()
+
+        $owner.Owner.Sid | Should -BeExactly $expected
+    }
+
+    It 'Should name the item of a descriptor and write it to a folder by its path' {
+        $source = New-TestSandboxItem -Sandbox $sandbox -Name 'DescriptorSource' -Directory
+        $target = New-TestSandboxItem -Sandbox $sandbox -Name 'DescriptorTarget' -Directory
+        Add-NTFSAccess -Path $source -Account 'S-1-1-0' -AccessRights ReadData -AppliesTo ThisFolderOnly
+        $descriptor = Get-NTFSSecurityDescriptor -Path $source
+
+        $descriptor.Name | Should -BeExactly (Split-Path -Path $source -Leaf)
+        $descriptor.Write([string] $target)
+
+        @((Get-Acl -LiteralPath $target).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) | Should -HaveCount 1
+    }
+
+    It 'Should name the missing path when it writes a descriptor to an item that does not exist' {
+        $source = New-TestSandboxItem -Sandbox $sandbox -Name 'DescriptorMissingSource'
+        $missing = Join-Path -Path $sandbox -ChildPath ('Missing-{0}' -f [guid]::NewGuid().ToString('N'))
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $missing
+        $descriptor = Get-NTFSSecurityDescriptor -Path $source
+
+        $failure = { $descriptor.Write($missing) } | Should -Throw -PassThru
+
+        $failure.Exception.GetBaseException() | Should -BeOfType [System.IO.FileNotFoundException]
+        $failure.Exception.GetBaseException().FileName | Should -BeExactly $missing
+    }
+
+    It 'Should leave both flags unset for an AppliesTo value that no case names' {
+        $inheritance = [System.Security.AccessControl.InheritanceFlags]::ContainerInherit
+        $propagation = [System.Security.AccessControl.PropagationFlags]::InheritOnly
+
+        [Security2.FileSystemSecurity2]::ConvertToFileSystemFlags(
+            [Enum]::ToObject([Security2.ApplyTo], 99), [ref] $inheritance, [ref] $propagation
+        )
+
+        $inheritance | Should -Be 'None'
+        $propagation | Should -Be 'None'
+    }
+}
+
+Describe 'Generic access rights and identity errors' {
+    It 'Should map the generic mask <Mask> to the file system rights <Expected>' -ForEach @(
+        @{ Mask = '80000000'; Expected = '00120089' }
+        @{ Mask = '40000000'; Expected = '00120116' }
+        @{ Mask = '20000000'; Expected = '001200A0' }
+        @{ Mask = '10000000'; Expected = '001F01FF' }
+        @{ Mask = 'C0000000'; Expected = '0012019F' }
+        @{ Mask = '80010000'; Expected = '00130089' }
+        @{ Mask = '001F01FF'; Expected = '001F01FF' }
+        @{ Mask = '00120089'; Expected = '00120089' }
+        @{ Mask = '02000000'; Expected = '02000000' }
+        @{ Mask = '82000000'; Expected = '02120089' }
+        @{ Mask = '00000000'; Expected = '00000000' }
+    ) {
+        $rights = [Security2.FileSystemSecurity2]::MapGenericRightsToFileSystemRights([Convert]::ToUInt32($Mask, 16))
+
+        [int] $rights | Should -Be ([Convert]::ToInt32($Expected, 16))
+    }
+
+    It 'Should reject <Case> when it creates an identity' -ForEach @(
+        @{ Case = 'an empty value'; Value = ''; Expected = [System.ArgumentException] }
+        @{ Case = 'a SID with too many sub authorities'; Value = ('S-1-' + (('1-' * 20) + '1')); Expected = [System.InvalidCastException] }
+        @{ Case = 'an account that does not exist'; Value = 'NTFSSecurityNoSuchAccount'; Expected = [System.Security.Principal.IdentityNotMappedException] }
+    ) {
+        $failure = { [Security2.IdentityReference2]::new($Value) } | Should -Throw -PassThru
+
+        # PowerShell wraps the exception of a constructor, which here wraps the cause of an invalid SID in turn.
+        $failure.Exception.InnerException | Should -BeOfType $Expected
     }
 }
