@@ -11,6 +11,7 @@ BeforeDiscovery {
     # A path on the administrative share of the drive of the sandboxes is another volume for Windows, like a share of a
     # file server.
     $canUseAdminShare = Test-AdminShareAvailable
+    $canCreateSymbolicLinks = Test-PrivilegeHeld -Name 'SeCreateSymbolicLinkPrivilege'
 }
 
 BeforeAll {
@@ -59,6 +60,189 @@ Describe 'Get-ChildItem2' {
 
             $childItemErrors | Should -BeNullOrEmpty
             $items | Should -BeNullOrEmpty
+        }
+    }
+
+    Context 'Attribute switches' {
+        BeforeAll {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'Switches' -Directory
+            $attributeCases = @{
+                'Plain.txt' = 'Normal'
+                'Hidden.txt' = 'Hidden'
+                'System.txt' = 'System'
+                'ReadOnly.txt' = 'ReadOnly'
+                'HiddenSystem.txt' = 'Hidden, System'
+                'HiddenReadOnly.txt' = 'Hidden, ReadOnly'
+                'All.txt' = 'Hidden, ReadOnly, System'
+            }
+            foreach ($name in $attributeCases.Keys) {
+                $path = Join-Path -Path $folder -ChildPath $name
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $path
+                Set-Content -LiteralPath $path -Value $name
+                [IO.File]::SetAttributes($path, [IO.FileAttributes] $attributeCases[$name])
+            }
+        }
+
+        It 'Should apply <Case> without broadening the other attribute filters' -ForEach @(
+            @{ Case = 'default'; Parameters = @{}; Expected = @('Plain.txt', 'System.txt', 'ReadOnly.txt') }
+            @{ Case = 'Force'; Parameters = @{ Force = $true }; Expected = @('Plain.txt', 'Hidden.txt', 'System.txt', 'ReadOnly.txt', 'HiddenSystem.txt', 'HiddenReadOnly.txt', 'All.txt') }
+            @{ Case = 'Hidden'; Parameters = @{ Hidden = $true }; Expected = @('Hidden.txt', 'HiddenSystem.txt', 'HiddenReadOnly.txt', 'All.txt') }
+            @{ Case = 'System'; Parameters = @{ System = $true }; Expected = @('System.txt') }
+            @{ Case = 'System with Force'; Parameters = @{ System = $true; Force = $true }; Expected = @('System.txt', 'HiddenSystem.txt', 'All.txt') }
+            @{ Case = 'ReadOnly'; Parameters = @{ ReadOnly = $true }; Expected = @('ReadOnly.txt') }
+            @{ Case = 'ReadOnly with Force'; Parameters = @{ ReadOnly = $true; Force = $true }; Expected = @('ReadOnly.txt', 'HiddenReadOnly.txt', 'All.txt') }
+            @{ Case = 'Hidden and System'; Parameters = @{ Hidden = $true; System = $true }; Expected = @('HiddenSystem.txt', 'All.txt') }
+            @{ Case = 'Hidden and ReadOnly'; Parameters = @{ Hidden = $true; ReadOnly = $true }; Expected = @('HiddenReadOnly.txt', 'All.txt') }
+            @{ Case = 'System and ReadOnly with Force'; Parameters = @{ System = $true; ReadOnly = $true; Force = $true }; Expected = @('All.txt') }
+        ) {
+            $result = @(Get-ChildItem2 -Path $folder @Parameters -ErrorAction Stop)
+
+            ($result.Name | Sort-Object) -join ',' | Should -Be (($Expected | Sort-Object) -join ',')
+        }
+    }
+
+    It 'Should include the first hidden item without requiring explicit -Force' {
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FirstHidden' -Directory
+        $file = Join-Path -Path $folder -ChildPath 'Only.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+        Set-Content -LiteralPath $file -Value 'Hidden'
+        [IO.File]::SetAttributes($file, [IO.FileAttributes]::Hidden)
+
+        $result = @(Get-ChildItem2 -Path $folder -Hidden -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+        $result[0].FullName | Should -Be $file
+    }
+
+    Context 'Recursion, type filters, and depth' {
+        BeforeAll {
+            $tree = New-TestSandboxItem -Sandbox $sandbox -Name 'EnumerationTree' -Directory
+            $grandchild = Join-Path -Path $tree -ChildPath 'Child\Grandchild'
+            $paths = @('Root.txt', 'Child\Child.log', 'Child\Grandchild\Grand.TXT') | ForEach-Object { Join-Path -Path $tree -ChildPath $_ }
+            Assert-TestSandboxPath -Sandbox $sandbox -Path (@($grandchild) + @($paths))
+            New-Item -ItemType Directory -Path $grandchild -Force | Out-Null
+            foreach ($path in $paths) { Set-Content -LiteralPath $path -Value 'Tree' }
+        }
+
+        It 'Should return the exact tree for <Case>' -ForEach @(
+            @{ Case = 'immediate children'; Parameters = @{}; Expected = @('Child', 'Root.txt') }
+            @{ Case = 'all descendants'; Parameters = @{ Recurse = $true }; Expected = @('Child', 'Root.txt', 'Child\Grandchild', 'Child\Child.log', 'Child\Grandchild\Grand.TXT') }
+            @{ Case = 'depth zero'; Parameters = @{ Recurse = $true; Depth = 0 }; Expected = @('Child', 'Root.txt') }
+            @{ Case = 'depth one'; Parameters = @{ Recurse = $true; Depth = 1 }; Expected = @('Child', 'Root.txt', 'Child\Grandchild', 'Child\Child.log') }
+            @{ Case = 'depth two'; Parameters = @{ Recurse = $true; Depth = 2 }; Expected = @('Child', 'Root.txt', 'Child\Grandchild', 'Child\Child.log', 'Child\Grandchild\Grand.TXT') }
+            @{ Case = 'directories'; Parameters = @{ Recurse = $true; Directory = $true }; Expected = @('Child', 'Child\Grandchild') }
+            @{ Case = 'files'; Parameters = @{ Recurse = $true; File = $true }; Expected = @('Root.txt', 'Child\Child.log', 'Child\Grandchild\Grand.TXT') }
+            @{ Case = 'case-insensitive file filter'; Parameters = @{ Recurse = $true; File = $true; Filter = '*.txt' }; Expected = @('Root.txt', 'Child\Grandchild\Grand.TXT') }
+        ) {
+            $result = @(Get-ChildItem2 -Path $tree @Parameters -ErrorAction Stop)
+            $relative = @($result | ForEach-Object { $_.FullName.Substring($tree.Length + 1) })
+
+            ($relative | Sort-Object) -join ',' | Should -Be (($Expected | Sort-Object) -join ',')
+        }
+
+        It 'Should stop a recursive pipeline without recording an enumeration error' {
+            $result = @(Get-ChildItem2 -Path $tree -Recurse -ErrorVariable childErrors -ErrorAction SilentlyContinue | Select-Object -First 1)
+
+            $result | Should -HaveCount 1
+            $childErrors | Should -BeNullOrEmpty
+        }
+    }
+
+    Context 'Unreadable directories' {
+        It 'Should report the denied folder and continue with the next path' {
+            $blocked = New-TestSandboxItem -Sandbox $sandbox -Name 'CannotList' -Directory
+            $next = New-TestSandboxItem -Sandbox $sandbox -Name 'CanList' -Directory
+            $file = Join-Path -Path $next -ChildPath 'Next.txt'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+            Set-Content -LiteralPath $file -Value 'Next'
+            Add-TestDenyRule -Sandbox $sandbox -Path $blocked -Rights @{ 'S-1-1-0' = 'ReadData' }
+
+            $result = @(Get-ChildItem2 -Path $blocked, $next -ErrorVariable childErrors -ErrorAction SilentlyContinue)
+
+            $childErrors | Should -HaveCount 1
+            $childErrors[0].FullyQualifiedErrorId | Should -BeLike 'DirUnauthorizedAccessError,*'
+            $childErrors[0].CategoryInfo.Category | Should -Be 'PermissionDenied'
+            $childErrors[0].TargetObject | Should -Be $blocked
+            $result | Should -HaveCount 1
+            $result[0].FullName | Should -Be $file
+        }
+    }
+
+    Context 'Link traversal' {
+        It 'Should return a junction itself but skip its contents with -SkipMountPoints' {
+            $root = New-TestSandboxItem -Sandbox $sandbox -Name 'JunctionListing' -Directory
+            $target = New-TestSandboxItem -Sandbox $sandbox -Name 'JunctionTarget' -Directory
+            $file = Join-Path -Path $target -ChildPath 'Target.txt'
+            $link = Join-Path -Path $root -ChildPath 'Link'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file, $link
+            Set-Content -LiteralPath $file -Value 'Target'
+            New-Item -ItemType Junction -Path $link -Value $target | Out-Null
+
+            $result = @(Get-ChildItem2 -Path $root -Recurse -SkipMountPoints -ErrorAction Stop)
+
+            $result | Should -HaveCount 1
+            $result[0].FullName | Should -Be $link
+            Get-Content -LiteralPath $file | Should -Be 'Target'
+        }
+
+        It 'Should return a symbolic link itself but skip its contents with -SkipSymbolicLinks' -Skip:(-not $canCreateSymbolicLinks) {
+            $root = New-TestSandboxItem -Sandbox $sandbox -Name 'SymbolicListing' -Directory
+            $target = New-TestSandboxItem -Sandbox $sandbox -Name 'SymbolicTarget' -Directory
+            $file = Join-Path -Path $target -ChildPath 'Target.txt'
+            $link = Join-Path -Path $root -ChildPath 'Link'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file, $link
+            Set-Content -LiteralPath $file -Value 'Target'
+            New-NTFSSymbolicLink -Path $link -Target $target -ErrorAction Stop
+
+            $result = @(Get-ChildItem2 -Path $root -Recurse -SkipSymbolicLinks -ErrorAction Stop)
+
+            $result | Should -HaveCount 1
+            $result[0].FullName | Should -Be $link
+            Get-Content -LiteralPath $file | Should -Be 'Target'
+        }
+    }
+
+    Context 'Optional object properties' {
+        BeforeEach {
+            $settings = (Get-Module -Name NTFSSecurity).PrivateData
+            $savedMode = $settings['GetFileSystemModeProperty']
+            $savedHardLinks = $settings['IdentifyHardLinks']
+        }
+
+        AfterEach {
+            $settings['GetFileSystemModeProperty'] = $savedMode
+            $settings['IdentifyHardLinks'] = $savedHardLinks
+        }
+
+        It 'Should honor Mode and HardLinkCount enabled=<_>' -ForEach @($true, $false) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ObjectProperties' -Directory
+            $file = Join-Path -Path $folder -ChildPath 'File.txt'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+            Set-Content -LiteralPath $file -Value 'Properties'
+            [IO.File]::SetAttributes($file, [IO.FileAttributes]::Archive)
+            $settings['GetFileSystemModeProperty'] = $_
+            $settings['IdentifyHardLinks'] = $_
+
+            $item = Get-ChildItem2 -Path $file -ErrorAction Stop
+
+            if ($_) {
+                $item.Mode | Should -BeExactly '-a---'
+                $item.HardLinkCount | Should -Be 1
+            }
+            else {
+                $item.PSObject.Properties['Mode'] | Should -BeNullOrEmpty
+                $item.PSObject.Properties['HardLinkCount'] | Should -BeNullOrEmpty
+            }
+        }
+
+        It 'Should render read-only, hidden, and system bits in the Mode property' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'ModeBits'
+            [IO.File]::SetAttributes($file, [IO.FileAttributes] 'ReadOnly, Hidden, System')
+            $settings['GetFileSystemModeProperty'] = $true
+
+            $item = Get-ChildItem2 -Path $file -Force -ErrorAction Stop
+
+            $item.Mode | Should -BeExactly '--rhs'
         }
     }
 
