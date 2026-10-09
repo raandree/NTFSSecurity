@@ -288,7 +288,9 @@ BeforeAll {
 
     # The commands that write a verbose or a debug message inside the try of their loop, which the later command takes.
     # The first record that reaches Select-Object ends the pipeline there. The preference of the debug stream is set by
-    # Assert-StreamStop: the Debug switch would ask before every message.
+    # Assert-StreamStop: the Debug switch would ask before every message. The error action is named because the CI runner
+    # sets $ErrorActionPreference to Stop: a catch that reports the exception of the later command as an error of the
+    # item would then end the pipeline with it, and the test could not tell that catch from passing the exception on.
     $streamRuns = @{
         'Get-FileHash2/verbose'              = @{
             # The first path is a folder, which the cmdlet skips with a verbose message.
@@ -297,16 +299,16 @@ BeforeAll {
                 $context.File = New-TestSandboxItem -Sandbox $sandbox -Name 'Hashed'
                 $context
             }
-            Run     = { param ($Context) Get-FileHash2 -Path $Context.First, $Context.File -Verbose 4>&1 }
+            Run     = { param ($Context) Get-FileHash2 -Path $Context.First, $Context.File -Verbose -ErrorAction SilentlyContinue 4>&1 }
         }
         'Set-NTFSSecurityDescriptor/verbose' = @{
             Prepare   = $cases['Set-NTFSSecurityDescriptor'].Prepare
-            Run       = { param ($Context) Set-NTFSSecurityDescriptor -SecurityDescriptor $Context.Descriptors -Verbose 4>&1 }
+            Run       = { param ($Context) Set-NTFSSecurityDescriptor -SecurityDescriptor $Context.Descriptors -Verbose -ErrorAction SilentlyContinue 4>&1 }
             Untouched = $cases['Set-NTFSSecurityDescriptor'].Untouched
         }
         'Set-NTFSOwner/debug'                = @{
             Prepare = { New-Pair }
-            Run     = { param ($Context) Set-NTFSOwner -Path $Context.First, $Context.Second -Account $currentUser 5>&1 }
+            Run     = { param ($Context) Set-NTFSOwner -Path $Context.First, $Context.Second -Account $currentUser -ErrorAction SilentlyContinue 5>&1 }
         }
     }
 
@@ -545,7 +547,7 @@ Describe 'A later command and the error of a folder that Get-ChildItem2 cannot r
 
         $caught | Should -Not -BeNullOrEmpty
         $caught.FullyQualifiedErrorId | Should -BeLike 'DirUnauthorizedAccessError,*'
-        $caught.TargetObject | Should -BeIn $unreadable
+        $caught.TargetObject | Should -Be $unreadable[0]
         $listed | Should -BeNullOrEmpty
     }
 }

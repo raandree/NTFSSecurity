@@ -267,6 +267,8 @@ Describe 'Get-NTFSHardLink' {
         $readRights = 'ReadAttributes, ReadData, ReadPermissions'
         $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
         Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ 'S-1-3-4' = $readRights; $currentUser = $readRights }
+        # Reading the data is refused. ReadAttributes and ReadPermissions are denied as well, but nothing shows that in
+        # every session: an elevated one was seen to read the permissions anyway.
         { Get-Content -LiteralPath $file -ErrorAction Stop } | Should -Throw
 
         $result = @(Get-NTFSHardLink -Path $file -ErrorVariable linkErrors -ErrorAction SilentlyContinue)

@@ -364,6 +364,15 @@ function Set-TestNullDacl {
     )
 
     Assert-TestSandboxPath -Sandbox $Sandbox -Path $Path
+    $location = (Get-Location -PSProvider FileSystem).ProviderPath
+    $fullName = [IO.Path]::GetFullPath([IO.Path]::Combine($location, $Path))
+    # Assert-TestSandboxPath checks the folders of the path for links, not the item itself, and the native call follows a
+    # link: a junction to a folder outside the sandbox would give everyone every access to that folder.
+    $attributes = try { [IO.File]::GetAttributes($fullName) } catch { $null }
+    if ($null -ne $attributes -and ($attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw "Refusing to change '$fullName', because it is a link."
+    }
+
     if (-not ('NtfsSecurityTests.NativeAcl' -as [type])) {
         Add-Type -TypeDefinition @'
 namespace NtfsSecurityTests
@@ -385,8 +394,6 @@ namespace NtfsSecurityTests
 '@
     }
 
-    $location = (Get-Location -PSProvider FileSystem).ProviderPath
-    $fullName = [IO.Path]::GetFullPath([IO.Path]::Combine($location, $Path))
     $result = [NtfsSecurityTests.NativeAcl]::SetNullDacl($fullName)
     if ($result -ne 0) {
         throw "SetNamedSecurityInfo could not set a NULL DACL on '$fullName' (error $result)."

@@ -241,8 +241,10 @@ Describe 'Privileges when a later command takes the debug messages of the cmdlet
 
 # Enable-Privileges recognizes the script NTFSSecurity.Init.ps1, which a user adds to start the module, by its name: from
 # that script, it enables the privileges only for the module setting EnablePrivileges, from any other script always. Each
-# test runs the script in a child process, which starts without enabled privileges, so that the privileges of this
-# process stay as they are.
+# test runs the script in a child process, which inherits the privilege states of this one (disabled here, see BeforeEach),
+# so that the privileges of this process stay as they are. With the setting $true, the module enables the privileges
+# itself before the cmdlet runs, so the state alone does not show that the cmdlet did: it also announces that in a verbose
+# message.
 Describe 'Enable-Privileges in the script NTFSSecurity.Init.ps1' {
     BeforeAll {
         function Invoke-StartScript {
@@ -256,24 +258,51 @@ Describe 'Enable-Privileges in the script NTFSSecurity.Init.ps1' {
 param ($ModulePath, $Setting)
 Import-Module -Name $ModulePath -ErrorAction Stop
 (Get-Module -Name NTFSSecurity).PrivateData['EnablePrivileges'] = ($Setting -eq 'True')
-Enable-Privileges
+$messages = @(Enable-Privileges -Verbose 4>&1 | ForEach-Object -Process { "$($_.Message)" })
+'ANNOUNCED:{0}' -f [bool] @($messages -like '*are now enabled giving you access*').Count
 'BACKUP:{0}' -f (Get-Privileges | Where-Object -Property Privilege -EQ -Value 'Backup').PrivilegeState
 '@
-            $output = & (Get-Process -Id $PID).Path -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -ModulePath ([IO.Path]::GetFullPath($modulePath)) -Setting $Setting
-            @($output | Where-Object -FilterScript { $_ -like 'BACKUP:*' }) -replace '^BACKUP:'
+            $output = @(& (Get-Process -Id $PID).Path -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -ModulePath ([IO.Path]::GetFullPath($modulePath)) -Setting $Setting)
+            [pscustomobject]@{
+                Announced = @($output | Where-Object -FilterScript { $_ -like 'ANNOUNCED:*' }) -replace '^ANNOUNCED:'
+                Backup    = @($output | Where-Object -FilterScript { $_ -like 'BACKUP:*' }) -replace '^BACKUP:'
+            }
         }
     }
 
+    BeforeEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    AfterEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
     It 'Should enable the privileges when the module setting EnablePrivileges is $true' -Skip:(-not $holdsPrivileges) {
-        Invoke-StartScript -ScriptName 'NTFSSecurity.Init.ps1' -Setting $true | Should -Be 'Enabled'
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+
+        $result = Invoke-StartScript -ScriptName 'NTFSSecurity.Init.ps1' -Setting $true
+
+        $result.Backup | Should -Be 'Enabled'
+        $result.Announced | Should -Be 'True'
     }
 
     It 'Should leave the privileges disabled when the module setting EnablePrivileges is $false' -Skip:(-not $holdsPrivileges) {
-        Invoke-StartScript -ScriptName 'NTFSSecurity.Init.ps1' -Setting $false | Should -Be 'Disabled'
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+
+        $result = Invoke-StartScript -ScriptName 'NTFSSecurity.Init.ps1' -Setting $false
+
+        $result.Backup | Should -Be 'Disabled'
+        $result.Announced | Should -Be 'False'
     }
 
     It 'Should enable the privileges in a script of another name also when the module setting EnablePrivileges is $false' -Skip:(-not $holdsPrivileges) {
-        Invoke-StartScript -ScriptName 'Other.ps1' -Setting $false | Should -Be 'Enabled'
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+
+        $result = Invoke-StartScript -ScriptName 'Other.ps1' -Setting $false
+
+        $result.Backup | Should -Be 'Enabled'
+        $result.Announced | Should -Be 'True'
     }
 }
 

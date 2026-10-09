@@ -207,6 +207,30 @@ Describe 'Get-ChildItem2' {
             ($result.Name -join ',') | Should -BeExactly 'Two.dots.txt'
         }
 
+        # The names are matched twice, by the enumeration and by the cmdlet, and the rules for a dot differ from those of
+        # Get-ChildItem, where Report.* also returns Report. The documentation lists this as a limitation; these cases pin
+        # it, so that a change of the rules is a decision. Report* is the control: without a dot in the pattern, the names
+        # without a dot are returned.
+        It 'Should return <Outcome> for -Filter "<Filter>"' -ForEach @(
+            @{ Filter = 'Report.*'; Expected = 'Report.txt'; Outcome = 'only the names with a dot' }
+            @{ Filter = 'Report*'; Expected = 'Report,Report.txt'; Outcome = 'the names with and without a dot' }
+            @{ Filter = 'Report.'; Expected = ''; Outcome = 'nothing' }
+            @{ Filter = 'Rep*.'; Expected = ''; Outcome = 'nothing' }
+            @{ Filter = '*.'; Expected = ''; Outcome = 'nothing' }
+            @{ Filter = ''; Expected = ''; Outcome = 'nothing' }
+        ) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterDotRules' -Directory
+            foreach ($name in 'Report', 'Report.txt', 'Other') {
+                $file = Join-Path -Path $folder -ChildPath $name
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+                Set-Content -LiteralPath $file -Value $name
+            }
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter $Filter -ErrorAction Stop)
+
+            ($result.Name | Sort-Object) -join ',' | Should -BeExactly $Expected
+        }
+
         It 'Should reject a null -Filter' {
             { Get-ChildItem2 -Path $tree -Filter $null -ErrorAction Stop } |
                 Should -Throw -ErrorId 'ParameterArgumentValidationError,NTFSSecurity.GetChildItem2' -ExpectedMessage "*'Filter'*"

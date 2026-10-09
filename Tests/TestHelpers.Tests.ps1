@@ -283,6 +283,25 @@ Describe 'Test helpers' {
                 Should -Throw -ExpectedMessage 'Refusing to change*'
         }
 
+        # The native call follows a link, so a junction in the sandbox that points to another folder is refused as the
+        # item itself, not only as a folder of its path.
+        It 'Should refuse an item that is a link, which can point outside the sandbox' {
+            $otherSandbox = New-TestSandbox -Name 'Helpers'
+            try {
+                $link = Join-Path -Path $sandbox -ChildPath 'NullDaclLink'
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $link
+                New-Item -ItemType Junction -Path $link -Value $otherSandbox | Out-Null
+                $before = (Get-Acl -LiteralPath $otherSandbox).Sddl
+
+                { Set-TestNullDacl -Sandbox $sandbox -Path $link } | Should -Throw -ExpectedMessage '*because it is a link*'
+
+                (Get-Acl -LiteralPath $otherSandbox).Sddl | Should -BeExactly $before
+            }
+            finally {
+                Remove-TestSandbox -Sandbox $otherSandbox
+            }
+        }
+
         It 'Should throw its own error when Windows refuses' {
             $missing = Join-Path -Path $sandbox -ChildPath 'Missing.txt'
 
