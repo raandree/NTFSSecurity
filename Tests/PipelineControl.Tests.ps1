@@ -1,10 +1,10 @@
 <#
     Tests how the cmdlets of the module built in NTFSSecurity\bin\Release behave when a later command in the pipeline
     ends it: a break or continue in a script block, Select-Object -First, or a terminating error such as a throw. The
-    exception that carries it passes through the cmdlet while it writes an object, a verbose message, or a debug message.
-    A catch for the failures of an item must not report it as an error of that item and go on with the next one: a
-    cmdlet that removes, copies, moves, or changes items would change them all, although the caller ended the pipeline,
-    and the caller would never see the exception. Every test works on files and folders in a sandbox.
+    exception that carries it passes through the cmdlet while it writes an object, an error, a verbose message, or a debug
+    message. A catch-all for the failures of an item must not report it as an error of that item and go on with the next
+    one: a cmdlet that removes, copies, moves, or changes items would change them all, although the caller ended the
+    pipeline, and the caller would never see the exception. Every test works on files and folders in a sandbox.
 #>
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
     'PSUseDeclaredVarsMoreThanAssignments', '', Justification = 'Pester shares variables between blocks.'
@@ -473,8 +473,135 @@ Describe 'A later command that ends the pipeline' {
     }
 }
 
+# The errors that Get-ChildItem2 writes for a folder that it cannot read reach a later command too, for example with 2>&1.
+# The folders that cannot be read come first in the order of the file system, so that the folder with the file is reached
+# only if the listing goes on after the first error.
+Describe 'A later command and the error of a folder that Get-ChildItem2 cannot read' {
+    BeforeAll {
+        $errorTree = New-TestSandboxItem -Sandbox $sandbox -Name 'ErrorTree' -Directory
+        $unreadable = foreach ($name in 'A', 'B') {
+            $folder = Join-Path -Path $errorTree -ChildPath $name
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $folder
+            New-Item -ItemType Directory -Path $folder | Out-Null
+            $folder
+        }
+        $readableFile = Join-Path -Path $errorTree -ChildPath 'C\Three.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $readableFile
+        New-Item -ItemType Directory -Path (Split-Path -Path $readableFile -Parent) | Out-Null
+        Set-Content -LiteralPath $readableFile -Value 'Three'
+        foreach ($folder in $unreadable) {
+            Add-TestDenyRule -Sandbox $sandbox -Path $folder -Rights @{ 'S-1-1-0' = 'ReadData' }
+        }
+    }
+
+    # Before 5.0.0-rc7, the recursion took what the later command threw for the error of a nested folder as a failure of
+    # the folder above it, wrote a verbose message, and left the loop over the folders: the listing ended early and the
+    # caller never saw the exception.
+    It 'Should pass on what a later command throws when it takes the error of a nested folder' {
+        $emitted = 0
+        $caught = $null
+        try {
+            Get-ChildItem2 -Path $errorTree -Recurse -File 2>&1 | ForEach-Object -Process {
+                $emitted++
+                throw 'Downstream failure'
+            }
+        }
+        catch {
+            $caught = $_
+        }
+
+        $caught.Exception.Message | Should -BeLike '*Downstream failure*'
+        $emitted | Should -Be 1
+    }
+
+    It 'Should leave the loop for a <Keyword> of a later command that takes the error of a nested folder' -ForEach @(
+        @{ Keyword = 'break' }
+        @{ Keyword = 'continue' }
+    ) {
+        $emitted = 0
+        $reachedEnd = $false
+        foreach ($round in 1) {
+            Get-ChildItem2 -Path $errorTree -Recurse -File 2>&1 | ForEach-Object -Process {
+                $emitted++
+                if ($Keyword -eq 'break') { break } else { continue }
+            }
+            $reachedEnd = $true
+        }
+
+        $emitted | Should -Be 1
+        $reachedEnd | Should -BeFalse
+    }
+
+    It 'Should stop with the error of the first nested folder that it cannot read for -ErrorAction Stop' {
+        $listed = New-Object -TypeName 'System.Collections.Generic.List[object]'
+        $caught = $null
+        try {
+            Get-ChildItem2 -Path $errorTree -Recurse -File -ErrorAction Stop | ForEach-Object -Process { $listed.Add($_) }
+        }
+        catch {
+            $caught = $_
+        }
+
+        $caught | Should -Not -BeNullOrEmpty
+        $caught.FullyQualifiedErrorId | Should -BeLike 'DirUnauthorizedAccessError,*'
+        $caught.TargetObject | Should -BeIn $unreadable
+        $listed | Should -BeNullOrEmpty
+    }
+}
+
+# The catches of Get-ChildItem2 for an UnauthorizedAccessException and of Remove-Item2 for an IOException don't ask where
+# the exception comes from: they rely on PowerShell wrapping what a later command throws, so that an exception of these
+# types never reaches them as it was thrown. A PowerShell version that hands it on as it is fails these tests.
+Describe 'A later command that throws an exception of a type that a cmdlet handles' {
+    It 'Get-ChildItem2 should pass on a thrown UnauthorizedAccessException' {
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ThrownDenied' -Directory
+        $files = 'One.txt', 'Two.txt' | ForEach-Object -Process { Join-Path -Path $folder -ChildPath $_ }
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $files
+        Set-Content -LiteralPath $files -Value 'File'
+        $emitted = 0
+        $caught = $null
+        $Error.Clear()
+        try {
+            Get-ChildItem2 -Path $folder -File -ErrorAction SilentlyContinue | ForEach-Object -Process {
+                $emitted++
+                throw [System.UnauthorizedAccessException]::new('Downstream failure')
+            }
+        }
+        catch {
+            $caught = $_
+        }
+
+        $caught.Exception | Should -BeOfType [System.UnauthorizedAccessException]
+        $caught.Exception.Message | Should -BeExactly 'Downstream failure'
+        $emitted | Should -Be 1
+        @($Error | Where-Object -FilterScript { $_.FullyQualifiedErrorId -like 'DirUnauthorizedAccessError,*' }) | Should -BeNullOrEmpty
+    }
+
+    It 'Remove-Item2 should pass on a thrown IOException and leave the next item' {
+        $pair = New-Pair
+        $emitted = 0
+        $caught = $null
+        $Error.Clear()
+        try {
+            Remove-Item2 -Path $pair.First, $pair.Second -PassThru -ErrorAction SilentlyContinue | ForEach-Object -Process {
+                $emitted++
+                throw [System.IO.IOException]::new('Downstream failure')
+            }
+        }
+        catch {
+            $caught = $_
+        }
+
+        $caught.Exception | Should -BeOfType [System.IO.IOException]
+        $caught.Exception.Message | Should -BeExactly 'Downstream failure'
+        $emitted | Should -Be 1
+        $pair.Second | Should -Exist
+        @($Error | Where-Object -FilterScript { $_.FullyQualifiedErrorId -like 'DeleteError,*' }) | Should -BeNullOrEmpty
+    }
+}
+
 # A cmdlet also meets the end of the pipeline where it did not write: another call of PowerShell can raise it too. The
-# check that every catch makes recognizes the exceptions by their types. PowerShell keeps the exceptions of break and
+# check that every catch-all makes recognizes the exceptions by their types. PowerShell keeps the exceptions of break and
 # continue internal, so they are recognized by the name of their base type, which a stand-in with that name shows.
 Describe 'Recognizing the end of a pipeline by the type of the exception' {
     BeforeAll {

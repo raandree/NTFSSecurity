@@ -319,7 +319,9 @@ Before 5.0.0, a `-Path` value that points to a file stopped the cmdlet with an `
 
 Before 5.0.0, `-Filter` read a bracket as the start of a character class, so a file with brackets in its name, such as `Report[1].txt`, was not returned for its name, and a pattern of an asterisk, a dot, and an asterisk dropped the items without a dot in their names, most folders among them.
 
-Before 5.0.0, a `break` or `continue` in a later command of the pipeline did not end the cmdlet for an item below the first folder.
+The enumeration of the AlphaFS library decides which names match, and its rules for a dot differ from those of `Get-ChildItem`: a pattern such as `Report.*` does not return the file `Report`, which has no dot, a pattern that ends in a dot returns nothing, and an empty value returns nothing. Only the pattern of an asterisk, a dot, and an asterisk is treated as a single asterisk.
+
+Before 5.0.0, a `break`, a `continue`, or a `throw` in a later command of the pipeline did not end the cmdlet for an item below the first folder, also when the later command took the error of a folder that the cmdlet cannot read, for example with `2>&1`.
 
 ## RELATED LINKS
 

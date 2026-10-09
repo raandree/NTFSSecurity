@@ -182,6 +182,101 @@ Describe 'Privileges when the pipeline stops early' {
     }
 }
 
+# A cmdlet enables the privileges one after the other and writes a debug message before and after each one. A later command
+# that takes the debug stream can end the pipeline or throw at the message after the enabling, before the cmdlet has noted
+# that it enabled the privilege.
+Describe 'Privileges when a later command takes the debug messages of the cmdlet' {
+    BeforeAll {
+        $privateData['EnablePrivileges'] = $true
+        $debugFile = New-TestSandboxItem -Sandbox $sandbox -Name 'DebugStopped'
+    }
+
+    AfterAll {
+        $privateData['EnablePrivileges'] = $enablePrivileges
+    }
+
+    BeforeEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    AfterEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    # Before 5.0.0-rc7, the privilege that the cmdlet had enabled at that moment stayed enabled in the session: nothing
+    # disabled it, because the cmdlet had not noted yet that it enabled it.
+    It 'Should disable the privilege when Select-Object -First ends the pipeline at the message after its enabling' -Skip:(-not $holdsPrivileges) {
+        $DebugPreference = 'Continue'
+        $messages = @(Get-NTFSOwner -Path $debugFile 5>&1 | ForEach-Object -Process { $_.Message })
+        $enabledAt = $messages.IndexOf('..enabled') + 1
+        $enabledAt | Should -BeGreaterThan 0
+        Get-EnabledFileSystemPrivilege | Should -BeNullOrEmpty
+
+        $result = @(Get-NTFSOwner -Path $debugFile 5>&1 | Select-Object -First $enabledAt)
+
+        $result | Should -HaveCount $enabledAt
+        $result[-1].Message | Should -BeExactly '..enabled'
+        Get-EnabledFileSystemPrivilege | Should -BeNullOrEmpty
+    }
+
+    # Before 5.0.0-rc7, the cmdlet took the exception for the failure to enable the privilege, went on with the next
+    # privilege, and the caller never saw it; all four privileges stayed enabled.
+    It 'Should pass on what a later command throws at the message after the enabling and disable the privileges' -Skip:(-not $holdsPrivileges) {
+        $DebugPreference = 'Continue'
+        $caught = $null
+        try {
+            Get-NTFSOwner -Path $debugFile 5>&1 | ForEach-Object -Process {
+                if ($_.Message -eq '..enabled') { throw 'Downstream failure' }
+                $_
+            } | Out-Null
+        }
+        catch {
+            $caught = $_
+        }
+
+        $caught.Exception.Message | Should -BeLike '*Downstream failure*'
+        Get-EnabledFileSystemPrivilege | Should -BeNullOrEmpty
+    }
+}
+
+# Enable-Privileges recognizes the script NTFSSecurity.Init.ps1, which a user adds to start the module, by its name: from
+# that script, it enables the privileges only for the module setting EnablePrivileges, from any other script always. Each
+# test runs the script in a child process, which starts without enabled privileges, so that the privileges of this
+# process stay as they are.
+Describe 'Enable-Privileges in the script NTFSSecurity.Init.ps1' {
+    BeforeAll {
+        function Invoke-StartScript {
+            param ([string] $ScriptName, [bool] $Setting)
+
+            $folder = Join-Path -Path $sandbox -ChildPath ('Start-{0}' -f [guid]::NewGuid().ToString('N').Substring(0, 8))
+            $script = Join-Path -Path $folder -ChildPath $ScriptName
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $script
+            New-Item -ItemType Directory -Path $folder | Out-Null
+            Set-Content -LiteralPath $script -Value @'
+param ($ModulePath, $Setting)
+Import-Module -Name $ModulePath -ErrorAction Stop
+(Get-Module -Name NTFSSecurity).PrivateData['EnablePrivileges'] = ($Setting -eq 'True')
+Enable-Privileges
+'BACKUP:{0}' -f (Get-Privileges | Where-Object -Property Privilege -EQ -Value 'Backup').PrivilegeState
+'@
+            $output = & (Get-Process -Id $PID).Path -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -ModulePath ([IO.Path]::GetFullPath($modulePath)) -Setting $Setting
+            @($output | Where-Object -FilterScript { $_ -like 'BACKUP:*' }) -replace '^BACKUP:'
+        }
+    }
+
+    It 'Should enable the privileges when the module setting EnablePrivileges is $true' -Skip:(-not $holdsPrivileges) {
+        Invoke-StartScript -ScriptName 'NTFSSecurity.Init.ps1' -Setting $true | Should -Be 'Enabled'
+    }
+
+    It 'Should leave the privileges disabled when the module setting EnablePrivileges is $false' -Skip:(-not $holdsPrivileges) {
+        Invoke-StartScript -ScriptName 'NTFSSecurity.Init.ps1' -Setting $false | Should -Be 'Disabled'
+    }
+
+    It 'Should enable the privileges in a script of another name also when the module setting EnablePrivileges is $false' -Skip:(-not $holdsPrivileges) {
+        Invoke-StartScript -ScriptName 'Other.ps1' -Setting $false | Should -Be 'Enabled'
+    }
+}
+
 Describe 'Privileges that another command in the pipeline changes' {
     BeforeAll {
         $privateData['EnablePrivileges'] = $true

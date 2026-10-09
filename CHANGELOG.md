@@ -131,8 +131,17 @@ The format is based on
   when a later command ended the pipeline: a `break` or `continue`,
   `Select-Object -First`, or a `throw` was handled as a failure of the item,
   so that `Remove-Item2 -PassThru | Select-Object -First 1` removed every
-  item, and the caller never saw the `throw`. They now stop and write no
+  item, and the caller never saw the `throw`. The same held when the later
+  command took a stream instead of the objects: the verbose messages of
+  `Get-FileHash2` and `Set-NTFSSecurityDescriptor`, the debug messages of
+  `Set-NTFSOwner`, and the errors of `Get-ChildItem2` for a folder that it
+  cannot read, for example with `4>&1` or `2>&1`. They now stop and write no
   error, and the error of the later command reaches the caller
+- Fix the cmdlets that enable the privileges, which left a privilege enabled
+  in the session and hid the exception of a later command when that command
+  took the debug message after the enabling, for example with
+  `5>&1 | Select-Object -First 2`; they now disable the privilege and pass
+  the exception on
 - Fix `Get-ChildItem2 -Filter`, which read a bracket as the start of a
   character class, so that it did not return a file with brackets in its name,
   such as `Report[1].txt`, for that name; only `*` and `?` are wildcards. A
