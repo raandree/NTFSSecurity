@@ -698,6 +698,11 @@ $fixtureScript = {
     $null = New-Item -ItemType Directory -Path (Join-Path -Path $itemsPath -ChildPath 'Folder')
     Set-Content -LiteralPath (Join-Path -Path $itemsPath -ChildPath 'Folder\File.txt') -Value 'File' -NoNewline
 
+    $hiddenPath = New-FixtureFolder -RelativePath 'Case7\Hidden' -AccessRule $delegatesFullControl
+    $hiddenFile = Join-Path -Path $hiddenPath -ChildPath 'Only.txt'
+    Set-Content -LiteralPath $hiddenFile -Value 'Hidden' -NoNewline
+    [System.IO.File]::SetAttributes($hiddenFile, [System.IO.FileAttributes]::Hidden)
+
     # Case 8: the link cmdlets.
     $linksPath = New-FixtureFolder -RelativePath 'Case8\Links' -AccessRule $delegatesFullControl
     Set-Content -LiteralPath (Join-Path -Path $linksPath -ChildPath 'Target.txt') -Value 'Target' -NoNewline

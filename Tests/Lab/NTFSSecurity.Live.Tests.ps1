@@ -706,6 +706,18 @@ Describe 'Item cmdlets on a share folder' -Tag 'Delegate' -Skip:(-not $configure
         Test-Path -LiteralPath $removing | Should -BeFalse
     }
 
+    It 'Get-ChildItem2 -Hidden should include the first hidden file without explicit -Force over SMB' {
+        $hiddenFolder = Get-LabPath -RelativePath 'Case7\Hidden'
+        $hiddenFile = Join-Path -Path $hiddenFolder -ChildPath 'Only.txt'
+
+        $result = @(Get-ChildItem2 -Path $hiddenFolder -Hidden -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        $result | Should -HaveCount 1
+        $result[0].FullName | Should -Be $hiddenFile
+        [System.IO.File]::GetAttributes($hiddenFile).HasFlag([System.IO.FileAttributes]::Hidden) | Should -BeTrue
+    }
+
     It 'Get-ChildItem2 should list the file and the folder that the tests leave in place' {
         $names = @(Get-ChildItem2 -Path $folder -ErrorVariable operationErrors -ErrorAction SilentlyContinue).Name
 
@@ -869,6 +881,13 @@ Describe 'Security descriptors on the file server after the runs on the client' 
         foreach ($name in 'Move.txt', 'Remove.txt') {
             Test-Path -LiteralPath (Join-Path -Path $folder -ChildPath $name) | Should -BeFalse -Because $name
         }
+    }
+
+    It 'Should retain the hidden file and its attribute after the client listing' {
+        $hiddenFile = Get-LabPath -RelativePath 'Case7\Hidden\Only.txt'
+
+        Get-Content -LiteralPath $hiddenFile -Raw | Should -BeExactly 'Hidden'
+        [System.IO.File]::GetAttributes($hiddenFile).HasFlag([System.IO.FileAttributes]::Hidden) | Should -BeTrue
     }
 
     It 'Should have the links that the link cmdlets created' {

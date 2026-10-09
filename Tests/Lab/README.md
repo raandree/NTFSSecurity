@@ -17,7 +17,7 @@ without a lab they skip every test.
 | 4 | Admin | `Get-NTFSOrphanedAccess` returns the entry of a deleted domain account with its SID, on the folder and as inherited entry on a file in it; `Get-NTFSOrphanedAudit` returns the audit entry of that account. |
 | 5 | Admin, ServerAdmin, Delegate | `Get-NTFSOwner` and `Set-NTFSOwner` on share folders that Administrators own. Every role makes itself the owner; only the administrators of the file server, which hold the Restore privilege there, assign another account. The delegated account gets a `SetOwnerError`, and the owner stays. |
 | 6 | Admin, ServerAdmin, Delegate | `Disable-NTFSAuditInheritance`, `Enable-NTFSAuditInheritance`, `Clear-NTFSAudit`, and `Get-NTFSInheritance` on share folders that inherit an audit entry. The administrators of the file server change the audit entries; the delegated account gets the errors that the cmdlet pages describe, and `Get-NTFSInheritance` reports no audit state for it. |
-| 7 | Delegate | `Get-Item2`, `Test-Path2`, `Get-FileHash2`, `Copy-Item2`, `Move-Item2`, `Remove-Item2`, and `Get-ChildItem2` in a share folder. |
+| 7 | Delegate | `Get-Item2`, `Test-Path2`, `Get-FileHash2`, `Copy-Item2`, `Move-Item2`, `Remove-Item2`, and `Get-ChildItem2` in a share folder, including the first hidden file with `-Hidden` and without explicit `-Force`. |
 | 8 | Admin | `New-NTFSHardLink`, `Get-NTFSHardLink`, and `New-NTFSSymbolicLink` in a share folder. Windows can't list the names of a file on a share, so `Get-NTFSHardLink` and `New-NTFSHardLink -PassThru` write the `GetHardLinkError` that their pages describe. |
 | 9 | Delegate, Admin | `Get-NTFSSimpleAccess` compares a share folder with its parent. For the accounts of another domain and of other forests, `Get-NTFSAccess` returns their names, `Get-NTFSOrphanedAccess` doesn't report them, `Add-NTFSAccess` and `Remove-NTFSAccess` find them by name, and `Get-NTFSEffectiveAccess -ServerName` returns the rights that the file server's own token of each account gets. |
 | Long paths | Admin | `Get-ChildItem2` and `Get-NTFSAccess` with a share path longer than 260 characters. |
@@ -142,7 +142,8 @@ and record the evidence in this folder:
    share, folders, group memberships, and profiles are gone.
 
 Records: [5.0.0-rc6](Acceptance-2026-10-08-5.0.0-rc6.md),
-[5.0.0-rc7](Acceptance-2026-10-08-5.0.0-rc7.md).
+[5.0.0-rc7](Acceptance-2026-10-08-5.0.0-rc7.md), and
+[quality-gate follow-up](Acceptance-2026-10-09-quality-gate.md).
 
 ## Files
 
