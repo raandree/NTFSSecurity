@@ -496,12 +496,13 @@ Describe 'A later command and the error of a folder that Get-ChildItem2 cannot r
 
     # Before 5.0.0-rc7, the recursion took what the later command threw for the error of a nested folder as a failure of
     # the folder above it, wrote a verbose message, and left the loop over the folders: the listing ended early and the
-    # caller never saw the exception.
+    # caller never saw the exception. The error action is named because the CI runner sets $ErrorActionPreference to Stop,
+    # which would end the listing at the first error before the later command saw it.
     It 'Should pass on what a later command throws when it takes the error of a nested folder' {
         $emitted = 0
         $caught = $null
         try {
-            Get-ChildItem2 -Path $errorTree -Recurse -File 2>&1 | ForEach-Object -Process {
+            Get-ChildItem2 -Path $errorTree -Recurse -File -ErrorAction Continue 2>&1 | ForEach-Object -Process {
                 $emitted++
                 throw 'Downstream failure'
             }
@@ -521,7 +522,7 @@ Describe 'A later command and the error of a folder that Get-ChildItem2 cannot r
         $emitted = 0
         $reachedEnd = $false
         foreach ($round in 1) {
-            Get-ChildItem2 -Path $errorTree -Recurse -File 2>&1 | ForEach-Object -Process {
+            Get-ChildItem2 -Path $errorTree -Recurse -File -ErrorAction Continue 2>&1 | ForEach-Object -Process {
                 $emitted++
                 if ($Keyword -eq 'break') { break } else { continue }
             }
