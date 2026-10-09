@@ -37,6 +37,7 @@ namespace Security2
         public FileSystemAuditRule2(FileSystemAuditRule fileSystemAuditRule, string path)
         {
             this.fileSystemAuditRule = fileSystemAuditRule;
+            this.fullName = path;
         }
 
         #region Conversion

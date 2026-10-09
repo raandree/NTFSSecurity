@@ -37,6 +37,7 @@ namespace Security2
         public FileSystemAccessRule2(FileSystemAccessRule fileSystemAccessRule, string path)
         {
             this.fileSystemAccessRule = fileSystemAccessRule;
+            this.fullName = path;
         }
 
         public static implicit operator FileSystemAccessRule(FileSystemAccessRule2 ace2)

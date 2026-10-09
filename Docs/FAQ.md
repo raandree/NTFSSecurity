@@ -93,3 +93,21 @@ Compare-Object -ReferenceObject (Get-NTFSAccess -Path C:\Data\A) -DifferenceObje
 The same works for the entries of `Get-NTFSAudit`, with `AuditFlags` in
 place of `AccessControlType`. See
 [Get-NTFSAccess](Cmdlets/Get-NTFSAccess.md).
+
+## How do the public object APIs compare and convert entries?
+
+The public `FileSystemAccessRule2` and `FileSystemAuditRule2` constructors
+that take a .NET rule and a string path retain that path in `FullName` and
+its last component in `Name`. They do not read or change the item. This is
+useful when an application constructs a rule before replaying it through
+the public rule helpers.
+
+`ToSimpleFileSystemAuditRule2()` retains the path and account and reduces
+`ReadData` to `Read`, like the simplified access-rule helper. Simplified
+audit objects compare only with other simplified audit objects; they are
+not equal to access objects. This does not change the reference-based
+comparison of the full access and audit entries described above.
+
+The values returned by `Get-Privileges` compare by `Privilege` and
+`PrivilegeAttributes`. Typed and boxed .NET comparisons agree, and an
+unrelated object is not equal to a privilege value.

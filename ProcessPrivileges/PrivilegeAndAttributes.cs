@@ -83,7 +83,7 @@ namespace ProcessPrivileges
         /// <returns>Value indicating whether this instance and a specified object are equal.</returns>
         public override bool Equals(object obj)
         {
-            return obj is PrivilegeAttributes ? this.Equals((PrivilegeAttributes)obj) : false;
+            return obj is PrivilegeAndAttributes ? this.Equals((PrivilegeAndAttributes)obj) : false;
         }
 
         /// <summary>Indicates whether this instance and another instance are equal.</summary>

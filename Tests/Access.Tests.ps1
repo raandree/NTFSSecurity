@@ -955,3 +955,38 @@ Describe 'InheritedFrom of access entries' {
         }
     }
 }
+Describe 'Get-NTFSEffectiveAccess for an unresolved identity' {
+    It 'Should report the native identity error for each <Source> and return no access entry' -ForEach @(
+        @{ Source = 'Path' }
+        @{ Source = 'SecurityDescriptor' }
+    ) {
+        $first = New-TestSandboxItem -Sandbox $sandbox -Name 'UnresolvedFirst'
+        $next = New-TestSandboxItem -Sandbox $sandbox -Name 'UnresolvedNext'
+        $identity = [Security2.IdentityReference2] 'S-1-5-21-1-2-3-1001'
+        $identity.AccountName | Should -BeNullOrEmpty
+        $identity.LastError | Should -Not -BeNullOrEmpty
+        $before = @((Get-Acl -LiteralPath $first).Sddl, (Get-Acl -LiteralPath $next).Sddl)
+        $parameters = @{ Account = $identity; WarningAction = 'SilentlyContinue'; ErrorAction = 'SilentlyContinue' }
+        if ($Source -eq 'Path') {
+            $parameters.Path = @($first, $next)
+        }
+        else {
+            $parameters.SecurityDescriptor = @(Get-NTFSSecurityDescriptor -Path $first, $next)
+        }
+
+        $result = @(Get-NTFSEffectiveAccess @parameters -ErrorVariable accessErrors)
+
+        $result | Should -BeNullOrEmpty
+        $accessErrors | Should -HaveCount 2
+        for ($index = 0; $index -lt 2; $index++) {
+            $accessErrors[$index].FullyQualifiedErrorId | Should -BeLike 'GetEffectiveAccessError,*'
+            $accessErrors[$index].CategoryInfo.Category | Should -Be 'ReadError'
+            $accessErrors[$index].TargetObject.FullName | Should -BeExactly @($first, $next)[$index]
+            $cause = $accessErrors[$index].Exception.GetBaseException()
+            $cause | Should -BeOfType [System.ComponentModel.Win32Exception]
+            $cause.NativeErrorCode | Should -Be 1332
+        }
+        (Get-Acl -LiteralPath $first).Sddl | Should -BeExactly $before[0]
+        (Get-Acl -LiteralPath $next).Sddl | Should -BeExactly $before[1]
+    }
+}

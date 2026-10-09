@@ -777,3 +777,36 @@ Describe 'Get-DiskSpace' {
             Should -Throw -ErrorId 'ParameterArgumentValidationError,NTFSSecurity.GetDiskSpace'
     }
 }
+Describe 'Get-ChildItem2 when recursive enumeration becomes denied' {
+    It 'Should name the failed recursion in verbose output and continue with the next path' {
+        $root = New-TestSandboxItem -Sandbox $sandbox -Name 'ChangingReadPermission' -Directory
+        $child = Join-Path -Path $root -ChildPath 'Child'
+        $first = Join-Path -Path $root -ChildPath 'First.txt'
+        $nested = Join-Path -Path $child -ChildPath 'Nested.txt'
+        $next = New-TestSandboxItem -Sandbox $sandbox -Name 'NextRecursivePath' -Directory
+        $nextFile = Join-Path -Path $next -ChildPath 'Next.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $root, $child, $first, $nested, $nextFile
+        New-Item -ItemType Directory -Path $child | Out-Null
+        Set-Content -LiteralPath $first -Value 'First'
+        Set-Content -LiteralPath $nested -Value 'Nested'
+        Set-Content -LiteralPath $nextFile -Value 'Next'
+        $ownerBefore = (Get-Acl -LiteralPath $root).Owner
+
+        # The first file is emitted before the separate recursive directory enumeration opens the folder again.
+        $records = @(Get-ChildItem2 -Path $root, $next -File -Recurse -Verbose -ErrorVariable childErrors -ErrorAction SilentlyContinue 4>&1 |
+                ForEach-Object {
+                    if ($_ -is [Alphaleonis.Win32.Filesystem.FileInfo] -and $_.FullName -eq $first) {
+                        Add-TestDenyRule -Sandbox $sandbox -Path $root -Rights @{ 'S-1-1-0' = 'ReadData' }
+                    }
+                    $_
+                })
+
+        $childErrors | Should -BeNullOrEmpty
+        $files = @($records | Where-Object { $_ -is [Alphaleonis.Win32.Filesystem.FileInfo] })
+        @($files.FullName | Sort-Object) | Should -Be @(@($first, $nextFile) | Sort-Object)
+        $messages = @($records | Where-Object { $_ -is [System.Management.Automation.VerboseRecord] })
+        $messages.Message | Should -Contain "Cannot access folder '$root' for recursive operation"
+        (Get-Acl -LiteralPath $root).Owner | Should -BeExactly $ownerBefore
+        Get-Content -LiteralPath $nested | Should -BeExactly 'Nested'
+    }
+}

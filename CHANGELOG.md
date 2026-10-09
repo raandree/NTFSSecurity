@@ -104,6 +104,16 @@ The format is based on
 
 ### Fixed
 
+- Retain the supplied path in the public access- and audit-rule constructors
+  so their `FullName`, `Name`, and simplified audit conversions identify
+  the item
+- Reduce `ReadData` to `Read` in simplified audit entries, and compare them
+  with audit entries rather than access entries, preserving equality with
+  themselves and with equivalent simplified audit objects
+- Compare boxed privilege output values by their privilege and attributes;
+  the object overload rejected privilege values and recursively compared
+  an attributes enum instead
+
 - Fix `Get-Help`, which showed only the syntax: ship the help file
   `en-US\NTFSSecurity.dll-Help.xml` generated from the cmdlet documentation,
   including the links that `Get-Help -Online` opens, instead of the outdated

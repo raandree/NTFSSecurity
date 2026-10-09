@@ -430,3 +430,81 @@ Describe 'Access inheritance cmdlets' {
         }
     }
 }
+Describe 'Set-NTFSInheritance with an in-memory descriptor' {
+    It 'Should set access inheritance enabled=<Enable> on a <Type> only when the descriptor is written' -ForEach @(
+        @{ Type = 'file'; Enable = $false }
+        @{ Type = 'file'; Enable = $true }
+        @{ Type = 'folder'; Enable = $false }
+        @{ Type = 'folder'; Enable = $true }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'DescriptorAccessState' -Directory:($Type -eq 'folder')
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $path
+        Set-NTFSInheritance -Path $path -AccessInheritanceEnabled (-not $Enable) -ErrorAction Stop
+        Add-NTFSAccess -Path $path -Account 'S-1-1-0' -AccessRights ReadData -AppliesTo ThisFolderOnly
+        $before = (Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm('Access')
+        $ownerBefore = (Get-Acl -LiteralPath $path).Owner
+        $sd = Get-NTFSSecurityDescriptor -Path $path
+
+        $result = @(Set-NTFSInheritance -SecurityDescriptor $sd -AccessInheritanceEnabled $Enable -PassThru -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+        $result[0].FullName | Should -BeExactly $path
+        $result[0].Name | Should -BeExactly ([IO.Path]::GetFileName($path))
+        $result[0].AccessInheritanceEnabled | Should -Be $Enable
+        $sd.SecurityDescriptor.AreAccessRulesProtected | Should -Be (-not $Enable)
+        (Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm('Access') | Should -BeExactly $before
+        Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorAction Stop
+        (Get-Acl -LiteralPath $path).AreAccessRulesProtected | Should -Be (-not $Enable)
+        (Get-Acl -LiteralPath $path).Owner | Should -BeExactly $ownerBefore
+        @(Get-NTFSAccess -Path $path -ExcludeInherited | Where-Object { $_.Account.Sid -eq 'S-1-1-0' }) |
+            Should -HaveCount 1
+    }
+
+    It 'Should set audit inheritance enabled=<Enable> on a <Type> without changing its DACL or owner' -Skip:(-not $canChangeAudit) -ForEach @(
+        @{ Type = 'file'; Enable = $false }
+        @{ Type = 'file'; Enable = $true }
+        @{ Type = 'folder'; Enable = $false }
+        @{ Type = 'folder'; Enable = $true }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'DescriptorAuditState' -Directory:($Type -eq 'folder')
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $path
+        Set-NTFSInheritance -Path $path -AuditInheritanceEnabled (-not $Enable) -ErrorAction Stop
+        Add-NTFSAudit -Path $path -Account 'S-1-1-0' -AccessRights Delete -AuditFlags Success -AppliesTo ThisFolderOnly
+        $before = (Get-NTFSSecurityDescriptor -Path $path).SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit')
+        $daclBefore = (Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm('Access')
+        $ownerBefore = (Get-Acl -LiteralPath $path).Owner
+        $sd = Get-NTFSSecurityDescriptor -Path $path
+
+        $result = @(Set-NTFSInheritance -SecurityDescriptor $sd -AuditInheritanceEnabled $Enable -PassThru -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+        $result[0].AuditInheritanceEnabled | Should -Be $Enable
+        $sd.SecurityDescriptor.AreAuditRulesProtected | Should -Be (-not $Enable)
+        (Get-NTFSSecurityDescriptor -Path $path).SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit') |
+            Should -BeExactly $before
+        Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorAction Stop
+        (Get-NTFSInheritance -Path $path).AuditInheritanceEnabled | Should -Be $Enable
+        (Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm('Access') | Should -BeExactly $daclBefore
+        (Get-Acl -LiteralPath $path).Owner | Should -BeExactly $ownerBefore
+        @(Get-NTFSAudit -Path $path -ExcludeInherited | Where-Object { $_.Account.Sid -eq 'S-1-1-0' }) |
+            Should -HaveCount 1
+    }
+
+    It 'Should keep audit inheritance unknown when requested enabled=<_> on an access-only descriptor' -ForEach @($false, $true) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'DescriptorUnknownAudit'
+        $sd = New-Object -TypeName 'Security2.FileSystemSecurity2' -ArgumentList (
+            (Get-Item2 -Path $path), [System.Security.AccessControl.AccessControlSections]::Access
+        )
+        $before = (Get-Acl -LiteralPath $path).Sddl
+
+        $result = @(Set-NTFSInheritance -SecurityDescriptor $sd -AuditInheritanceEnabled $_ -PassThru -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+        $result[0].AuditInheritanceEnabled | Should -BeNullOrEmpty
+        $raw = New-Object -TypeName 'System.Security.AccessControl.RawSecurityDescriptor' -ArgumentList (
+            $sd.SecurityDescriptor.GetSecurityDescriptorBinaryForm(), 0
+        )
+        $null -eq $raw.SystemAcl | Should -BeTrue
+        (Get-Acl -LiteralPath $path).Sddl | Should -BeExactly $before
+    }
+}

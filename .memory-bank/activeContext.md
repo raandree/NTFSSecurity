@@ -9,11 +9,15 @@ source: current task evidence
 
 ## Current focus
 
-Quality-gate follow-up is implemented and validated locally on
-`ai/quality-gate-coverage`, based on `d25647d` of #116. Code/test baseline
-`3442194`, lab regression/acceptance `7594e0c`; final records follow.
-No remote mutation. Architecture/cmdlet-design choices remain deferred;
-Decision 22 is still proposed. Stable 5.0.0 is not ready (Decision 21).
+Handoff 1 is in progress on `ai/quality-gate-paths`, from reviewed #117
+head `f11ff41`. Both stacked PRs are open and green; rc6 remains the latest
+published candidate and 4.2.6 the stable Gallery version. Public rule-path,
+simplified-audit, and boxed privilege-comparison defects were reproduced
+and fixed test-first. New descriptor, native-identity, audit-capability and
+recursive-denial guards pass focused checks. Frozen full-suite coverage,
+complete path explanations and the requested independent review follow.
+The shared lab and remotes are unchanged. Decisions 21/22 and stable 5.0.0
+remain gated; Decision 22 is proposed, not accepted.
 
 ## Evidence
 
@@ -56,10 +60,10 @@ Decision 22 is still proposed. Stable 5.0.0 is not ready (Decision 21).
 
 ## Next step
 
-1. Maintainer pushes/reviews this follow-up; retain separate commits and
-   stacked-PR merge order (15). #116's Decision 22 review remains required.
-2. Integrate and pass CI, then publish/test the next candidate package.
-3. Close the remaining-path inventory (918 points, 562 for finer review),
-   decide/provision the OS matrix, obtain or explicitly accept #34 feedback.
-4. Only then release 5.0.0 through documented CI steps; never claim the
-   current coverage percentage alone meets the quality gate.
+1. Finish Handoff 1: freeze Release source, prove characterization guards,
+   run all four configurations, classify every refreshed gap and review.
+2. Send code fixes and persistent evidence to gate 3 before publication;
+   repeat affected packaged acceptance after integration. No local upload.
+3. Retain stacked-PR order (15), obtain Decision 22 review, finish the OS
+   matrix and obtain or explicitly accept #34 feedback through other gates.
+4. Do not release stable 5.0.0 or equate a percentage with gate closure.
