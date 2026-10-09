@@ -140,6 +140,26 @@ Describe 'Get-ChildItem2' {
             ($relative | Sort-Object) -join ',' | Should -Be (($Expected | Sort-Object) -join ',')
         }
 
+        # The pattern must match the name of the item. When Windows lists a folder with a pattern, it also compares the
+        # short name (8.3) of an item, so *.htm finds Page2.html as well, as Get-ChildItem does where the volume creates
+        # short names. The cmdlet compares the name again.
+        It 'Should return only the items whose name matches -Filter <Filter>' -ForEach @(
+            @{ Filter = '*.htm'; Expected = @('Page.htm') }
+            @{ Filter = 'Page?.html'; Expected = @('Page2.html') }
+            @{ Filter = 'PAGE*'; Expected = @('Page.htm', 'Page2.html') }
+        ) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterNames' -Directory
+            foreach ($name in 'Page.htm', 'Page2.html') {
+                $file = Join-Path -Path $folder -ChildPath $name
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+                Set-Content -LiteralPath $file -Value $name
+            }
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter $Filter -ErrorAction Stop)
+
+            ($result.Name | Sort-Object) -join ',' | Should -Be (($Expected | Sort-Object) -join ',')
+        }
+
         It 'Should stop a recursive pipeline without recording an enumeration error' {
             $result = @(Get-ChildItem2 -Path $tree -Recurse -ErrorVariable childErrors -ErrorAction SilentlyContinue | Select-Object -First 1)
 

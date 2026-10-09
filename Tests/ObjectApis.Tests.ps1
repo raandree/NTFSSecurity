@@ -1,5 +1,5 @@
 <#
-    Tests the public object APIs used with cmdlet output, without changing an item's security descriptor.
+    Tests the public object APIs used with cmdlet output, on files and folders in a sandbox folder.
 #>
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
     'PSUseDeclaredVarsMoreThanAssignments', '', Justification = 'Pester shares variables between blocks.'
@@ -376,8 +376,9 @@ Describe 'Access rule helpers that take a path' {
         $entries[0].FileSystemRights | Should -Be ([System.Security.AccessControl.FileSystemRights] 'ReadData, Synchronize')
     }
 
-    # The overload for several accounts is an iterator, so it writes nothing until the caller enumerates the result.
-    It 'Should add the entries of several accounts to a <Kind> by its path only when the result is enumerated' -ForEach @(
+    # The overload that takes a path returns an iterator, so the caller must enumerate the result to write the entries.
+    # The overloads that take an item write them at once; this test doesn't pin the difference.
+    It 'Should add the entries of several accounts to a <Kind> by its path when the result is enumerated' -ForEach @(
         @{ Kind = 'file'; Directory = $false }
         @{ Kind = 'folder'; Directory = $true }
     ) {
@@ -388,8 +389,6 @@ Describe 'Access rule helpers that take a path' {
             $path, $accounts, [Security2.FileSystemRights2]::ReadData, $allow, $noInheritance, $noPropagation
         )
 
-        @(Get-ExplicitEntries -Path $path) | Should -BeNullOrEmpty
-        @(Get-ExplicitEntries -Path $path -Account 'S-1-5-32-545') | Should -BeNullOrEmpty
         @($pending) | Should -HaveCount 2
         @(Get-ExplicitEntries -Path $path) | Should -HaveCount 1
         @(Get-ExplicitEntries -Path $path -Account 'S-1-5-32-545') | Should -HaveCount 1
@@ -565,9 +564,13 @@ Describe 'Audit rule helpers that take a path' -Skip:(-not $holdsSecurityPrivile
         $entries | Should -HaveCount 1
         $entries[0].AuditFlags | Should -Be 'Success'
         $entries[0].FileSystemRights | Should -Be ([System.Security.AccessControl.FileSystemRights]::Delete)
+        $found = @([Security2.FileSystemAuditRule2]::GetFileSystemAuditRules($path, $true, $false))
+        $found | Should -HaveCount 1
+        $found[0].Account.Sid | Should -BeExactly 'S-1-1-0'
+        $found[0].FullName | Should -BeExactly $path
     }
 
-    It 'Should add the entries of several accounts to a <Kind> by its path only when the result is enumerated, and remove them again' -ForEach @(
+    It 'Should add the entries of several accounts to a <Kind> by its path when the result is enumerated, and remove them again' -ForEach @(
         @{ Kind = 'file'; Directory = $false }
         @{ Kind = 'folder'; Directory = $true }
     ) {
@@ -580,7 +583,6 @@ Describe 'Audit rule helpers that take a path' -Skip:(-not $holdsSecurityPrivile
             $path, $accounts, [Security2.FileSystemRights2]::Delete, $success, $noInheritance, $noPropagation
         )
 
-        @(Get-AuditEntries -Path $path) | Should -BeNullOrEmpty
         @($pending) | Should -HaveCount 2
         @(Get-AuditEntries -Path $path) | Should -HaveCount 1
         @(Get-AuditEntries -Path $path -Account 'S-1-5-32-545') | Should -HaveCount 1
@@ -668,6 +670,21 @@ Describe 'Inheritance helpers that take a path' {
         (Get-Acl -LiteralPath $path).AreAccessRulesProtected | Should -BeFalse
     }
 
+    # The overloads that take a path do nothing for a path that is neither a file nor a folder.
+    It '<Method> should change nothing for a path that does not exist' -ForEach @(
+        @{ Method = 'EnableAccessInheritance' }
+        @{ Method = 'DisableAccessInheritance' }
+        @{ Method = 'EnableAuditInheritance' }
+        @{ Method = 'DisableAuditInheritance' }
+    ) {
+        $missing = Join-Path -Path $sandbox -ChildPath ('Missing-{0}' -f [guid]::NewGuid().ToString('N'))
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $missing
+
+        { [Security2.FileSystemInheritanceInfo]::$Method($missing, $true) } | Should -Not -Throw
+
+        Test-Path -LiteralPath $missing | Should -BeFalse
+    }
+
     It 'Should block and restore the audit inheritance of a <Kind> by its path' -Skip:(-not $holdsSecurityPrivilege) -ForEach @(
         @{ Kind = 'file'; Directory = $false }
         @{ Kind = 'folder'; Directory = $true }
@@ -716,6 +733,24 @@ Describe 'Owner and descriptor objects' {
 
         @((Get-Acl -LiteralPath $target).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
                 Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) | Should -HaveCount 1
+    }
+
+    # The item decides where Write puts the sections that the descriptor was read with, and Name and FullName follow it.
+    It 'Should write a descriptor to the item that the caller assigns' {
+        $source = New-TestSandboxItem -Sandbox $sandbox -Name 'RetargetSource'
+        $target = New-TestSandboxItem -Sandbox $sandbox -Name 'RetargetTarget'
+        Add-NTFSAccess -Path $source -Account 'S-1-1-0' -AccessRights ReadData
+        $descriptor = Get-NTFSSecurityDescriptor -Path $source
+        $descriptor.Item = Get-Item2 -Path $target
+
+        $descriptor.FullName | Should -BeExactly $target
+        $descriptor.Name | Should -BeExactly (Split-Path -Path $target -Leaf)
+        $descriptor.Write()
+
+        foreach ($path in $source, $target) {
+            @((Get-Acl -LiteralPath $path).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) | Should -HaveCount 1
+        }
     }
 
     It 'Should name the missing path when it writes a descriptor to an item that does not exist' {

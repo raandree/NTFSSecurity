@@ -155,6 +155,20 @@ Describe 'Get-NTFSEffectiveAccess' {
                 "because the computer 'ntfssecurity-test.invalid' can't be reached for a remote access check. " +
                 'For more accurate results, calculate effective access rights on that computer.')
         }
+
+        # An empty name names no computer, so it names this one no more than any other name that can't be reached.
+        It 'Should return the result of this computer and warn for an empty -ServerName' {
+            $expected = Get-NTFSEffectiveAccess -Path $effectiveFile -WarningAction SilentlyContinue -ErrorAction Stop
+
+            $result = @(Get-NTFSEffectiveAccess -Path $effectiveFile -ServerName '' -WarningVariable accessWarnings -WarningAction SilentlyContinue -ErrorVariable accessErrors -ErrorAction SilentlyContinue)
+
+            $accessErrors | Should -BeNullOrEmpty
+            $result | Should -HaveCount 1
+            $result[0].AccessRights | Should -Be $expected.AccessRights
+            $accessWarnings.Message | Should -Contain ("The effective rights can only be computed based on group membership on this computer, " +
+                "because the computer '' can't be reached for a remote access check. " +
+                'For more accurate results, calculate effective access rights on that computer.')
+        }
     }
 
     # Not every computer offers the remote interface of the authorization manager; the cmdlet then calculates the result
@@ -603,6 +617,24 @@ Describe 'Remove-NTFSAccess' {
 
             $removeErrors | Should -BeNullOrEmpty
             Get-GuestsRule -Path $folder | Should -BeNullOrEmpty
+        }
+
+        # The entry of another account with exactly the rights to remove is not an exact match for the entry of the
+        # account, so the rights that the entry of the account keeps still have their Synchronize.
+        It 'Should take only the requested generic right from the entry of the account when another account has an exact entry' {
+            $users = [System.Security.Principal.SecurityIdentifier]'S-1-5-32-545'
+            $folder = New-GenericRightFolder -Entry '(A;OICIIO;0x10100000;;;BU)(A;OICIIO;0x90100000;;;BG)'
+
+            Remove-NTFSAccess -Path $folder -Account 'S-1-5-32-546' -AccessRights GenericAll -InheritanceFlags ContainerInherit, ObjectInherit -PropagationFlags InheritOnly -ErrorVariable removeErrors -ErrorAction SilentlyContinue
+
+            $removeErrors | Should -BeNullOrEmpty
+            $guestsRule = @(Get-GuestsRule -Path $folder)
+            $guestsRule | Should -HaveCount 1
+            [int] $guestsRule[0].FileSystemRights | Should -Be 0x80100000
+            $usersRule = @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                    Where-Object -Property IdentityReference -EQ -Value $users)
+            $usersRule | Should -HaveCount 1
+            [int] $usersRule[0].FileSystemRights | Should -Be 0x10100000
         }
     }
     Context 'With -RemoveSpecific' {

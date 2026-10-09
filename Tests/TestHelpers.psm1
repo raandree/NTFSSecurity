@@ -422,6 +422,113 @@ function ConvertTo-TestAdminSharePath {
     '\\localhost\{0}${1}' -f $Path.Substring(0, 1), $Path.Substring(2)
 }
 
+function New-TestDriveMapping {
+    <#
+    .SYNOPSIS
+        Maps a free drive letter to a folder of the sandbox with subst and returns the root of the drive, such as Z:\.
+        Returns nothing when the process cannot define a drive letter, as the restricted token of a basic user cannot.
+    .DESCRIPTION
+        For Windows and for the module, the root of the mapped drive is the root folder of a drive, so that a test can
+        change it without changing a volume. The helper checks the folder with Assert-TestSandboxPath first and unmaps
+        the letter again, with an error, when a marker file of the folder is not visible through it, so that a mapping
+        that points elsewhere is never used. Remove the mapping with Remove-TestDriveMapping.
+    .PARAMETER Sandbox
+        The sandbox folder that New-TestSandbox returned.
+    .PARAMETER Path
+        The full path of the folder to map, in the sandbox.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+        'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only maps sandbox folders.'
+    )]
+    [CmdletBinding()]
+    [OutputType([string])]
+    param (
+        [Parameter(Mandatory)]
+        [string]
+        $Sandbox,
+
+        [Parameter(Mandatory)]
+        [string]
+        $Path
+    )
+
+    Assert-TestSandboxPath -Sandbox $Sandbox -Path $Path
+    $marker = [guid]::NewGuid().ToString('N')
+    $markerPath = Join-Path -Path $Path -ChildPath $marker
+    Assert-TestSandboxPath -Sandbox $Sandbox -Path $markerPath
+    Set-Content -LiteralPath $markerPath -Value $marker
+    $subst = Join-Path -Path $env:SystemRoot -ChildPath 'System32\subst.exe'
+
+    # A test run in parallel can map a letter at the same moment, which makes subst fail for that letter.
+    foreach ($letter in 'Z', 'Y', 'X', 'W', 'V', 'U', 'T', 'S') {
+        $root = '{0}:\' -f $letter
+        if (Test-Path -LiteralPath $root) {
+            continue
+        }
+
+        & $subst ('{0}:' -f $letter) $Path *> $null
+        if ($LASTEXITCODE -ne 0) {
+            continue
+        }
+
+        if (Test-Path -LiteralPath (Join-Path -Path $root -ChildPath $marker)) {
+            return $root
+        }
+
+        & $subst ('{0}:' -f $letter) /d *> $null
+        throw "The drive '$root' does not show the sandbox folder '$Path'."
+    }
+}
+
+function Remove-TestDriveMapping {
+    <#
+    .SYNOPSIS
+        Removes a mapping of New-TestDriveMapping.
+    .PARAMETER Root
+        The root of the drive that New-TestDriveMapping returned, such as Z:\.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+        'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only removes its own mapping.'
+    )]
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [ValidatePattern('^[A-Z]:\\$')]
+        [string]
+        $Root
+    )
+
+    & (Join-Path -Path $env:SystemRoot -ChildPath 'System32\subst.exe') $Root.TrimEnd('\') /d *> $null
+    if (Test-Path -LiteralPath $Root) {
+        Write-Error -Message "The drive mapping '$Root' could not be removed."
+    }
+}
+
+function Test-DriveMappingAvailable {
+    <#
+    .SYNOPSIS
+        Returns $true when the process can define a drive letter for a folder with subst, which the restricted token of
+        the basic-user runner cannot.
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param ()
+
+    $sandbox = New-TestSandbox -Name 'DriveProbe'
+    try {
+        $root = New-TestDriveMapping -Sandbox $sandbox -Path $sandbox
+        if ($root) {
+            Remove-TestDriveMapping -Root $root
+        }
+
+        [bool] $root
+    }
+    finally {
+        Remove-TestSandbox -Sandbox $sandbox
+    }
+}
+
 Export-ModuleMember -Function New-TestSandbox, Assert-TestSandboxPath, Remove-TestSandbox, New-TestSandboxItem,
     Block-TestReadPermission, Block-TestWritePermission, Add-TestDenyRule, Set-TestOwner, Test-IsElevated,
-    Test-PrivilegeHeld, Test-AdminShareAvailable, ConvertTo-TestAdminSharePath
+    Test-PrivilegeHeld, Test-AdminShareAvailable, ConvertTo-TestAdminSharePath, New-TestDriveMapping,
+    Remove-TestDriveMapping, Test-DriveMappingAvailable

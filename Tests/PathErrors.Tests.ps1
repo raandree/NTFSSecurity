@@ -281,7 +281,8 @@ Describe 'An item whose owner may not change its permissions' {
     # with the right in the DACL, which the cleared DACL no longer holds. The cmdlet reports the owner it cannot set back.
     It 'Clear-NTFSAccess -DisableInheritance should report RestoreOwnerError for a previous owner that it cannot set back' -Skip:(-not $holdsRestorePrivilege) {
         $user = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-        $owner | Should -Not -Be $user
+        Set-TestOwner -Sandbox $sandbox -Path $file -Sid 'S-1-5-32-544'
+        (Get-Privileges | Where-Object -Property Privilege -EQ -Value 'Restore').PrivilegeState | Should -Be 'Disabled'
         Add-NTFSAccess -Path $file -Account 'S-1-1-0' -AccessRights ReadData
         Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ 'S-1-3-4' = 'ChangePermissions' }
 

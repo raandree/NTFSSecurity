@@ -268,7 +268,20 @@ Describe 'The PrivilegeEnabler class' {
     BeforeAll {
         $privateData['EnablePrivileges'] = $false
         $backup = [ProcessPrivileges.Privilege]::Backup
+        $changeNotify = [ProcessPrivileges.Privilege]::ChangeNotify
         $currentProcess = [System.Diagnostics.Process]::GetCurrentProcess()
+
+        # The enabler goes out of scope in the function, so that nothing but the caller's handle refers to what it owns.
+        function New-AbandonedHandle {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only creates an object.'
+            )]
+            param ($Process)
+
+            $enabler = New-Object -TypeName 'ProcessPrivileges.PrivilegeEnabler' -ArgumentList $Process
+            $field = [ProcessPrivileges.PrivilegeEnabler].GetField('accessTokenHandle', [System.Reflection.BindingFlags] 'NonPublic, Instance')
+            $field.GetValue($enabler)
+        }
     }
 
     AfterAll {
@@ -335,19 +348,49 @@ Describe 'The PrivilegeEnabler class' {
     It 'Should enable a privilege through an access token handle that the caller owns' -Skip:(-not $holdsPrivileges) {
         $rights = [ProcessPrivileges.TokenAccessRights]::AdjustPrivileges -bor [ProcessPrivileges.TokenAccessRights]::Query
         $handle = [ProcessPrivileges.ProcessExtensions]::GetAccessTokenHandle($currentProcess, $rights)
+        $enabler = $null
         try {
             $enabler = New-Object -TypeName 'ProcessPrivileges.PrivilegeEnabler' -ArgumentList $handle, $backup
             Get-BackupPrivilegeState | Should -Be 'Enabled'
             $enabler.Dispose()
+            $enabler = $null
 
             Get-BackupPrivilegeState | Should -Be 'Disabled'
             $handle.IsClosed | Should -BeFalse
         }
         finally {
+            # The enabler first: a handle that is closed under an enabler that still owns a privilege fails when the
+            # enabler disables the privilege.
+            if ($enabler) {
+                $enabler.Dispose()
+            }
             $handle.Dispose()
         }
 
         $handle.IsClosed | Should -BeTrue
+    }
+
+    # The finalizer closes the token handle that an abandoned enabler opened and drops its registration, so that the next
+    # enabler for the process opens a handle of its own instead of taking a closed one. The handle is private, so the test
+    # reads it by reflection. An enabler that enabled a privilege stays referenced by a static list until it is disposed,
+    # so it is never finalized and its privilege stays enabled; only an enabler without a privilege can be abandoned.
+    It 'Should close the token handle of an enabler that was never disposed when it is finalized' {
+        $handle = New-AbandonedHandle -Process $currentProcess
+        $handle.IsClosed | Should -BeFalse
+
+        for ($attempt = 0; $attempt -lt 10 -and -not $handle.IsClosed; $attempt++) {
+            [GC]::Collect()
+            [GC]::WaitForPendingFinalizers()
+        }
+
+        $handle.IsClosed | Should -BeTrue
+        $enabler = New-Object -TypeName 'ProcessPrivileges.PrivilegeEnabler' -ArgumentList $currentProcess
+        try {
+            $enabler.EnablePrivilege($changeNotify) | Should -Be 'None'
+        }
+        finally {
+            $enabler.Dispose()
+        }
     }
 
     # The access tokens of administrators don't hold the privilege to create a token, and those of basic users don't hold
@@ -380,6 +423,67 @@ Describe 'The PrivilegeEnabler class' {
         $attributes = [Enum]::ToObject([ProcessPrivileges.PrivilegeAttributes], $Value)
 
         [ProcessPrivileges.ProcessExtensions]::GetPrivilegeState($attributes) | Should -Be $Expected
+    }
+}
+
+# Every access token holds the privilege to bypass traverse checking, enabled. The tests use it because they need no other
+# privilege and change nothing: a handle that lacks a right fails before it adjusts anything.
+Describe 'The access token handle of a process' {
+    BeforeAll {
+        $currentProcess = [System.Diagnostics.Process]::GetCurrentProcess()
+        $changeNotify = [ProcessPrivileges.Privilege]::ChangeNotify
+        $tokenRights = [ProcessPrivileges.TokenAccessRights]
+    }
+
+    It 'Should open a handle with all access rights when the caller names none and close it on dispose' {
+        $handle = [ProcessPrivileges.ProcessExtensions]::GetAccessTokenHandle($currentProcess)
+        try {
+            $handle.IsInvalid | Should -BeFalse
+            @([ProcessPrivileges.ProcessExtensions]::GetPrivileges($handle)) | Should -Not -BeNullOrEmpty
+            [ProcessPrivileges.ProcessExtensions]::GetPrivilegeState($handle, $changeNotify) | Should -Be 'Enabled'
+        }
+        finally {
+            $handle.Dispose()
+        }
+
+        $handle.IsClosed | Should -BeTrue
+    }
+
+    It 'Should refuse to enable a privilege through a handle that may only query' {
+        $handle = [ProcessPrivileges.ProcessExtensions]::GetAccessTokenHandle($currentProcess, $tokenRights::Query)
+        try {
+            $failure = { [ProcessPrivileges.ProcessExtensions]::EnablePrivilege($handle, $changeNotify) } | Should -Throw -PassThru
+
+            $failure.Exception.InnerException | Should -BeOfType [System.ComponentModel.Win32Exception]
+            $failure.Exception.InnerException.NativeErrorCode | Should -Be 5
+            [ProcessPrivileges.ProcessExtensions]::GetPrivilegeState($handle, $changeNotify) | Should -Be 'Enabled'
+        }
+        finally {
+            $handle.Dispose()
+        }
+    }
+
+    It 'Should refuse to <Operation> through a handle that may only adjust privileges' -ForEach @(
+        @{ Operation = 'list the privileges' }
+        @{ Operation = 'read the state of a privilege' }
+    ) {
+        $handle = [ProcessPrivileges.ProcessExtensions]::GetAccessTokenHandle($currentProcess, $tokenRights::AdjustPrivileges)
+        try {
+            $failure = {
+                if ($Operation -eq 'list the privileges') {
+                    [ProcessPrivileges.ProcessExtensions]::GetPrivileges($handle)
+                }
+                else {
+                    [ProcessPrivileges.ProcessExtensions]::GetPrivilegeState($handle, $changeNotify)
+                }
+            } | Should -Throw -PassThru
+
+            $failure.Exception.InnerException | Should -BeOfType [System.ComponentModel.Win32Exception]
+            $failure.Exception.InnerException.NativeErrorCode | Should -Be 5
+        }
+        finally {
+            $handle.Dispose()
+        }
     }
 }
 
