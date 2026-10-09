@@ -134,7 +134,7 @@ Accept wildcard characters: False
 
 ### -Filter
 
-Specifies a name pattern that an item must match to be returned. The pattern supports the `*` and `?` wildcard characters, and the match ignores case. The default value is `*`, which returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.
+Specifies a name pattern that an item must match to be returned. The pattern supports the `*` and `?` wildcard characters, and the match ignores case; any other character, such as a bracket, stands for itself, so `Report[1].txt` returns the file of that name. The default value is `*`, which returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.
 
 ```yaml
 Type: String
@@ -308,6 +308,8 @@ The `PrivateData` section of the module manifest `NTFSSecurity.psd1` contains tw
 A folder that cannot be read produces a non-terminating error with the ID `DirUnauthorizedAccessError` for an access denial or `DirUnspecifiedError` for any other failure, and a path that does not exist produces the error `FileNotFound`. In each case the cmdlet continues with the next path. Failures that occur while `-Recurse` collects the subfolders of a folder are reported as verbose messages only, not as errors.
 
 Before 5.0.0, a `-Path` value that points to a file stopped the cmdlet with an `InvalidCastException`, `-Attributes` returned only the items that had all the listed attributes, and an empty `-Attributes` value returned every item, also the hidden ones. Earlier builds, including the 5.0.0 prereleases, could also omit the first hidden item with `-Hidden` unless `-Force` was explicitly supplied.
+
+Before 5.0.0, `-Filter` read a bracket as the start of a character class, so a file with brackets in its name, such as `Report[1].txt`, was not returned for its name, and a `break` or `continue` in a later command of the pipeline did not end the cmdlet for an item below the first folder.
 
 ## RELATED LINKS
 

@@ -140,9 +140,8 @@ Describe 'Get-ChildItem2' {
             ($relative | Sort-Object) -join ',' | Should -Be (($Expected | Sort-Object) -join ',')
         }
 
-        # The pattern must match the name of the item. When Windows lists a folder with a pattern, it also compares the
-        # short name (8.3) of an item, so *.htm finds Page2.html as well, as Get-ChildItem does where the volume creates
-        # short names. The cmdlet compares the name again.
+        # The pattern must match the name of the item, not its short name (8.3), which Get-ChildItem in Windows PowerShell
+        # also compares: there, *.htm returns Page2.html on a volume that creates short names.
         It 'Should return only the items whose name matches -Filter <Filter>' -ForEach @(
             @{ Filter = '*.htm'; Expected = @('Page.htm') }
             @{ Filter = 'Page?.html'; Expected = @('Page2.html') }
@@ -158,6 +157,23 @@ Describe 'Get-ChildItem2' {
             $result = @(Get-ChildItem2 -Path $folder -Filter $Filter -ErrorAction Stop)
 
             ($result.Name | Sort-Object) -join ',' | Should -Be (($Expected | Sort-Object) -join ',')
+        }
+
+        # Only * and ? are wildcards in -Filter. A bracket stands for itself, so a file with brackets in its name is found
+        # by its name, as Get-ChildItem finds it, and the file that the brackets would select as a character class is not.
+        # Before 5.0.0, the cmdlet read [1] as a character class and returned nothing.
+        It 'Should find a file whose name contains brackets by that name with -Filter' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterBrackets' -Directory
+            foreach ($name in 'Report[1].txt', 'Report1.txt') {
+                $file = Join-Path -Path $folder -ChildPath $name
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+                Set-Content -LiteralPath $file -Value $name
+            }
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter 'Report[1].txt' -ErrorAction Stop)
+
+            $result | Should -HaveCount 1
+            $result[0].Name | Should -BeExactly 'Report[1].txt'
         }
 
         It 'Should stop a recursive pipeline without recording an enumeration error' {

@@ -145,7 +145,10 @@ namespace NTFSSecurity
                 paths = new List<string>() { GetCurrentLocation() };
             }
 
-            wildcard = new WildcardPattern(filter, WildcardOptions.Compiled | WildcardOptions.IgnoreCase);
+            // Only * and ? are wildcards, like in the pattern that the enumeration matches; a bracket or a backtick stands
+            // for itself. Before 5.0.0, [1] was read as a character class, so a file with brackets in its name was not
+            // returned for its name.
+            wildcard = new WildcardPattern(filter.Replace("`", "``").Replace("[", "`[").Replace("]", "`]"), WildcardOptions.Compiled | WildcardOptions.IgnoreCase);
 
             modeMethodInfo = typeof(FileSystemCodeMembers).GetMethod("Mode");
 

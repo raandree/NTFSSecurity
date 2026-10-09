@@ -130,6 +130,9 @@ The format is based on
   the pipeline: a `break` or `continue` or `Select-Object -First` became an
   error of the item, so that `Remove-Item2 -PassThru | Select-Object -First 1`
   removed every item. They now stop and write no error
+- Fix `Get-ChildItem2 -Filter`, which read a bracket as the start of a
+  character class, so that it did not return a file with brackets in its name,
+  such as `Report[1].txt`, for that name; only `*` and `?` are wildcards
 - Fix `Get-Help`, which showed only the syntax: ship the help file
   `en-US\NTFSSecurity.dll-Help.xml` generated from the cmdlet documentation,
   including the links that `Get-Help -Online` opens, instead of the outdated
