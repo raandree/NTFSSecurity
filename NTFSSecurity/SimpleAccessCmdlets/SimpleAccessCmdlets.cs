@@ -111,7 +111,7 @@ namespace NTFSSecurity
                 }
                 catch (Exception ex)
                 {
-                    if (PipelineControl.IsEnd(ex))
+                    if (IsFromLaterCommand(ex))
                     {
                         throw;
                     }

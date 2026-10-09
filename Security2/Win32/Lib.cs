@@ -71,35 +71,42 @@ namespace Security2
 
             var pInheritInfo = Marshal.AllocHGlobal(aceCount * Marshal.SizeOf(typeof(PINHERITED_FROM)));
 
-            returnValue = GetInheritanceSource(
-                path,
-                ResourceType.FileObject,
-                aclType,
-                isContainer,
-                IntPtr.Zero,
-                0,
-                aclBytes,
-                IntPtr.Zero,
-                ref genericMap,
-                pInheritInfo
-                );
-
-            if (returnValue != 0)
+            try
             {
-                throw new System.ComponentModel.Win32Exception((int)returnValue);
-            }
+                returnValue = GetInheritanceSource(
+                    path,
+                    ResourceType.FileObject,
+                    aclType,
+                    isContainer,
+                    IntPtr.Zero,
+                    0,
+                    aclBytes,
+                    IntPtr.Zero,
+                    ref genericMap,
+                    pInheritInfo
+                    );
 
-            for (int i = 0; i < aceCount; i++)
+                if (returnValue != 0)
+                {
+                    throw new System.ComponentModel.Win32Exception((int)returnValue);
+                }
+
+                for (int i = 0; i < aceCount; i++)
+                {
+                    var inheritInfo = pInheritInfo.ElementAt<PINHERITED_FROM>(i);
+
+                    inheritedFrom.Add(
+                        !string.IsNullOrEmpty(inheritInfo.AncestorName) && inheritInfo.AncestorName.StartsWith(@"\\?\") ? inheritInfo.AncestorName.Substring(4) : inheritInfo.AncestorName
+                    );
+                }
+
+                FreeInheritedFromArray(pInheritInfo, (ushort)aceCount, IntPtr.Zero);
+            }
+            finally
             {
-                var inheritInfo = pInheritInfo.ElementAt<PINHERITED_FROM>(i);
-
-                inheritedFrom.Add(
-                    !string.IsNullOrEmpty(inheritInfo.AncestorName) && inheritInfo.AncestorName.StartsWith(@"\\?\") ? inheritInfo.AncestorName.Substring(4) : inheritInfo.AncestorName
-                );
+                // Also after a failed call, which the fallback of GetInheritedFrom now expects.
+                Marshal.FreeHGlobal(pInheritInfo);
             }
-
-            FreeInheritedFromArray(pInheritInfo, (ushort)aceCount, IntPtr.Zero);
-            Marshal.FreeHGlobal(pInheritInfo);
 
             return inheritedFrom;
         }

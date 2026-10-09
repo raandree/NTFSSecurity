@@ -78,6 +78,12 @@ namespace NTFSSecurity
                 }
                 catch (Exception ex)
                 {
+                    // Not what a later command raises, for example when it takes the verbose message.
+                    if (IsFromLaterCommand(ex))
+                    {
+                        throw;
+                    }
+
                     WriteError(new ErrorRecord(ex, "ReadFileError", ErrorCategory.OpenError, path));
                     continue;
                 }

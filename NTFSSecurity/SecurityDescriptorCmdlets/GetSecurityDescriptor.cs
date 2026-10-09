@@ -64,7 +64,7 @@ namespace NTFSSecurity
                     }
                     catch (Exception ex2)
                     {
-                        if (PipelineControl.IsEnd(ex2))
+                        if (IsFromLaterCommand(ex2))
                         {
                             throw;
                         }
@@ -75,7 +75,7 @@ namespace NTFSSecurity
                 }
                 catch (Exception ex)
                 {
-                    if (PipelineControl.IsEnd(ex))
+                    if (IsFromLaterCommand(ex))
                     {
                         throw;
                     }

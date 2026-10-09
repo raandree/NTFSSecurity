@@ -1,9 +1,10 @@
 <#
     Tests how the cmdlets of the module built in NTFSSecurity\bin\Release behave when a later command in the pipeline
-    ends it: a break or continue in a script block, or Select-Object -First. The exception that carries it passes through
-    the cmdlet while it writes an object. A catch for the failures of an item must not report it as an error of that item
-    and go on with the next one: a cmdlet that removes, copies, moves, or changes items would change them all, although
-    the caller ended the pipeline. Every test works on files and folders in a sandbox.
+    ends it: a break or continue in a script block, Select-Object -First, or a terminating error such as a throw. The
+    exception that carries it passes through the cmdlet while it writes an object, a verbose message, or a debug message.
+    A catch for the failures of an item must not report it as an error of that item and go on with the next one: a
+    cmdlet that removes, copies, moves, or changes items would change them all, although the caller ended the pipeline,
+    and the caller would never see the exception. Every test works on files and folders in a sandbox.
 #>
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
     'PSUseDeclaredVarsMoreThanAssignments', '', Justification = 'Pester shares variables between blocks.'
@@ -41,6 +42,25 @@ BeforeDiscovery {
     $auditStopCases = foreach ($name in $auditNames) {
         @{ Name = $name }
     }
+    $failureCases = foreach ($name in $names) {
+        foreach ($style in 'throw', 'throw UnauthorizedAccessException', 'Write-Error -ErrorAction Stop') {
+            @{ Name = $name; Style = $style }
+        }
+    }
+    $auditFailureCases = foreach ($name in $auditNames) {
+        foreach ($style in 'throw', 'throw UnauthorizedAccessException', 'Write-Error -ErrorAction Stop') {
+            @{ Name = $name; Style = $style }
+        }
+    }
+    $streamCases = foreach ($case in @(
+            @{ Name = 'Get-FileHash2'; Stream = 'verbose' }
+            @{ Name = 'Set-NTFSSecurityDescriptor'; Stream = 'verbose' }
+            @{ Name = 'Set-NTFSOwner'; Stream = 'debug' }
+        )) {
+        foreach ($style in 'Select-Object -First 1', 'throw') {
+            @{ Name = $case.Name; Stream = $case.Stream; Style = $style }
+        }
+    }
 }
 
 BeforeAll {
@@ -53,6 +73,7 @@ BeforeAll {
     $sidType = [System.Security.Principal.SecurityIdentifier]
     $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
     $orphan = 'S-1-5-21-1-2-3-1001'
+    $privateData = (Get-Module -Name NTFSSecurity).PrivateData
 
     function New-Pair {
         [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
@@ -265,6 +286,30 @@ BeforeAll {
         }
     }
 
+    # The commands that write a verbose or a debug message inside the try of their loop, which the later command takes.
+    # The first record that reaches Select-Object ends the pipeline there. The preference of the debug stream is set by
+    # Assert-StreamStop: the Debug switch would ask before every message.
+    $streamRuns = @{
+        'Get-FileHash2/verbose'              = @{
+            # The first path is a folder, which the cmdlet skips with a verbose message.
+            Prepare = {
+                $context = New-Pair -Directory
+                $context.File = New-TestSandboxItem -Sandbox $sandbox -Name 'Hashed'
+                $context
+            }
+            Run     = { param ($Context) Get-FileHash2 -Path $Context.First, $Context.File -Verbose 4>&1 }
+        }
+        'Set-NTFSSecurityDescriptor/verbose' = @{
+            Prepare   = $cases['Set-NTFSSecurityDescriptor'].Prepare
+            Run       = { param ($Context) Set-NTFSSecurityDescriptor -SecurityDescriptor $Context.Descriptors -Verbose 4>&1 }
+            Untouched = $cases['Set-NTFSSecurityDescriptor'].Untouched
+        }
+        'Set-NTFSOwner/debug'                = @{
+            Prepare = { New-Pair }
+            Run     = { param ($Context) Set-NTFSOwner -Path $Context.First, $Context.Second -Account $currentUser 5>&1 }
+        }
+    }
+
     # The command writes its first object, and the break or continue of the later command ends the loop around the
     # pipeline before the next statement of the loop runs.
     function Assert-LoopControl {
@@ -306,6 +351,93 @@ BeforeAll {
             (& $case.Untouched $context) | Should -BeTrue
         }
     }
+
+    # A later command that fails with a terminating error ends the pipeline for the commands before it. The error is the
+    # caller's: the cmdlet must neither report it as an error of an item nor go on with the next item. The second style
+    # raises the type that some catch of the cmdlets handles on its own, for a folder that cannot be read.
+    function Assert-DownstreamFailure {
+        param ([string] $Name, [string] $Style)
+
+        $case = $cases[$Name]
+        $context = & $case.Prepare
+        $emitted = 0
+        $caught = $null
+        $Error.Clear()
+        try {
+            & $case.Run $context | ForEach-Object -Process {
+                $emitted++
+                switch ($Style) {
+                    'throw' { throw 'Downstream failure' }
+                    'throw UnauthorizedAccessException' { throw [System.UnauthorizedAccessException]::new('Downstream failure') }
+                    default { Write-Error -Message 'Downstream failure' -ErrorAction Stop }
+                }
+            }
+        }
+        catch {
+            $caught = $_
+        }
+
+        $caught.Exception.Message | Should -BeLike '*Downstream failure*'
+        $emitted | Should -Be 1
+        @($Error | Where-Object -FilterScript { $_.Exception.Message -notlike '*Downstream failure*' }) | Should -BeNullOrEmpty
+        if ($case.Untouched) {
+            (& $case.Untouched $context) | Should -BeTrue
+        }
+    }
+
+    # The first verbose or debug record reaches the later command, which ends the pipeline inside the try of the loop:
+    # Select-Object raises the end of the pipeline, a throw raises an exception of its own. With the privileges enabled,
+    # the cmdlet writes a message before that, outside the try, so they stay off here.
+    function Assert-StreamStop {
+        param ([string] $Name, [string] $Stream, [string] $Style)
+
+        $case = $streamRuns["$Name/$Stream"]
+        $recordType = if ($Stream -eq 'debug') { [System.Management.Automation.DebugRecord] } else { [System.Management.Automation.VerboseRecord] }
+        $context = & $case.Prepare
+        $saved = $privateData['EnablePrivileges']
+        $savedDebugPreference = $DebugPreference
+        $privateData['EnablePrivileges'] = $false
+        $DebugPreference = if ($Stream -eq 'debug') { 'Continue' } else { $savedDebugPreference }
+        $emitted = 0
+        $caught = $null
+        $result = @()
+        $Error.Clear()
+        try {
+            if ($Style -eq 'throw') {
+                try {
+                    & $case.Run $context | ForEach-Object -Process {
+                        $emitted++
+                        throw 'Downstream failure'
+                    }
+                }
+                catch {
+                    $caught = $_
+                }
+            }
+            else {
+                $result = @(& $case.Run $context | Select-Object -First 1)
+            }
+        }
+        finally {
+            $privateData['EnablePrivileges'] = $saved
+            $DebugPreference = $savedDebugPreference
+        }
+
+        if ($Style -eq 'throw') {
+            $caught.Exception.Message | Should -BeLike '*Downstream failure*'
+            $emitted | Should -Be 1
+            @($Error | Where-Object -FilterScript { $_.Exception.Message -notlike '*Downstream failure*' }) | Should -BeNullOrEmpty
+        }
+        else {
+            $result | Should -HaveCount 1
+            $result[0] | Should -BeOfType $recordType
+            $Error.Count | Should -Be 0
+        }
+
+        if ($case.Untouched) {
+            (& $case.Untouched $context) | Should -BeTrue
+        }
+    }
 }
 
 AfterAll {
@@ -329,5 +461,17 @@ Describe 'A later command that ends the pipeline' {
 
     It '<Name> should stop after the first object for Select-Object -First 1 and change nothing else' -Skip:(-not $canReadAudit) -ForEach $auditStopCases {
         Assert-PipelineStop -Name $Name
+    }
+
+    It '<Name> should stop for a terminating error (<Style>) of the later command and change nothing else' -ForEach $failureCases {
+        Assert-DownstreamFailure -Name $Name -Style $Style
+    }
+
+    It '<Name> should stop for a terminating error (<Style>) of the later command and change nothing else' -Skip:(-not $canReadAudit) -ForEach $auditFailureCases {
+        Assert-DownstreamFailure -Name $Name -Style $Style
+    }
+
+    It '<Name> should stop at the <Stream> message for <Style> of the later command and change nothing else' -ForEach $streamCases {
+        Assert-StreamStop -Name $Name -Stream $Stream -Style $Style
     }
 }

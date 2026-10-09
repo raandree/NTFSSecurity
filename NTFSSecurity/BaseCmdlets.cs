@@ -12,7 +12,8 @@ namespace NTFSSecurity
     /// Recognizes what a later command in the pipeline raises to end the pipeline or the loop around it: the end of the
     /// pipeline, for example for Select-Object -First, and a break or continue in a script block. These exceptions pass
     /// through a cmdlet while it writes an object. A catch for the failures of an item must pass them on: reported as
-    /// the error of that item, they would end nothing, and the cmdlet would go on with the next item.
+    /// the error of that item, they would end nothing, and the cmdlet would go on with the next item. Anything else that
+    /// a Write method raises is recognized by BaseCmdlet.IsFromLaterCommand.
     /// </summary>
     internal static class PipelineControl
     {
@@ -43,6 +44,78 @@ namespace NTFSSecurity
     {
         protected List<string> paths = new List<string>();
         protected List<FileSystemSecurity2> securityDescriptors = new List<FileSystemSecurity2>();
+
+        // The exception that a Write method of this cmdlet raised last. A Write method runs the later commands of the
+        // pipeline and so raises what they raise: a throw in a script block, an error with -ErrorAction Stop, the end of the
+        // pipeline, a break or a continue. None of it is a failure of the item that the cmdlet processes. A catch for those
+        // failures must pass it on (IsFromLaterCommand), or the cmdlet reports it as the error of that item, goes on with
+        // the next one, and the caller never sees the exception.
+        private Exception laterCommandException;
+
+        /// <summary>Writes the object to the pipeline and notes what a later command raises, see IsFromLaterCommand.</summary>
+        public new void WriteObject(object sendToPipeline)
+        {
+            try
+            {
+                base.WriteObject(sendToPipeline);
+            }
+            catch (Exception ex)
+            {
+                laterCommandException = ex;
+                throw;
+            }
+        }
+
+        /// <summary>Writes the object to the pipeline and notes what a later command raises, see IsFromLaterCommand.</summary>
+        public new void WriteObject(object sendToPipeline, bool enumerateCollection)
+        {
+            try
+            {
+                base.WriteObject(sendToPipeline, enumerateCollection);
+            }
+            catch (Exception ex)
+            {
+                laterCommandException = ex;
+                throw;
+            }
+        }
+
+        // The streams that a later command can take, for example Select-Object -First with 4>&1.
+        /// <summary>Writes a verbose message and notes what a later command raises, see IsFromLaterCommand.</summary>
+        public new void WriteVerbose(string text)
+        {
+            try
+            {
+                base.WriteVerbose(text);
+            }
+            catch (Exception ex)
+            {
+                laterCommandException = ex;
+                throw;
+            }
+        }
+
+        /// <summary>Writes a debug message and notes what a later command raises, see IsFromLaterCommand.</summary>
+        public new void WriteDebug(string text)
+        {
+            try
+            {
+                base.WriteDebug(text);
+            }
+            catch (Exception ex)
+            {
+                laterCommandException = ex;
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Whether the exception comes from a later command of the pipeline, not from the item that the cmdlet processes.
+        /// </summary>
+        protected bool IsFromLaterCommand(Exception exception)
+        {
+            return ReferenceEquals(exception, laterCommandException) || PipelineControl.IsEnd(exception);
+        }
 
         protected override void BeginProcessing()
         {

@@ -176,10 +176,10 @@ Describe 'Get-ChildItem2' {
             $result[0].Name | Should -BeExactly 'Report[1].txt'
         }
 
-        # The dot is an ordinary character of the pattern, so *.* selects the names that contain a dot. The enumeration
-        # alone would return every item for it, as Get-ChildItem and cmd.exe do; the cmdlet then compares each name with
-        # the pattern and drops the items whose names have no dot, files and folders alike.
-        It 'Should return only the items with a dot in their names for -Filter *.*' {
+        # The dot is an ordinary character of the pattern, but not in *.*, which Windows, Get-ChildItem, and .NET read as
+        # every item. Before 5.0.0, the cmdlet compared each name with the pattern again and dropped the items without a
+        # dot, files and folders alike, so that a listing of a tree with this filter missed most of its folders.
+        It 'Should return every item for -Filter *.*, also the ones without a dot in their names' {
             $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterDot' -Directory
             $paths = @('Page.htm', 'NoExtension', 'NoExtensionFolder') | ForEach-Object -Process { Join-Path -Path $folder -ChildPath $_ }
             Assert-TestSandboxPath -Sandbox $sandbox -Path $paths
@@ -189,7 +189,22 @@ Describe 'Get-ChildItem2' {
 
             $result = @(Get-ChildItem2 -Path $folder -Filter '*.*' -ErrorAction Stop)
 
-            ($result.Name -join ',') | Should -BeExactly 'Page.htm'
+            ($result.Name | Sort-Object) -join ',' | Should -BeExactly 'NoExtension,NoExtensionFolder,Page.htm'
+        }
+
+        # The enumeration returns every item for *.*.*, as Get-ChildItem does. The cmdlet compares each name with the whole
+        # pattern again, so that the dots of the pattern are characters of the name, as the help says.
+        It 'Should return only the items that match the whole pattern for -Filter *.*.*' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterDots' -Directory
+            foreach ($name in 'Page.htm', 'NoExtension', 'Two.dots.txt') {
+                $file = Join-Path -Path $folder -ChildPath $name
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+                Set-Content -LiteralPath $file -Value $name
+            }
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter '*.*.*' -ErrorAction Stop)
+
+            ($result.Name -join ',') | Should -BeExactly 'Two.dots.txt'
         }
 
         It 'Should reject a null -Filter' {
@@ -765,7 +780,8 @@ Describe 'Copy-Item2, Move-Item2, and Remove-Item2 with several paths' {
         @{ Command = 'Move-Item2'; ErrorId = 'MoveError' }
     ) {
         $used = @((Get-PSDrive -PSProvider FileSystem).Name) + @([System.IO.DriveInfo]::GetDrives() | ForEach-Object -Process { $_.Name.Substring(0, 1) })
-        $letter = [char[]](68..90) | Where-Object -FilterScript { [string] $_ -notin $used } | Select-Object -Last 1
+        # The lowest free letter: New-TestDriveMapping takes letters from Z downward, also in a run in parallel.
+        $letter = [char[]](68..90) | Where-Object -FilterScript { [string] $_ -notin $used } | Select-Object -First 1
         if (-not $letter) {
             Set-ItResult -Skipped -Because 'every drive letter is in use'
             return
@@ -1022,7 +1038,8 @@ Describe 'Get-DiskSpace' {
 
     It 'Should warn and return nothing for a drive letter without a volume' {
         $used = @((Get-PSDrive -PSProvider FileSystem).Name) + @([System.IO.DriveInfo]::GetDrives() | ForEach-Object -Process { $_.Name.Substring(0, 1) })
-        $letter = [char[]](68..90) | Where-Object -FilterScript { [string] $_ -notin $used } | Select-Object -Last 1
+        # The lowest free letter: New-TestDriveMapping takes letters from Z downward, also in a run in parallel.
+        $letter = [char[]](68..90) | Where-Object -FilterScript { [string] $_ -notin $used } | Select-Object -First 1
         if (-not $letter) {
             Set-ItResult -Skipped -Because 'every drive letter is in use'
             return

@@ -122,20 +122,24 @@ The format is based on
   whose folder Windows cannot name, such as for an item that was deleted
   after it was read or a folder above it that the user cannot read: the text
   read `unknown paren`, and the explicit entries showed it as well. An
-  inherited entry now shows `unknown parent`, and an explicit entry no source
+  inherited entry now shows `unknown parent`, and an explicit entry no source;
+  the failed lookup no longer leaks its native buffer
 - Fix `Remove-Item2`, `Copy-Item2`, `Move-Item2`, `Set-NTFSOwner`,
   `Set-NTFSSecurityDescriptor`, `Get-NTFSSecurityDescriptor`,
-  `Get-NTFSSimpleAccess`, `Get-DiskSpace`, and `Get-ChildItem2` below the
-  first folder, which went on with the next item when a later command ended
-  the pipeline: a `break` or `continue` or `Select-Object -First` became an
-  error of the item, so that `Remove-Item2 -PassThru | Select-Object -First 1`
-  removed every item. They now stop and write no error
+  `Get-NTFSSimpleAccess`, `Get-FileHash2`, `Get-DiskSpace`, and
+  `Get-ChildItem2` below the first folder, which went on with the next item
+  when a later command ended the pipeline: a `break` or `continue`,
+  `Select-Object -First`, or a `throw` was handled as a failure of the item,
+  so that `Remove-Item2 -PassThru | Select-Object -First 1` removed every
+  item, and the caller never saw the `throw`. They now stop and write no
+  error, and the error of the later command reaches the caller
 - Fix `Get-ChildItem2 -Filter`, which read a bracket as the start of a
   character class, so that it did not return a file with brackets in its name,
-  such as `Report[1].txt`, for that name; only `*` and `?` are wildcards. A dot
-  is an ordinary character, so `*.*` returns only the names that contain a dot
-  (unlike `Get-ChildItem`), and a null `-Filter` is rejected as a parameter
-  error
+  such as `Report[1].txt`, for that name; only `*` and `?` are wildcards. A
+  null `-Filter` is rejected as a parameter error
+- Fix `Get-ChildItem2 -Filter *.*`, which returned only the items with a dot
+  in their names and dropped the other files and folders, most folders among
+  them, instead of every item as `Get-ChildItem` does
 - Fix `Get-Help`, which showed only the syntax: ship the help file
   `en-US\NTFSSecurity.dll-Help.xml` generated from the cmdlet documentation,
   including the links that `Get-Help -Online` opens, instead of the outdated

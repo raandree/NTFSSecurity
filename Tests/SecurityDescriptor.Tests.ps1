@@ -273,6 +273,8 @@ Describe 'Set-NTFSSecurityDescriptor' {
             Set-TestOwner -Sandbox $sandbox -Path $file -Sid $administrators
             Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ 'S-1-3-4' = 'ChangePermissions' }
             Get-RestorePrivilegeState | Should -Be 'Disabled'
+            # A plain write of the DACL is denied, so that the cmdlet has to take ownership for its write.
+            { Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ 'S-1-5-32-546' = 'ReadData' } } | Should -Throw
             $sd = Get-NTFSSecurityDescriptor -Path $file
             Add-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData
 

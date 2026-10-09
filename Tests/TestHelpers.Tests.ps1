@@ -304,4 +304,25 @@ Describe 'Test helpers' {
             Test-AdminShareAvailable | Should -BeFalse
         }
     }
+
+    # subst maps a letter for the whole logon session, so the guard has to stop before it runs, for every configuration.
+    Context 'New-TestDriveMapping and Remove-TestDriveMapping' {
+        BeforeAll {
+            $sandbox = New-TestSandbox -Name 'Helpers'
+        }
+
+        AfterAll {
+            Remove-TestSandbox -Sandbox $sandbox
+        }
+
+        It 'Should refuse a folder outside the sandbox before it maps anything' {
+            { New-TestDriveMapping -Sandbox $sandbox -Path "$sandbox-Other\Folder" } |
+                Should -Throw -ExpectedMessage 'Refusing to change*'
+        }
+
+        It 'Should refuse a value that is not the root of a drive' {
+            { Remove-TestDriveMapping -Root 'C:\Windows' } |
+                Should -Throw -ErrorId 'ParameterArgumentValidationError,Remove-TestDriveMapping'
+        }
+    }
 }
