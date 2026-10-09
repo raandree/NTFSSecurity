@@ -99,10 +99,19 @@ describes, with `-Version` instead of `-ModulePath`.
 
 ## If a release fails
 
-The **Release** job skips what's already done: a version that the PowerShell
-Gallery already has, and a GitHub release that already exists. If the
+The **Release** job skips a version that the PowerShell Gallery already has
+only after its published SHA-512 matches the exact package from the build
+artifact. It also skips a GitHub release that already exists. If the
 failure doesn't need a change in the repository, fix the cause and rerun the
 failed job.
+
+An upload can report an error even after the Gallery accepted it, for
+example a timeout followed by HTTP 409 (version already exists). The
+publication script checks the Gallery once more and recovers only if the
+published SHA-512 verifies the exact local package. A missing version,
+unavailable metadata, or a different package remains a failure; an existing
+version alone is not proof of success. The API key stays in the
+`powershell-gallery` environment secret.
 
 If the fix needs a change in the repository and the PowerShell Gallery
 doesn't have the version yet, delete the tag, merge the fix, and tag the new
