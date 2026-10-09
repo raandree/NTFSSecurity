@@ -132,7 +132,10 @@ The format is based on
   removed every item. They now stop and write no error
 - Fix `Get-ChildItem2 -Filter`, which read a bracket as the start of a
   character class, so that it did not return a file with brackets in its name,
-  such as `Report[1].txt`, for that name; only `*` and `?` are wildcards
+  such as `Report[1].txt`, for that name; only `*` and `?` are wildcards. A dot
+  is an ordinary character, so `*.*` returns only the names that contain a dot
+  (unlike `Get-ChildItem`), and a null `-Filter` is rejected as a parameter
+  error
 - Fix `Get-Help`, which showed only the syntax: ship the help file
   `en-US\NTFSSecurity.dll-Help.xml` generated from the cmdlet documentation,
   including the links that `Get-Help -Online` opens, instead of the outdated

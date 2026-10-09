@@ -45,6 +45,7 @@ namespace NTFSSecurity
         }
 
         [Parameter(Position = 2)]
+        [ValidateNotNull]
         public string Filter
         {
             get { return filter; }

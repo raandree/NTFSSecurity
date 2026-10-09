@@ -176,6 +176,27 @@ Describe 'Get-ChildItem2' {
             $result[0].Name | Should -BeExactly 'Report[1].txt'
         }
 
+        # The dot is an ordinary character of the pattern, so *.* selects the names that contain a dot. The enumeration
+        # alone would return every item for it, as Get-ChildItem and cmd.exe do; the cmdlet then compares each name with
+        # the pattern and drops the items whose names have no dot, files and folders alike.
+        It 'Should return only the items with a dot in their names for -Filter *.*' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterDot' -Directory
+            $paths = @('Page.htm', 'NoExtension', 'NoExtensionFolder') | ForEach-Object -Process { Join-Path -Path $folder -ChildPath $_ }
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $paths
+            Set-Content -LiteralPath $paths[0] -Value 'Page'
+            Set-Content -LiteralPath $paths[1] -Value 'NoExtension'
+            New-Item -ItemType Directory -Path $paths[2] | Out-Null
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter '*.*' -ErrorAction Stop)
+
+            ($result.Name -join ',') | Should -BeExactly 'Page.htm'
+        }
+
+        It 'Should reject a null -Filter' {
+            { Get-ChildItem2 -Path $tree -Filter $null -ErrorAction Stop } |
+                Should -Throw -ErrorId 'ParameterArgumentValidationError,NTFSSecurity.GetChildItem2' -ExpectedMessage "*'Filter'*"
+        }
+
         It 'Should stop a recursive pipeline without recording an enumeration error' {
             $result = @(Get-ChildItem2 -Path $tree -Recurse -ErrorVariable childErrors -ErrorAction SilentlyContinue | Select-Object -First 1)
 

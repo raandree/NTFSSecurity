@@ -134,7 +134,7 @@ Accept wildcard characters: False
 
 ### -Filter
 
-Specifies a name pattern that an item must match to be returned. The pattern supports the `*` and `?` wildcard characters, and the match ignores case; any other character, such as a bracket, stands for itself, so `Report[1].txt` returns the file of that name. The default value is `*`, which returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.
+Specifies a name pattern that an item must match to be returned. The pattern supports the `*` and `?` wildcard characters, and the match ignores case; any other character stands for itself. A bracket is an ordinary character, so `Report[1].txt` returns the file of that name, and so is a dot, so `*.*` returns only the items whose names contain a dot, not every item as it does for `Get-ChildItem`. The default value is `*`, which returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.
 
 ```yaml
 Type: String
