@@ -346,6 +346,8 @@ Describe 'The PrivilegeEnabler class' {
         finally {
             $handle.Dispose()
         }
+
+        $handle.IsClosed | Should -BeTrue
     }
 
     # The access tokens of administrators don't hold the privilege to create a token, and those of basic users don't hold
