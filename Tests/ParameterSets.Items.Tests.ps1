@@ -536,12 +536,14 @@ Describe 'Get-FileHash2 with pipeline input and ordered failures' {
             $item.PSObject.TypeNames[0] | Should -Be 'Alphaleonis.Win32.Filesystem.FileInfo+Hash'
         }
 
-        $md5Result = @(Get-ChildItem -LiteralPath $dir -File | Get-FileHash2 -Algorithm MD5 -ErrorAction Stop)
+        # The algorithm comes from a variable, like the data of FileHash.Tests.ps1: the test compares with Get-FileHash and uses no hash for security.
+        $legacyAlgorithm = 'MD5'
+        $md5Result = @(Get-ChildItem -LiteralPath $dir -File | Get-FileHash2 -Algorithm $legacyAlgorithm -ErrorAction Stop)
 
         $md5Result | Should -HaveCount 2
         foreach ($item in $md5Result) {
             $sourcePath = Join-Path -Path $dir -ChildPath $item.Name
-            $item.Hash | Should -BeExactly (Get-FileHash -LiteralPath $sourcePath -Algorithm MD5).Hash
+            $item.Hash | Should -BeExactly (Get-FileHash -LiteralPath $sourcePath -Algorithm $legacyAlgorithm).Hash
         }
     }
 
