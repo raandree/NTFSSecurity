@@ -137,14 +137,16 @@ source: agent decisions under the maintainer's delegation of 2026-10-09 (Handoff
 - Result: [the record](../../Tests/Lab/Acceptance-2026-10-10-os-matrix.md). The
   final candidate (`fdd7a8b`) passes the module's suite on all five machines
   and the host in all four configurations, and the live cells (see the record).
+  The published 5.0.0-rc7 passed the same stages on 2026-10-10 with the same
+  counts: the three cells (1,374 passed, 0 failed, 12 skipped), the suite in 24
+  runs, and the first lab with case 9 (245 / 0 / 1 per edition); see
+  [its record](../../Tests/Lab/Acceptance-2026-10-10-published-rc7.md).
 - Open: the maintainer confirms or changes the matrix and decides whether to
-  keep the VMs after 5.0.0. Local `-ModulePath` runs are validation; the gate
-  needs the published package in every cell (Handoff 3, stage D). The newest
-  Windows 11 build that can join a Server 2025 domain here is 22H2; a domain
-  cell with 26H1 needs a newer domain controller build or a fix of the
-  mismatch. The maintainer also decides which of the module fixes belong to
-  rc7 (two commits: `962887a` holds two fixes, `fdd7a8b` one; `fdd7a8b` reverts
-  cleanly on its own, `962887a` conflicts with it in `Lib.cs` and `CHANGELOG.md`
-  if `fdd7a8b` stays), and whether the
-  evaluation client stays (it needs a start shortly before every run) or is
-  replaced by a client with a license that doesn't expire.
+  keep the VMs after 5.0.0. A stable 5.0.0 is a new build, so the release
+  procedure accepts the last prerelease; a changed binary needs the same cells
+  again. The newest Windows 11 build that can join a Server 2025 domain here is
+  22H2; a domain cell with 26H1 needs a newer domain controller build or a fix
+  of the mismatch. All three module fixes went into rc7 (#119; `962887a` holds
+  two, `fdd7a8b` one, and they don't revert separately). The maintainer also
+  decides whether the evaluation client stays (it needs a start shortly before
+  every run) or is replaced by a client with a license that doesn't expire.

@@ -233,11 +233,26 @@ the host:
 - `Probe-LaterCommand.ps1` is the diagnostic of the
   [record of the paths fixes](Acceptance-2026-10-09-quality-gate-paths.md).
 
+To accept a published prerelease, run the stages in this order, because the
+evaluation client `OSWin11E` shuts itself down an hour after its start: start
+the client and check the readiness of the matrix lab, then
+`Run-MatrixSequence.ps1 -Version <version>` for the cells, then
+`Run-MatrixLocalSuite.ps1 -ModulePath` on every machine with the extracted
+module of the release (`Test-PublishedRelease.ps1` leaves it in the folder
+`zip-<version>\NTFSSecurity` of its output folder), then
+`Test-MatrixCleanup.ps1 -Mode Verify` for the matrix lab, and last the
+controller with `-Version` in the first lab, where case 9 runs. Start the suites
+a minute or more apart, because AutomatedLab imports one lab at a time, and
+never together with a controller. The
+[record of the published 5.0.0-rc7](Acceptance-2026-10-10-published-rc7.md) ran
+the stages that way.
+
 Records: [5.0.0-rc6](Acceptance-2026-10-08-5.0.0-rc6.md),
 [5.0.0-rc7](Acceptance-2026-10-08-5.0.0-rc7.md),
 [quality-gate follow-up](Acceptance-2026-10-09-quality-gate.md),
-[quality-gate paths follow-up](Acceptance-2026-10-09-quality-gate-paths.md), and
-[operating-system matrix](Acceptance-2026-10-10-os-matrix.md).
+[quality-gate paths follow-up](Acceptance-2026-10-09-quality-gate-paths.md),
+[operating-system matrix](Acceptance-2026-10-10-os-matrix.md), and
+[the published 5.0.0-rc7](Acceptance-2026-10-10-published-rc7.md).
 The review of the code that no unit test visits, with the fixes that the lab
 has to repeat, is in
 [Tests/Coverage](../Coverage/Quality-Gate-Paths-2026-10-09.md).

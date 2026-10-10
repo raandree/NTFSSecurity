@@ -45,8 +45,11 @@ don't revert separately, because they conflict in `Security2/Win32/Lib.cs` and
 `CHANGELOG.md`), with the kit, the controller changes, and the record of the
 operating-system matrix (Decision 24).
 
-1. Accept the published package (next section). The identity check is done;
-   the first lab and every cell of the matrix remain (gate 3).
+1. Accept the published package (next section): done for rc7 on 2026-10-10,
+   with the identity check, the three cells, the suite on six machine classes,
+   and the first lab (record
+   `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`).
+   A changed binary (rc8, or the build of 5.0.0) needs the same cells again.
 2. Add `5.0.0-rc7` to `$publishedVersions` in `Tests/Repository.Tests.ps1`
    only in the change that sets the next version (rc8 or 5.0.0), as
    `Docs/Contributing/05-Releasing.md` says. The test "Should not reuse a
@@ -76,6 +79,15 @@ Local `-ModulePath` runs are validation; the gate needs the published bytes.
    the final local candidate through the same stages (readiness, controller,
    `Validate-LabResults.ps1`, snapshot, `-RemoveFixture`, `Test-MatrixCleanup.ps1`
    with the four domain controllers and both machines) in one detached driver.
+   The published rc7 ran in one detached driver in this order (61 minutes,
+   14:29 to 15:30Z, `OSWin11E` started 14:25:49Z): the cells, then
+   `Run-MatrixLocalSuite.ps1 -ModulePath <zip-<version>\NTFSSecurity of the
+   identity check> -Mode Elevated,Basic` on the host and five machines (one
+   every 75 seconds: AutomatedLab imports one lab at a time), then
+   `Test-MatrixCleanup.ps1 -Mode Verify` (CLEAN at the first check, so the
+   cells first and the suites after them leave nothing to repair), then the
+   first lab. The driver is `Run-Gate3.ps1` in the evidence folder `gate3-rc7`
+   of the session files; it only calls these scripts and isn't in the kit.
 3. Remove the fixture and check the end state independently with
    `Test-MatrixCleanup.ps1`, which takes the lab name and the machine names
    (`-LabName WindowsAccessControlLab -DomainController F1ADC1, F1BDC1, F2DC1,
