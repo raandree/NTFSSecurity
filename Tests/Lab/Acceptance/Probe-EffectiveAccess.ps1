@@ -204,13 +204,20 @@ try {
 finally {
     # The domain account goes first: its member entry on the machine is then an orphaned SID, which the cleanup of the machine removes.
     if ($dcSession) {
-        $dcLeftOver = Invoke-Command -Session $dcSession -ArgumentList $domainUser -ScriptBlock {
-            param ($Name)
-            Import-Module -Name ActiveDirectory
-            if (Get-ADUser -Filter "SamAccountName -eq '$Name'") { Remove-ADUser -Identity $Name -Confirm:$false }
-            if (Get-ADUser -Filter "SamAccountName -eq '$Name'") { "domain user $Name still exists" }
+        # A failure here must not skip the cleanup of the machine below.
+        try {
+            $dcLeftOver = Invoke-Command -Session $dcSession -ArgumentList $domainUser -ScriptBlock {
+                param ($Name)
+                Import-Module -Name ActiveDirectory
+                if (Get-ADUser -Filter "SamAccountName -eq '$Name'") { Remove-ADUser -Identity $Name -Confirm:$false }
+                if (Get-ADUser -Filter "SamAccountName -eq '$Name'") { "domain user $Name still exists" }
+            }
+            Write-Step ('cleanup of the domain controller: ' + $(if (@($dcLeftOver).Count -eq 0) { 'nothing left' } else { @($dcLeftOver) -join '; ' }))
         }
-        Write-Step ('cleanup of the domain controller: ' + $(if (@($dcLeftOver).Count -eq 0) { 'nothing left' } else { @($dcLeftOver) -join '; ' }))
+        catch {
+            Write-Step ("cleanup of the domain controller FAILED, remove the domain user $domainUser by hand: " + $_.Exception.Message)
+        }
+
         Remove-PSSession -Session $dcSession -ErrorAction SilentlyContinue
     }
 

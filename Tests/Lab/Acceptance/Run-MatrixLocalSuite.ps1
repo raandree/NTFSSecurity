@@ -225,7 +225,20 @@ foreach ($name in $targets) {
         Write-Sequence "machine $name FAILED: $_"
     }
     finally {
-        if ($session) { Remove-PSSession -Session $session -ErrorAction SilentlyContinue }
+        if ($session) {
+            # The tasks of this run store the password of the account that runs them. A run that stops early must not leave them on the machine.
+            try {
+                Invoke-Command -Session $session -ArgumentList ('NtfsMatrixLocal-{0}-*' -f $Label.ToLowerInvariant()) -ScriptBlock {
+                    param ($Pattern)
+                    Get-ScheduledTask -TaskName $Pattern -ErrorAction SilentlyContinue | ForEach-Object -Process { Unregister-ScheduledTask -TaskName $_.TaskName -Confirm:$false -ErrorAction SilentlyContinue }
+                }
+            }
+            catch {
+                Write-Sequence "machine ${name}: the scheduled tasks of this run could not be removed: $($_.Exception.Message)"
+            }
+
+            Remove-PSSession -Session $session -ErrorAction SilentlyContinue
+        }
     }
 
     Write-Sequence "machine $name END"

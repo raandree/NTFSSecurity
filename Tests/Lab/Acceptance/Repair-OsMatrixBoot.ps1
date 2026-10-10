@@ -26,7 +26,9 @@ try {
     $vm = Get-VM -Name $VmName
     if ($vm.Generation -ne 2) { throw "$VmName isn't a generation 2 machine." }
     $switches = @(Get-VMNetworkAdapter -VMName $VmName | ForEach-Object -Process { $_.SwitchName })
-    if ($switches -ne $LabName) { throw "$VmName isn't connected only to the switch '$LabName' (switches: $($switches -join ', ')). Refusing." }
+    # An array comparison with -ne returns the elements that differ, and an empty result is false: a machine without an adapter, or with an
+    # adapter that has no switch, would pass, so the guard counts.
+    if ($switches.Count -eq 0 -or @($switches | Where-Object -FilterScript { $_ -ne $LabName }).Count -gt 0) { throw "$VmName isn't connected only to the switch '$LabName' (switches: $($switches -join ', ')). Refusing." }
     if ($vm.State -ne 'Off') {
         Stop-VM -Name $VmName -TurnOff -Force
         Write-Step "$VmName turned off"

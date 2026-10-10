@@ -51,8 +51,17 @@ try {
     Write-Step ('preflight ok; existing labs: {0}; existing machine names: {1}' -f ($labs -join ', '), $existingNames.Count)
 
     $characters = ([char[]](48..57) + [char[]](65..90) + [char[]](97..122) + '!', '#', '%', '+', '-', '=')
-    $password = -join (1..24 | ForEach-Object { $characters | Get-Random })
-    $password = 'Aa1!' + $password
+    # A cryptographic generator, without the bias of a remainder: this is the installation and domain administrator password of the lab.
+    $generator = [Security.Cryptography.RandomNumberGenerator]::Create()
+    $limit = 256 - (256 % $characters.Count)
+    $buffer = New-Object -TypeName 'byte[]' -ArgumentList 1
+    $chosen = New-Object -TypeName 'System.Text.StringBuilder'
+    while ($chosen.Length -lt 24) {
+        $generator.GetBytes($buffer)
+        if ($buffer[0] -lt $limit) { $null = $chosen.Append($characters[$buffer[0] % $characters.Count]) }
+    }
+
+    $password = 'Aa1!' + $chosen.ToString()
 
     New-LabDefinition -Name $LabName -DefaultVirtualizationEngine HyperV -VmPath $VmPath
     Add-LabVirtualNetworkDefinition -Name $LabName -AddressSpace $AddressSpace

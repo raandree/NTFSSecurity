@@ -71,9 +71,11 @@ try {
     if ($difference.Count -gt 0) { throw "The exported lab doesn't hold exactly the old machines plus $Name. Restore the metadata from $backup." }
     Write-Step 'definition extended and exported'
 
-    $lockPath = Get-LabConfigurationItem -Name DiskDeploymentInProgressPath
-    if (Test-Path -LiteralPath $lockPath) { throw "Another lab disk deployment seems to be in progress ($lockPath)." }
-    $null = New-Item -Path $lockPath -ItemType File -Value $LabName
+    $lockCandidate = Get-LabConfigurationItem -Name DiskDeploymentInProgressPath
+    if (Test-Path -LiteralPath $lockCandidate) { throw "Another lab disk deployment seems to be in progress ($lockCandidate)." }
+    $null = New-Item -Path $lockCandidate -ItemType File -Value $LabName
+    # Only a lock that this script created is removed in the finally block below.
+    $lockPath = $lockCandidate
     New-LabBaseImages
     Write-Step 'base images ready'
 
