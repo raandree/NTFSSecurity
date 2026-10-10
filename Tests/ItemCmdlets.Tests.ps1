@@ -159,10 +159,10 @@ Describe 'Get-ChildItem2' {
             ($result.Name | Sort-Object) -join ',' | Should -Be (($Expected | Sort-Object) -join ',')
         }
 
-        # With the culture of the thread tr-TR, a case-insensitive comparison that is not culture invariant treats I and i as
-        # different letters: the cmdlet dropped the items whose names differ in the case of an I from the pattern, which
-        # the enumeration had matched without regard to the culture. INDEX* is the control: both sides turn I into the
-        # dotless letter.
+        # With the culture of the thread tr-TR, a case-insensitive regular expression that is not culture invariant treats I and i
+        # as different letters. AlphaFS matches the filter that way, and so did the comparison of the cmdlet, so the cmdlet
+        # dropped the items whose names differ from the filter in the case of an I. INDEX* is the control: both sides turn I
+        # into the dotless letter.
         It 'Should match -Filter <Filter> ignoring case in Turkish, where I and i are different letters' -ForEach @(
             @{ Filter = 'index*'; Expected = 'Index.txt' }
             @{ Filter = 'INDEX*'; Expected = 'Index.txt' }
