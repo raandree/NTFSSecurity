@@ -14,7 +14,10 @@ recovered in attempt 2 on 2026-10-09. #116 (rc7, `d25647d`, base `master`)
 is open and green, not merged or published. Further quality-gate work is
 `ai/quality-gate-coverage` (#117) and `ai/quality-gate-paths` (draft #118),
 which classifies every remaining unvisited path; the open items are the
-maintainer's decisions. Stable Gallery version: 4.2.6.
+maintainer's decisions. The local branch `ai/quality-gate-lab-matrix` (stacked
+on #118, not pushed) holds the operating-system matrix, three fixes of the
+module found by it, and the controller changes (Decision 24, proposed).
+Stable Gallery version: 4.2.6.
 After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 
 ## Recent milestones
@@ -79,6 +82,21 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   486 passed, 0 failed, 2 expected skips; baseline 338 passed, 148 failed, all
   148 green on the candidate; fixture removed and verified clean on six
   machines. Record: `Tests/Lab/Acceptance-2026-10-09-quality-gate-paths.md`.
+- 2026-10-09 to 10: handoffs 2 to 4 under the maintainer's delegation (decisions
+  D1 to D26 in the night log of the session files). The matrix lab
+  `NtfsSecurityOsMatrixLab` (Server 2019, 2022, and 2025 file servers, Windows 11
+  Enterprise 22H2 client, Windows 11 26H1 suite only) found three defects of the
+  module, fixed in `962887a` and `fdd7a8b`: audit inheritance by descriptor,
+  `Get-NTFSEffectiveAccess -ServerName ''`, and the same cmdlet for a user who
+  isn't an administrator on a domain member. The final candidate passes the
+  module's suite on every machine (24 runs, no failure) and the live controller
+  in three cells (1,374 passed, 0 failed, 12 skipped). The failures of the
+  effective-access tests in the Server 2022 cell were not a defect of the module:
+  Windows returns the SID and the groups of a deleted account for a Kerberos S4U
+  logon for more than seven minutes, and the controller names the account of
+  case 3 anew for each fixture (`1dec389`). A read-only built-in review of the
+  kit and the fixes approved with Minor findings, fixed in `db04ef2`. Record:
+  `Tests/Lab/Acceptance-2026-10-10-os-matrix.md`; nothing was pushed.
 
 ## Stable capabilities
 
@@ -128,9 +146,12 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
    tests and exact artifact SHA-512 verification. Original upload errors
    remain errors for missing/different/unverifiable outcomes. Not deployed
    until the maintainer merges/pushes; no publication was performed here.
-9. Phase 3: choose OS scope (proposed Windows 11 client/2019/2022 servers),
-   detect ISO editions, provision without repurposing shared VMs, then run
-   published-package acceptance. #34 has no new reply since 2026-10-06.
+9. Operating-system matrix (Decision 24, proposed): the lab and the cells exist
+   and the final local candidate passes them. Open: the acceptance of the
+   published rc7 in every cell, keeping or replacing the VMs (about 60 GB) and
+   the evaluation client (it shuts down every hour), which module fixes go to
+   rc7, and a domain cell for Windows 11 26H1. #34 has no new reply since
+   2026-10-06.
 10. Lab rollback evidence: new checkpoints exist but report Standard even
     after a successful temporary ProductionOnly probe. Classification is
     unresolved; original VM policy restored, no checkpoint restored. Do

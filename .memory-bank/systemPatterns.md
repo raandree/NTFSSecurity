@@ -113,6 +113,22 @@ Read only task-relevant records; the index controls routing.
   example code blocks, and check the generated XML.
 - Live tests use only approved lab targets, SMB then independent server state;
   Get/SetFileSecurity preserves stored DACLs; rights oracles use S4U tokens.
+- A suite that is green on the development host and on CI says little about a
+  feature that the environment lacks. The matrix found three defects that every
+  earlier run had missed because the host is outside a domain and the CI
+  runner's token differs: run the suite on a domain member, on other builds, and
+  as a basic user before a release, and classify a failure by a probe under the
+  real tokens (elevated, filtered, local standard, domain standard) before
+  calling it a defect or a design.
+- A fixture that deletes an account and creates it again with the same name
+  gets the old SID and groups from Kerberos S4U logons (the oracle of the live
+  tests, and the Authz functions behind `Get-NTFSEffectiveAccess`) on the
+  domain controller and on member servers for more than seven minutes, and no
+  cache flush helped (a ticket purge renews only the session's own token). A
+  failure that follows the order of the cells and not the version of the
+  module points to such state: run a loop probe with the baseline and the
+  candidate side by side before blaming the code. The controller names the
+  account of case 3 anew for each new fixture.
 
 ### CI results and publication
 
