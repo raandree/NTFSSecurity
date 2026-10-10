@@ -463,6 +463,36 @@ Describe 'Get-NTFSEffectiveAccess as an account that is not an administrator of 
     }
 }
 
+Describe 'Get-NTFSEffectiveAccess for a domain account as an account that is not an administrator of the client' -Tag 'ServerAdmin' -Skip:(-not $configured) {
+    # The remote authorization manager of a computer answers only its administrators and the members of its group Access
+    # Control Assistance Operators, and a computer in a domain offers it to every caller. Before 5.0.0-rc7, the cmdlet
+    # wrote "Access is denied" for this computer, too, so the default -ServerName (localhost) failed for every user who
+    # isn't an administrator of the client. Now the local authorization manager of the client answers, which is the
+    # manager that the name asks for.
+    BeforeAll {
+        $path = Get-LabPath -RelativePath 'Case3\EffectiveAccess'
+        $subject = $configuration.Accounts.Subject.Name
+    }
+
+    It 'Should return the rights through the domain groups without -ServerName, like for an administrator of the client' {
+        $result = @(Get-NTFSEffectiveAccess -Path $path -Account $subject -WarningAction SilentlyContinue -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        $result | Should -HaveCount 1
+        Format-LabRight -Right $result[0].AccessRights | Should -Be (Format-LabRight -Right $configuration.EffectiveAccess.ClientRights)
+    }
+
+    It 'Should return the same rights without a warning for the name of the client' {
+        $result = @(Get-NTFSEffectiveAccess -Path $path -Account $subject -ServerName $env:COMPUTERNAME -WarningVariable operationWarnings -WarningAction SilentlyContinue -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        # The warning that the account doesn't hold the Security privilege is allowed; a warning about an unreachable computer isn't.
+        ($operationWarnings.Message -join '|') | Should -Not -BeLike '*can''t be reached*'
+        $result | Should -HaveCount 1
+        Format-LabRight -Right $result[0].AccessRights | Should -Be (Format-LabRight -Right $configuration.EffectiveAccess.ClientRights)
+    }
+}
+
 Describe 'Get-NTFSOrphanedAccess with the entry of a deleted domain account on a share folder' -Tag 'Admin' -Skip:(-not $configured) {
     BeforeAll {
         $folder = Get-LabPath -RelativePath 'Case4\OrphanedAccess'
