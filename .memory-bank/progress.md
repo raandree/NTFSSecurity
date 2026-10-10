@@ -83,14 +83,15 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   148 green on the candidate; fixture removed and verified clean on six
   machines. Record: `Tests/Lab/Acceptance-2026-10-09-quality-gate-paths.md`.
 - 2026-10-09 to 10: handoffs 2 to 4 under the maintainer's delegation (decisions
-  D1 to D37 in the night log of the session files). The matrix lab
+  D1 to D42 in the night log of the session files). The matrix lab
   `NtfsSecurityOsMatrixLab` (Server 2019, 2022, and 2025 file servers, Windows 11
   Enterprise 22H2 client, Windows 11 26H1 suite only) found three defects of the
   module, fixed in `962887a` and `fdd7a8b`: audit inheritance by descriptor,
   `Get-NTFSEffectiveAccess -ServerName ''`, and the same cmdlet for a user who
   isn't an administrator on a domain member. The final candidate passes the
   module's suite on every machine (24 runs, no failure) and the live controller
-  in three cells (1,374 passed, 0 failed, 12 skipped). The failures of the
+  in three cells (1,374 passed, 0 failed, 12 skipped) and in the first lab with
+  case 9 (245 passed, 0 failed, 1 skipped per edition). The failures of the
   effective-access tests in the Server 2022 cell were not a defect of the module:
   in a replay of the same cells the baseline failed two of three and the final
   candidate one of three (not counting the warm-up cell), and one model (the
@@ -101,7 +102,8 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   built-in review of the kit and the fixes approved with Minor findings, fixed in
   `db04ef2`. A second review of the later commits found one Major (the record
   called the cause settled without a baseline replay), addressed by the replay,
-  `9344ff7`, and `ab0d8e1`. Record:
+  `9344ff7`, and `ab0d8e1`; a follow-up review of those fixes found no Blocker or
+  Major and five Minors, corrected in `e2384e5` and `70f494a`. Record:
   `Tests/Lab/Acceptance-2026-10-10-os-matrix.md`; nothing was pushed.
 
 ## Stable capabilities

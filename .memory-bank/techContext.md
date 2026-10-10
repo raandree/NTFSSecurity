@@ -229,10 +229,16 @@ source: repository and executable evidence
   name resolution, and the local manager were right in the same second. A replay
   with the baseline and the final candidate alternating failed the baseline in two
   of three cells and the final candidate in one of three (not counting the warm-up
-  cell). The mechanism in Windows is unknown; a model with one lifetime (9.35 to
-  10.20 minutes) fits all 43 Admin-role runs of 27 cells. When the accounts are
-  created again within seconds, the S4U
+  cell). The mechanism in Windows is unknown; a model with one lifetime (9.95 to
+  10.25 minutes for both tests, to within 0.05 minute) fits all 43 Admin-role runs
+  of 27 cells. When the accounts are created again within seconds, the S4U
   logon itself returns the old account for 7 to 15 minutes. A `klist purge`,
   `nltest /sc_reset`, a DNS flush, and a restart of the Kerberos service didn't
   help. `Probe-AccountRecreation.ps1`, `Export-CellTimeline.ps1`, and
   `Test-StaleAuthzModel.ps1` show it.
+- `net.exe localgroup` lists a local user by its bare name and the entry of a
+  deleted domain account as its SID (or as its cached name for a while);
+  deleting a local user removes its entries from the local groups, so only the
+  entries of domain accounts stay orphaned. `Test-MatrixCleanup.ps1` finds the
+  entries of the account probe in Performance Log Users by either form and its
+  profiles by their folder `C:\Users\NtfsProbe*`.

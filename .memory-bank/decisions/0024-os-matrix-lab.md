@@ -41,7 +41,9 @@ source: agent decisions under the maintainer's delegation of 2026-10-09 (Handoff
      `Complete-OsMatrixLab.ps1`.
   3. Case 9 (accounts of other domains and forests) needs trusts to the
      forests of the existing lab, so the matrix cells run with
-     `-ForeignDomainController @()`; the existing lab keeps that case.
+     `-ForeignDomainController @()`; the existing lab keeps that case. The final
+     candidate ran it there (run `fl1`: 245 passed, 0 failed, 1 skipped per
+     edition, 16 case-9 tests per edition).
   4. The controller of the repository runs in every cell with `-LabName`,
      `-DomainController`, `-FileServer`, and `-Client`. The matrix showed three
      defects of its setup and removal, fixed in `7d47316`: a recursive delete

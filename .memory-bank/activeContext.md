@@ -19,10 +19,11 @@ that the matrix found (`962887a`, `fdd7a8b`), the kit, the controller changes, a
 record `Tests/Lab/Acceptance-2026-10-10-os-matrix.md` (Decision 24, proposed).
 The final local candidate `fdd7a8b` passes the module's suite on five operating
 systems and the host (24 runs, no failure) and the live controller in three
-cells (1,374 passed, 0 failed, 12 skipped). Handoff 3: Decision 22 was confirmed
+cells of the matrix (1,374 passed, 0 failed, 12 skipped) and in the first lab,
+where case 9 runs (245 passed, 0 failed, 1 skipped per edition). Handoff 3: Decision 22 was confirmed
 under the delegation and stays proposed; nothing is published. Handoff 4:
 Decision 23 (the #34 dossier); the risk acceptance is the maintainer's. The
-agent's decisions of the night are D1 to D37 in
+agent's decisions of the night are D1 to D42 in
 `decisions-night-2026-10-09.md` of the session files. Stable 5.0.0 stays gated.
 
 The earlier state of handoff 1, from the reviewed head `f11ff41` of #117: 28
@@ -122,7 +123,9 @@ open.
   OSFile22, OSFile25, OSWin11E, OSWin11, and the host, four configurations each,
   zero failures, skipped tests identical to the host's; the baseline `83149ee`
   (run on OSFile22 and OSFile25) fails 4 elevated and 20 basic-user tests. Live: run
-  `rc7l`, three cells, 1,374 passed, 0 failed, 12 skipped. The Admin-role
+  `rc7l`, three cells, 1,374 passed, 0 failed, 12 skipped. First lab (run `fl1`,
+  case 9 included, both editions): 245 passed, 0 failed, 1 skipped per edition,
+  fixture removed and verified clean. The Admin-role
   effective-access failures of the earlier cells were not the module: in a replay
   (`ab0` to `ab6`) the baseline failed two of three cells and the final candidate
   one of three (not counting the warm-up `ab0`), and one model (the remote
@@ -133,7 +136,8 @@ open.
   passed, two of them where the model predicts a failure for a reused name.
   Reviewed by the built-in code-review agent (custom `security-reviewer`
   unavailable): approve with Minor, fixed; a second review found one Major
-  (record accuracy), addressed by the replay.
+  (record accuracy), addressed by the replay; a follow-up review found no
+  Blocker or Major and five Minors, corrected.
 
 ## Next step
 
