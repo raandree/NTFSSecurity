@@ -52,9 +52,9 @@ source: agent decisions under the maintainer's delegation of 2026-10-09 (Handoff
   5. The module's own behavior tests run on every machine as well
      (`Run-MatrixLocalSuite.ps1`), elevated and as a basic user, in both
      editions, as scheduled tasks so that the token matches a CI runner. This
-     found three defects of the module, each fixed in its own commit on
+     found three defects of the module, fixed in two commits on
      `ai/quality-gate-lab-matrix`: `Get-NTFSInheritance -SecurityDescriptor`
-     and `Get-NTFSEffectiveAccess -ServerName ''` (`962887a`), and
+     and `Get-NTFSEffectiveAccess -ServerName ''` (`962887a`, two fixes), and
      `Get-NTFSEffectiveAccess` for a user who isn't an administrator on a
      computer in a domain (`fdd7a8b`, with a live test for the ServerAdmin
      role). The maintainer decides which of them belong to rc7.
@@ -112,16 +112,26 @@ source: agent decisions under the maintainer's delegation of 2026-10-09 (Handoff
   - A profile of an account that a probe's scheduled task used stayed loaded on
     one server until it restarted; the probe now uses a new account name for
     every run.
-  - The fixture of the live controller deleted its accounts after a cell and
-    created them again with the same names for the next. Windows then returns
-    the SID and the groups of the deleted account for a Kerberos S4U logon on
-    the domain controller and the file server for more than seven minutes, so
-    `Get-NTFSEffectiveAccess` returned no access for the new account in some
-    cells (Windows Server 2022, Admin role), for the baseline and the final
-    candidate alike. This looked like a regression of the module until a loop
-    probe showed both builds failing the same way. The controller now gives a
-    new fixture a new name for the account of case 3 (`1dec389`); the record
-    has the evidence.
+  - The matrix cells of the live controller failed in the effective-access tests
+    of the Admin role in the Windows Server 2022 cell (`rc7f`, `rc7h`, `rc7i`,
+    and `rc7j`) in cells that followed each other, where the fixture was removed
+    after a cell and created again with the same account names. This looked like
+    a regression of the module (the audit read of `962887a` was the first suspect)
+    until a replay of the same cells with the baseline and the final candidate
+    alternating (`ab0` to `ab6`) failed the baseline in two of three cells and
+    the final candidate in one of three (not counting the warm-up `ab0`). In a
+    failing cell the remote
+    authorization managers (the client's and the file server's) returned no
+    groups for the current account while the Kerberos S4U logon, the name
+    resolution, and the local manager were right in the same second. One model,
+    in which a remote manager answers for an account name for about ten minutes
+    after its first request, fits all 43 Admin-role runs of 27 cells; the
+    predictions that I wrote down before three of the replay cells held (the
+    weakest is `ab6`, 10.5 minutes after its entry, above the lifetimes that
+    fit). The mechanism in Windows isn't known. The controller now gives a new
+    fixture a new name for the account of case 3 (`1dec389`); four more cells
+    with it (`ab7` to `ab10`) passed, two of them at positions where the model
+    predicts a failure for a reused name. The record has the evidence.
 - Result: [the record](../../Tests/Lab/Acceptance-2026-10-10-os-matrix.md). The
   final candidate (`fdd7a8b`) passes the module's suite on all five machines
   and the host in all four configurations, and the live cells (see the record).
@@ -130,7 +140,9 @@ source: agent decisions under the maintainer's delegation of 2026-10-09 (Handoff
   needs the published package in every cell (Handoff 3, stage D). The newest
   Windows 11 build that can join a Server 2025 domain here is 22H2; a domain
   cell with 26H1 needs a newer domain controller build or a fix of the
-  mismatch. The maintainer also decides which of the three module fixes belong
-  to rc7 (each is its own commit, `git revert` removes it), and whether the
+  mismatch. The maintainer also decides which of the module fixes belong to
+  rc7 (two commits: `962887a` holds two fixes, `fdd7a8b` one; `fdd7a8b` reverts
+  cleanly on its own, `962887a` conflicts with it in `Lib.cs` and `CHANGELOG.md`
+  if `fdd7a8b` stays), and whether the
   evaluation client stays (it needs a start shortly before every run) or is
   replaced by a client with a license that doesn't expire.

@@ -221,11 +221,18 @@ source: repository and executable evidence
 - Builds are not byte-reproducible (two unchanged assemblies differ per build):
   hash each candidate and its package separately.
 - The fixture's account for case 3 gets a new name for each new fixture
-  (`NtfsLiveSubject` and four digits). After an account is deleted and created
-  again with the same name, a Kerberos S4U logon returns the old SID and groups
-  for more than seven minutes on the domain controller and the file server
-  (`WindowsIdentity` with a UPN, the Authz functions behind
-  `Get-NTFSEffectiveAccess`), whichever module version asks; a `klist purge`
-  renews only the session's own token, and `nltest /sc_reset`, a DNS flush, and
-  a restart of the Kerberos service change nothing. `Probe-AccountRecreation.ps1`
-  shows it.
+  (`NtfsLiveSubject` and four digits). In the matrix lab, after an account was
+  deleted and created again with the same name, the remote authorization
+  managers (the client's for the default `-ServerName`, the file server's for its
+  name) answered for about ten minutes as if it had no groups (`0x100000`),
+  whichever module version asked, while the Kerberos S4U logon of the oracle, the
+  name resolution, and the local manager were right in the same second. A replay
+  with the baseline and the final candidate alternating failed the baseline in two
+  of three cells and the final candidate in one of three (not counting the warm-up
+  cell). The mechanism in Windows is unknown; a model with one lifetime (9.35 to
+  10.20 minutes) fits all 43 Admin-role runs of 27 cells. When the accounts are
+  created again within seconds, the S4U
+  logon itself returns the old account for 7 to 15 minutes. A `klist purge`,
+  `nltest /sc_reset`, a DNS flush, and a restart of the Kerberos service didn't
+  help. `Probe-AccountRecreation.ps1`, `Export-CellTimeline.ps1`, and
+  `Test-StaleAuthzModel.ps1` show it.

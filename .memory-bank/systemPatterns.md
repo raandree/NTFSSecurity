@@ -48,6 +48,7 @@ Read only task-relevant records; the index controls routing.
 | 21 | [A quality gate before 5.0.0](decisions/0021-quality-gate-before-5.0.0.md) |
 | 22 | [The behavior changes of Phase 2 (proposed)](decisions/0022-phase-2-behavior-changes.md) |
 | 23 | [Non-Windows file servers before 5.0.0, #34 (proposed)](decisions/0023-non-windows-file-servers.md) |
+| 24 | [The operating-system matrix lab (proposed)](decisions/0024-os-matrix-lab.md) |
 
 ## Patterns
 
@@ -120,15 +121,16 @@ Read only task-relevant records; the index controls routing.
   as a basic user before a release, and classify a failure by a probe under the
   real tokens (elevated, filtered, local standard, domain standard) before
   calling it a defect or a design.
-- A fixture that deletes an account and creates it again with the same name
-  gets the old SID and groups from Kerberos S4U logons (the oracle of the live
-  tests, and the Authz functions behind `Get-NTFSEffectiveAccess`) on the
-  domain controller and on member servers for more than seven minutes, and no
-  cache flush helped (a ticket purge renews only the session's own token). A
-  failure that follows the order of the cells and not the version of the
-  module points to such state: run a loop probe with the baseline and the
-  candidate side by side before blaming the code. The controller names the
-  account of case 3 anew for each new fixture.
+- A fixture that deletes an account and creates it again with the same name can
+  get a wrong answer for about ten minutes: the remote authorization managers
+  answered `0x100000` for the current SID while the local manager and a Kerberos
+  logon were right in the same second, and, when the accounts are created again
+  within seconds, the Kerberos S4U logons returned the old account (7 to 15
+  minutes). A failure that follows the order of the cells and not the version of
+  the module points to such state: run the baseline and the candidate in cells
+  that follow each other and alternate them (the replay of the record) before
+  blaming the code. The controller names the account of case 3 anew for each new
+  fixture.
 
 ### CI results and publication
 

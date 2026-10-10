@@ -18,8 +18,10 @@ order, each with a merge commit (Decision 15), ends in exactly the tree of
 lists the versions up to rc6, as it must before rc7 is published.
 
 The branch `ai/quality-gate-lab-matrix` (local until the maintainer pushes it)
-is stacked on #118. It holds three fixes of the module (`962887a`, `fdd7a8b`;
-each is its own commit and `git revert` removes it), the kit of the
+is stacked on #118. It holds three fixes of the module in two commits (`962887a`
+has two, `fdd7a8b` one). `fdd7a8b` reverts cleanly on its own; `962887a` doesn't
+revert while `fdd7a8b` stays (the two conflict in `Security2/Win32/Lib.cs` and
+`CHANGELOG.md`), and its two fixes go together. The branch also holds the kit of the
 operating-system matrix, the changes of the live controller, and the record
 (Decision 24). rc7 contains the module fixes only if the branch is merged after
 #118 and before the tag; otherwise they go to the next prerelease. The
@@ -124,12 +126,16 @@ Local `-ModulePath` runs are validation; the gate needs the published bytes.
   `net localgroup <name>` and `net localgroup <name> <SID> /delete`. The SIDs
   of a deleted account can't be found afterwards, so keep `fixture-sids.json`
   from before the removal of the organizational unit.
-- An account that is deleted and created again with the same name keeps its old
-  SID and groups in Kerberos S4U logons on the domain controller and member
-  servers for more than seven minutes, and nothing flushes it (see
-  `techContext.md`). The controller names the account of case 3 anew for each
-  new fixture; a script of your own that recreates accounts needs unique names
-  too.
+- An account that is deleted and created again with the same name made the
+  remote authorization managers (the client's and the file server's) answer for
+  about ten minutes as if it had no groups, so `Get-NTFSEffectiveAccess` returned
+  no access; when the accounts are created again within seconds, the Kerberos S4U
+  logons returned the old account on the domain controller and member servers for
+  7 to 15 minutes. The five remedies tried (a ticket purge, `nltest /sc_reset`, a
+  DNS flush, a restart of the Kerberos service, and waiting) helped only by
+  waiting (see `techContext.md`). The controller names the account of case 3 anew
+  for each new fixture; a script of your own that recreates accounts needs unique
+  names too.
 - Restart the evaluation client (`OSWin11E`) right before a sequence or a suite,
   not before several: it shuts down an hour after each start. The restart takes
   about two and a half minutes and may need the repair of the secure channel.
