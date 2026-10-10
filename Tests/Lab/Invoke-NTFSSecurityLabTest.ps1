@@ -128,15 +128,16 @@ $roleAccounts = [ordered]@{
     ServerAdmin = 'NtfsLiveServerAdmin'
     Admin       = 'NtfsLiveAdmin'
 }
-$subjectAccount = 'NtfsLiveSubject'
+$subjectBaseName = 'NtfsLiveSubject'
 $orphanAccount = 'NtfsLiveOrphan'
 $foreignAccount = 'NtfsLiveForeign'
 # The rights that the entries of the foreign accounts grant on the folder of case 9, by position
 $foreignRights = 'ReadAndExecute', 'Modify', 'Write'
 $localGroupName = 'NtfsLiveLocal'
+# The members of NtfsLiveInner follow when the name of the account of case 3 is known
 $groupMembers = @{
     NtfsLiveDelegates = @('NtfsLiveDelegate')
-    NtfsLiveInner     = @('NtfsLiveSubject')
+    NtfsLiveInner     = @()
     NtfsLiveOuter     = @('NtfsLiveInner')
 }
 # A name that no DNS server resolves (RFC 2606)
@@ -300,6 +301,19 @@ function ConvertFrom-LabTestResult {
 }
 
 #region Remote script blocks
+# Runs on the domain controller: returns the names of the accounts of case 3 that the organizational unit already has.
+$findSubjectScript = {
+    param ($OrganizationalUnitName, $BaseName)
+
+    $ErrorActionPreference = 'Stop'
+    Import-Module -Name ActiveDirectory
+    $domain = Get-ADDomain
+    $path = 'OU={0},{1}' -f $OrganizationalUnitName, $domain.DistinguishedName
+    if (Get-ADOrganizationalUnit -LDAPFilter "(ou=$OrganizationalUnitName)" -SearchBase $domain.DistinguishedName -SearchScope OneLevel -Server $domain.PDCEmulator) {
+        Get-ADUser -LDAPFilter "(sAMAccountName=$BaseName*)" -SearchBase $path -Server $domain.PDCEmulator | ForEach-Object -Process { $_.SamAccountName }
+    }
+}
+
 # Runs on the domain controller: creates or updates the accounts and groups in their organizational unit, pushes them
 # to the other domain controllers of the domain, and returns their SIDs.
 $accountScript = {
@@ -1060,6 +1074,14 @@ $modules = @(
 )
 
 Write-LabProgress 'Preparing the accounts, the file server, and the client'
+# When an account is deleted and created again with the same name, a Kerberos S4U logon for it keeps returning the SID and the groups of
+# the deleted account for a while: on the domain controller, the client, and the file server of the operating-system matrix, for every
+# version of the module. The Authz functions behind Get-NTFSEffectiveAccess log an account on this way, so the cmdlet returned no access
+# for the new account. A new fixture therefore gets a name for the account of case 3 that no earlier fixture used; a fixture that
+# exists keeps its account.
+$existingSubjects = @(Invoke-LabCommand -ComputerName $DomainController -ActivityName 'Look for the account of case 3' -ScriptBlock $findSubjectScript -ArgumentList $organizationalUnitName, $subjectBaseName @labCommand)
+$subjectAccount = if ($existingSubjects) { [string]$existingSubjects[0] } else { '{0}{1:D4}' -f $subjectBaseName, (Get-Random -Minimum 0 -Maximum 10000) }
+$groupMembers['NtfsLiveInner'] = @($subjectAccount)
 $passwords = @{}
 foreach ($name in @($roleAccounts.Values) + $subjectAccount) {
     $passwords[$name] = New-LabPassword

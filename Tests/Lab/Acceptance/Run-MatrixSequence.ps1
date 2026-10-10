@@ -89,7 +89,8 @@ foreach ($fileServerName in $cells) {
             & (Join-Path -Path $kit -ChildPath 'Test-MatrixCleanup.ps1') -Mode Verify -SidFile $sidFile -OutFile (Join-Path -Path $cell -ChildPath 'cleanup-3-verify.log') @common
             $verify = Get-Content -LiteralPath (Join-Path -Path $cell -ChildPath 'cleanup-3-verify.log') -Raw
             $clean = ($verify -match 'matrix-cleanup-Verify-DONE') -and ($verify -notmatch 'OU NTFSSecurityLive: True') -and ($verify -notmatch 'accounts: NtfsLive') -and
-            ($verify -notmatch 'share=True|C:\\NTFSSecurityLive=True|C:\\NTFSSecurityLab=True|NtfsLiveLocal=True') -and ($verify -notmatch 'profiles=[1-9]') -and ($verify -notmatch ': [1-9]\d* fixture member')
+            ($verify -notmatch 'share=True|C:\\NTFSSecurityLive=True|C:\\NTFSSecurityLab=True|NtfsLiveLocal=True') -and ($verify -notmatch 'profiles=[1-9]') -and ($verify -notmatch ': [1-9]\d* fixture member') -and
+            ($verify -notmatch 'probe accounts: [1-9]') -and ($verify -notmatch 'residue: [^\r\n]*=[1-9]')
             Write-Sequence ("cell $fileServerName cleanup verdict from the verify log: {0}" -f $(if ($clean) { 'CLEAN' } else { 'DIRTY (read cleanup-3-verify.log)' }))
         }
     }

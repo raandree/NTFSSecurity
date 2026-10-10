@@ -11,7 +11,8 @@ param (
 # Independent end-state check of the fixture of Invoke-NTFSSecurityLabTest.ps1 in a lab (Windows PowerShell 5.1, on the host). Snapshot
 # records the SIDs of the NtfsLive* accounts while the fixture exists. Verify reads the domains and every machine again, and reports
 # the organizational unit, the accounts, the share, the folders, the local group, the memberships of Administrators, Access Control
-# Assistance Operators, and Remote Management Users, and the profiles of those SIDs. The result is judged from this log, never from
+# Assistance Operators, and Remote Management Users, and the profiles of those SIDs, and what the suite runs and the probes of the kit leave
+# behind (scheduled tasks, stage folders, standard users, probe accounts of the domain). The result is judged from this log, never from
 # the wrapper of the controller or a global error count. Repair is for a run whose removal failed: with the SIDs of the snapshot, it
 # removes what that run left on the machines (the memberships, also of orphaned SIDs, which net localgroup deletes by SID; the share; the
 # local group; the folders) and then reports like Verify.
@@ -28,16 +29,17 @@ param (
         $domain = Get-ADDomain
         $unit = Get-ADOrganizationalUnit -LDAPFilter '(ou=NTFSSecurityLive)' -SearchBase $domain.DistinguishedName -SearchScope OneLevel -Server $domain.PDCEmulator
         [pscustomobject]@{
-            Domain = $domain.DNSRoot
-            Unit   = [bool] $unit
-            Sids   = @(Get-ADObject -LDAPFilter '(sAMAccountName=NtfsLive*)' -SearchBase $domain.DistinguishedName -Server $domain.PDCEmulator -Properties objectSid, sAMAccountName |
+            Domain        = $domain.DNSRoot
+            Unit          = [bool] $unit
+            Sids          = @(Get-ADObject -LDAPFilter '(sAMAccountName=NtfsLive*)' -SearchBase $domain.DistinguishedName -Server $domain.PDCEmulator -Properties objectSid, sAMAccountName |
                     ForEach-Object -Process { '{0}={1}' -f $_.sAMAccountName, $_.objectSid.Value })
+            ProbeAccounts = @(Get-ADObject -LDAPFilter '(sAMAccountName=NtfsProbe*)' -SearchBase $domain.DistinguishedName -Server $domain.PDCEmulator).Count
         }
     }
 
     $directory = @(foreach ($name in $DomainController) { Invoke-LabCommand -ComputerName $name -ActivityName "Read the fixture of $name" -ScriptBlock $directoryScript @labCommand })
     foreach ($state in $directory) {
-        '{0,-14} OU NTFSSecurityLive: {1,-5} NtfsLive* accounts: {2}' -f $state.Domain, $state.Unit, ($(if ($state.Sids) { $state.Sids -join ', ' } else { 'none' }))
+        '{0,-14} OU NTFSSecurityLive: {1,-5} NtfsLive* accounts: {2}; probe accounts: {3}' -f $state.Domain, $state.Unit, ($(if ($state.Sids) { $state.Sids -join ', ' } else { 'none' })), $state.ProbeAccounts
     }
 
     if ($Mode -eq 'Snapshot') {
@@ -65,6 +67,10 @@ param (
                 LocalGroup = [bool] (Get-LocalGroup -Name 'NtfsLiveLocal' -ErrorAction SilentlyContinue)
                 Groups     = $groups -join '; '
                 Profiles   = @(Get-CimInstance -ClassName Win32_UserProfile | Where-Object -FilterScript { $_.SID -in $Sid }).Count
+                # What the suite runs and the probes of the kit leave behind: scheduled tasks, stage folders, and standard users
+                Tasks      = @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.TaskName -like 'NtfsMatrix*' }).Count
+                Stages     = @('C:\NtfsMatrixLocal', 'C:\NtfsMatrixProbe' | Where-Object -FilterScript { Test-Path -LiteralPath $_ }).Count
+                Users      = @(Get-LocalUser -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.Name -like 'NtfsProbe*' }).Count
             }
         }
 
@@ -105,6 +111,7 @@ param (
             $state = Invoke-LabCommand -ComputerName $name -ActivityName "Check $name" -ScriptBlock $machineScript -ArgumentList (, $sids) @labCommand
             '{0,-9} share={1} C:\NTFSSecurityLive={2} C:\NTFSSecurityLab={3} NtfsLiveLocal={4} profiles={5}' -f $name, $state.Share, $state.ShareRoot, $state.Payload, $state.LocalGroup, $state.Profiles
             '          {0}' -f $state.Groups
+            '          residue: scheduled tasks={0} stage folders={1} probe users={2}' -f $state.Tasks, $state.Stages, $state.Users
         }
     }
 
