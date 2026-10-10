@@ -33,7 +33,8 @@ is open.
   the suite has 1,455 cases per configuration without a failure and covers
   3,243 sequence points (88.87%).
 - **A defect fixed, a defect open.** The comparison of an identity with a name
-  was wrong in `tr-TR`; it is fixed test-first (`419cfb3`). The hard-link
+  was wrong in `tr-TR`; it is fixed test-first (`419cfb3`), and the first lab
+  passes on the fixed build (245 passed, 1 skipped per edition). The hard-link
   cmdlets (`New-NTFSHardLink -PassThru`, `Get-NTFSHardLink`) fail for a path
   whose root is not the volume root; the defect is reproduced and left to the
   maintainer.
@@ -926,6 +927,39 @@ points, and 78 explicit branch points; each of the 187 is classified (none is
 unclassified), 167 as explained and 20 as open (the 8 methods that the paths
 report left to the maintainer, and 12 getters of pipeline parameters).
 
+## Lab acceptance of the fixed build
+
+A defect that is not an open item is fixed, and the lab acceptance of the
+affected behavior is repeated on the fixed build (the handoff, as the paths
+work did). The affected behavior is the comparison of an identity with a name.
+No cmdlet uses it (the cmdlets compare identities by SID, and no line of the C#
+of the cmdlets compares an identity with a string) and no live test does, so
+this run is evidence that the fix changes nothing in the lab. It is not a
+release acceptance: a new candidate needs its own (open item 6).
+
+- Module: the extracted package of the measured final build
+  (`E\final\package\NTFSSecurity`, packaged like CI by `New-ModulePackage.ps1`
+  from the pristine copy). The hashes of its four assemblies, logged at the
+  start of the run, are those of the final measurement. It was passed with
+  `-ModulePath` to the unmodified controller and live tests of the repository
+  (Git blobs `635bf162…` and `efe36e50…`), without instrumentation.
+- Lab: `WindowsAccessControlLab` (client `F1AFile1`, file server `F1AFile2`,
+  four domains, the trusts), one call per edition, run `fix1`,
+  `Run-LiveAcceptance.ps1`.
+
+| Role | Account | Passed | Failed | Skipped | Exit code |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Delegate | `A\NtfsLiveDelegate` | 69 | 0 | 0 | 0 |
+| ServerAdmin | `A\NtfsLiveServerAdmin` | 36 | 0 | 0 | 0 |
+| Admin | `A\NtfsLiveAdmin` | 64 | 0 | 0 | 0 |
+| Server | `A\install` | 76 | 0 | 1 | 0 |
+
+Both editions gave the same counts: 245 passed, 0 failed, 1 skipped
+(`LIVE_RESULT_VERIFIED`), the counts of the rc7 acceptance and of the
+instrumented runs. The removal of the fixture and the independent check of the
+end state found no account, share, folder, profile, task, or group member left
+in the four domains and on both machines (`CLEAN`, 21:30:18Z).
+
 ## Decisions made
 
 The decisions below are the agent's, taken inside the limits of the handoff;
@@ -1032,7 +1066,7 @@ of the effective-access check, Decisions 22 and 24, and #34) stay as they are.
 | Windows Server Core | Open | a plan with the image index, disk, time, and commands; deploying needs the maintainer's word |
 | ARM64 | Open | no reproduction |
 | The final commit | Closed | `b2cb47b`: 1,455 cases per configuration, no failure; 3,243/3,649 sequence points (88.87%); eligibility by row; 187 unvisited methods classified |
-| The lab acceptance of the fixed build | see the section below | the first lab, both editions, with the package of the measured bytes |
+| The lab acceptance of the fixed build | Closed for the first lab | the measured final package, both editions, 245 passed, 0 failed, 1 skipped each, clean end state; the matrix cells were not repeated (a new candidate needs them) |
 
 ## Checks not run, and limits
 

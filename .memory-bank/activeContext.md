@@ -9,6 +9,18 @@ source: current task evidence
 
 ## Current focus
 
+State at 2026-10-10 22:00 UTC: Handoff 5 (the coverage unknowns) is done
+locally on `ai/coverage-unknowns`, from `origin/master` `6696f68`; nothing is
+pushed. The report is `Tests/Coverage/Quality-Gate-Unknowns-2026-10-10.md`
+with nine CSV tables. rc7 (`fa0701b`) was measured at 3,198/3,649 sequence
+points (87.64%); the live suite (first lab, three matrix cells) and the unit
+suite on a domain member add only 9 sequence and 4 explicit branch points, all
+of `fdd7a8b`. One defect is fixed (`419cfb3`, an identity compared with a name
+in `tr-TR`), 79 `It` blocks in four files are added (final commit `b2cb47b`:
+1,455 cases per configuration, 3,243 points), and a defect is open (hard-link
+names under a root that is not the volume root). The maintainer decides
+whether the fix and the tests enter a new candidate.
+
 State at 2026-10-10 15:45 UTC: the maintainer integrated the release-gate stack
 into `master` (`6dd799f`, CI green): #116 (rc7, `8a6be9f`), #120
 (`bdb9981`; it replaced #117, which GitHub closed unmerged when the branch
@@ -101,21 +113,21 @@ acceptance is the maintainer's.
   passed. A dry run of `Run-MatrixSequence.ps1 -Version 5.0.0-rc6` showed that
   the published-package path works. Labs at 07:50 UTC on 2026-10-10: no fixture
   or probe residue; `OSWin11E` shuts itself down an hour after its start.
-- Test coverage of the 5.0.0 code, assessed 2026-10-10 (nothing was changed).
-  Measured at `5a5d58b`: 87.84% of the sequence points (3,192 of 3,634) and
-  93.96% of the explicit branch points; every cmdlet is at 72.5% or more. Of
-  the 442 unvisited points, 181 are in code that no cmdlet calls, 103 are
-  parameter getters, 77 defensive, and 81 environment-specific (47 of them the
-  ownership retry of an audit write over SMB). Since then the production C#
-  changed by 70 inserted lines (`962887a`, `fdd7a8b`), so the ratios are off by
-  2 points at most. A parser scan finds all 36 cmdlets and all 147 documented
-  parameters in the unit tests (four only as keys of data-driven hashtables)
-  and 34 cmdlets in the live tests (not `Enable-Privileges`, `Get-DiskSpace`).
-  Not measured: the coverage of the live tests and of the suite on a domain
-  member, and of the code after the fixes. Not tested: Server Core, other
-  cultures, servers that aren't Windows (#34), and a judged test matrix per
-  parameter set (57 of 64 sets have a test call that binds them; the coverage
-  shows every switch visited).
+- Handoff 5, the coverage unknowns, 2026-10-10 (report
+  `Tests/Coverage/Quality-Gate-Unknowns-2026-10-10.md`; raw evidence in the
+  session folder `816cf47d-2f80-4eba-8ac9-41702c49560b\files\qg-unknowns`
+  with a hash manifest). rc7 measured at `fa0701b` (four frozen
+  configurations, AltCover): 3,198/3,649 sequence points (87.64%), 1,090/1,168
+  explicit branch points; 232 unvisited methods, all classified. Live suite on
+  an instrumented copy (first lab and three cells, counts equal to the
+  acceptance) and unit suite on `OSFile25`: together +9 sequence and +4
+  explicit branch points (the code of `fdd7a8b`); the cells add nothing to
+  the first lab; no test or probe reaches the audit ownership retry or the
+  audit read denial. The new tests add 45 points (getters of pipeline
+  parameters; the paths report was wrong that no caller invokes a getter);
+  7 of 64 parameter sets closed, 51 partly, 1 open, 4 left to the maintainer.
+  Cultures `de-DE` and `tr-TR`: one defect, fixed (`419cfb3`). Not tested:
+  Server Core (plan), ARM64, a localized system, non-Windows servers.
 - Raw evidence is outside git: the session folder
   `4b12e2f4-d4c7-4a5d-883a-ddb7421c4848\files` (`qg-paths`, the matrix runs, the
   night log) and
@@ -154,9 +166,11 @@ acceptance is the maintainer's.
    Modify; protecting them is a design change of the controller and needs a new
    acceptance). The help could also say that a local standard user who asks
    about a domain account still gets "Access is denied".
-6. The two measurement gaps (Evidence): measure the coverage at the tag again
-   with the method of the paths report (about 1.5 hours, local), and run the
-   live tests with an instrumented build to see what they add, the audit
-   ownership retry first (about 2 to 3 hours with the lab). Neither was
-   requested; the agent starts them on request.
+6. Handoff 5 is done (Evidence). The maintainer decides whether the fix
+   `419cfb3` and the tests enter a new candidate (rc8), which needs the matrix
+   cells and the first lab on its bytes, and he decides the open items of the
+   report: hard-link names under another root (a defect with a
+   reproduction), a piped `AppliesTo` property that doesn't select the Simple
+   set, 12 getters of pipeline parameters, the 52 partly closed sets, the audit
+   paths, Server Core (widens Decision 24), and ARM64.
 7. Do not release stable 5.0.0 or equate a percentage with gate closure.
