@@ -150,8 +150,10 @@ namespace NTFSSecurity
             // for itself. Before 5.0.0, [1] was read as a character class, so a file with brackets in its name was not
             // returned for its name. The enumeration returns every item for *.* as Windows does, so the comparison does
             // too; with the dot as an ordinary character, it would drop the items without a dot, most folders.
+            // CultureInvariant: the enumeration ignores case without the culture of the thread, and with tr-TR the
+            // comparison would otherwise treat I and i as different letters and drop items that the enumeration matched.
             var pattern = filter == "*.*" ? "*" : filter;
-            wildcard = new WildcardPattern(pattern.Replace("`", "``").Replace("[", "`[").Replace("]", "`]"), WildcardOptions.Compiled | WildcardOptions.IgnoreCase);
+            wildcard = new WildcardPattern(pattern.Replace("`", "``").Replace("[", "`[").Replace("]", "`]"), WildcardOptions.Compiled | WildcardOptions.IgnoreCase | WildcardOptions.CultureInvariant);
 
             modeMethodInfo = typeof(FileSystemCodeMembers).GetMethod("Mode");
 

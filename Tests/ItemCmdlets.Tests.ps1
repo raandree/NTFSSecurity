@@ -159,6 +159,36 @@ Describe 'Get-ChildItem2' {
             ($result.Name | Sort-Object) -join ',' | Should -Be (($Expected | Sort-Object) -join ',')
         }
 
+        # With the culture of the thread tr-TR, a case-insensitive comparison that is not culture invariant treats I and i as
+        # different letters: the cmdlet dropped the items whose names differ in the case of an I from the pattern, which
+        # the enumeration had matched without regard to the culture. INDEX* is the control: both sides turn I into the
+        # dotless letter.
+        It 'Should match -Filter <Filter> ignoring case in Turkish, where I and i are different letters' -ForEach @(
+            @{ Filter = 'index*'; Expected = 'Index.txt' }
+            @{ Filter = 'INDEX*'; Expected = 'Index.txt' }
+            @{ Filter = '*.ini'; Expected = 'desktop.ini,SETTINGS.INI' }
+            @{ Filter = '*.INI'; Expected = 'desktop.ini,SETTINGS.INI' }
+        ) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterTurkish' -Directory
+            foreach ($name in 'Index.txt', 'desktop.ini', 'SETTINGS.INI', 'Other.txt') {
+                $file = Join-Path -Path $folder -ChildPath $name
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+                Set-Content -LiteralPath $file -Value $name
+            }
+            $original = [System.Threading.Thread]::CurrentThread.CurrentCulture
+            try {
+                [System.Threading.Thread]::CurrentThread.CurrentCulture = [System.Globalization.CultureInfo]::GetCultureInfo('tr-TR')
+                'I'.ToLower() | Should -Be ([string][char]0x131) -Because 'the culture of the thread has to be Turkish for the test to mean anything'
+
+                $result = @(Get-ChildItem2 -Path $folder -Filter $Filter -ErrorAction Stop)
+            }
+            finally {
+                [System.Threading.Thread]::CurrentThread.CurrentCulture = $original
+            }
+
+            ($result.Name | Sort-Object) -join ',' | Should -BeExactly $Expected
+        }
+
         # Only * and ? are wildcards in -Filter. A bracket stands for itself, so a file with brackets in its name is found
         # by its name, as Get-ChildItem finds it, and the file that the brackets would select as a character class is not.
         # Before 5.0.0, the cmdlet read [1] as a character class and returned nothing.
