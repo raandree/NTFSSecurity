@@ -117,13 +117,16 @@ Describe 'Audit cmdlets with a security descriptor that has no audit section' {
 
 Describe 'Add-NTFSAudit' {
     Context 'Binding -Path from the pipeline by property name' {
+        # -AppliesTo is named for the Simple row, not piped: an object with an AppliesTo property binds the default set
+        # PathComplex and the property is dropped (the folders show it: the scope of the entry stays the default one), so
+        # only the named parameter selects PathSimple.
         It 'Should add the audit entry for the piped <Set> object that exists, write a ReadFileError for the one that does not, and leave the DACL unchanged' -ForEach @(
-            @{ Set = 'PathComplex'; ExtraProperties = @{ InheritanceFlags = 'None'; PropagationFlags = 'None' } }
-            @{ Set = 'PathSimple'; ExtraProperties = @{ AppliesTo = 'ThisFolderOnly' } }
+            @{ Set = 'PathComplex'; ExtraProperties = @{ InheritanceFlags = 'None'; PropagationFlags = 'None' }; Named = @{} }
+            @{ Set = 'PathSimple'; ExtraProperties = @{}; Named = @{ AppliesTo = 'ThisFolderOnly' } }
         ) -Skip:(-not $canReadAudit) {
             $missing = Join-Path -Path $sandbox -ChildPath ('AddPipeMissing-{0}' -f [guid]::NewGuid().ToString('N'))
             Assert-TestSandboxPath -Sandbox $sandbox -Path $missing
-            $good = New-TestSandboxItem -Sandbox $sandbox -Name "AddPipeGood$Set"
+            $good = New-TestSandboxItem -Sandbox $sandbox -Name "AddPipeGood$Set" -Directory
             $daclBefore = Get-TestDaclSddl -Path $good
 
             $items = @(
@@ -131,7 +134,7 @@ Describe 'Add-NTFSAudit' {
                 [pscustomobject] (@{ FullName = $good; Account = $probe; AccessRights = 'ReadData' } + $ExtraProperties)
             )
 
-            $result = @($items | Add-NTFSAudit -PassThru -ErrorVariable auditErrors -ErrorAction SilentlyContinue)
+            $result = @($items | Add-NTFSAudit @Named -PassThru -ErrorVariable auditErrors -ErrorAction SilentlyContinue)
 
             $auditErrors | Should -HaveCount 1
             $auditErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadFileError,*'
@@ -139,7 +142,10 @@ Describe 'Add-NTFSAudit' {
             $auditErrors[0].TargetObject | Should -Be $missing
             $result | Should -HaveCount 1
             $result[0].FullName | Should -Be $good
-            (Get-TestAccountAuditRule -Acl (Get-Acl -LiteralPath $good -Audit) -Account $probe) | Should -HaveCount 1
+            # The default scope of a new entry is ContainerInherit and ObjectInherit; None shows that the scope was honored
+            $rule = Get-TestAccountAuditRule -Acl (Get-Acl -LiteralPath $good -Audit) -Account $probe
+            $rule | Should -HaveCount 1
+            $rule[0].InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags]::None)
             Get-TestDaclSddl -Path $good | Should -BeExactly $daclBefore
         }
     }
@@ -151,7 +157,9 @@ Describe 'Add-NTFSAudit' {
         ) -Skip:(-not $canReadAudit) {
             $badFile = New-TestSandboxItem -Sandbox $sandbox -Name "AddPipeSDBad$Set"
             $sdBad = Get-TestAccessOnlyDescriptor -Path $badFile
-            $goodFile = New-TestSandboxItem -Sandbox $sandbox -Name "AddPipeSDGood$Set"
+            # A folder, so that the scope of the entry is observable; for a descriptor the piped AppliesTo property does bind
+            # SDSimple (no default set competes: Path is not on the object), unlike for a path
+            $goodFile = New-TestSandboxItem -Sandbox $sandbox -Name "AddPipeSDGood$Set" -Directory
             $auditBefore = Get-TestAuditSddl -Path $goodFile
             $daclBefore = Get-TestDaclSddl -Path $goodFile
             $sdGood = Get-NTFSSecurityDescriptor -Path $goodFile -ErrorAction Stop
@@ -168,11 +176,14 @@ Describe 'Add-NTFSAudit' {
             $auditErrors[0].TargetObject | Should -Be $sdBad
             $result | Should -HaveCount 1
             $result[0].FullName | Should -Be $goodFile
-            (Get-TestAccountAuditRule -Acl $sdGood.SecurityDescriptor -Account $probe) | Should -HaveCount 1
+            $rule = Get-TestAccountAuditRule -Acl $sdGood.SecurityDescriptor -Account $probe
+            $rule | Should -HaveCount 1
+            $rule[0].InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags]::None)
             Get-TestAuditSddl -Path $goodFile | Should -BeExactly $auditBefore
 
             Set-NTFSSecurityDescriptor -SecurityDescriptor $sdGood -ErrorAction Stop
 
+            (Get-TestAccountAuditRule -Acl (Get-TestAuditAcl -Path $goodFile) -Account $probe) | Should -HaveCount 1
             Get-TestAuditSddl -Path $goodFile | Should -Not -BeExactly $auditBefore
             Get-TestDaclSddl -Path $goodFile | Should -BeExactly $daclBefore
         }
@@ -209,9 +220,11 @@ Describe 'Add-NTFSAudit' {
 
 Describe 'Remove-NTFSAudit' {
     Context 'Binding -Path from the pipeline by property name' {
+        # -AppliesTo is named for the Simple row, not piped: a piped AppliesTo property would be dropped for a path (the
+        # default set PathComplex wins), so only the named parameter selects PathSimple.
         It "Should remove the audit entry for the piped <Set> object that exists, write a ReadFileError for the one that does not, and keep the other account's entry" -ForEach @(
-            @{ Set = 'PathComplex'; ExtraProperties = @{ InheritanceFlags = 'None'; PropagationFlags = 'None' } }
-            @{ Set = 'PathSimple'; ExtraProperties = @{ AppliesTo = 'ThisFolderOnly' } }
+            @{ Set = 'PathComplex'; ExtraProperties = @{ InheritanceFlags = 'None'; PropagationFlags = 'None' }; Named = @{} }
+            @{ Set = 'PathSimple'; ExtraProperties = @{}; Named = @{ AppliesTo = 'ThisFolderOnly' } }
         ) -Skip:(-not $canReadAudit) {
             $missing = Join-Path -Path $sandbox -ChildPath ('RemovePipeMissing-{0}' -f [guid]::NewGuid().ToString('N'))
             Assert-TestSandboxPath -Sandbox $sandbox -Path $missing
@@ -225,7 +238,7 @@ Describe 'Remove-NTFSAudit' {
                 [pscustomobject] (@{ FullName = $good; Account = $probe; AccessRights = 'ReadData' } + $ExtraProperties)
             )
 
-            $result = @($items | Remove-NTFSAudit -PassThru -ErrorVariable auditErrors -ErrorAction SilentlyContinue)
+            $result = @($items | Remove-NTFSAudit @Named -PassThru -ErrorVariable auditErrors -ErrorAction SilentlyContinue)
 
             $auditErrors | Should -HaveCount 1
             $auditErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadFileError,*'

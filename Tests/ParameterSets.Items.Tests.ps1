@@ -236,16 +236,27 @@ Describe 'Empty or null -Path or -Target is rejected instead of falling back to 
     ) {
         $destination = New-TestSandboxItem -Sandbox $sandbox -Name 'EmptyPathDestination' -Directory
         $source = New-TestSandboxItem -Sandbox $sandbox -Name 'EmptyPathSource'
+        # An empty path resolves to the current location, so the rows run in a folder of their own: a guard that regressed
+        # would copy or move this empty folder and not the whole sandbox into itself.
+        $workFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'EmptyPathWork' -Directory
 
+        # The comma keeps the array: a switch writes to the pipeline, which unrolls @('') into a plain empty string.
         $badPath = switch ($CaseName) {
             'as an empty string' { '' }
             'as $null' { $null }
-            'as an array with an empty element' { @('') }
+            'as an array with an empty element' { , @('') }
         }
 
-        { & $Command -Path $badPath -Destination $destination -ErrorAction Stop } |
-            Should -Throw -ErrorId "ParameterArgumentValidationError,$TypeName"
+        Push-Location -LiteralPath $workFolder
+        try {
+            { & $Command -Path $badPath -Destination $destination -ErrorAction Stop } |
+                Should -Throw -ErrorId "ParameterArgumentValidationError,$TypeName"
+        }
+        finally {
+            Pop-Location
+        }
         $source | Should -Exist
+        $workFolder | Should -Exist
         @(Get-ChildItem -LiteralPath $destination -Force) | Should -BeNullOrEmpty
     }
 
@@ -501,9 +512,13 @@ Describe 'Get-Privileges compared with an independent source' {
             if ($whoamiEntry.Count -gt 0) {
                 $libraryEntry | Should -HaveCount 1 -Because "Get-Privileges should list $name when whoami lists $whoamiName"
                 $libraryEntry[0] | Should -BeOfType [ProcessPrivileges.PrivilegeAndAttributes]
-                $libraryEntry[0].PrivilegeState.ToString() | Should -Be $whoamiEntry[0].State
-                $isEnabledByAttributes = ($libraryEntry[0].PrivilegeAttributes -band [ProcessPrivileges.PrivilegeAttributes]::Enabled) -eq [ProcessPrivileges.PrivilegeAttributes]::Enabled
-                $isEnabledByAttributes | Should -Be ($whoamiEntry[0].State -eq 'Enabled')
+                # The State column is localized (a German Windows prints Aktiviert), so the states are compared only where
+                # whoami prints the English words; the privilege names above are not localized.
+                if ($whoamiEntry[0].State -in 'Enabled', 'Disabled') {
+                    $libraryEntry[0].PrivilegeState.ToString() | Should -Be $whoamiEntry[0].State
+                    $isEnabledByAttributes = ($libraryEntry[0].PrivilegeAttributes -band [ProcessPrivileges.PrivilegeAttributes]::Enabled) -eq [ProcessPrivileges.PrivilegeAttributes]::Enabled
+                    $isEnabledByAttributes | Should -Be ($whoamiEntry[0].State -eq 'Enabled')
+                }
             }
             else {
                 $libraryEntry | Should -BeNullOrEmpty -Because "Get-Privileges should not list $name when whoami does not list $whoamiName"
