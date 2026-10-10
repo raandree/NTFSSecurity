@@ -368,4 +368,7 @@ The format is based on
   `localhost` in lowercase, such as `.`, `LOCALHOST`, or the computer name,
   where the computer doesn't offer the remote access check
 
+- Fix [Get-ChildItem2](Docs/Cmdlets/Get-ChildItem2.md) with `-Hidden`,
+  which omitted the first hidden item unless `-Force` was also supplied
+
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

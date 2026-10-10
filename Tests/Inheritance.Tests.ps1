@@ -12,6 +12,13 @@ BeforeDiscovery {
     $canChangeAudit = Test-PrivilegeHeld -Name 'SeSecurityPrivilege'
     # Assigning an owner other than the user or one of its groups needs the Restore privilege.
     $canAssignAnyOwner = Test-PrivilegeHeld -Name 'SeRestorePrivilege'
+    $inheritanceCases = @(foreach ($type in 'file', 'folder') {
+        foreach ($enable in $false, $true) {
+            foreach ($remove in $false, $true) {
+                @{ Type = $type; Enable = $enable; Remove = $remove }
+            }
+        }
+    })
 }
 
 BeforeAll {
@@ -276,6 +283,125 @@ Describe 'Audit inheritance switches' {
     }
 }
 
+Describe 'Access inheritance transitions on files and folders' {
+    It 'Should set enabled=<Enable> on a <Type>, remove requested entries=<Remove>, and report the written state' -ForEach $inheritanceCases {
+        $parent = New-TestSandboxItem -Sandbox $sandbox -Name 'AccessParent' -Directory
+        $path = Join-Path -Path $parent -ChildPath 'Child'
+        $parentAccount = 'S-1-5-21-1-2-3-4901'
+        $childAccount = 'S-1-5-21-1-2-3-4902'
+        Add-NTFSAccess -Path $parent -Account $parentAccount -AccessRights ReadData -ErrorAction Stop
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $path
+        if ($Type -eq 'folder') { New-Item -ItemType Directory -Path $path | Out-Null } else { Set-Content -LiteralPath $path -Value 'Child' }
+        Add-NTFSAccess -Path $path -Account $childAccount -AccessRights Delete -AppliesTo ThisFolderOnly -ErrorAction Stop
+        @(Get-NTFSAccess -Path $path -Account $parentAccount -ExcludeExplicit -ErrorAction Stop) | Should -HaveCount 1
+        $owner = (Get-NTFSOwner -Path $path -ErrorAction Stop).Owner.Sid
+        if ($Enable) {
+            Disable-NTFSAccessInheritance -Path $path -RemoveInheritedAccessRules -ErrorAction Stop
+            $parameters = @{ RemoveExplicitAccessRules = $Remove }
+            $command = 'Enable-NTFSAccessInheritance'
+        }
+        else {
+            $parameters = @{ RemoveInheritedAccessRules = $Remove }
+            $command = 'Disable-NTFSAccessInheritance'
+        }
+
+        $result = @(& $command -Path $path @parameters -PassThru -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+        $result[0] | Should -BeOfType [Security2.FileSystemInheritanceInfo]
+        $result[0].FullName | Should -Be $path
+        $result[0].AccessInheritanceEnabled | Should -Be $Enable
+        (Get-NTFSInheritance -Path $path).AccessInheritanceEnabled | Should -Be $Enable
+        (Get-NTFSOwner -Path $path).Owner.Sid | Should -Be $owner
+        $parentRules = @(Get-NTFSAccess -Path $path -Account $parentAccount)
+        if ($Enable) {
+            $parentRules | Should -HaveCount 1
+            $parentRules[0].IsInherited | Should -BeTrue
+        }
+        elseif ($Remove) {
+            $parentRules | Should -BeNullOrEmpty
+        }
+        else {
+            $parentRules | Should -HaveCount 1
+            $parentRules[0].IsInherited | Should -BeFalse
+        }
+        $childRules = @(Get-NTFSAccess -Path $path -Account $childAccount)
+        if ($Enable -and $Remove) { $childRules | Should -BeNullOrEmpty } else { $childRules | Should -HaveCount 1 }
+    }
+
+    It 'Set-NTFSInheritance should re-enable access inheritance on a <_> and keep its explicit entry' -ForEach @('file', 'folder') {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'AccessEnable' -Directory:($_ -eq 'folder')
+        Add-NTFSAccess -Path $path -Account 'S-1-5-21-1-2-3-4902' -AccessRights Delete -AppliesTo ThisFolderOnly -ErrorAction Stop
+        Disable-NTFSAccessInheritance -Path $path -RemoveInheritedAccessRules -ErrorAction Stop
+
+        $result = @(Set-NTFSInheritance -Path $path -AccessInheritanceEnabled $true -PassThru -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+        $result[0].AccessInheritanceEnabled | Should -BeTrue
+        @(Get-NTFSAccess -Path $path -ExcludeExplicit) | Should -Not -BeNullOrEmpty
+        @(Get-NTFSAccess -Path $path -Account 'S-1-5-21-1-2-3-4902' -ExcludeInherited) | Should -HaveCount 1
+    }
+}
+
+Describe 'Audit inheritance transitions on files and folders' -Skip:(-not $canChangeAudit) {
+    It 'Should set enabled=<Enable> on a <Type>, remove requested audit entries=<Remove>, and leave the DACL unchanged' -ForEach $inheritanceCases {
+        $parent = New-TestSandboxItem -Sandbox $sandbox -Name 'AuditParent' -Directory
+        $path = Join-Path -Path $parent -ChildPath 'Child'
+        $parentAccount = 'S-1-5-21-1-2-3-4911'
+        $childAccount = 'S-1-5-21-1-2-3-4912'
+        Add-NTFSAudit -Path $parent -Account $parentAccount -AccessRights ReadData -AuditFlags Success -ErrorAction Stop
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $path
+        if ($Type -eq 'folder') { New-Item -ItemType Directory -Path $path | Out-Null } else { Set-Content -LiteralPath $path -Value 'Child' }
+        Add-NTFSAudit -Path $path -Account $childAccount -AccessRights Delete -AuditFlags Failure -AppliesTo ThisFolderOnly -ErrorAction Stop
+        @(Get-NTFSAudit -Path $path -Account $parentAccount -ExcludeExplicit -ErrorAction Stop) | Should -HaveCount 1
+        $before = (Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm('Access')
+        if ($Enable) {
+            Disable-NTFSAuditInheritance -Path $path -RemoveInheritedAuditRules -ErrorAction Stop
+            $parameters = @{ RemoveExplicitAuditRules = $Remove }
+            $command = 'Enable-NTFSAuditInheritance'
+        }
+        else {
+            $parameters = @{ RemoveInheritedAuditRules = $Remove }
+            $command = 'Disable-NTFSAuditInheritance'
+        }
+
+        $result = @(& $command -Path $path @parameters -PassThru -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+        $result[0].FullName | Should -Be $path
+        $result[0].AuditInheritanceEnabled | Should -Be $Enable
+        (Get-NTFSInheritance -Path $path).AuditInheritanceEnabled | Should -Be $Enable
+        (Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm('Access') | Should -BeExactly $before
+        $parentRules = @(Get-NTFSAudit -Path $path -Account $parentAccount)
+        if ($Enable) {
+            $parentRules | Should -HaveCount 1
+            $parentRules[0].IsInherited | Should -BeTrue
+        }
+        elseif ($Remove) {
+            $parentRules | Should -BeNullOrEmpty
+        }
+        else {
+            $parentRules | Should -HaveCount 1
+            $parentRules[0].IsInherited | Should -BeFalse
+        }
+        $childRules = @(Get-NTFSAudit -Path $path -Account $childAccount)
+        if ($Enable -and $Remove) { $childRules | Should -BeNullOrEmpty } else { $childRules | Should -HaveCount 1 }
+    }
+
+    It 'Set-NTFSInheritance should re-enable audit inheritance on a <_> and keep its explicit audit entry' -ForEach @('file', 'folder') {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'AuditEnable' -Directory:($_ -eq 'folder')
+        Add-NTFSAudit -Path $path -Account 'S-1-5-21-1-2-3-4912' -AccessRights Delete -AuditFlags Failure -AppliesTo ThisFolderOnly -ErrorAction Stop
+        Disable-NTFSAuditInheritance -Path $path -RemoveInheritedAuditRules -ErrorAction Stop
+        $before = (Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm('Access')
+
+        $result = @(Set-NTFSInheritance -Path $path -AuditInheritanceEnabled $true -PassThru -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+        $result[0].AuditInheritanceEnabled | Should -BeTrue
+        @(Get-NTFSAudit -Path $path -Account 'S-1-5-21-1-2-3-4912' -ExcludeInherited) | Should -HaveCount 1
+        (Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm('Access') | Should -BeExactly $before
+    }
+}
 Describe 'Access inheritance cmdlets' {
     Context 'When the item has an owner that the user cannot assign' {
         BeforeAll {

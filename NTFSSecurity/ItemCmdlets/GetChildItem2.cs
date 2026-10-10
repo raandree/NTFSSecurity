@@ -279,7 +279,7 @@ namespace NTFSSecurity
                     continue;
                 }
 
-                var writeItem = force.ToBool();
+                var writeItem = force.ToBool() || hidden.ToBool();
 
                 if (MyInvocation.BoundParameters.ContainsKey("Attributes"))
                 {
@@ -291,9 +291,6 @@ namespace NTFSSecurity
                 }
                 else
                 {
-                    if (hidden)
-                        force = true;
-
                     if ((current.Attributes & global::System.IO.FileAttributes.Hidden) != global::System.IO.FileAttributes.Hidden)
                         writeItem = true;
 

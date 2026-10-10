@@ -295,8 +295,8 @@ jobs:
               "notes=$notes"
           )
 
-      # Publishes the package that the build job built and tested. A rerun skips
-      # a version that the PowerShell Gallery already has.
+      # Publish the tested package; recovery and reruns verify the Gallery SHA512
+      # so a different package with the same version cannot count as success.
       - name: Publish to the PowerShell Gallery
         shell: pwsh
         env:
@@ -304,15 +304,7 @@ jobs:
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
           RELEASE_PACKAGE: ${{ steps.release.outputs.package }}
         run: |
-          if (-not $env:PSGALLERY_API_KEY) {
-              throw 'The secret PSGALLERY_API_KEY of the environment powershell-gallery is not set.'
-          }
-          $published = Find-PSResource -Name NTFSSecurity -Version $env:RELEASE_VERSION -Prerelease -Repository PSGallery -ErrorAction SilentlyContinue
-          if ($published) {
-              "NTFSSecurity $env:RELEASE_VERSION is already in the PowerShell Gallery."
-              exit 0
-          }
-          Publish-PSResource -NupkgPath $env:RELEASE_PACKAGE -Repository PSGallery -ApiKey $env:PSGALLERY_API_KEY
+          & ./.github/scripts/Publish-ModulePackage.ps1 -NupkgPath $env:RELEASE_PACKAGE -Version $env:RELEASE_VERSION
 
       - name: Create the GitHub release
         shell: pwsh

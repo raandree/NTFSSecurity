@@ -13,6 +13,7 @@ param ()
 BeforeDiscovery {
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
     $holdsSecurityPrivilege = Test-PrivilegeHeld -Name 'SeSecurityPrivilege'
+    $holdsRestorePrivilege = Test-PrivilegeHeld -Name 'SeRestorePrivilege'
     $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
     $readEntry = @{ Account = 'S-1-1-0'; AccessRights = 'ReadData' }
     # An audit entry on a file has no inheritance flags.
@@ -151,6 +152,68 @@ Describe 'An item whose owner may not read its permissions' {
     }
 }
 
+Describe 'A denied write and a denied ownership retry' {
+    It '<Command> should keep the denied item unchanged, report <ErrorId>, and process the next item' -ForEach @(
+        @{ Command = 'Add-NTFSAccess'; Parameters = @{ Account = 'S-1-1-0'; AccessRights = 'ReadData' }; ErrorId = 'AddAceError'; Operation = 'Add' }
+        @{ Command = 'Remove-NTFSAccess'; Parameters = @{ Account = 'S-1-1-0'; AccessRights = 'ReadData' }; ErrorId = 'RemoveAceError'; Operation = 'Remove' }
+        @{ Command = 'Clear-NTFSAccess'; Parameters = @{}; ErrorId = 'ClearAclError'; Operation = 'Clear' }
+        @{ Command = 'Disable-NTFSAccessInheritance'; Parameters = @{}; ErrorId = 'ModifySdError'; Operation = 'Disable' }
+        @{ Command = 'Enable-NTFSAccessInheritance'; Parameters = @{}; ErrorId = 'ModifySdError'; Operation = 'Enable' }
+        @{ Command = 'Set-NTFSInheritance'; Parameters = @{ AccessInheritanceEnabled = $false }; ErrorId = 'ModifySdError'; Operation = 'Disable' }
+    ) {
+        $blocked = New-TestSandboxItem -Sandbox $sandbox -Name 'RetryBlocked'
+        $next = New-TestSandboxItem -Sandbox $sandbox -Name 'RetryNext'
+        foreach ($path in $blocked, $next) {
+            if ($Operation -ne 'Add') {
+                Add-NTFSAccess -Path $path -Account 'S-1-1-0' -AccessRights ReadData -ErrorAction Stop
+            }
+            if ($Operation -eq 'Enable') {
+                Disable-NTFSAccessInheritance -Path $path -ErrorAction Stop
+            }
+        }
+        Block-TestWritePermission -Sandbox $sandbox -Path $blocked
+        $before = (Get-TestAcl -Path $blocked).Sddl
+
+        & $Command -Path $blocked, $next @Parameters -ErrorVariable changeErrors -ErrorAction SilentlyContinue
+
+        $changeErrors | Should -HaveCount 1
+        $changeErrors[0].FullyQualifiedErrorId | Should -BeLike "$ErrorId,*"
+        $changeErrors[0].TargetObject | Should -Be $blocked
+        (Get-TestAcl -Path $blocked).Sddl | Should -BeExactly $before
+        $acl = Get-TestAcl -Path $next
+        $everyone = @($acl.GetAccessRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
+        switch ($Operation) {
+            'Add' { $everyone | Should -HaveCount 1 }
+            'Remove' { $everyone | Should -BeNullOrEmpty }
+            'Clear' { @($acl.GetAccessRules($true, $false, $sidType)) | Should -BeNullOrEmpty }
+            'Disable' { $acl.AreAccessRulesProtected | Should -BeTrue }
+            'Enable' { $acl.AreAccessRulesProtected | Should -BeFalse }
+        }
+    }
+}
+
+Describe 'An owner that the process cannot restore without the Restore privilege' {
+    It 'Should report RestoreOwnerError after a successful ownership retry and continue with the next path' -Skip:(-not $holdsRestorePrivilege) {
+        $blocked = New-TestSandboxItem -Sandbox $sandbox -Name 'UnassignableOwner'
+        $next = New-TestSandboxItem -Sandbox $sandbox -Name 'NextOwner'
+        $user = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        Add-TestDenyRule -Sandbox $sandbox -Path $blocked -Rights @{ $user = 'ChangePermissions' }
+        $originalOwner = 'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'
+        Set-TestOwner -Sandbox $sandbox -Path $blocked -Sid $originalOwner
+        (Get-Privileges | Where-Object -Property Privilege -EQ -Value 'Restore').PrivilegeState | Should -Be 'Disabled'
+
+        Add-NTFSAccess -Path $blocked, $next -Account 'S-1-1-0' -AccessRights ReadData -ErrorVariable changeErrors -ErrorAction SilentlyContinue
+
+        $changeErrors | Should -HaveCount 1
+        $changeErrors[0].FullyQualifiedErrorId | Should -BeLike 'RestoreOwnerError,*'
+        $changeErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+        $changeErrors[0].TargetObject | Should -Be $blocked
+        (Get-TestAcl -Path $blocked).GetOwner($sidType).Value | Should -Be $user
+        foreach ($path in $blocked, $next) {
+            @((Get-TestAcl -Path $path).GetAccessRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) | Should -HaveCount 1
+        }
+    }
+}
 Describe 'An item whose owner may not change its permissions' {
     # A deny entry for OWNER RIGHTS replaces the right of the owner to change the DACL. The cmdlets take ownership,
     # which Windows answers by removing the OWNER RIGHTS entries, write the DACL, and set the previous owner back.
