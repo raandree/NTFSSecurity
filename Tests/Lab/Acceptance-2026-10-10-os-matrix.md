@@ -625,7 +625,14 @@ fails, which the reuse of the name explains and the module doesn't.
   a release is the run with `-Version` of the exact prerelease from the
   PowerShell Gallery in every cell, which handoff 3 sequences after the maintainer
   decides which fixes belong to 5.0.0-rc7. The same cells have to be repeated for
-  a changed binary.
+  a changed binary. The `-Version` path of `Run-MatrixSequence.ps1` ran once as a
+  dry run with the published 5.0.0-rc6 on OSFile19 in Windows PowerShell (07:39 to
+  07:45 UTC, kit at `664ef3a`): the controller used the published module, the
+  validation reported `LIVE_RESULT_NOT_ACCEPTED` as it must (151 passed, 78
+  failed, 2 skipped: the live tests that rc6 predates, such as the later-command
+  tests, `Get-ChildItem2 -Filter`, `InheritedFrom`, and the two new ServerAdmin
+  tests), and the cleanup verdict was CLEAN. That tests the mechanics only and
+  accepts nothing.
 - Case 9 (accounts of other domains and forests) needs trusts that the matrix
   lab doesn't have; it runs only in `WindowsAccessControlLab`, where the
   baseline passed it and the final candidate passed it in run `fl1` (see "First

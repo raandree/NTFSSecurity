@@ -49,9 +49,17 @@ Local `-ModulePath` runs are validation; the gate needs the published bytes.
    the identity of the manifest. Dry run on rc6: all checks passed.
 2. `Tests/Lab/Invoke-NTFSSecurityLabTest.ps1 -Version <version>` in the
    existing lab, both editions, and `Tests/Lab/Acceptance/Run-MatrixSequence.ps1
-   -Version <version>` for each cell of the matrix (Decision 24). Check every
-   role from the result files with `Validate-LabResults.ps1`, never from the
-   marker `DONE` of the controller.
+   -Version <version>` for each cell of the matrix (Decision 24; pass the file
+   servers as one quoted string, `-FileServer 'OSFile19,OSFile22,OSFile25'`, and
+   start `OSWin11E` shortly before, because its license period ends an hour
+   after each start). Check every role from the result files with
+   `Validate-LabResults.ps1`, never from the marker `DONE` of the controller.
+   Dry run of the `-Version` path of the sequence runner with the published rc6
+   on OSFile19 (Desktop): the mechanics work, the failing tests are the newer
+   ones that rc6 predates, and the cleanup verdict was CLEAN. The first lab ran
+   the final local candidate through the same stages (readiness, controller,
+   `Validate-LabResults.ps1`, snapshot, `-RemoveFixture`, `Test-MatrixCleanup.ps1`
+   with the four domain controllers and both machines) in one detached driver.
 3. Remove the fixture and check the end state independently with
    `Test-MatrixCleanup.ps1`, which takes the lab name and the machine names
    (`-LabName WindowsAccessControlLab -DomainController F1ADC1, F1BDC1, F2DC1,
