@@ -1,3 +1,6 @@
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+    'PSAvoidUsingConvertToSecureStringWithPlainText', '', Justification = 'The lab installation password comes from the AutomatedLab lab definition, which stores it as text; the credential is built in memory and never written.'
+)]
 [CmdletBinding()]
 param (
     [Parameter(Mandatory)] [ValidatePattern('^[\w-]+$')] [string] $Label,
