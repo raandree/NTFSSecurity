@@ -185,6 +185,28 @@ The format is based on
 - Fix `Get-NTFSInheritance -SecurityDescriptor`, which reported
   `AuditInheritanceEnabled` as `$true` for a security descriptor that was
   read without its audit section; it now reports `$null`, like `-Path`
+- Fix `Get-NTFSInheritance -SecurityDescriptor` for an item without audit
+  entries on computers where Windows reports its audit entries as protected
+  from inheritance when it reads all sections of the security descriptor at
+  once, as it did on domain-joined Windows Server 2022 and 2025 and on
+  Windows 11: the cmdlet reported `AuditInheritanceEnabled` as `$false`,
+  while `-Path` reported `$true`. The descriptor now takes the state of the
+  audit entries from a read of that section alone, like `-Path`, and the
+  cmdlets that start from such a descriptor no longer see the audit entries
+  as protected
+- Fix `Get-NTFSEffectiveAccess -ServerName ''`, which wrote an "Access is
+  denied" error instead of the warning for a computer that can't be reached,
+  on computers where Windows takes an empty name for this one. An empty name
+  never asks the remote interface of the authorization manager now: the
+  cmdlet warns and returns the result of this computer on every computer
+- Fix `Get-NTFSEffectiveAccess` for a user who isn't an administrator on a
+  computer in a domain. For a name of this computer, such as the default
+  `localhost`, the cmdlet wrote the error "Access is denied" and no result for
+  every account, because the remote authorization manager of a computer
+  answers only its administrators and the members of Access Control Assistance
+  Operators. It now uses the local authorization manager of this computer when
+  the remote one refuses the user, as it already did when the remote one can't
+  be reached. For the name of another computer, the error stays
 - Fix `Get-NTFSOwner`, which wrote a "The pipeline has been stopped" error
   for every path when a command such as `Select-Object -First 1` stopped the
   pipeline, and which repeated a failed read instead of reporting the

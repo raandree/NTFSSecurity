@@ -1,0 +1,265 @@
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+    'PSAvoidUsingConvertToSecureStringWithPlainText', '', Justification = 'The lab installation password comes from the AutomatedLab lab definition, which stores it as text; the credential is built in memory and never written.'
+)]
+[CmdletBinding()]
+param (
+    [Parameter(Mandatory)] [ValidatePattern('^[\w-]+$')] [string] $Label,
+    [Parameter(Mandatory)] [string] $Machine,
+    [Parameter(Mandatory)] [string] $ModulePath,
+    [Parameter(Mandatory)] [string] $OutputRoot,
+    [string] $Edition = 'Desktop,Core',
+    [string] $Mode = 'Elevated',
+    [string] $LabName = 'NtfsSecurityOsMatrixLab',
+    [string] $LocalCredentialMachine = '',
+    [string] $PesterModulePath = 'V:\Git\WindowsAccessControl\output\RequiredModules\Pester\5.7.1',
+    [string] $RepositoryRoot,
+    [ValidateRange(5, 480)] [int] $TimeoutMinutes = 90
+)
+
+# The module's own Pester suite on the machines of the operating-system matrix (Decision 24), in Windows PowerShell 5.1 on the Hyper-V
+# host. The live controller proves the behavior against a domain and remote servers; this proves the module and its tests run on each
+# operating system and edition. It stages the behavior test files of the repository and the module under test (the same bits for every
+# machine), copies them to the machine, runs Invoke-LocalSuite.ps1 in a new Windows PowerShell and a new PowerShell 7 process one after
+# the other, and copies the log, the NUnit result, and the JSON summary back. -Mode Basic runs each edition with the token of a basic
+# user, the way .github\scripts\Invoke-TestsAsBasicUser.ps1 does (the class of that script is extracted, not copied): the tests that
+# need a missing privilege skip in the elevated mode and run in this one. The machine name LOCAL runs the same stage on this host, as
+# the reference. A machine that can't use the domain account (a Windows 11 build whose secure channel to the domain controller fails) is
+# listed in -LocalCredentialMachine and reached with the local installation account. Nothing secret is written.
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+# Windows PowerShell 5.1 leaves $PSScriptRoot empty in a parameter default when the script runs with -File.
+if (-not $RepositoryRoot) { $RepositoryRoot = Split-Path -Path (Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent) -Parent }
+$stamp = '[{0:yyyy-MM-dd HH:mm:ss}Z]'
+$targets = @($Machine -split ',' | Where-Object -FilterScript { $_ })
+$editions = @($Edition -split ',' | Where-Object -FilterScript { $_ })
+$modes = @($Mode -split ',' | Where-Object -FilterScript { $_ })
+if ($modes | Where-Object -FilterScript { $_ -notin 'Elevated', 'Basic' }) { throw "-Mode takes Elevated, Basic, or both, separated by a comma." }
+$localCredential = @($LocalCredentialMachine -split ',' | Where-Object -FilterScript { $_ })
+$behaviorFiles = 'Access', 'Audit', 'DriveRoot', 'FileHash', 'Inheritance', 'ItemCmdlets', 'Links', 'ObjectApis', 'OutputTypes', 'Owner', 'PathErrors',
+    'PermissionScopes', 'PipelineControl', 'Privileges', 'Remove-Item2', 'SecurityDescriptor', 'SecurityDescriptorSets', 'TestHelpers'
+$null = New-Item -ItemType Directory -Path $OutputRoot -Force
+$sequenceLog = Join-Path -Path $OutputRoot -ChildPath "$Label-localsuite.log"
+function Write-Sequence { param ([string] $Message) ($stamp -f [DateTime]::UtcNow) + ' ' + $Message | Add-Content -LiteralPath $sequenceLog }
+
+$stage = Join-Path -Path $env:TEMP -ChildPath "ntfs-localsuite-$Label"
+if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
+$null = New-Item -ItemType Directory -Path (Join-Path -Path $stage -ChildPath 'Tests') -Force
+$null = New-Item -ItemType Directory -Path (Join-Path -Path $stage -ChildPath 'NTFSSecurity\bin\Release') -Force
+foreach ($name in $behaviorFiles) {
+    $file = if ($name -eq 'TestHelpers') { 'TestHelpers.Tests.ps1' } else { "$name.Tests.ps1" }
+    Copy-Item -LiteralPath (Join-Path -Path $RepositoryRoot -ChildPath "Tests\$file") -Destination (Join-Path -Path $stage -ChildPath 'Tests')
+}
+
+Copy-Item -LiteralPath (Join-Path -Path $RepositoryRoot -ChildPath 'Tests\TestHelpers.psm1') -Destination (Join-Path -Path $stage -ChildPath 'Tests')
+Copy-Item -Path (Join-Path -Path $ModulePath -ChildPath '*') -Destination (Join-Path -Path $stage -ChildPath 'NTFSSecurity\bin\Release') -Recurse
+Copy-Item -LiteralPath (Join-Path -Path $PSScriptRoot -ChildPath 'Invoke-LocalSuite.ps1') -Destination $stage
+if ('Basic' -in $modes) {
+    $wrapper = Get-Content -LiteralPath (Join-Path -Path $RepositoryRoot -ChildPath '.github\scripts\Invoke-TestsAsBasicUser.ps1') -Raw
+    $class = [regex]::Match($wrapper, "(?s)Add-Type -TypeDefinition @'\r?\n(.*?)\r?\n'@").Groups[1].Value
+    if (-not $class) { throw 'The class of the basic-user wrapper was not found in .github\scripts\Invoke-TestsAsBasicUser.ps1.' }
+    $helperHead = @'
+[CmdletBinding()]
+param (
+    [Parameter(Mandatory)] [string] $Executable,
+    [Parameter(Mandatory)] [string] $Root,
+    [Parameter(Mandatory)] [string] $Label,
+    [Parameter(Mandatory)] [string] $OutDir,
+    [string] $PesterModulePath
+)
+
+# Generated by Run-MatrixLocalSuite.ps1: starts Invoke-LocalSuite.ps1 with the token of a basic user (SAFER level Normal User) through the
+# class of .github\scripts\Invoke-TestsAsBasicUser.ps1, waits for it, and writes its exit code.
+$ErrorActionPreference = 'Stop'
+'@
+    $helperTail = @'
+$runnerArguments = '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{0}" -Label {1} -Root "{2}" -OutDir "{3}"' -f (Join-Path -Path $Root -ChildPath 'Invoke-LocalSuite.ps1'), $Label, $Root, $OutDir
+if ($PesterModulePath) { $runnerArguments += ' -PesterModulePath "{0}"' -f $PesterModulePath }
+$console = Join-Path -Path $OutDir -ChildPath ('{0}.console.txt' -f $Label)
+$commandLine = 'cmd.exe /d /s /c ""{0}" {1} > "{2}" 2>&1"' -f $Executable, $runnerArguments, $console
+$exitCode = [NTFSSecurityBasicUserProcess]::Run((Join-Path -Path $env:SystemRoot -ChildPath 'System32\cmd.exe'), $commandLine, $Root)
+Set-Content -LiteralPath (Join-Path -Path $OutDir -ChildPath ('{0}.basic.exit' -f $Label)) -Value $exitCode
+exit $exitCode
+'@
+    $helperText = $helperHead + "`r`nAdd-Type -TypeDefinition @'`r`n" + $class + "`r`n'@`r`n" + $helperTail
+    Set-Content -LiteralPath (Join-Path -Path $stage -ChildPath 'Start-BasicUserProcess.ps1') -Value $helperText -Encoding UTF8
+}
+$dllHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path -Path $ModulePath -ChildPath 'NTFSSecurity.dll')).Hash
+$testHashes = Get-ChildItem -LiteralPath (Join-Path -Path $stage -ChildPath 'Tests') -File | Sort-Object -Property Name | ForEach-Object -Process { '{0}={1}' -f $_.Name, (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.Substring(0, 12) }
+($stamp -f [DateTime]::UtcNow) + " START localsuite-$Label machines=$($targets -join ',') editions=$($editions -join ',') dll=$dllHash" | Set-Content -LiteralPath $sequenceLog
+Write-Sequence ('staged test files: {0}' -f ($testHashes -join ' '))
+$summaryRows = New-Object -TypeName 'System.Collections.Generic.List[object]'
+
+if ($targets | Where-Object -FilterScript { $_ -ne 'LOCAL' }) {
+    Import-Module -Name AutomatedLab -ErrorAction Stop
+    Import-Lab -Name $LabName -NoValidation -NoDisplay
+}
+
+foreach ($name in $targets) {
+    $cellFolder = Join-Path -Path $OutputRoot -ChildPath "$Label-$name"
+    $null = New-Item -ItemType Directory -Path $cellFolder -Force
+    Write-Sequence "machine $name START"
+    $session = $null
+    $runCredential = $null
+    $resultsCopied = $false
+    try {
+        if ($name -eq 'LOCAL') {
+            $root = Join-Path -Path $env:TEMP -ChildPath "ntfs-localsuite-run-$Label"
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+            Copy-Item -LiteralPath $stage -Destination $root -Recurse
+        }
+        else {
+            $sessionParameters = @{ ComputerName = $name }
+            if ($name -in $localCredential) { $sessionParameters.UseLocalCredential = $true }
+            $session = New-LabPSSession @sessionParameters
+            # The account for the scheduled tasks: the lab account of the machine, or its local installation account. AutomatedLab keeps the
+            # installation password in clear text in the lab file; here it stays in memory.
+            $machineDefinition = Get-LabVM -ComputerName $name
+            $runCredential = if ($name -in $localCredential) {
+                New-Object -TypeName 'System.Management.Automation.PSCredential' -ArgumentList ('{0}\{1}' -f $name, $machineDefinition.InstallationUser.UserName), (ConvertTo-SecureString -String $machineDefinition.InstallationUser.Password -AsPlainText -Force)
+            }
+            else {
+                $machineDefinition.GetCredential((Get-Lab))
+            }
+
+            $root = 'C:\NtfsMatrixLocal\' + $Label
+            Invoke-Command -Session $session -ArgumentList $root -ScriptBlock {
+                param ($Path)
+                if (Test-Path -LiteralPath $Path) { Remove-Item -LiteralPath $Path -Recurse -Force }
+                $null = New-Item -ItemType Directory -Path $Path -Force
+            }
+
+            Copy-Item -Path (Join-Path -Path $stage -ChildPath '*') -Destination $root -ToSession $session -Recurse -Force
+            Write-Sequence "machine $name stage copied to $root"
+        }
+
+        foreach ($modeName in $modes) {
+            foreach ($editionName in $editions) {
+                $runLabel = ('{0}-{1}-{2}{3}' -f $Label, $name, $editionName, $(if ($modeName -eq 'Basic') { '-basic' } else { '' })).ToLowerInvariant()
+                $arguments = @{ Root = $root; Edition = $editionName; RunLabel = $runLabel; Pester = $(if ($name -eq 'LOCAL') { $PesterModulePath } else { '' }); Mode = $modeName }
+                $start = {
+                    param ($Root, $Edition, $RunLabel, $Pester, $ModeName, $Credential)
+                    $exe = if ($Edition -eq 'Desktop') { Join-Path -Path $env:SystemRoot -ChildPath 'System32\WindowsPowerShell\v1.0\powershell.exe' } else { Join-Path -Path $env:ProgramFiles -ChildPath 'PowerShell\7\pwsh.exe' }
+                    $out = Join-Path -Path $Root -ChildPath 'Results'
+                    $null = New-Item -ItemType Directory -Path $out -Force
+                    if ($ModeName -eq 'Basic') {
+                        # The basic-user token writes the results, so the account of the run needs Modify on the folder.
+                        $null = & icacls.exe $out /grant ('{0}:(OI)(CI)M' -f [Security.Principal.WindowsIdentity]::GetCurrent().Name)
+                        $list = @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', ('"{0}"' -f (Join-Path -Path $Root -ChildPath 'Start-BasicUserProcess.ps1')),
+                            '-Executable', ('"{0}"' -f $exe), '-Root', ('"{0}"' -f $Root), '-Label', $RunLabel, '-OutDir', ('"{0}"' -f $out))
+                        if ($Pester) { $list += '-PesterModulePath', ('"{0}"' -f $Pester) }
+                        $exe = Join-Path -Path $env:SystemRoot -ChildPath 'System32\WindowsPowerShell\v1.0\powershell.exe'
+                    }
+                    else {
+                        $list = @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', ('"{0}"' -f (Join-Path -Path $Root -ChildPath 'Invoke-LocalSuite.ps1')),
+                            '-Label', $RunLabel, '-Root', ('"{0}"' -f $Root), '-OutDir', ('"{0}"' -f $out))
+                        if ($Pester) { $list += '-PesterModulePath', ('"{0}"' -f $Pester) }
+                    }
+
+                    if ($Credential) {
+                        # A process started from a remoting session inherits a token with every privilege enabled and no credentials of its own,
+                        # which the tests don't expect (eight of them fail). A scheduled task with a batch logon at the highest run level gets
+                        # the token of an elevated interactive session: privileges present but disabled, and the credentials of the account.
+                        $taskName = 'NtfsMatrixLocal-' + $RunLabel
+                        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+                        $action = New-ScheduledTaskAction -Execute $exe -Argument ($list -join ' ')
+                        $null = Register-ScheduledTask -TaskName $taskName -Action $action -RunLevel Highest -User $Credential.UserName -Password $Credential.GetNetworkCredential().Password
+                        Start-ScheduledTask -TaskName $taskName
+                        $taskName
+                    }
+                    else {
+                        (Start-Process -FilePath $exe -ArgumentList $list -PassThru -WindowStyle Hidden).Id
+                    }
+                }
+                $isRunning = {
+                    param ($Handle)
+                    if ($Handle -is [string]) { $task = Get-ScheduledTask -TaskName $Handle -ErrorAction SilentlyContinue; [bool] ($task -and $task.State -eq 'Running') }
+                    else { [bool] (Get-Process -Id $Handle -ErrorAction SilentlyContinue) }
+                }
+                $stop = {
+                    param ($Handle)
+                    if ($Handle -is [string]) { Stop-ScheduledTask -TaskName $Handle -ErrorAction SilentlyContinue } else { Stop-Process -Id $Handle -Force -ErrorAction SilentlyContinue }
+                }
+                $finish = {
+                    param ($Handle)
+                    if ($Handle -is [string]) {
+                        $result = (Get-ScheduledTaskInfo -TaskName $Handle -ErrorAction SilentlyContinue).LastTaskResult
+                        Unregister-ScheduledTask -TaskName $Handle -Confirm:$false -ErrorAction SilentlyContinue
+                        "task result $result"
+                    }
+                }
+                $startArguments = $arguments.Root, $arguments.Edition, $arguments.RunLabel, $arguments.Pester, $arguments.Mode, $runCredential
+                $handle = if ($session) { Invoke-Command -Session $session -ScriptBlock $start -ArgumentList $startArguments } else { & $start @startArguments }
+                Write-Sequence "machine $name $modeName $editionName started ($handle)"
+                $deadline = [DateTime]::UtcNow.AddMinutes($TimeoutMinutes)
+                do {
+                    Start-Sleep -Seconds 20
+                    $alive = if ($session) { Invoke-Command -Session $session -ScriptBlock $isRunning -ArgumentList $handle } else { & $isRunning $handle }
+                } while ($alive -and [DateTime]::UtcNow -lt $deadline)
+                if ($alive) {
+                    if ($session) { Invoke-Command -Session $session -ScriptBlock $stop -ArgumentList $handle } else { & $stop $handle }
+                    Write-Sequence "machine $name $modeName $editionName TIMED OUT after $TimeoutMinutes minutes; stopped"
+                }
+
+                $outcome = if ($session) { Invoke-Command -Session $session -ScriptBlock $finish -ArgumentList $handle } else { & $finish $handle }
+                Write-Sequence "machine $name $modeName $editionName finished $outcome"
+            }
+        }
+
+        if ($session) { Copy-Item -FromSession $session -Path (Join-Path -Path $root -ChildPath 'Results\*') -Destination $cellFolder -Recurse -Force }
+        else { Copy-Item -Path (Join-Path -Path $root -ChildPath 'Results\*') -Destination $cellFolder -Recurse -Force }
+        $resultsCopied = $true
+        foreach ($modeName in $modes) {
+            foreach ($editionName in $editions) {
+                $expected = ('{0}-{1}-{2}{3}' -f $Label, $name, $editionName, $(if ($modeName -eq 'Basic') { '-basic' } else { '' })).ToLowerInvariant()
+                if (-not (Test-Path -LiteralPath (Join-Path -Path $cellFolder -ChildPath "$expected.json"))) {
+                    Write-Sequence "machine ${name}: NO RESULT FILE for $expected"
+                    $summaryRows.Add([pscustomobject]@{ Machine = $name; Edition = $editionName; Os = ''; PowerShell = ''; Elevated = ''; Result = 'NoResult'; Passed = ''; Failed = ''; Skipped = ''; Total = ''; Seconds = '' })
+                }
+            }
+        }
+        foreach ($json in Get-ChildItem -LiteralPath $cellFolder -Filter '*.json') {
+            $summary = Get-Content -LiteralPath $json.FullName -Raw | ConvertFrom-Json
+            $summaryRows.Add([pscustomobject]@{
+                    Machine = $name; Edition = $summary.Edition; Os = $summary.Os; PowerShell = $summary.PowerShell; Elevated = $summary.Elevated; Result = $summary.Result
+                    Passed = $summary.Passed; Failed = $summary.Failed; Skipped = $summary.Skipped; Total = $summary.Total; Seconds = $summary.Seconds
+                })
+            Write-Sequence ('machine {0} {1}: {2} passed={3} failed={4} skipped={5} total={6} elevated={7} os={8}' -f $name, $summary.Edition, $summary.Result, $summary.Passed, $summary.Failed, $summary.Skipped, $summary.Total, $summary.Elevated, $summary.Os)
+        }
+    }
+    catch {
+        Write-Sequence "machine $name FAILED: $_"
+    }
+    finally {
+        if ($session) {
+            # The tasks of this run store the password of the account that runs them. A run that stops early must not leave them on the machine.
+            try {
+                Invoke-Command -Session $session -ArgumentList ('NtfsMatrixLocal-{0}-*' -f $Label.ToLowerInvariant()) -ScriptBlock {
+                    param ($Pattern)
+                    Get-ScheduledTask -TaskName $Pattern -ErrorAction SilentlyContinue | ForEach-Object -Process { Unregister-ScheduledTask -TaskName $_.TaskName -Confirm:$false -ErrorAction SilentlyContinue }
+                }
+            }
+            catch {
+                Write-Sequence "machine ${name}: the scheduled tasks of this run could not be removed: $($_.Exception.Message)"
+            }
+
+            # The results are on the host, so the stage on the machine (the module, the tests, and the logs) is not needed any more. After an
+            # early stop it stays for the diagnosis.
+            if ($resultsCopied) {
+                try {
+                    Invoke-Command -Session $session -ArgumentList $root -ScriptBlock { param ($Path) Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue }
+                }
+                catch {
+                    Write-Sequence "machine ${name}: the stage $root could not be removed: $($_.Exception.Message)"
+                }
+            }
+
+            Remove-PSSession -Session $session -ErrorAction SilentlyContinue
+        }
+    }
+
+    Write-Sequence "machine $name END"
+}
+
+$summaryRows | Export-Csv -LiteralPath (Join-Path -Path $OutputRoot -ChildPath "$Label-localsuite-summary.csv") -NoTypeInformation
+Write-Sequence "localsuite-$Label-DONE"
+exit 0

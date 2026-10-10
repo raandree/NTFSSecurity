@@ -18,6 +18,10 @@ namespace Security2
         IntPtr pGrantedAccess = IntPtr.Zero;
         IntPtr pErrorSecObj = IntPtr.Zero;
 
+        // Whether the remote resource manager is the one of this computer. Its remote interface answers only the
+        // administrators of the computer and the members of Access Control Assistance Operators.
+        bool remoteResourceManagerIsLocal;
+
         #region GetInheritedFrom
         // Returns the source of each entry of the DACL, or of the SACL for audit entries, in the order of the ACL. Before
         // 5.0.0-rc6, a descriptor with a SACL returned the sources of the audit entries also for the access entries.
@@ -177,21 +181,36 @@ namespace Security2
         {
             remoteServerAvailable = false;
 
-            var rpcInitInfo = new AUTHZ_RPC_INIT_INFO_CLIENT();
-
-            rpcInitInfo.version = AuthzRpcClientVersion.V1;
-            rpcInitInfo.objectUuid = AUTHZ_OBJECTUUID_WITHCAP;
-            rpcInitInfo.protocol = RCP_OVER_TCP_PROTOCOL;
-            rpcInitInfo.server = serverName;
-
-            SafeHGlobalHandle pRpcInitInfo = SafeHGlobalHandle.AllocHGlobalStruct(rpcInitInfo);
-            if (!AuthzInitializeRemoteResourceManager(pRpcInitInfo.ToIntPtr(), out authzRM))
+            // An empty name names no computer. Windows takes it for this computer on some computers, where the remote
+            // interface then refuses the check with "Access is denied", and for an unreachable one on others. So the
+            // remote interface isn't asked, and the local authorization manager calculates the result, like for any
+            // name that can't be reached.
+            if (!string.IsNullOrWhiteSpace(serverName))
             {
+                var rpcInitInfo = new AUTHZ_RPC_INIT_INFO_CLIENT();
+
+                rpcInitInfo.version = AuthzRpcClientVersion.V1;
+                rpcInitInfo.objectUuid = AUTHZ_OBJECTUUID_WITHCAP;
+                rpcInitInfo.protocol = RCP_OVER_TCP_PROTOCOL;
+                rpcInitInfo.server = serverName;
+
+                SafeHGlobalHandle pRpcInitInfo = SafeHGlobalHandle.AllocHGlobalStruct(rpcInitInfo);
+                if (AuthzInitializeRemoteResourceManager(pRpcInitInfo.ToIntPtr(), out authzRM))
+                {
+                    remoteServerAvailable = true;
+                    remoteResourceManagerIsLocal = IsLocalComputer(serverName);
+                    return;
+                }
+
                 int error = Marshal.GetLastWin32Error();
+                bool isLocalComputer = IsLocalComputer(serverName);
 
                 // The computer can't be resolved or reached (RPC server unavailable), or it doesn't offer the remote
                 // interface (endpoint not registered); the local authorization manager calculates the result instead.
-                if (error != Win32Error.EPT_S_NOT_REGISTERED && error != Win32Error.RPC_S_SERVER_UNAVAILABLE)
+                // This computer can also refuse the caller, who isn't one of its administrators; its own manager
+                // answers then, too.
+                if (error != Win32Error.EPT_S_NOT_REGISTERED && error != Win32Error.RPC_S_SERVER_UNAVAILABLE &&
+                    !(isLocalComputer && error == Win32Error.ERROR_ACCESS_DENIED))
                 {
                     throw new Win32Exception(error);
                 }
@@ -199,28 +218,29 @@ namespace Security2
                 // The local authorization manager is the one of this computer, so its result is accurate for any name
                 // of this computer. Before 5.0.0-rc7, only localhost in lowercase counted, and the cmdlet warned for
                 // the others, such as ., the computer name, or LOCALHOST.
-                if (IsLocalComputer(serverName))
+                if (isLocalComputer)
                 {
                     remoteServerAvailable = true;
                 }
-
-                //
-                // As a fallback we do AuthzInitializeResourceManager. But the results can be inaccurate.
-                //
-                if (!AuthzInitializeResourceManager(
-                                AuthzResourceManagerFlags.NO_AUDIT,
-                                IntPtr.Zero,
-                                IntPtr.Zero,
-                                IntPtr.Zero,
-                                "EffectiveAccessCheck",
-                                out authzRM))
-                {
-                    throw new Win32Exception(Marshal.GetLastWin32Error());
-                }
             }
-            else
+
+            GetEffectivePermissions_AuthzInitializeLocalResourceManager();
+        }
+
+        private void GetEffectivePermissions_AuthzInitializeLocalResourceManager()
+        {
+            //
+            // As a fallback we do AuthzInitializeResourceManager. But the results can be inaccurate.
+            //
+            if (!AuthzInitializeResourceManager(
+                            AuthzResourceManagerFlags.NO_AUDIT,
+                            IntPtr.Zero,
+                            IntPtr.Zero,
+                            IntPtr.Zero,
+                            "EffectiveAccessCheck",
+                            out authzRM))
             {
-                remoteServerAvailable = true;
+                throw new Win32Exception(Marshal.GetLastWin32Error());
             }
         }
 
@@ -241,6 +261,21 @@ namespace Security2
                 out userClientCtxt))
             {
                 Win32Exception win32Expn = new Win32Exception(Marshal.GetLastWin32Error());
+
+                // A computer in a domain offers the remote interface of its authorization manager to every caller, but
+                // answers only its administrators and the members of Access Control Assistance Operators; any other
+                // account gets "Access is denied", whichever account the check is for. For a name of this computer, the
+                // local authorization manager is the manager of that computer and answers every caller. For another
+                // computer, the denial stays an error: no access instead would be a wrong result.
+                if (win32Expn.NativeErrorCode == Win32Error.ERROR_ACCESS_DENIED && remoteResourceManagerIsLocal)
+                {
+                    remoteResourceManagerIsLocal = false;
+                    userClientCtxt = IntPtr.Zero;
+                    authzRM.Dispose();
+                    GetEffectivePermissions_AuthzInitializeLocalResourceManager();
+                    GetEffectivePermissions_AuthzInitializeContextFromSid(id);
+                    return;
+                }
 
                 if (win32Expn.NativeErrorCode != Win32Error.RPC_S_SERVER_UNAVAILABLE)
                 {

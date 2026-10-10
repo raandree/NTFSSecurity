@@ -128,15 +128,16 @@ $roleAccounts = [ordered]@{
     ServerAdmin = 'NtfsLiveServerAdmin'
     Admin       = 'NtfsLiveAdmin'
 }
-$subjectAccount = 'NtfsLiveSubject'
+$subjectBaseName = 'NtfsLiveSubject'
 $orphanAccount = 'NtfsLiveOrphan'
 $foreignAccount = 'NtfsLiveForeign'
 # The rights that the entries of the foreign accounts grant on the folder of case 9, by position
 $foreignRights = 'ReadAndExecute', 'Modify', 'Write'
 $localGroupName = 'NtfsLiveLocal'
+# The members of NtfsLiveInner follow when the name of the account of case 3 is known
 $groupMembers = @{
     NtfsLiveDelegates = @('NtfsLiveDelegate')
-    NtfsLiveInner     = @('NtfsLiveSubject')
+    NtfsLiveInner     = @()
     NtfsLiveOuter     = @('NtfsLiveInner')
 }
 # A name that no DNS server resolves (RFC 2606)
@@ -300,6 +301,19 @@ function ConvertFrom-LabTestResult {
 }
 
 #region Remote script blocks
+# Runs on the domain controller: returns the names of the accounts of case 3 that the organizational unit already has.
+$findSubjectScript = {
+    param ($OrganizationalUnitName, $BaseName)
+
+    $ErrorActionPreference = 'Stop'
+    Import-Module -Name ActiveDirectory
+    $domain = Get-ADDomain
+    $path = 'OU={0},{1}' -f $OrganizationalUnitName, $domain.DistinguishedName
+    if (Get-ADOrganizationalUnit -LDAPFilter "(ou=$OrganizationalUnitName)" -SearchBase $domain.DistinguishedName -SearchScope OneLevel -Server $domain.PDCEmulator) {
+        Get-ADUser -LDAPFilter "(sAMAccountName=$BaseName*)" -SearchBase $path -Server $domain.PDCEmulator | ForEach-Object -Process { $_.SamAccountName }
+    }
+}
+
 # Runs on the domain controller: creates or updates the accounts and groups in their organizational unit, pushes them
 # to the other domain controllers of the domain, and returns their SIDs.
 $accountScript = {
@@ -466,13 +480,26 @@ $fileServerSetupScript = {
         $null = New-LocalGroup -Name $LocalGroupName -Description 'NTFSSecurity live tests'
     }
 
-    if ($SubjectSid -notin @(Get-LocalGroupMember -Name $LocalGroupName | ForEach-Object -Process { $_.SID.Value })) {
+    # Add the members and ignore the error for a member that exists. A check with Get-LocalGroupMember would fail with "Failed to
+    # compare two elements in the array" in Windows PowerShell 5.1 as soon as the group holds an orphaned SID, for example that of
+    # an account that an earlier run deleted.
+    try {
         Add-LocalGroupMember -Name $LocalGroupName -Member $SubjectSid
+    }
+    catch {
+        if ($_.Exception.GetType().Name -ne 'MemberExistsException') {
+            throw
+        }
     }
 
     foreach ($sid in $AdministratorSid) {
-        if ($sid -notin @(Get-LocalGroupMember -SID 'S-1-5-32-544' | ForEach-Object -Process { $_.SID.Value })) {
+        try {
             Add-LocalGroupMember -SID 'S-1-5-32-544' -Member $sid
+        }
+        catch {
+            if ($_.Exception.GetType().Name -ne 'MemberExistsException') {
+                throw
+            }
         }
     }
 
@@ -480,11 +507,24 @@ $fileServerSetupScript = {
         $null = New-Item -ItemType Directory -Path $ShareLocalPath
     }
 
-    # The folders of earlier runs, also those with paths longer than 260 characters, which PowerShell 7 removes.
-    $command = '$ErrorActionPreference = ''Stop''; Get-ChildItem -LiteralPath ''{0}'' -Force | Remove-Item -Recurse -Force' -f $ShareLocalPath
-    $output = & (Join-Path -Path $env:ProgramFiles -ChildPath 'PowerShell\7\pwsh.exe') -NoProfile -NonInteractive -EncodedCommand ([Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($command))) 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "The folders of earlier runs could not be removed: $output"
+    # The folders of earlier runs, also those with paths longer than 260 characters, which PowerShell 7 removes. A recursive removal can
+    # fail with "The directory is not empty" while another process, such as a virus scanner, still holds a handle to an item that was
+    # just deleted (seen on Windows Server 2019), so it is repeated. The command writes its errors to its output: a line on stderr would
+    # end this script at once, because the error action here is Stop and 2>&1 turns that line into a terminating error.
+    $command = '$errors = @(); Get-ChildItem -LiteralPath ''__PATH__'' -Force | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -ErrorVariable errors; $errors | ForEach-Object -Process { "$_" }'.Replace('__PATH__', $ShareLocalPath)
+    $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($command))
+    $attempt = 0
+    do {
+        $attempt++
+        if ($attempt -gt 1) {
+            Start-Sleep -Seconds 5
+        }
+
+        $output = & (Join-Path -Path $env:ProgramFiles -ChildPath 'PowerShell\7\pwsh.exe') -NoProfile -NonInteractive -EncodedCommand $encoded 2>&1
+    } while (@(Get-ChildItem -LiteralPath $ShareLocalPath -Force -ErrorAction SilentlyContinue).Count -gt 0 -and $attempt -lt 6)
+
+    if (@(Get-ChildItem -LiteralPath $ShareLocalPath -Force -ErrorAction SilentlyContinue).Count -gt 0) {
+        throw "The folders of earlier runs could not be removed in $attempt attempts: $output"
     }
 
     # Administrators and the system own the share; the delegated group may read it, and the folders of the cases grant
@@ -524,8 +564,14 @@ $clientSetupScript = {
             @{ Group = 'S-1-5-32-580'; Members = $RemoteUserSid }
         )) {
         foreach ($sid in $membership.Members) {
-            if ($sid -notin @(Get-LocalGroupMember -SID $membership.Group | ForEach-Object -Process { $_.SID.Value })) {
+            # See the file server setup: Get-LocalGroupMember fails on an orphaned SID.
+            try {
                 Add-LocalGroupMember -SID $membership.Group -Member $sid
+            }
+            catch {
+                if ($_.Exception.GetType().Name -ne 'MemberExistsException') {
+                    throw
+                }
             }
         }
     }
@@ -723,6 +769,27 @@ $fixtureScript = {
         }
     )
 
+    # Case 10: the behavior that the fixes of the quality gate before 5.0.0 changed. The tests create their items below the
+    # folder of their role, which the delegated group fully controls. Administrators own the folder Locked, whose
+    # permissions the delegated account denies itself, and the files that Set-NTFSOwner changes: a file that the account
+    # created would be owned by the account already.
+    $null = New-FixtureFolder -RelativePath 'Case10' -AccessRule $delegatesFullControl
+    $null = New-FixtureFolder -RelativePath 'Case10\Locked'
+    foreach ($role in 'Admin', 'ServerAdmin', 'Delegate') {
+        foreach ($style in 'Select', 'Throw') {
+            foreach ($ownerFolder in "SetOwner-$style", "SetOwner-Debug$style") {
+                $ownerPath = New-FixtureFolder -RelativePath "Case10\$role\LaterCommand\$ownerFolder"
+                foreach ($name in 'First', 'Second') {
+                    $file = Join-Path -Path $ownerPath -ChildPath "$name.txt"
+                    Set-Content -LiteralPath $file -Value $name -NoNewline
+                    if ((Get-LabSecurityDescriptor -Path $file).Owner.Value -ne 'S-1-5-32-544') {
+                        throw "Administrators don't own '$file'."
+                    }
+                }
+            }
+        }
+    }
+
     # The rights that the file server's own token of each foreign account gets on the folder, like case 3. A token
     # that the file server can't create is reported as -1, which fails only the effective-access test of the account.
     $foreignDescriptor = Get-LabSecurityDescriptor -Path $foreignPath
@@ -844,12 +911,28 @@ $removeFileServerScript = {
     }
 
     foreach ($path in $ShareLocalPath, $PayloadPath) {
-        if (Test-Path -LiteralPath $path) {
-            $command = '$ErrorActionPreference = ''Stop''; Remove-Item -LiteralPath ''{0}'' -Recurse -Force' -f $path
-            $output = & (Join-Path -Path $env:ProgramFiles -ChildPath 'PowerShell\7\pwsh.exe') -NoProfile -NonInteractive -EncodedCommand ([Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($command))) 2>&1
-            if ($LASTEXITCODE -ne 0) {
-                throw "'$path' could not be removed: $output"
+        # PowerShell 7 removes the symbolic links of the tests without following them, which Windows PowerShell 5.1 doesn't do. A recursive
+        # removal can still fail with "The directory is not empty" while another process, such as a virus scanner, holds a handle to an item
+        # that was just deleted (seen on Windows Server 2019); a moment later nothing is left. So the removal is repeated before it fails.
+        # The command writes its errors to its output: a line on stderr would end this script at once (see the setup of the file server).
+        $command = '$errors = @(); Remove-Item -LiteralPath ''__PATH__'' -Recurse -Force -ErrorAction SilentlyContinue -ErrorVariable errors; $errors | ForEach-Object -Process { "$_" }'.Replace('__PATH__', $path)
+        $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($command))
+        $attempt = 0
+        while ((Test-Path -LiteralPath $path) -and $attempt -lt 6) {
+            $attempt++
+            if ($attempt -gt 1) {
+                Start-Sleep -Seconds 5
             }
+
+            $output = & (Join-Path -Path $env:ProgramFiles -ChildPath 'PowerShell\7\pwsh.exe') -NoProfile -NonInteractive -EncodedCommand $encoded 2>&1
+        }
+
+        if (Test-Path -LiteralPath $path) {
+            throw "'$path' could not be removed in $attempt attempts: $output"
+        }
+
+        if ($attempt -gt 1) {
+            "'$path' was removed in $attempt attempts."
         }
     }
 
@@ -872,7 +955,18 @@ $removeClientScript = {
         }
     }
 
-    Get-CimInstance -ClassName Win32_UserProfile | Where-Object -FilterScript { $_.SID -in $Sid } | Remove-CimInstance
+    # A profile that is gone in the meantime needs no removal; one that is still there after the error does.
+    foreach ($userProfile in @(Get-CimInstance -ClassName Win32_UserProfile | Where-Object -FilterScript { $_.SID -in $Sid })) {
+        try {
+            Remove-CimInstance -InputObject $userProfile
+        }
+        catch {
+            if (Get-CimInstance -ClassName Win32_UserProfile -Filter ("SID = '{0}'" -f $userProfile.SID) -ErrorAction SilentlyContinue) {
+                throw
+            }
+        }
+    }
+
     if (Test-Path -LiteralPath $PayloadPath) {
         Remove-Item -LiteralPath $PayloadPath -Recurse -Force
     }
@@ -934,7 +1028,10 @@ if ($RemoveFixture) {
     }
 
     $accountSids = @(Invoke-LabCommand -ComputerName $DomainController -ActivityName 'Read the accounts' -ScriptBlock $accountSidScript -ArgumentList $organizationalUnitName @labCommand)
-    $null = Invoke-LabCommand -ComputerName $FileServer -ActivityName 'Remove the share and the folders' -ScriptBlock $removeFileServerScript -ArgumentList $shareName, $shareLocalPath, $payloadPath, $localGroupName, $accountSids @labCommand
+    $removed = Invoke-LabCommand -ComputerName $FileServer -ActivityName 'Remove the share and the folders' -ScriptBlock $removeFileServerScript -ArgumentList $shareName, $shareLocalPath, $payloadPath, $localGroupName, $accountSids @labCommand
+    foreach ($message in @($removed)) {
+        Write-LabProgress "${FileServer}: $message"
+    }
     $null = Invoke-LabCommand -ComputerName $Client -ActivityName 'Remove the members and the folder' -ScriptBlock $removeClientScript -ArgumentList $payloadPath, $accountSids @labCommand
     $null = Invoke-LabCommand -ComputerName $DomainController -ActivityName 'Remove the accounts' -ScriptBlock $removeAccountScript -ArgumentList $organizationalUnitName @labCommand
     foreach ($computer in $ForeignDomainController) {
@@ -977,6 +1074,14 @@ $modules = @(
 )
 
 Write-LabProgress 'Preparing the accounts, the file server, and the client'
+# When an account is deleted and created again with the same name, the remote authorization managers of the client and of the file server, which
+# Get-NTFSEffectiveAccess asks for its default -ServerName and for the name of the file server, keep answering for about ten minutes as if the new
+# account had no groups (Synchronize only), for the baseline and for the final candidate alike. The local manager and a Kerberos S4U logon of the account, which
+# the oracle uses, are right at that moment (Decision 24). So a new fixture gets a name for the account of case 3 that an earlier fixture is unlikely
+# to have used (four random digits); a fixture that exists keeps its account.
+$existingSubjects = @(Invoke-LabCommand -ComputerName $DomainController -ActivityName 'Look for the account of case 3' -ScriptBlock $findSubjectScript -ArgumentList $organizationalUnitName, $subjectBaseName @labCommand)
+$subjectAccount = if ($existingSubjects) { [string]$existingSubjects[0] } else { '{0}{1:D4}' -f $subjectBaseName, (Get-Random -Minimum 0 -Maximum 10000) }
+$groupMembers['NtfsLiveInner'] = @($subjectAccount)
 $passwords = @{}
 foreach ($name in @($roleAccounts.Values) + $subjectAccount) {
     $passwords[$name] = New-LabPassword

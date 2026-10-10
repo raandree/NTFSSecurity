@@ -104,6 +104,31 @@ BeforeDiscovery {
             }
         }
     )
+
+    # Case 10: the cmdlets that a later command in the pipeline stops, and the roles whose items the file server checks.
+    $laterCommandCases = @(
+        foreach ($name in 'Remove-Item2', 'Copy-Item2', 'Move-Item2', 'Set-NTFSOwner', 'Set-NTFSSecurityDescriptor') {
+            foreach ($style in 'Select-Object -First 1', 'throw') {
+                @{ Name = $name; Style = $style }
+            }
+        }
+    )
+    $laterCommandStreamCases = @(
+        foreach ($case in @(
+                @{ Name = 'Set-NTFSSecurityDescriptor'; Stream = 'verbose' }
+                @{ Name = 'Get-FileHash2'; Stream = 'verbose' }
+                @{ Name = 'Set-NTFSOwner'; Stream = 'debug' }
+            )) {
+            foreach ($style in 'Select-Object -First 1', 'throw') {
+                @{ Name = $case.Name; Stream = $case.Stream; Style = $style }
+            }
+        }
+    )
+    $laterCommandStates = @(
+        foreach ($stateRole in 'Admin', 'ServerAdmin', 'Delegate') {
+            @{ StateRole = $stateRole }
+        }
+    )
 }
 
 BeforeAll {
@@ -435,6 +460,36 @@ Describe 'Get-NTFSEffectiveAccess as an account that is not an administrator of 
         @(Format-LabError -ErrorRecord $operationErrors) | Should -HaveCount 1
         $operationErrors[0].FullyQualifiedErrorId | Should -BeLike 'GetEffectiveAccessError,*'
         $operationErrors[0].Exception.InnerException.NativeErrorCode | Should -Be 5
+    }
+}
+
+Describe 'Get-NTFSEffectiveAccess for a domain account as an account that is not an administrator of the client' -Tag 'ServerAdmin' -Skip:(-not $configured) {
+    # The remote authorization manager of a computer answers only its administrators and the members of its group Access
+    # Control Assistance Operators, and a computer in a domain offers it to every caller. Before 5.0.0-rc7, the cmdlet
+    # wrote "Access is denied" for this computer, too, so the default -ServerName (localhost) failed for every user who
+    # isn't an administrator of the client. Now the local authorization manager of the client answers, which is the
+    # manager that the name asks for.
+    BeforeAll {
+        $path = Get-LabPath -RelativePath 'Case3\EffectiveAccess'
+        $subject = $configuration.Accounts.Subject.Name
+    }
+
+    It 'Should return the rights through the domain groups without -ServerName, like for an administrator of the client' {
+        $result = @(Get-NTFSEffectiveAccess -Path $path -Account $subject -WarningAction SilentlyContinue -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        $result | Should -HaveCount 1
+        Format-LabRight -Right $result[0].AccessRights | Should -Be (Format-LabRight -Right $configuration.EffectiveAccess.ClientRights)
+    }
+
+    It 'Should return the same rights without a warning for the name of the client' {
+        $result = @(Get-NTFSEffectiveAccess -Path $path -Account $subject -ServerName $env:COMPUTERNAME -WarningVariable operationWarnings -WarningAction SilentlyContinue -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        # The warning that the account doesn't hold the Security privilege is allowed; a warning about an unreachable computer isn't.
+        ($operationWarnings.Message -join '|') | Should -Not -BeLike '*can''t be reached*'
+        $result | Should -HaveCount 1
+        Format-LabRight -Right $result[0].AccessRights | Should -Be (Format-LabRight -Right $configuration.EffectiveAccess.ClientRights)
     }
 }
 
@@ -846,6 +901,538 @@ Describe 'Accounts of another domain and of other forests on share folders' -Tag
     }
 }
 
+# Case 10: the behavior that the fixes of the quality gate before 5.0.0 changed. Each test works in a folder of its role below
+# Case10, which the delegated group fully controls, and fails on a build before the fix that its comment names.
+Describe 'An item that the account owns and whose owner may not change its permissions on a share' -Tag 'Delegate' -Skip:(-not $configured) {
+    # The delegated account owns what it creates on the share. A deny entry for OWNER RIGHTS replaces the right of the owner to
+    # change the DACL, so the cmdlets take ownership for the write, which the file server answers by removing that entry. Once
+    # the DACL is cleared and protected, nobody holds the right to set an owner. Before 5.0.0, the cmdlets set the previous
+    # owner back also when it was the account itself: the file server refused it, and they reported a RestoreOwnerError for an
+    # owner that had not changed.
+    BeforeAll {
+        $folder = Get-LabPath -RelativePath "Case10\$Role\Owner"
+        $null = New-Item -ItemType Directory -Path $folder -Force
+        $ownerRights = 'S-1-3-4'
+        $protectedFlag = [System.Security.AccessControl.ControlFlags]::DiscretionaryAclProtected
+
+        function New-LabUnchangeableFile {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only writes to the folder of the run.'
+            )]
+            param ([string] $Name)
+
+            $file = Join-Path -Path $folder -ChildPath $Name
+            Set-Content -LiteralPath $file -Value $Name -NoNewline
+            Get-LabOwner -Path $file | Should -Be $configuration.Accounts.$Role.Sid -Because 'the account owns what it creates'
+            Add-NTFSAccess -Path $file -Account $ownerRights -AccessType Deny -AccessRights ChangePermissions -ErrorAction Stop
+            # icacls reports the refusal on its error stream, which a terminating error action would turn into an exception
+            $savedPreference = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            try {
+                $null = & icacls.exe $file /grant '*S-1-1-0:(R)' 2>&1
+                $exitCode = $LASTEXITCODE
+            }
+            finally {
+                $ErrorActionPreference = $savedPreference
+            }
+
+            $exitCode | Should -Not -Be 0 -Because 'a plain write of the DACL fails for the owner now'
+            $file
+        }
+
+        function Assert-LabClearedDescriptor {
+            param ([string] $File)
+
+            $descriptor = Get-LabSecurityDescriptor -Path $File
+            $descriptor.Owner.Value | Should -Be $configuration.Accounts.$Role.Sid
+            ($descriptor.ControlFlags -band $protectedFlag) | Should -Be $protectedFlag
+            $null -ne $descriptor.DiscretionaryAcl | Should -BeTrue -Because 'the DACL is empty, not NULL'
+            $descriptor.DiscretionaryAcl.Count | Should -Be 0
+        }
+    }
+
+    It 'Clear-NTFSAccess -DisableInheritance should take ownership, clear and protect the DACL, and report no RestoreOwnerError' {
+        $file = New-LabUnchangeableFile -Name 'Clear.txt'
+
+        Clear-NTFSAccess -Path $file -DisableInheritance -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        Assert-LabClearedDescriptor -File $file
+    }
+
+    It 'Set-NTFSSecurityDescriptor should write the cleared DACL and report no RestoreOwnerError' {
+        $file = New-LabUnchangeableFile -Name 'Descriptor.txt'
+        $descriptor = Get-NTFSSecurityDescriptor -Path $file -ErrorAction Stop
+        Clear-NTFSAccess -SecurityDescriptor $descriptor -DisableInheritance -ErrorAction Stop
+
+        Set-NTFSSecurityDescriptor -SecurityDescriptor $descriptor -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        Assert-LabClearedDescriptor -File $file
+    }
+}
+
+# Windows can't name the folders that the inherited entries of an item come from when the item is gone, for example deleted by
+# another process after its security descriptor was read, or when a folder above it can't be read. The entries still come
+# back. Before 5.0.0, the text lost its last character, and an explicit entry, which has no source, got it as well.
+Describe 'InheritedFrom of access entries that Windows cannot resolve on a share' -Tag 'Delegate', 'ServerAdmin', 'Admin' -Skip:(-not $configured) {
+    BeforeAll {
+        $folder = Get-LabPath -RelativePath "Case10\$Role\InheritedFrom"
+        $null = New-Item -ItemType Directory -Path $folder -Force
+    }
+
+    It 'Should name an unknown parent for an inherited entry and no source for an explicit entry when the file is gone' {
+        $file = Join-Path -Path $folder -ChildPath 'Gone.txt'
+        Set-Content -LiteralPath $file -Value 'Gone' -NoNewline
+        Add-NTFSAccess -Path $file -Account $everyone -AccessRights ReadData -ErrorAction Stop
+        $descriptor = Get-NTFSSecurityDescriptor -Path $file -ErrorAction Stop
+        Remove-Item -LiteralPath $file -Force
+
+        $entries = @([Security2.FileSystemAccessRule2]::GetFileSystemAccessRules($descriptor, $true, $true, $true))
+
+        $inherited = @($entries | Where-Object -FilterScript { $_.IsInherited })
+        $inherited | Should -Not -BeNullOrEmpty
+        foreach ($entry in $inherited) {
+            $entry.InheritedFrom | Should -BeExactly 'unknown parent'
+        }
+
+        $explicit = @($entries | Where-Object -FilterScript { -not $_.IsInherited })
+        $explicit | Should -HaveCount 1
+        $explicit[0].InheritedFrom | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'InheritedFrom of audit entries that Windows cannot resolve on a share' -Tag 'ServerAdmin', 'Admin' -Skip:(-not $configured) {
+    # The administrators of the file server read and change the audit entries over SMB (case 2).
+    BeforeAll {
+        $folder = Get-LabPath -RelativePath "Case10\$Role\InheritedFromAudit"
+        $null = New-Item -ItemType Directory -Path $folder -Force
+        Add-NTFSAudit -Path $folder -Account $everyone -AccessRights ReadData -InheritanceFlags 'ContainerInherit, ObjectInherit' -PropagationFlags None -ErrorAction Stop
+    }
+
+    It 'Should name an unknown parent for an inherited audit entry and no source for an explicit entry when the file is gone' {
+        $file = Join-Path -Path $folder -ChildPath 'Gone.txt'
+        Set-Content -LiteralPath $file -Value 'Gone' -NoNewline
+        Add-NTFSAudit -Path $file -Account 'S-1-5-32-546' -AccessRights Delete -InheritanceFlags None -PropagationFlags None -ErrorAction Stop
+        $descriptor = Get-NTFSSecurityDescriptor -Path $file -ErrorAction Stop
+        Remove-Item -LiteralPath $file -Force
+
+        $entries = @([Security2.FileSystemAuditRule2]::GetFileSystemAuditRules($descriptor, $true, $true, $true))
+
+        $inherited = @($entries | Where-Object -FilterScript { $_.IsInherited })
+        $inherited | Should -HaveCount 1
+        $inherited[0].InheritedFrom | Should -BeExactly 'unknown parent'
+        $explicit = @($entries | Where-Object -FilterScript { -not $_.IsInherited })
+        $explicit | Should -HaveCount 1
+        $explicit[0].InheritedFrom | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'InheritedFrom of an item below a folder on a share whose permissions the account cannot read' -Tag 'Delegate' -Skip:(-not $configured) {
+    # Administrators own the folder, so a deny entry for the delegated account takes effect for it. The entry applies to the
+    # folder only: the item below it keeps its entries and stays readable.
+    BeforeAll {
+        $locked = Get-LabPath -RelativePath 'Case10\Locked'
+        $child = Join-Path -Path $locked -ChildPath 'Child.txt'
+        Set-Content -LiteralPath $child -Value 'Child' -NoNewline
+        Add-NTFSAccess -Path $child -Account $everyone -AccessRights ReadData -ErrorAction Stop
+        Add-NTFSAccess -Path $locked -Account $configuration.Accounts.Delegate.Sid -AccessType Deny -AccessRights ReadPermissions -AppliesTo ThisFolderOnly -ErrorAction Stop
+    }
+
+    It 'Should start with a folder whose permissions the account cannot read, and an item that it can' {
+        { Get-Acl -LiteralPath $locked -ErrorAction Stop } | Should -Throw
+        { Get-Acl -LiteralPath $child -ErrorAction Stop } | Should -Not -Throw
+    }
+
+    It 'Get-NTFSAccess should name an unknown parent for an inherited entry and no source for an explicit entry' {
+        $entries = @(Get-NTFSAccess -Path $child -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        $inherited = @($entries | Where-Object -FilterScript { $_.IsInherited })
+        $inherited | Should -Not -BeNullOrEmpty
+        foreach ($entry in $inherited) {
+            $entry.InheritedFrom | Should -BeExactly 'unknown parent'
+        }
+
+        $explicit = @($entries | Where-Object -FilterScript { -not $_.IsInherited -and $_.Account.Sid -eq $everyone })
+        $explicit | Should -HaveCount 1
+        $explicit[0].InheritedFrom | Should -BeNullOrEmpty
+    }
+}
+
+# Before 5.0.0, a cmdlet took what a later command ended the pipeline with (Select-Object -First, a break) or threw for a failure
+# of the item and went on with the next item: Remove-Item2 removed every item after Select-Object -First 1, and the caller
+# never saw a throw. Each case runs one command over two items and the file server checks the items afterwards (role Server).
+Describe 'A later command that ends the pipeline or throws, for the item cmdlets on a share' -Tag 'Delegate', 'ServerAdmin', 'Admin' -Skip:(-not $configured) {
+    BeforeAll {
+        $account = $configuration.Accounts.$Role.Sid
+        $caseRoot = Get-LabPath -RelativePath "Case10\$Role\LaterCommand"
+        $privateData = (Get-Module -Name NTFSSecurity).PrivateData
+        $savedEnablePrivileges = $privateData['EnablePrivileges']
+
+        function Get-LabSlug {
+            param ([string] $Style)
+
+            if ($Style -eq 'throw') { 'Throw' } else { 'Select' }
+        }
+
+        function New-LabCaseFolder {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only writes to the folder of the run.'
+            )]
+            param ([string] $Name)
+
+            $path = Join-Path -Path $caseRoot -ChildPath $Name
+            $null = New-Item -ItemType Directory -Path $path -Force
+            $path
+        }
+
+        function New-LabPair {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only writes to the folder of the run.'
+            )]
+            param ([string] $Name)
+
+            $directory = New-LabCaseFolder -Name $Name
+            foreach ($item in 'First', 'Second') {
+                Set-Content -LiteralPath (Join-Path -Path $directory -ChildPath "$item.txt") -Value $item -NoNewline
+            }
+
+            @{
+                Directory = $directory
+                First     = (Join-Path -Path $directory -ChildPath 'First.txt')
+                Second    = (Join-Path -Path $directory -ChildPath 'Second.txt')
+            }
+        }
+
+        # Each case runs one command over the two items of its context. Untouched tells whether the second item is as it was,
+        # which it is only when the command stopped after the first one.
+        $cases = @{
+            'Remove-Item2'               = @{
+                Prepare   = { param ($Slug) New-LabPair -Name "RemoveItem2-$Slug" }
+                Run       = { param ($Context) Remove-Item2 -Path $Context.First, $Context.Second -PassThru -ErrorAction SilentlyContinue }
+                Untouched = { param ($Context) Test-Path -LiteralPath $Context.Second }
+            }
+            'Copy-Item2'                 = @{
+                Prepare   = {
+                    param ($Slug)
+                    $context = New-LabPair -Name "CopyItem2-$Slug"
+                    $context.Destination = New-LabCaseFolder -Name "CopyItem2-$Slug-To"
+                    $context
+                }
+                Run       = { param ($Context) Copy-Item2 -Path $Context.First, $Context.Second -Destination $Context.Destination -PassThru $true -ErrorAction SilentlyContinue }
+                Untouched = { param ($Context) -not (Test-Path -LiteralPath (Join-Path -Path $Context.Destination -ChildPath 'Second.txt')) }
+            }
+            'Move-Item2'                 = @{
+                Prepare   = {
+                    param ($Slug)
+                    $context = New-LabPair -Name "MoveItem2-$Slug"
+                    $context.Destination = New-LabCaseFolder -Name "MoveItem2-$Slug-To"
+                    $context
+                }
+                Run       = { param ($Context) Move-Item2 -Path $Context.First, $Context.Second -Destination $Context.Destination -PassThru $true -ErrorAction SilentlyContinue }
+                Untouched = { param ($Context) Test-Path -LiteralPath $Context.Second }
+            }
+            # The files of the fixture are owned by Administrators, so that the first one changes its owner.
+            'Set-NTFSOwner'              = @{
+                Prepare   = {
+                    param ($Slug)
+                    $directory = Join-Path -Path $caseRoot -ChildPath "SetOwner-$Slug"
+                    @{ First = (Join-Path -Path $directory -ChildPath 'First.txt'); Second = (Join-Path -Path $directory -ChildPath 'Second.txt') }
+                }
+                Run       = { param ($Context) Set-NTFSOwner -Path $Context.First, $Context.Second -Account $account -PassThru -ErrorAction SilentlyContinue }
+                Untouched = { param ($Context) (Get-LabOwner -Path $Context.Second) -eq $administrators }
+            }
+            'Set-NTFSSecurityDescriptor' = @{
+                Prepare   = {
+                    param ($Slug)
+                    $context = New-LabPair -Name "SetDescriptor-$Slug"
+                    $context.Descriptors = @(Get-NTFSSecurityDescriptor -Path $context.First, $context.Second -ErrorAction Stop)
+                    Add-NTFSAccess -SecurityDescriptor $context.Descriptors -Account $everyone -AccessRights ReadData -ErrorAction Stop
+                    $context
+                }
+                Run       = { param ($Context) Set-NTFSSecurityDescriptor -SecurityDescriptor $Context.Descriptors -PassThru -ErrorAction SilentlyContinue }
+                Untouched = { param ($Context) -not (Get-LabExplicitAccessRule -Path $Context.Second -Sid $everyone) }
+            }
+        }
+
+        # The command writes a verbose or a debug message inside the try of its loop, which the later command takes. With the
+        # privileges enabled, the cmdlet writes a message before that, outside the try, so the module setting is off for these
+        # cases. Get-FileHash2 skips the folder that comes first with a verbose message.
+        $streamCases = @{
+            'Set-NTFSSecurityDescriptor/verbose' = @{
+                Prepare    = $cases['Set-NTFSSecurityDescriptor'].Prepare
+                Run        = { param ($Context) Set-NTFSSecurityDescriptor -SecurityDescriptor $Context.Descriptors -Verbose -ErrorAction SilentlyContinue 4>&1 }
+                Untouched  = $cases['Set-NTFSSecurityDescriptor'].Untouched
+                RecordType = [System.Management.Automation.VerboseRecord]
+            }
+            'Get-FileHash2/verbose'              = @{
+                Prepare    = {
+                    param ($Slug)
+                    @{
+                        First = (New-LabCaseFolder -Name "FileHash2-$Slug-Folder")
+                        File  = (New-LabPair -Name "FileHash2-$Slug").First
+                    }
+                }
+                Run        = { param ($Context) Get-FileHash2 -Path $Context.First, $Context.File -Verbose -ErrorAction SilentlyContinue 4>&1 }
+                RecordType = [System.Management.Automation.VerboseRecord]
+            }
+            'Set-NTFSOwner/debug'                = @{
+                Prepare    = $cases['Set-NTFSOwner'].Prepare
+                Run        = { param ($Context) Set-NTFSOwner -Path $Context.First, $Context.Second -Account $account -ErrorAction SilentlyContinue 5>&1 }
+                Untouched  = $cases['Set-NTFSOwner'].Untouched
+                RecordType = [System.Management.Automation.DebugRecord]
+            }
+        }
+
+        function Assert-LabPipelineStop {
+            param ([hashtable] $Case, [string] $Slug, [string] $Stream)
+
+            if ($Stream -eq 'debug') { $DebugPreference = 'Continue' }
+            $context = & $Case.Prepare $Slug
+            $Error.Clear()
+
+            $result = @(& $Case.Run $context | Select-Object -First 1)
+
+            $result | Should -HaveCount 1
+            if ($Case.RecordType) {
+                $result[0] | Should -BeOfType $Case.RecordType
+            }
+
+            $Error.Count | Should -Be 0
+            if ($Case.Untouched) {
+                (& $Case.Untouched $context) | Should -BeTrue
+            }
+        }
+
+        # A later command that throws ends the pipeline for the commands before it. The error is the caller's: the cmdlet must
+        # neither report it as an error of an item nor go on with the next item.
+        function Assert-LabDownstreamFailure {
+            param ([hashtable] $Case, [string] $Slug, [string] $Stream)
+
+            if ($Stream -eq 'debug') { $DebugPreference = 'Continue' }
+            $context = & $Case.Prepare $Slug
+            $emitted = 0
+            $caught = $null
+            $Error.Clear()
+            try {
+                & $Case.Run $context | ForEach-Object -Process {
+                    $emitted++
+                    throw 'Downstream failure'
+                }
+            }
+            catch {
+                $caught = $_
+            }
+
+            $caught.Exception.Message | Should -BeLike '*Downstream failure*'
+            $emitted | Should -Be 1
+            @($Error | Where-Object -FilterScript { $_.Exception.Message -notlike '*Downstream failure*' }) | Should -BeNullOrEmpty
+            if ($Case.Untouched) {
+                (& $Case.Untouched $context) | Should -BeTrue
+            }
+        }
+    }
+
+    It '<Name> should stop after the first object for <Style> and change nothing else' -ForEach $laterCommandCases {
+        $slug = Get-LabSlug -Style $Style
+
+        if ($Style -eq 'throw') {
+            Assert-LabDownstreamFailure -Case $cases[$Name] -Slug $slug
+        }
+        else {
+            Assert-LabPipelineStop -Case $cases[$Name] -Slug $slug
+        }
+    }
+
+    Context 'With the messages of the verbose and debug streams' {
+        BeforeAll {
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $savedEnablePrivileges
+        }
+
+        It '<Name> should stop at the <Stream> message for <Style> and change nothing else' -ForEach $laterCommandStreamCases {
+            $slug = '{0}{1}' -f [System.Globalization.CultureInfo]::InvariantCulture.TextInfo.ToTitleCase($Stream), (Get-LabSlug -Style $Style)
+
+            if ($Style -eq 'throw') {
+                Assert-LabDownstreamFailure -Case $streamCases["$Name/$Stream"] -Slug $slug -Stream $Stream
+            }
+            else {
+                Assert-LabPipelineStop -Case $streamCases["$Name/$Stream"] -Slug $slug -Stream $Stream
+            }
+        }
+    }
+}
+
+# The errors that Get-ChildItem2 writes for a folder that it cannot read reach a later command too, for example with 2>&1.
+# Before 5.0.0, the recursion took what the later command threw for a failure of the folder above, and ended the listing.
+Describe 'A later command and the error of a folder that Get-ChildItem2 cannot read on a share' -Tag 'Delegate' -Skip:(-not $configured) {
+    BeforeAll {
+        $errorTree = Get-LabPath -RelativePath "Case10\$Role\ErrorTree"
+        $null = New-Item -ItemType Directory -Path $errorTree -Force
+        $unreadable = foreach ($name in 'A', 'B') {
+            $path = Join-Path -Path $errorTree -ChildPath $name
+            $null = New-Item -ItemType Directory -Path $path
+            # An entry for Everyone stops the delegated account, which isn't the file server's administrator
+            Add-NTFSAccess -Path $path -Account $everyone -AccessType Deny -AccessRights ReadData -ErrorAction Stop
+            $path
+        }
+
+        $readableFile = Join-Path -Path $errorTree -ChildPath 'C\Three.txt'
+        $null = New-Item -ItemType Directory -Path (Split-Path -Path $readableFile -Parent)
+        Set-Content -LiteralPath $readableFile -Value 'Three' -NoNewline
+    }
+
+    It 'Should start with folders that the account cannot list' {
+        foreach ($path in $unreadable) {
+            { Get-ChildItem -LiteralPath $path -ErrorAction Stop } | Should -Throw
+        }
+    }
+
+    It 'Should pass on what a later command throws when it takes the error of a nested folder' {
+        $emitted = 0
+        $caught = $null
+        try {
+            Get-ChildItem2 -Path $errorTree -Recurse -File -ErrorAction Continue 2>&1 | ForEach-Object -Process {
+                $emitted++
+                throw 'Downstream failure'
+            }
+        }
+        catch {
+            $caught = $_
+        }
+
+        $caught.Exception.Message | Should -BeLike '*Downstream failure*'
+        $emitted | Should -Be 1
+    }
+
+    It 'Should leave the loop for a break of a later command that takes the error of a nested folder' {
+        $emitted = 0
+        $reachedEnd = $false
+        foreach ($round in 1) {
+            Get-ChildItem2 -Path $errorTree -Recurse -File -ErrorAction Continue 2>&1 | ForEach-Object -Process {
+                $emitted++
+                break
+            }
+
+            $reachedEnd = $true
+        }
+
+        $emitted | Should -Be 1
+        $reachedEnd | Should -BeFalse
+    }
+}
+
+# Only * and ? are wildcards in -Filter, and the pattern *.* selects every item, as it does for Windows and Get-ChildItem.
+Describe 'Get-ChildItem2 -Filter on a share folder' -Tag 'Delegate', 'ServerAdmin', 'Admin' -Skip:(-not $configured) {
+    BeforeAll {
+        $folder = Get-LabPath -RelativePath "Case10\$Role\Filter"
+        $null = New-Item -ItemType Directory -Path $folder -Force
+        $names = 'Report[1].txt', 'Report1.txt', 'Page.htm', 'NoExtension'
+        foreach ($name in $names) {
+            Set-Content -LiteralPath (Join-Path -Path $folder -ChildPath $name) -Value $name -NoNewline
+        }
+
+        $null = New-Item -ItemType Directory -Path (Join-Path -Path $folder -ChildPath 'NoExtensionFolder')
+    }
+
+    # Before 5.0.0, the cmdlet read [1] as a character class and returned nothing.
+    It 'Should find a file whose name contains brackets by that name with -Filter' {
+        $result = @(Get-ChildItem2 -Path $folder -Filter 'Report[1].txt' -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        $result | Should -HaveCount 1
+        $result[0].Name | Should -BeExactly 'Report[1].txt'
+    }
+
+    # Before 5.0.0, the cmdlet compared each name with the pattern again and dropped the items without a dot in their names,
+    # files and folders alike.
+    It 'Should return every item for -Filter *.*, also the ones without a dot in their names' {
+        $result = @(Get-ChildItem2 -Path $folder -Filter '*.*' -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        $expected = @($names) + 'NoExtensionFolder'
+        (@($result.Name) | Sort-Object) -join ',' | Should -BeExactly (($expected | Sort-Object) -join ',')
+    }
+
+    # A null value used to end in a NullReferenceException of the cmdlet.
+    It 'Should reject a null -Filter' {
+        { Get-ChildItem2 -Path $folder -Filter $null -ErrorAction Stop } |
+            Should -Throw -ErrorId 'ParameterArgumentValidationError,NTFSSecurity.GetChildItem2' -ExpectedMessage "*'Filter'*"
+    }
+}
+
+Describe 'Privileges when a later command takes the debug messages of the cmdlet on a share' -Tag 'Delegate', 'Admin' -Skip:(-not $configured) {
+    # The two roles are administrators of the client, so the cmdlets enable privileges there. Before 5.0.0, a later command that
+    # ended the pipeline or threw at the message after the enabling left a privilege enabled in the session: the cmdlet had not
+    # noted yet that it enabled it, so nothing disabled it, and a throw was taken for a failure to enable the privilege.
+    BeforeAll {
+        $privateData = (Get-Module -Name NTFSSecurity).PrivateData
+        $savedEnablePrivileges = $privateData['EnablePrivileges']
+        $privateData['EnablePrivileges'] = $true
+        $debugFolder = Get-LabPath -RelativePath "Case10\$Role\Privileges"
+        $null = New-Item -ItemType Directory -Path $debugFolder -Force
+
+        function Get-LabEnabledFileSystemPrivilege {
+            # The names of the privileges that the cmdlets enable, as far as they are enabled now
+            @(Get-Privileges | Where-Object -FilterScript {
+                    $_.Privilege -in 'TakeOwnership', 'Restore', 'Backup', 'Security' -and $_.PrivilegeState -eq 'Enabled'
+                } | ForEach-Object -Process { $_.Privilege.ToString() })
+        }
+    }
+
+    AfterAll {
+        $privateData['EnablePrivileges'] = $savedEnablePrivileges
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    BeforeEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    AfterEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    It 'Should hold the four privileges that the cmdlets enable' {
+        @(Get-Privileges | Where-Object -FilterScript { $_.Privilege -in 'TakeOwnership', 'Restore', 'Backup', 'Security' }) | Should -HaveCount 4
+    }
+
+    It 'Should disable the privilege when Select-Object -First ends the pipeline at the message after its enabling' {
+        $DebugPreference = 'Continue'
+        $messages = @(Get-NTFSOwner -Path $debugFolder 5>&1 | ForEach-Object -Process { $_.Message })
+        $enabledAt = $messages.IndexOf('..enabled') + 1
+        $enabledAt | Should -BeGreaterThan 0
+        Get-LabEnabledFileSystemPrivilege | Should -BeNullOrEmpty
+
+        $result = @(Get-NTFSOwner -Path $debugFolder 5>&1 | Select-Object -First $enabledAt)
+
+        $result | Should -HaveCount $enabledAt
+        $result[-1].Message | Should -BeExactly '..enabled'
+        Get-LabEnabledFileSystemPrivilege | Should -BeNullOrEmpty
+    }
+
+    It 'Should pass on what a later command throws at the message after the enabling and disable the privileges' {
+        $DebugPreference = 'Continue'
+        $caught = $null
+        try {
+            Get-NTFSOwner -Path $debugFolder 5>&1 | ForEach-Object -Process {
+                if ($_.Message -eq '..enabled') { throw 'Downstream failure' }
+                $_
+            } | Out-Null
+        }
+        catch {
+            $caught = $_
+        }
+
+        $caught.Exception.Message | Should -BeLike '*Downstream failure*'
+        Get-LabEnabledFileSystemPrivilege | Should -BeNullOrEmpty
+    }
+}
+
 Describe 'Security descriptors on the file server after the runs on the client' -Tag 'Server' -Skip:(-not $configured) {
     It 'Should keep Administrators as the owner of <Folder>' -ForEach $ownedFolders {
         Get-LabOwner -Path (Get-LabPath -RelativePath $Folder) | Should -Be $administrators
@@ -901,5 +1488,41 @@ Describe 'Security descriptors on the file server after the runs on the client' 
     It 'Should have the entry of <Name> that Add-NTFSAccess added, and not the one that Remove-NTFSAccess removed' -ForEach $foreignAccounts {
         @(Get-LabExplicitAccessRule -Path (Get-LabPath -RelativePath 'Case9\ForeignAdd') -Sid $Sid) | Should -HaveCount 1
         Get-LabExplicitAccessRule -Path (Get-LabPath -RelativePath 'Case9\ForeignRemove') -Sid $Sid | Should -BeNullOrEmpty
+    }
+
+    # Case 10: a later command stopped each cmdlet after its first item. The first item changed, the second is as it was.
+    It 'Should have changed only the first item of <StateRole> for each cmdlet that a later command stopped' -ForEach $laterCommandStates {
+        $root = Get-LabPath -RelativePath "Case10\$StateRole\LaterCommand"
+        $account = $configuration.Accounts.$StateRole.Sid
+
+        foreach ($slug in 'Select', 'Throw') {
+            $removed = Join-Path -Path $root -ChildPath "RemoveItem2-$slug"
+            Test-Path -LiteralPath (Join-Path -Path $removed -ChildPath 'First.txt') | Should -BeFalse -Because "Remove-Item2 removed the first item ($slug)"
+            Test-Path -LiteralPath (Join-Path -Path $removed -ChildPath 'Second.txt') | Should -BeTrue -Because "Remove-Item2 left the second item ($slug)"
+
+            $copied = Join-Path -Path $root -ChildPath "CopyItem2-$slug-To"
+            Test-Path -LiteralPath (Join-Path -Path $copied -ChildPath 'First.txt') | Should -BeTrue -Because "Copy-Item2 copied the first item ($slug)"
+            Test-Path -LiteralPath (Join-Path -Path $copied -ChildPath 'Second.txt') | Should -BeFalse -Because "Copy-Item2 left the second item ($slug)"
+
+            $moved = Join-Path -Path $root -ChildPath "MoveItem2-$slug"
+            Test-Path -LiteralPath (Join-Path -Path $moved -ChildPath 'First.txt') | Should -BeFalse -Because "Move-Item2 moved the first item ($slug)"
+            Test-Path -LiteralPath (Join-Path -Path $moved -ChildPath 'Second.txt') | Should -BeTrue -Because "Move-Item2 left the second item ($slug)"
+            Test-Path -LiteralPath (Join-Path -Path $root -ChildPath "MoveItem2-$slug-To\First.txt") | Should -BeTrue -Because "Move-Item2 moved the first item ($slug)"
+            Test-Path -LiteralPath (Join-Path -Path $root -ChildPath "MoveItem2-$slug-To\Second.txt") | Should -BeFalse -Because "Move-Item2 left the second item ($slug)"
+
+            $owned = Join-Path -Path $root -ChildPath "SetOwner-$slug"
+            Get-LabOwner -Path (Join-Path -Path $owned -ChildPath 'First.txt') | Should -Be $account -Because "Set-NTFSOwner changed the first item ($slug)"
+            Get-LabOwner -Path (Join-Path -Path $owned -ChildPath 'Second.txt') | Should -Be $administrators -Because "Set-NTFSOwner left the second item ($slug)"
+
+            # The messages come before the change of an item, so the first item may still be as it was.
+            $ownedAtDebug = Join-Path -Path $root -ChildPath "SetOwner-Debug$slug"
+            Get-LabOwner -Path (Join-Path -Path $ownedAtDebug -ChildPath 'Second.txt') | Should -Be $administrators -Because "Set-NTFSOwner left the second item at the debug message ($slug)"
+
+            $written = Join-Path -Path $root -ChildPath "SetDescriptor-$slug"
+            @(Get-LabExplicitAccessRule -Path (Join-Path -Path $written -ChildPath 'First.txt') -Sid $everyone) | Should -HaveCount 1 -Because "Set-NTFSSecurityDescriptor wrote the first descriptor ($slug)"
+            Get-LabExplicitAccessRule -Path (Join-Path -Path $written -ChildPath 'Second.txt') -Sid $everyone | Should -BeNullOrEmpty -Because "Set-NTFSSecurityDescriptor left the second item ($slug)"
+            $writtenAtVerbose = Join-Path -Path $root -ChildPath "SetDescriptor-Verbose$slug"
+            Get-LabExplicitAccessRule -Path (Join-Path -Path $writtenAtVerbose -ChildPath 'Second.txt') -Sid $everyone | Should -BeNullOrEmpty -Because "Set-NTFSSecurityDescriptor left the second item at the verbose message ($slug)"
+        }
     }
 }

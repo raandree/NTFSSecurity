@@ -47,6 +47,8 @@ Read only task-relevant records; the index controls routing.
 | 20 | [Live tests in a lab live in Tests\Lab](decisions/0020-live-tests-in-tests-lab.md) |
 | 21 | [A quality gate before 5.0.0](decisions/0021-quality-gate-before-5.0.0.md) |
 | 22 | [The behavior changes of Phase 2 (proposed)](decisions/0022-phase-2-behavior-changes.md) |
+| 23 | [Non-Windows file servers before 5.0.0, #34 (proposed)](decisions/0023-non-windows-file-servers.md) |
+| 24 | [The operating-system matrix lab (proposed)](decisions/0024-os-matrix-lab.md) |
 
 ## Patterns
 
@@ -112,6 +114,23 @@ Read only task-relevant records; the index controls routing.
   example code blocks, and check the generated XML.
 - Live tests use only approved lab targets, SMB then independent server state;
   Get/SetFileSecurity preserves stored DACLs; rights oracles use S4U tokens.
+- A suite that is green on the development host and on CI says little about a
+  feature that the environment lacks. The matrix found three defects that every
+  earlier run had missed because the host is outside a domain and the CI
+  runner's token differs: run the suite on a domain member, on other builds, and
+  as a basic user before a release, and classify a failure by a probe under the
+  real tokens (elevated, filtered, local standard, domain standard) before
+  calling it a defect or a design.
+- A fixture that deletes an account and creates it again with the same name can
+  get a wrong answer for about ten minutes: the remote authorization managers
+  answered `0x100000` for the current SID while the local manager and a Kerberos
+  logon were right in the same second, and, when the accounts are created again
+  within seconds, the Kerberos S4U logons returned the old account (7 to 15
+  minutes). A failure that follows the order of the cells and not the version of
+  the module points to such state: run the baseline and the candidate in cells
+  that follow each other and alternate them (the replay of the record) before
+  blaming the code. The controller names the account of case 3 anew for each new
+  fixture.
 
 ### CI results and publication
 

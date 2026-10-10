@@ -175,5 +175,74 @@ source: repository and executable evidence
 - Remote Authz answers administrators and Access Control Assistance
   Operators (S-1-5-32-579); other accounts get access denied. Check firewall
   when remote resource-manager RPC fails. Expected rights use S4U tokens.
+  A computer in a domain offers the remote interface to every caller, so the
+  denial also hit the default `-ServerName localhost` for a user who isn't an
+  administrator; a computer outside a domain doesn't offer it, which is why the
+  tests passed on the development host and on CI. Since `fdd7a8b`, the local
+  manager answers for a name of this computer when the remote one refuses; the
+  denial stays for another computer (live test of the Delegate role).
+- A live test is evidence of a fix only when it fails on the build without
+  the fix: run the same tests, controller, and lab against the candidate and
+  the base of the branch, a new process per edition, and join both result
+  sets by edition, role, and full test name; the tests that pass on both are
+  controls (`Tests\Lab\Acceptance-2026-10-09-quality-gate-paths.md`). A
+  validator must not name a loop variable like a typed parameter: PowerShell
+  variables ignore case, so `$edition` overwrote `$Edition` and every edition
+  in the CSV became `System.String[]`.
 - RemoveFixture after the run; verify OUs/accounts, share, folders, local
   memberships, and test profiles removed. Credentials must never be printed.
+
+### Operating-system matrix (Decision 24)
+
+- Lab `NtfsSecurityOsMatrixLab`: OSDC1 (Server 2025), OSFile19/22/25 (Server
+  2019/2022/2025), OSWin11E (Windows 11 Enterprise Evaluation 22H2, the domain
+  client), OSWin11 (Windows 11 Pro 26H1, suite only). Kit: `Tests\Lab\Acceptance`;
+  record: `Tests\Lab\Acceptance-2026-10-10-os-matrix.md`.
+- Run the module's own suite on every machine class before the controller
+  (`Run-MatrixLocalSuite.ps1`, elevated and basic, both editions, as scheduled
+  tasks with a batch logon at the highest run level): a child of a remoting
+  session has every privilege enabled and fails eight tests that expect them
+  disabled. Skipped lists are compared as multisets against the host.
+- AutomatedLab: one `Import-Lab` at a time, and none while a controller
+  sequence runs (it re-imports the lab); `Wait-LabVM` waits for a heartbeat that
+  a client may not report, so retry `New-LabPSSession`. The host's `bcdboot`
+  leaves the ESP of a Server 2019 or Windows 11 22H2 base image empty.
+- Windows PowerShell 5.1: `$PSScriptRoot` is empty in a parameter default under
+  `-File`; `2>&1` on a native command under `Stop` makes its stderr line
+  terminating; `Get-LocalGroupMember` fails on an orphaned SID; `net localgroup
+  <name> <SID> /delete` refuses the SID of a name that its cache still
+  resolves (use `Remove-LocalGroupMember -SID`).
+- Windows 11 26H1 (28000.1836) loses the secure channel to a Server 2025 domain
+  controller (`NetrLogonGetCapabilities` level 2, 0xC0000022): suite only.
+  The 22H2 evaluation client shuts down every hour (license grace expired) and
+  can lose its machine password after an unplanned shutdown: keep a run under
+  an hour from its start, test a domain session (not `nltest /sc_verify`, which
+  stays stale), repair with `Test-ComputerSecureChannel -Repair`.
+- Builds are not byte-reproducible (two unchanged assemblies differ per build):
+  hash each candidate and its package separately.
+- The fixture's account for case 3 gets a new name for each new fixture
+  (`NtfsLiveSubject` and four digits). In the matrix lab, after an account was
+  deleted and created again with the same name, the remote authorization
+  managers (the client's for the default `-ServerName`, the file server's for its
+  name) answered for about ten minutes as if it had no groups (`0x100000`), for
+  the baseline and for the final candidate alike, while the Kerberos S4U logon of
+  the oracle, the
+  name resolution, and the local manager were right in the same second. A replay
+  with the baseline and the final candidate alternating failed the baseline in two
+  of three cells and the final candidate in one of three (not counting the warm-up
+  cell). The mechanism in Windows is unknown; a model with one lifetime (9.95 to
+  10.25 minutes for both tests, to within 0.05 minute) fits all 43 Admin-role runs
+  of 27 cells. When the accounts are created again within seconds, the S4U
+  logon itself returns the old account for 7 to 15 minutes. A `klist purge`,
+  `nltest /sc_reset`, a DNS flush, and a restart of the Kerberos service didn't
+  help. `Probe-AccountRecreation.ps1`, `Export-CellTimeline.ps1`, and
+  `Test-StaleAuthzModel.ps1` show it.
+- `net.exe localgroup` lists a local user by its bare name and the entry of a
+  deleted domain account as its SID (or as its cached name for a while);
+  deleting a local user removes its entries from the local groups, so only the
+  entries of domain accounts stay orphaned. `Test-MatrixCleanup.ps1` finds the
+  entries of the account probe in Performance Log Users by a name with
+  `NtfsProbe` or by any unresolved `S-1-5-21-…` SID (every such member counts as
+  the probe's), and its profiles by their folder `C:\Users\NtfsProbe*`. The
+  cached-name form met real residue in a test; the bare-SID form and a profile
+  that stays loaded didn't.

@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-09
+last-verified: 2026-10-10
 owner: active-agent
 source: current task evidence
 ---
@@ -9,27 +9,51 @@ source: current task evidence
 
 ## Current focus
 
-Handoff 1 of the quality gate is finished locally on `ai/quality-gate-paths`,
-from the reviewed head `f11ff41` of #117: 28 commits, nothing pushed. Both
-stacked PRs stay open and green; rc6 remains the latest published
-candidate and 4.2.6 the stable Gallery version. Every C# method that no test
+The maintainer asked on 2026-10-09 at 21:21 UTC to continue with the release-gate
+handoffs and to decide and report later. On 2026-10-10 at 09:10 UTC he merged
+#116 (rc7, merge commit `8a6be9f`; rc7 is neither tagged nor published). His
+`--delete-branch` also deleted the base branch of #117, so GitHub closed #117
+unmerged; nothing is lost (`ai/quality-gate-coverage` is intact at `f11ff41`,
+and the merge into `master` is conflict-free by simulation), and a new pull
+request replaces it (Next step 1). Handoff 1 (paths) is draft #118 (`83149ee`,
+CI green, base `ai/quality-gate-coverage`; rc6 is the latest published
+candidate, 4.2.6 the stable Gallery version). Handoff 2 (operating-system
+matrix) is draft #119 (`49734ef`, CI green, base `ai/quality-gate-paths`): the
+lab `NtfsSecurityOsMatrixLab`, three fixes of the module in two commits
+that the matrix found (`962887a`, `fdd7a8b`), the kit, the controller changes, and the
+record `Tests/Lab/Acceptance-2026-10-10-os-matrix.md` (Decision 24, proposed).
+The final local candidate `fdd7a8b` passes the module's suite on five operating
+systems and the host (24 runs, no failure) and the live controller in three
+cells of the matrix (1,374 passed, 0 failed, 12 skipped) and in the first lab,
+where case 9 runs (245 passed, 0 failed, 1 skipped per edition). Handoff 3: Decision 22 was confirmed
+under the delegation and stays proposed; nothing is published. Handoff 4:
+Decision 23 (the #34 dossier); the risk acceptance is the maintainer's. The
+agent's decisions of the night are D1 to D46 in
+`decisions-night-2026-10-09.md` of the session files. Stable 5.0.0 stays gated.
+
+The earlier state of handoff 1, from the reviewed head `f11ff41` of #117: 28
+commits, which the maintainer pushed as draft #118. Every C# method that no test
 visits is classified (223 explained, 8 open for the maintainer), and the
 other paths have behavior tests. Eleven defects were fixed, ten of them
 with a regression guard that is red before the fix and green after it (owner
 restore, `InheritedFrom`, a later command that ends the pipeline or throws,
 also at the error, verbose, and debug streams, `-Filter` brackets, null, and
 `*.*`, public object APIs, a privilege left enabled); the leak of a native
-buffer has no observable guard. Gate 3 must repeat the affected lab acceptance
-before the next candidate is published. Decisions 21/22 and stable 5.0.0
-remain gated; Decision 22 is proposed, not accepted.
+buffer has no observable guard. The lab acceptance of those fixes was repeated
+on 2026-10-09 (below); the published package still needs its own acceptance
+in gate 3. Decisions 21/22 and stable 5.0.0
+remain gated; Decision 22 is proposed: the agent confirmed all ten choices
+on 2026-10-09 under the maintainer's delegation, and his own confirmation is
+open.
 
 ## Evidence
 
 - rc6 Release run `37839669028`, attempt 2, succeeded; GitHub prerelease
   with zip appeared 2026-10-09 07:01:34 UTC. First attempt proves HTTP 409
   after Gallery publication, not the previously assumed retry chronology.
-- #116 is open, base master, head `d25647d`, CI build/wiki passed. rc7
-  publication is pending. The follow-up does not change that PR's head.
+- #116 was merged into `master` on 2026-10-10 at 09:10:12Z (merge commit
+  `8a6be9f`, head `d25647d`); rc7 isn't tagged or published. #117 was closed
+  unmerged at 09:10:16Z (events `base_ref_deleted`, `closed`).
 - Local changes: deletion/ownership guards (`a97e46f`); all scopes and
   inheritance (`e7ee203`); absolute basic-user results (`51dec86`);
   exact-package publication recovery (`95b827e`); first-hidden-item fix
@@ -86,23 +110,85 @@ remain gated; Decision 22 is proposed, not accepted.
 - Six checkpoints exist but report Standard, even after a successful
   temporary ProductionOnly probe; policy restored, no restore performed.
   Do not claim verified Production rollback evidence.
+- Lab acceptance of the paths fixes, 20:41 to 21:42 UTC on 2026-10-09: the
+  candidate `83149ee` and its base `f11ff41` ran the same 244 tests per
+  edition (78 new, case 10) from their extracted packages. Candidate 486
+  passed, 0 failed, 2 expected skips; baseline 338 passed, 148 failed, each
+  green on the candidate; both editions gave the same counts. Fixture removal
+  verified by a separate read-only check in four domains and on both file
+  machines; six checkpoints (Standard type, no restore). Record, results CSV,
+  and limits: `Tests/Lab/Acceptance-2026-10-09-quality-gate-paths.md`. This
+  covers the gate-3 handoff table of the path report, except the published
+  package and the other operating systems.
 - Wider matrix not deployed: 13 Server 2025 VMs; Windows 11/2019/2022
   media present, OS detection cache empty. #34 has no reply since Oct 6.
 - Full evidence: session artifact `quality-gate-3442194-20261009`;
   repository report `Tests/Lab/Acceptance-2026-10-09-quality-gate.md`.
+- Operating-system matrix, 2026-10-10 (record `Tests/Lab/Acceptance-2026-10-10-os-matrix.md`
+  with CSV tables): the suite of the final candidate `fdd7a8b` on OSFile19,
+  OSFile22, OSFile25, OSWin11E, OSWin11, and the host, four configurations each,
+  zero failures, skipped tests identical to the host's; the baseline `83149ee`
+  (run on OSFile22 and OSFile25) fails 4 elevated and 20 basic-user tests. Live: run
+  `rc7l`, three cells, 1,374 passed, 0 failed, 12 skipped. First lab (run `fl1`,
+  case 9 included, both editions): 245 passed, 0 failed, 1 skipped per edition,
+  fixture removed and verified clean. The Admin-role
+  effective-access failures of the earlier cells were not the module: in a replay
+  (`ab0` to `ab6`) the baseline failed two of three cells and the final candidate
+  one of three (not counting the warm-up `ab0`), and one model (the remote
+  authorization managers answer for an account name for about ten minutes after
+  the account was created again) fits all 43 Admin-role runs of 27 cells; the
+  Windows mechanism is unknown. The controller now names the account of case 3
+  anew for each fixture (`1dec389`); four more cells with it (`ab7` to `ab10`)
+  passed, two of them where the model predicts a failure for a reused name.
+  Reviewed by the built-in code-review agent (custom `security-reviewer`
+  unavailable): approve with Minor, fixed; a second review found one Major
+  (record accuracy), addressed by the replay; a follow-up review found no
+  Blocker or Major and five Minors, corrected; a second follow-up review found no
+  Blocker or Major and four Minors, corrected. The built-in `security-review`
+  agent (the custom reviewer is still unavailable) found no exploitable
+  vulnerability in the module changes and two LOW items that are not changed
+  (Next step 6). A dry run of `Run-MatrixSequence.ps1 -Version 5.0.0-rc6` on
+  OSFile19 showed that the published-package path works. State of the labs at
+  07:50 UTC on 2026-10-10: no fixture and no probe residue in either lab
+  (`Verify` of the matrix lab 07:45, of the first lab 07:29); the six VMs of the
+  matrix run, and `OSWin11E` (restarted 07:36) shuts itself down about an hour
+  after its start.
 
 ## Next step
 
-1. The maintainer reviews and integrates `ai/quality-gate-paths` (stacked on
-   #117; no remote change was made here) and decides the open items listed
-   in the report: `FileSecurity` conversions, `RemoveAll` account filters,
-   lazy path overloads, abandoned `PrivilegeEnabler`, dot patterns of
-   `Get-ChildItem2 -Filter`, the 17 owner-restore handlers without the
-   later-command check, unused classes (Decisions 21/22).
-2. Gate 3: repeat the affected packaged acceptance (the report's handoff
-   table: owner restore, `InheritedFrom`, later-command exceptions, filter,
-   privileges, public objects) before the next candidate is published. No
-   local upload.
-3. Retain stacked-PR order (15), obtain Decision 22 review, finish the OS
-   matrix and obtain or explicitly accept #34 feedback through other gates.
-4. Do not release stable 5.0.0 or equate a percentage with gate closure.
+1. The maintainer integrates the rest of the stack (Decision 15; commands in
+   the deployment notes). A **new** pull request from `ai/quality-gate-coverage`
+   to `master` replaces #117; then #118 and, if its module fixes go into rc7,
+   #119 are retargeted with `gh pr edit <n> --base master`, marked ready, and
+   merged. No `--delete-branch` while another open pull request uses the branch
+   as its base; the head branches are deleted last. He decides which module
+   fixes of the matrix branch belong to rc7 (two commits: `962887a` holds two
+   fixes, `fdd7a8b` one) and reviews them (Decision 24).
+2. He decides the open items listed in the paths report: `FileSecurity`
+   conversions, `RemoveAll` account filters, lazy path overloads, abandoned
+   `PrivilegeEnabler`, dot patterns of `Get-ChildItem2 -Filter`, the 17
+   owner-restore handlers without the later-command check, unused classes
+   (Decisions 21/22).
+3. Gate 3: accept the published package in the first lab and in every cell of
+   the matrix (`Run-MatrixSequence.ps1 -Version`) before the candidate counts as
+   accepted; no local upload. The paths fixes were accepted locally (record
+   above).
+4. Retain stacked-PR order (15): #116 (merged), the replacement of #117, #118,
+   then #119; a simulated merge in that order gives exactly the tree of the
+   matrix branch (`62aa1ae`). Confirm or change Decision 22.
+5. #34 stays open (Decision 23): the maintainer chooses between waiting for a
+   test of the published candidate on the NetApp, EMC, and IBM ESS servers of
+   the reporters (checklist: `Tests/Lab/Non-Windows-File-Server-Test.md`) and
+   accepting the untested risk with a release-note caveat. No agent can
+   accept it.
+6. He decides the two LOW findings of the security review (record, Limits):
+   the swallowed initialization errors of `GetEffectiveAccess` (a false "no
+   access" instead of an error on an OS that refuses at initialization, and
+   neither warning nor error when the local fallback fails; fix: record the
+   initialization exceptions in `authzException`, with a regression test and a
+   check of the sentence "the error stays" in the help and CHANGELOG), and the
+   ACL of the stage folders under `C:\` in the lab kit (they inherit
+   Authenticated Users: Modify; protecting them is a design change of the
+   controller and needs a new acceptance). The help could also say that a local
+   standard user who asks about a domain account still gets "Access is denied".
+7. Do not release stable 5.0.0 or equate a percentage with gate closure.

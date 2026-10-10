@@ -66,10 +66,18 @@ namespace Security2
             // Read together with the SACL, the inherited entries of a DACL without the auto-inherit flag lose their
             // inherited flag when the parent folder has no SACL, and writing such a DACL back stores them as explicit
             // entries. Read alone, the DACL keeps the flags.
+            //
+            // The same goes for the SACL: read together with the other sections, the SACL of an item without audit
+            // entries is reported as protected from inheritance on some computers (seen on domain-joined Windows Server
+            // 2022 and 2025 and on Windows 11), while the read of the SACL alone, which Get-NTFSInheritance uses for a
+            // path, reports it as not protected. The state of the item has to be the same by path and by descriptor.
             if (HasAuditSection)
             {
                 var accessSecurity = GetSecurity(item, AccessControlSections.Access);
                 sd.SetSecurityDescriptorBinaryForm(accessSecurity.GetSecurityDescriptorBinaryForm(), AccessControlSections.Access);
+
+                var auditSecurity = GetSecurity(item, AccessControlSections.Audit);
+                sd.SetSecurityDescriptorBinaryForm(auditSecurity.GetSecurityDescriptorBinaryForm(), AccessControlSections.Audit);
             }
 
             RememberSections();
