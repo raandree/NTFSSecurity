@@ -1074,11 +1074,11 @@ $modules = @(
 )
 
 Write-LabProgress 'Preparing the accounts, the file server, and the client'
-# When an account is deleted and created again with the same name, a Kerberos S4U logon for it keeps returning the SID and the groups of
-# the deleted account for a while: on the domain controller, the client, and the file server of the operating-system matrix, for every
-# version of the module. The Authz functions behind Get-NTFSEffectiveAccess log an account on this way, so the cmdlet returned no access
-# for the new account. A new fixture therefore gets a name for the account of case 3 that no earlier fixture used; a fixture that
-# exists keeps its account.
+# When an account is deleted and created again with the same name, the remote authorization managers of the client and of the file server, which
+# Get-NTFSEffectiveAccess asks for its default -ServerName and for the name of the file server, keep answering for about ten minutes as if the new
+# account had no groups (Synchronize only), whichever version of the module runs. The local manager and a Kerberos S4U logon of the account, which
+# the oracle uses, are right at that moment (Decision 24). So a new fixture gets a name for the account of case 3 that an earlier fixture is unlikely
+# to have used (four random digits); a fixture that exists keeps its account.
 $existingSubjects = @(Invoke-LabCommand -ComputerName $DomainController -ActivityName 'Look for the account of case 3' -ScriptBlock $findSubjectScript -ArgumentList $organizationalUnitName, $subjectBaseName @labCommand)
 $subjectAccount = if ($existingSubjects) { [string]$existingSubjects[0] } else { '{0}{1:D4}' -f $subjectBaseName, (Get-Random -Minimum 0 -Maximum 10000) }
 $groupMembers['NtfsLiveInner'] = @($subjectAccount)

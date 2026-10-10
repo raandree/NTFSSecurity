@@ -2,7 +2,7 @@
 param (
     [Parameter(Mandatory)] [ValidatePattern('^[\w-]+$')] [string] $Label,
     [Parameter(Mandatory)] [string] $FileServer,
-    [string] $Client = 'OSWin11',
+    [string] $Client = 'OSWin11E',
     [string] $ModulePath,
     [string] $Version,
     [string] $Edition = 'Desktop,Core',
@@ -10,7 +10,7 @@ param (
     [string] $LabName = 'NtfsSecurityOsMatrixLab',
     [string] $DomainController = 'OSDC1',
     [string] $LabFolder,
-    [string] $Machines = 'OSFile19,OSFile22,OSFile25,OSWin11'
+    [string] $Machines = 'OSFile19,OSFile22,OSFile25,OSWin11E'
 )
 
 # One detached sequence of the operating-system matrix (Decision 24) in Windows PowerShell 5.1 on the Hyper-V host. For each cell, a file

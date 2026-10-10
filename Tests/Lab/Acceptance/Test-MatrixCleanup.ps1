@@ -5,17 +5,18 @@ param (
     [Parameter(Mandatory)] [string] $OutFile,
     [string] $LabName = 'NtfsSecurityOsMatrixLab',
     [string[]] $DomainController = @('OSDC1'),
-    [string[]] $Machine = @('OSFile19', 'OSFile22', 'OSFile25', 'OSWin11')
+    [string[]] $Machine = @('OSFile19', 'OSFile22', 'OSFile25', 'OSWin11E')
 )
 
 # Independent end-state check of the fixture of Invoke-NTFSSecurityLabTest.ps1 in a lab (Windows PowerShell 5.1, on the host). Snapshot
 # records the SIDs of the NtfsLive* accounts while the fixture exists. Verify reads the domains and every machine again, and reports
 # the organizational unit, the accounts, the share, the folders, the local group, the memberships of Administrators, Access Control
 # Assistance Operators, and Remote Management Users, and the profiles of those SIDs, and what the suite runs and the probes of the kit leave
-# behind (scheduled tasks, items in the stage folders, standard users, probe accounts of the domain). The result is judged from this log, never from
-# the wrapper of the controller or a global error count. Repair is for a run whose removal failed: with the SIDs of the snapshot, it
-# removes what that run left on the machines (the memberships, also of orphaned SIDs, which net localgroup deletes by SID; the share; the
-# local group; the folders; the stage folders and scheduled tasks of the kit) and then reports like Verify.
+# behind (scheduled tasks, items in the stage folders, the folders of the account probe, standard users, probe accounts of the domain). The
+# result is judged from this log, never from the wrapper of the controller or a global error count. Repair is for a run whose removal failed:
+# with the SIDs of the snapshot, it removes what that run left on the machines (the memberships, also of orphaned SIDs, which net localgroup
+# deletes by SID; the share; the local group; the folders) and what the kit leaves (the items in the stage folders, the folders of the
+# account probe, the scheduled tasks NtfsMatrix*, and the standard users and domain accounts NtfsProbe*), and then reports like Verify.
 & {
     $ErrorActionPreference = 'Stop'
     # -File passes an array as one string, so a list may arrive as 'A,B'.
@@ -24,6 +25,23 @@ param (
     '[{0:yyyy-MM-dd HH:mm:ss}Z] START matrix-cleanup-{1} lab={2}' -f [DateTime]::UtcNow, $Mode, $LabName
     Import-Lab -Name $LabName -NoValidation -NoDisplay
     $labCommand = @{ NoDisplay = $true; PassThru = $true; ErrorAction = 'Stop' }
+    if ($Mode -eq 'Repair') {
+        # The accounts that the probes of the kit create in the domain, by their prefix; this runs before the directory is read, so that the report shows the result.
+        $repairDirectoryScript = {
+            Import-Module -Name ActiveDirectory
+            $domain = Get-ADDomain
+            $objects = @(Get-ADObject -LDAPFilter '(sAMAccountName=NtfsProbe*)' -SearchBase $domain.DistinguishedName -Server $domain.PDCEmulator)
+            foreach ($object in $objects) { Remove-ADObject -Identity $object -Recursive -Confirm:$false -Server $domain.PDCEmulator }
+            '{0}: removed {1} account(s) named NtfsProbe*' -f $domain.DNSRoot, $objects.Count
+        }
+
+        foreach ($name in $DomainController) {
+            foreach ($message in @(Invoke-LabCommand -ComputerName $name -ActivityName "Repair the directory of $name" -ScriptBlock $repairDirectoryScript @labCommand)) {
+                '{0,-9} repair: {1}' -f $name, $message
+            }
+        }
+    }
+
     $directoryScript = {
         Import-Module -Name ActiveDirectory
         $domain = Get-ADDomain
@@ -67,9 +85,11 @@ param (
                 LocalGroup = [bool] (Get-LocalGroup -Name 'NtfsLiveLocal' -ErrorAction SilentlyContinue)
                 Groups     = $groups -join '; '
                 Profiles   = @(Get-CimInstance -ClassName Win32_UserProfile | Where-Object -FilterScript { $_.SID -in $Sid }).Count
-                # What the suite runs and the probes of the kit leave behind: scheduled tasks, items in the stage folders, and standard users
+                # What the suite runs and the probes of the kit leave behind: scheduled tasks, items in the stage folders, the folders of the
+                # account probe, and standard users
                 Tasks      = @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.TaskName -like 'NtfsMatrix*' }).Count
-                Stages     = @('C:\NtfsMatrixLocal', 'C:\NtfsMatrixProbe' | Where-Object -FilterScript { Test-Path -LiteralPath $_ } | ForEach-Object -Process { Get-ChildItem -LiteralPath $_ -Force -ErrorAction SilentlyContinue }).Count
+                Stages     = @('C:\NtfsMatrixLocal', 'C:\NtfsMatrixProbe' | Where-Object -FilterScript { Test-Path -LiteralPath $_ } | ForEach-Object -Process { Get-ChildItem -LiteralPath $_ -Force -ErrorAction SilentlyContinue }).Count +
+                @('C:\NtfsProbeRecreation', 'C:\NtfsProbeModules' | Where-Object -FilterScript { Test-Path -LiteralPath $_ }).Count
                 Users      = @(Get-LocalUser -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.Name -like 'NtfsProbe*' }).Count
             }
         }
@@ -100,13 +120,23 @@ param (
                         $messages.Add(('{0}: present after {1} attempt(s): {2}' -f $path, $attempt, (Test-Path -LiteralPath $path)))
                     }
 
-                    # What the suite runner and the probes of the kit left in their stage folders, and their scheduled tasks
+                    # What the suite runner and the probes of the kit left: the items in their stage folders, the folders of the account probe,
+                    # their scheduled tasks, and the standard users that the probe of the authorization managers creates (with their profiles)
                     foreach ($stage in 'C:\NtfsMatrixLocal', 'C:\NtfsMatrixProbe') {
                         if (Test-Path -LiteralPath $stage) { Get-ChildItem -LiteralPath $stage -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue }
                     }
 
+                    foreach ($folder in 'C:\NtfsProbeRecreation', 'C:\NtfsProbeModules') {
+                        if (Test-Path -LiteralPath $folder) { Remove-Item -LiteralPath $folder -Recurse -Force -ErrorAction SilentlyContinue }
+                    }
+
                     Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.TaskName -like 'NtfsMatrix*' } | ForEach-Object -Process { Unregister-ScheduledTask -TaskName $_.TaskName -Confirm:$false -ErrorAction SilentlyContinue }
-                    $messages.Add('stage folders and scheduled tasks of the kit removed')
+                    foreach ($user in @(Get-LocalUser -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.Name -like 'NtfsProbe*' })) {
+                        foreach ($userProfile in @(Get-CimInstance -ClassName Win32_UserProfile | Where-Object -FilterScript { $_.SID -eq $user.SID.Value })) { Remove-CimInstance -InputObject $userProfile -ErrorAction SilentlyContinue }
+                        Remove-LocalUser -SID $user.SID -ErrorAction SilentlyContinue
+                    }
+
+                    $messages.Add('stage items, probe folders, probe users, and scheduled tasks of the kit removed')
 
                     $messages
                 }

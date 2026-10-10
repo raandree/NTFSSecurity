@@ -2,7 +2,7 @@
 param (
     [string] $LabName = 'NtfsSecurityOsMatrixLab',
     [string[]] $DomainController = @('OSDC1'),
-    [string[]] $Member = @('OSFile19', 'OSFile22', 'OSFile25', 'OSWin11'),
+    [string[]] $Member = @('OSFile19', 'OSFile22', 'OSFile25', 'OSWin11E'),
     [Parameter(Mandatory)] [string] $OutFile
 )
 
