@@ -4945,7 +4945,7 @@ PS C:\&gt; Get-NTFSAudit -SecurityDescriptor $sd</dev:code>
     <maml:description>
       <maml:para>Calculates the rights an account really has on a file or a folder and writes the result as a single `Security2.FileSystemAccessRule2` object per item. The cmdlet evaluates the complete discretionary access control list (DACL) of the item against the group memberships of the account with the Windows Authorization API, so allow entries, deny entries, and inherited entries are combined the same way the Windows access check combines them. This is the equivalent of the "Effective Access" tab of the advanced security dialog.</maml:para>
       <maml:para>The calculation covers the NTFS permissions of the item only. Share permissions are stored in a separate security descriptor and are not part of the result, so access over a network share can be more restrictive than this cmdlet reports.</maml:para>
-      <maml:para>When `-Account` is omitted, the account that runs the session is used. `-ServerName` selects the computer whose authorization manager resolves the group memberships of the account and defaults to `localhost`; when the remote authorization manager of the named computer cannot be reached, the cmdlet falls back to the local one and warns that the result is based on the group memberships known on this computer and may be inaccurate. The authorization manager of the named computer answers only the administrators of that computer and the members of its local group Access Control Assistance Operators; for any other account, the cmdlet writes an error and doesn't fall back. Reading effective access relies on the Security privilege, and the cmdlet warns when the account does not hold it or the privilege is disabled.</maml:para>
+      <maml:para>When `-Account` is omitted, the account that runs the session is used. `-ServerName` selects the computer whose authorization manager resolves the group memberships of the account and defaults to `localhost`; when the remote authorization manager of the named computer cannot be reached, the cmdlet falls back to the local one and warns that the result is based on the group memberships known on this computer and may be inaccurate. The warning names the computer that couldn't be reached. For a name of this computer, such as `localhost`, `.`, or its computer name, the local authorization manager gives the result of the named computer, so the cmdlet doesn't warn. The authorization manager of the named computer answers only the administrators of that computer and the members of its local group Access Control Assistance Operators; for any other account, the cmdlet writes an error and doesn't fall back. Reading effective access relies on the Security privilege, and the cmdlet warns when the account does not hold it or the privilege is disabled.</maml:para>
       <maml:para>When `-Path` is omitted, the cmdlet calculates the effective access to the current location. In the `SecurityDescriptor` parameter set, it calculates the effective access from a `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, without reading the item again.</maml:para>
     </maml:description>
     <command:syntax>
@@ -5155,6 +5155,7 @@ PS C:\&gt; Get-NTFSAudit -SecurityDescriptor $sd</dev:code>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>Reading effective access needs the Security privilege. In a session that does not hold it, the cmdlet warns before it starts and the calculation may fail with an error. Use `Enable-Privileges` in an elevated session to enable the privilege, and `Get-Privileges` to see which privileges the session holds. When the calculation fails, the error names the cause that Windows reported, such as a security descriptor without an owner; before 5.0.0, it blamed a missing Security privilege whenever the privilege wasn't enabled.</maml:para>
         <maml:para>Before 5.0.0, `-ExcludeNoneAccessEntries` had no effect, and the cmdlet returned nothing without `-Path` or for `-SecurityDescriptor`. When the computer of `-ServerName` couldn't be reached, the cmdlet warned that it had calculated the result on this computer, but returned no access instead of that result.</maml:para>
+        <maml:para>Before 5.0.0-rc7, the warning about a computer that couldn't be reached didn't name the computer, and the cmdlet warned for every name of this computer except `localhost` in lowercase, such as `.`, `LOCALHOST`, or the computer name.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -5988,7 +5989,7 @@ PS C:\&gt; Get-NTFSAudit -SecurityDescriptor $sd</dev:code>
           <maml:name>Security2.FileSystemSecurity2[]</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>Security descriptors bind to the inherited `-SecurityDescriptor` parameter, but this cmdlet does not read their audit entries.</maml:para>
+          <maml:para>Security descriptors that `Get-NTFSSecurityDescriptor` returned bind to `-SecurityDescriptor`, and the cmdlet examines their audit entries.</maml:para>
         </maml:description>
       </command:inputType>
       <command:inputType>
@@ -6013,9 +6014,10 @@ PS C:\&gt; Get-NTFSAudit -SecurityDescriptor $sd</dev:code>
     <maml:alertSet>
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
-        <maml:para>Reading the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it the cmdlet reads the security descriptor without its SACL and reports no orphaned entries at all, which looks the same as a tree that has none.</maml:para>
-        <maml:para>If an item cannot be read, the cmdlet writes a warning and continues with the next item. Unlike `Get-NTFSAudit`, it does not try to take ownership of the item when access is denied.</maml:para>
+        <maml:para>Reading the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it, the cmdlet writes the non-terminating error `ReadSecurityError` for each item, which reports "A required privilege is not held by the client", like `Get-NTFSAudit`.</maml:para>
+        <maml:para>If the audit entries of an item can't be read, the cmdlet writes a `ReadSecurityError`, with the category `PermissionDenied` when access is denied, and continues with the next item; for a path that doesn't exist, it writes a `ReadError`. Like `Get-NTFSAudit`, it doesn't take ownership of the item, because ownership grants no access to the SACL.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor` and wrote the entries of each item as one collection.</maml:para>
+        <maml:para>Before 5.0.0-rc7, the cmdlet read an item without its SACL when the Security privilege was missing and reported no orphaned entries, which looked the same as an item that has none. For an item that it couldn't read, it wrote a warning instead of an error.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -6385,7 +6387,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
     </command:details>
     <maml:description>
       <maml:para>Reads the access control entries of folders and writes them as `Security2.SimpleFileSystemAccessRule` objects whose rights are reduced to the three values `Read`, `Write`, and `Delete`. Reading rights such as `ReadData`, which on a folder is the right to list it (`ListDirectory`), `ReadAttributes`, or `Traverse` become `Read`, changing rights such as `CreateFiles`, `WriteAttributes`, `ChangePermissions`, or `TakeOwnership` become `Write`, and `Delete` and `DeleteSubdirectoriesAndFiles` become `Delete`; `FullControl` becomes all three. The result answers who may read, change, or delete in a folder without the detail of the full ACL.</maml:para>
-      <maml:para>The second simplification is that repetitions are left out. The first folder the cmdlet processes is reported with all of its entries, and for every folder that follows only the entries are reported that its parent folder does not already cover. An entry is covered when the parent has an entry for the same account and access type that includes at least the same simple rights. This makes a recursive listing show where permissions actually change instead of repeating the inherited ones on every level, and it requires the parent folder to be processed before its children, which `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` do by default.</maml:para>
+      <maml:para>The second simplification is that repetitions are left out. The first folder the cmdlet processes is reported with all of its entries, and so is every folder whose parent folder the cmdlet didn't report before, such as a drive root; paths that differ only in case name the same folder. For a folder whose parent folder it reported, only the entries are reported that the parent folder does not already cover. An entry is covered when the parent has an entry for the same account and access type that includes at least the same simple rights. This makes a recursive listing show where permissions actually change instead of repeating the inherited ones on every level, and it requires the parent folder to be processed before its children, which `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` do by default.</maml:para>
       <maml:para>`-IncludeRootFolder` is on by default and adds the parent folder of the first path as the baseline for the comparison, which is why the first result usually belongs to the folder above the one that was asked for. Use `-IncludeRootFolder:$false` to start the comparison at the first path itself.</maml:para>
       <maml:para>The cmdlet only processes folders; a path that points to a file is skipped silently, while the security descriptor of a file is reported. Relative paths are resolved against the current location, and the current location is used when `-Path` is omitted. `-ExcludeInherited`, `-ExcludeExplicit`, and `-Account` work as in `Get-NTFSAccess`. With `-SecurityDescriptor`, the cmdlet reports the entries of a `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, without comparing them with a parent folder.</maml:para>
     </maml:description>
@@ -6628,6 +6630,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>The simplified rights hide which exact rights an account holds. Use `Get-NTFSAccess` when you need the full access control entry, and `Get-NTFSEffectiveAccess` when you need the rights that result from all entries together.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor`, and its output had no table view. It also showed no rights for an entry that grants only `ReadData`, which other tools than .NET create, and it left out the parent folder of a relative path with a single folder name, such as `Data`.</maml:para>
+        <maml:para>Before 5.0.0-rc7, the cmdlet left out a folder whose parent folder it hadn't reported, unless it was the first folder, and with it all of its subfolders; a parent folder whose path differed in case counted as not reported. A drive root was left out as well, or compared with the parent folder of the folder before it, and a folder that came after its parent folder a second time failed with a `ReadError`.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -6787,7 +6790,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
     <maml:description>
       <maml:para>The `Move-Item2` cmdlet moves the items in `-Path` to the location in `-Destination`. It is the long-path counterpart of the built-in `Move-Item` cmdlet: it works through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), so source and destination may be longer than the 260-character `MAX_PATH` limit. Files and folders can both be moved, and a folder is moved with everything it contains.</maml:para>
       <maml:para>How `-Destination` is interpreted depends on what is already there. If the value names an existing folder, the cmdlet keeps the name of the source item and moves it into that folder. In every other case the value is the full path of the new item, which lets you move and rename in one step, or rename an item in place. `-Destination` is resolved against the current location once, when the cmdlet starts.</maml:para>
-      <maml:para>Without `-Force`, the cmdlet checks whether a file or folder already exists at the destination and writes a `DestinationFileAlreadyExists` error instead of overwriting it; the move itself then runs with the `CopyAllowed` option, which allows a file to move to a different volume. With `-WhatIf`, the cmdlet names an existing destination in a verbose message instead; before 5.0.0, it wrote the error also with `-WhatIf`. With `-Force`, the move runs with the `ReplaceExisting` option and overwrites an existing destination item. The folder that is to contain the moved item must exist; otherwise the cmdlet writes an error that names that folder, or, with `-WhatIf`, a verbose message.</maml:para>
+      <maml:para>Without `-Force`, the cmdlet checks whether a file or folder already exists at the destination and writes a `DestinationFileAlreadyExists` error instead of overwriting it; a file then moves with the `CopyAllowed` option, which allows it to move to a different volume. With `-WhatIf`, the cmdlet names an existing destination in a verbose message instead; before 5.0.0, it wrote the error also with `-WhatIf`. With `-Force`, the move runs with the `ReplaceExisting` option and overwrites an existing destination item. The folder that is to contain the moved item must exist; otherwise the cmdlet writes an error that names that folder, or, with `-WhatIf`, a verbose message.</maml:para>
       <maml:para>The cmdlet supports `-WhatIf` and `-Confirm`, and it writes nothing to the pipeline unless you specify `-PassThru $true`.</maml:para>
     </maml:description>
     <command:syntax>
@@ -6978,8 +6981,9 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <maml:alert>
         <maml:para>`Move-Item2` moves through the AlphaFS library (`Alphaleonis.Win32.Filesystem`), which is why it handles source and destination paths that exceed the 260-character `MAX_PATH` limit of the built-in `Move-Item` cmdlet.</maml:para>
         <maml:para>Before 5.0.0, `-PassThru` also wrote the item when `-WhatIf` or a declined confirmation skipped the operation.</maml:para>
-        <maml:para>The cmdlet chooses between two mutually exclusive move options. Without `-Force` it moves with `CopyAllowed`, which permits a file to cross volume boundaries because Windows then copies and deletes it. With `-Force` it moves with `ReplaceExisting`, which overwrites the destination but does not request `CopyAllowed`, so a move across volumes can fail when `-Force` is specified. A folder can't move to another volume: the cmdlet writes a `MoveError` and leaves the folder in place, so copy it with `Copy-Item2` and remove it with `Remove-Item2` instead.</maml:para>
+        <maml:para>The cmdlet chooses between two mutually exclusive move options for a file. Without `-Force` it moves a file with `CopyAllowed`, which permits the file to cross volume boundaries because Windows then copies and deletes it. With `-Force` it moves with `ReplaceExisting`, which overwrites the destination but does not request `CopyAllowed`, so a file can't move to another volume when `-Force` is specified: the cmdlet writes the `MoveError` of Windows, "(17) The system cannot move the file to a different disk drive". A folder can't move to another volume at all: the cmdlet writes a `MoveError` with the category `InvalidOperation` that names the folder and the destination, and it leaves the folder in place, so copy it with `Copy-Item2` and remove it with `Remove-Item2` instead.</maml:para>
         <maml:para>If a path in `-Path` does not exist, a file or folder exists at the destination and `-Force` is missing, or the folder that is to contain the moved item does not exist, the cmdlet writes a non-terminating error and continues with the next path. Before 5.0.0, it skipped the remaining paths that were passed in the same call. Before 5.0.0, it also reported an existing destination folder as a `MoveError`, and a missing destination folder as a `DirectoryNotFoundException` that named the source item ( #21 (https://github.com/raandree/NTFSSecurity/issues/21)).</maml:para>
+        <maml:para>Before 5.0.0-rc7, a folder moved with `CopyAllowed` as well, so a move to another volume copied and deleted it: an empty folder was deleted without being created at the destination, and a folder with files failed with an error that named one of its files.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -7049,15 +7053,16 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       </maml:description>
     </command:details>
     <maml:description>
-      <maml:para>The `New-NTFSHardLink` cmdlet gives an existing file an additional name. `-Path` is the new hard link that the cmdlet creates, and `-Target` is the existing file that the new link refers to. Read the command as "create Path , which points to Target ".</maml:para>
+      <maml:para>The `New-NTFSHardLink` cmdlet gives an existing file an additional name. `-Path` is the new hard link that the cmdlet creates, and `-Target` is the existing file that the new link refers to. Read the command as "create Path , which points to Target ". Both parameters are required.</maml:para>
       <maml:para>The cmdlet validates both ends before it creates the link. `-Path` must not exist yet, so the cmdlet never overwrites an existing file, and `-Target` must exist and must be a file. A folder as `-Target` is rejected, because NTFS supports hard links for files only. Relative paths are resolved against the current location.</maml:para>
+      <maml:para>To create several links, pipe objects with the properties `Path` and `Target` to the cmdlet, one link per object. For a link that it can't create, the cmdlet writes a non-terminating error and continues with the next object.</maml:para>
       <maml:para>After the link is created, both names refer to the same data on the volume. Writing through one name changes what the other name returns, and the file is only released when its last name is deleted.</maml:para>
       <maml:para>By default the cmdlet produces no output. With `-PassThru` it returns one object for every hard link that the file has after the operation, which includes the original name and the new link, not just the link that was created.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
         <maml:name>New-NTFSHardLink</maml:name>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
           <maml:name>Path</maml:name>
           <maml:description>
             <maml:para>Specifies the path of the new hard link that the cmdlet creates. The path must not exist yet, and it must be on the same NTFS volume as `-Target`. Relative paths are resolved against the current location.</maml:para>
@@ -7069,7 +7074,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
           <maml:name>Target</maml:name>
           <maml:description>
             <maml:para>Specifies the path of the existing file that the new link refers to. The target must exist and must be a file; folders are rejected, because NTFS supports hard links for files only.</maml:para>
@@ -7107,7 +7112,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         </dev:type>
         <dev:defaultValue>False</dev:defaultValue>
       </command:parameter>
-      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
+      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
         <maml:name>Path</maml:name>
         <maml:description>
           <maml:para>Specifies the path of the new hard link that the cmdlet creates. The path must not exist yet, and it must be on the same NTFS volume as `-Target`. Relative paths are resolved against the current location.</maml:para>
@@ -7119,7 +7124,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
-      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
+      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
         <maml:name>Target</maml:name>
         <maml:description>
           <maml:para>Specifies the path of the existing file that the new link refers to. The target must exist and must be a file; folders are rejected, because NTFS supports hard links for files only.</maml:para>
@@ -7139,6 +7144,14 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         </dev:type>
         <maml:description>
           <maml:para>You can pass the path of the new link and the path of the target as strings.</maml:para>
+        </maml:description>
+      </command:inputType>
+      <command:inputType>
+        <dev:type>
+          <maml:name>System.Management.Automation.PSObject</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>You can pipe objects whose `Path` or `FullName` property names the new link and whose `Target` property names its target, such as the rows of a CSV file that `Import-Csv` reads.</maml:para>
         </maml:description>
       </command:inputType>
     </command:inputTypes>
@@ -7164,9 +7177,10 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <maml:alert>
         <maml:para>Windows supports hard links only for files on the same NTFS volume. A link that points to a file on another volume, or a target on a file system that does not implement hard links, cannot be created.</maml:para>
         <maml:para>The cmdlet creates hard links on a network share as well, but Windows can't list the names of a file there. With `-PassThru` on a share, the cmdlet creates the link and writes a non-terminating `GetHardLinkError` with the message "The request is not supported" instead of the objects. Before 5.0.0, it stopped with a terminating error after it had created the link.</maml:para>
-        <maml:para>The cmdlet does not overwrite anything. If `-Path` already exists, or if `-Target` is missing or is a folder, the cmdlet reports an error and leaves the file system unchanged.</maml:para>
+        <maml:para>The cmdlet does not overwrite anything. If `-Path` already exists, if `-Target` is missing or is a folder, or if a path contains a character that Windows doesn't allow, such as `|`, the cmdlet writes a non-terminating `CreateHardLinkError` with the category `ResourceExists`, `ObjectNotFound`, or `InvalidArgument`, leaves the file system unchanged, and continues with the next object from the pipeline. It checks `-Path` before `-Target`, and the error for an existing `-Path`, a missing `-Target`, or a folder as `-Target` names that path. When Windows refuses the link, such as for a target on another volume, the cmdlet writes a `CreateHardLinkError` as well.</maml:para>
         <maml:para>Because all names of a file share the same data, the number of hard links is a property of the file, not of an individual name. Use `Get-NTFSHardLink` to list them, and delete a link with `Remove-Item2` or `Remove-Item`, which removes only that name as long as other names remain.</maml:para>
         <maml:para>Before 5.0.0, the error for a missing `-Target` said "The target path exist", the opposite of the cause.</maml:para>
+        <maml:para>Before 5.0.0-rc7, `-Path` and `-Target` were optional: without `-Path`, the cmdlet failed with an index error, and without `-Target`, it used the current location, which is a folder. It stopped with a terminating error for an existing `-Path`, a missing `-Target`, a folder as `-Target`, or a link that Windows refused, in Windows PowerShell also for a path with a character that Windows doesn't allow, and every object piped to it failed with `GetDefaultValueFailed`.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -7196,6 +7210,13 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <dev:code>PS C:\&gt; Get-NTFSHardLink -Path C:\Data\Report-2026.txt | Select-Object -ExpandProperty FullName</dev:code>
         <dev:remarks>
           <maml:para>This command lists all names of the file after the link was created, which is the same information that `-PassThru` returns.</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>--------- Example 5: Create several links from a list ---------</maml:title>
+        <dev:code>PS C:\&gt; Import-Csv -Path C:\Data\Links.csv | New-NTFSHardLink</dev:code>
+        <dev:remarks>
+          <maml:para>This command creates one hard link for each row of `Links.csv`, which has the columns `Path` and `Target`. For a row whose link it can't create, the cmdlet writes an error and continues with the next row.</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>
@@ -7232,15 +7253,16 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       </maml:description>
     </command:details>
     <maml:description>
-      <maml:para>The `New-NTFSSymbolicLink` cmdlet creates a symbolic link that redirects to another file or folder. `-Path` is the new link that the cmdlet creates, and `-Target` is the existing item that the link points to. Read the command as "create Path , which points to Target ".</maml:para>
-      <maml:para>The cmdlet inspects the target first and creates a file symbolic link when the target is a file and a directory symbolic link when the target is a folder, so you do not select the link type yourself. `-Target` must exist when the link is created, and `-Path` must not exist yet, so the cmdlet never overwrites an existing item.</maml:para>
+      <maml:para>The `New-NTFSSymbolicLink` cmdlet creates a symbolic link that redirects to another file or folder. `-Path` is the new link that the cmdlet creates, and `-Target` is the existing item that the link points to. Read the command as "create Path , which points to Target ". Both parameters are required.</maml:para>
+      <maml:para>Before it creates the link, the cmdlet inspects the target and creates a file symbolic link when the target is a file and a directory symbolic link when the target is a folder, so you do not select the link type yourself. `-Target` must exist when the link is created, and `-Path` must not exist yet, so the cmdlet never overwrites an existing item.</maml:para>
       <maml:para>Relative paths are resolved against the current location before the link is created, which means that the link always stores an absolute target path.</maml:para>
+      <maml:para>To create several links, pipe objects with the properties `Path` and `Target` to the cmdlet, one link per object. For a link that it can't create, the cmdlet writes a non-terminating error and continues with the next object.</maml:para>
       <maml:para>By default the cmdlet produces no output. With `-PassThru` it returns an object for the new link: a file object for a link to a file, and a folder object for a link to a folder.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
         <maml:name>New-NTFSSymbolicLink</maml:name>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
           <maml:name>Path</maml:name>
           <maml:description>
             <maml:para>Specifies the path of the new symbolic link that the cmdlet creates. The path must not exist yet. Relative paths are resolved against the current location.</maml:para>
@@ -7252,7 +7274,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
           <maml:name>Target</maml:name>
           <maml:description>
             <maml:para>Specifies the path of the existing file or folder that the new link points to. The target must exist when the link is created and determines whether the cmdlet creates a file symbolic link or a directory symbolic link. Relative paths are resolved against the current location, so the link stores an absolute target path.</maml:para>
@@ -7290,7 +7312,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         </dev:type>
         <dev:defaultValue>False</dev:defaultValue>
       </command:parameter>
-      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
+      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="FullName">
         <maml:name>Path</maml:name>
         <maml:description>
           <maml:para>Specifies the path of the new symbolic link that the cmdlet creates. The path must not exist yet. Relative paths are resolved against the current location.</maml:para>
@@ -7302,7 +7324,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
-      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
+      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
         <maml:name>Target</maml:name>
         <maml:description>
           <maml:para>Specifies the path of the existing file or folder that the new link points to. The target must exist when the link is created and determines whether the cmdlet creates a file symbolic link or a directory symbolic link. Relative paths are resolved against the current location, so the link stores an absolute target path.</maml:para>
@@ -7322,6 +7344,14 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         </dev:type>
         <maml:description>
           <maml:para>You can pass the path of the new link and the path of the target as strings.</maml:para>
+        </maml:description>
+      </command:inputType>
+      <command:inputType>
+        <dev:type>
+          <maml:name>System.Management.Automation.PSObject</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>You can pipe objects whose `Path` or `FullName` property names the new link and whose `Target` property names its target, such as the rows of a CSV file that `Import-Csv` reads.</maml:para>
         </maml:description>
       </command:inputType>
     </command:inputTypes>
@@ -7347,7 +7377,9 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <maml:alert>
         <maml:para>Creating a symbolic link on Windows requires the "Create symbolic links" user right, `SeCreateSymbolicLinkPrivilege`, which is granted to the Administrators group by default. Without that right, Windows rejects the operation with error 1314, "A required privilege is not held by the client", so run the cmdlet from an elevated session or grant the right to the account. Windows Developer Mode doesn't change this: it lets accounts without that right create symbolic links only in programs that request it, such as `mklink`, and the cmdlet doesn't.</maml:para>
         <maml:para>Unlike a hard link, a symbolic link is a separate file system entry that stores a path, so it can point to an item on another volume and the link and its target can be managed independently. The cmdlet still requires the target to exist at the moment the link is created. If the target is removed later, the link remains and stops resolving.</maml:para>
+        <maml:para>If `-Path` already exists, `-Target` is missing, or a path contains a character that Windows doesn't allow, such as `|`, the cmdlet writes a non-terminating `CreateSymbolicLinkError` with the category `ResourceExists`, `ObjectNotFound`, or `InvalidArgument`, leaves the file system unchanged, and continues with the next object from the pipeline. It checks `-Path` before `-Target`, and the error for an existing `-Path` or a missing `-Target` names that path. When Windows refuses the link, such as with error 1314 without the right to create symbolic links, the cmdlet writes a `CreateSymbolicLinkError` as well.</maml:para>
         <maml:para>Deleting a symbolic link removes the link only and leaves the target untouched. Delete a directory symbolic link as a link rather than recursively, so that the content of the target folder is not affected.</maml:para>
+        <maml:para>Before 5.0.0-rc7, `-Path` and `-Target` were optional: without `-Path`, the cmdlet failed with an index error, and without `-Target`, it created a link to the current folder. It stopped with a terminating error for an existing `-Path` or a link that Windows refused, in Windows PowerShell also for a path with a character that Windows doesn't allow, and every object piped to it failed with `GetDefaultValueFailed`. It checked `-Target` before `-Path`, and its errors for an existing `-Path` and a missing `-Target` named no path.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -7377,6 +7409,13 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <dev:code>PS C:\&gt; Test-Path2 -Path C:\Data\Current\Report.txt -PathType Leaf</dev:code>
         <dev:remarks>
           <maml:para>This command tests a path that leads through the symbolic link. It returns `$true` when the link resolves and the file exists in the target folder.</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>--------- Example 5: Create several links from a list ---------</maml:title>
+        <dev:code>PS C:\&gt; Import-Csv -Path C:\Data\Links.csv | New-NTFSSymbolicLink</dev:code>
+        <dev:remarks>
+          <maml:para>This command creates one symbolic link for each row of `Links.csv`, which has the columns `Path` and `Target`. For a row whose link it can't create, the cmdlet writes an error and continues with the next row.</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>

@@ -46,13 +46,21 @@ namespace NTFSSecurity.AuditCmdlets
 
                 IEnumerable<FileSystemAuditRule2> acl = null;
 
+                // Only the SACL, like Get-NTFSAudit, which fails without the Security privilege. Before 5.0.0-rc7, the
+                // cmdlet read the item without its audit entries then and returned nothing, as for an item without
+                // orphaned entries, and it wrote a warning for an item that it couldn't read.
                 try
                 {
-                    acl = FileSystemAuditRule2.GetFileSystemAuditRules(item, !ExcludeExplicit, !ExcludeInherited, getInheritedFrom);
+                    acl = GetAuditRules(item);
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    this.WriteError(new ErrorRecord(ex, "ReadSecurityError", ErrorCategory.PermissionDenied, p));
+                    continue;
                 }
                 catch (Exception ex)
                 {
-                    this.WriteWarning(string.Format("Could not read item {0}. The error was: {1}", p, ex.Message));
+                    this.WriteError(new ErrorRecord(ex, "ReadSecurityError", ErrorCategory.OpenError, p));
                     continue;
                 }
 

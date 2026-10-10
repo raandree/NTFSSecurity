@@ -14,16 +14,18 @@ Creates a symbolic link to an existing file or folder.
 ## SYNTAX
 
 ```
-New-NTFSSymbolicLink [[-Path] <String>] [[-Target] <String>] [-PassThru] [<CommonParameters>]
+New-NTFSSymbolicLink [-Path] <String> [-Target] <String> [-PassThru] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 
-The `New-NTFSSymbolicLink` cmdlet creates a symbolic link that redirects to another file or folder. `-Path` is the new link that the cmdlet creates, and `-Target` is the existing item that the link points to. Read the command as "create *Path*, which points to *Target*".
+The `New-NTFSSymbolicLink` cmdlet creates a symbolic link that redirects to another file or folder. `-Path` is the new link that the cmdlet creates, and `-Target` is the existing item that the link points to. Read the command as "create *Path*, which points to *Target*". Both parameters are required.
 
-The cmdlet inspects the target first and creates a file symbolic link when the target is a file and a directory symbolic link when the target is a folder, so you do not select the link type yourself. `-Target` must exist when the link is created, and `-Path` must not exist yet, so the cmdlet never overwrites an existing item.
+Before it creates the link, the cmdlet inspects the target and creates a file symbolic link when the target is a file and a directory symbolic link when the target is a folder, so you do not select the link type yourself. `-Target` must exist when the link is created, and `-Path` must not exist yet, so the cmdlet never overwrites an existing item.
 
 Relative paths are resolved against the current location before the link is created, which means that the link always stores an absolute target path.
+
+To create several links, pipe objects with the properties `Path` and `Target` to the cmdlet, one link per object. For a link that it can't create, the cmdlet writes a non-terminating error and continues with the next object.
 
 By default the cmdlet produces no output. With `-PassThru` it returns an object for the new link: a file object for a link to a file, and a folder object for a link to a folder.
 
@@ -61,6 +63,14 @@ PS C:\> Test-Path2 -Path C:\Data\Current\Report.txt -PathType Leaf
 
 This command tests a path that leads through the symbolic link. It returns `$true` when the link resolves and the file exists in the target folder.
 
+### Example 5: Create several links from a list
+
+```PowerShell
+PS C:\> Import-Csv -Path C:\Data\Links.csv | New-NTFSSymbolicLink
+```
+
+This command creates one symbolic link for each row of `Links.csv`, which has the columns `Path` and `Target`. For a row whose link it can't create, the cmdlet writes an error and continues with the next row.
+
 ## PARAMETERS
 
 ### -PassThru
@@ -88,7 +98,7 @@ Type: String
 Parameter Sets: (All)
 Aliases: FullName
 
-Required: False
+Required: True
 Position: 1
 Default value: None
 Accept pipeline input: True (ByPropertyName, ByValue)
@@ -104,7 +114,7 @@ Type: String
 Parameter Sets: (All)
 Aliases:
 
-Required: False
+Required: True
 Position: 2
 Default value: None
 Accept pipeline input: True (ByPropertyName, ByValue)
@@ -119,6 +129,10 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 ### System.String
 
 You can pass the path of the new link and the path of the target as strings.
+
+### System.Management.Automation.PSObject
+
+You can pipe objects whose `Path` or `FullName` property names the new link and whose `Target` property names its target, such as the rows of a CSV file that `Import-Csv` reads.
 
 ## OUTPUTS
 
@@ -136,7 +150,11 @@ Creating a symbolic link on Windows requires the "Create symbolic links" user ri
 
 Unlike a hard link, a symbolic link is a separate file system entry that stores a path, so it can point to an item on another volume and the link and its target can be managed independently. The cmdlet still requires the target to exist at the moment the link is created. If the target is removed later, the link remains and stops resolving.
 
+If `-Path` already exists, `-Target` is missing, or a path contains a character that Windows doesn't allow, such as `|`, the cmdlet writes a non-terminating `CreateSymbolicLinkError` with the category `ResourceExists`, `ObjectNotFound`, or `InvalidArgument`, leaves the file system unchanged, and continues with the next object from the pipeline. It checks `-Path` before `-Target`, and the error for an existing `-Path` or a missing `-Target` names that path. When Windows refuses the link, such as with error 1314 without the right to create symbolic links, the cmdlet writes a `CreateSymbolicLinkError` as well.
+
 Deleting a symbolic link removes the link only and leaves the target untouched. Delete a directory symbolic link as a link rather than recursively, so that the content of the target folder is not affected.
+
+Before 5.0.0-rc7, `-Path` and `-Target` were optional: without `-Path`, the cmdlet failed with an index error, and without `-Target`, it created a link to the current folder. It stopped with a terminating error for an existing `-Path` or a link that Windows refused, in Windows PowerShell also for a path with a character that Windows doesn't allow, and every object piped to it failed with `GetDefaultValueFailed`. It checked `-Target` before `-Path`, and its errors for an existing `-Path` and a missing `-Target` named no path.
 
 ## RELATED LINKS
 

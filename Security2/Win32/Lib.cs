@@ -134,6 +134,36 @@ namespace Security2
         }
 
         #region Win32 Wrapper
+        // Whether a name of -ServerName names this computer: localhost in any case, ., the NetBIOS name, the DNS host
+        // name, or the fully qualified domain name. It must not throw, because GetEffectiveAccess hides every exception
+        // of the resource manager behind a result without access.
+        private static bool IsLocalComputer(string serverName)
+        {
+            if (string.IsNullOrEmpty(serverName))
+            {
+                return false;
+            }
+
+            if (serverName == "." ||
+                string.Equals(serverName, "localhost", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(serverName, Environment.MachineName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            try
+            {
+                var properties = System.Net.NetworkInformation.IPGlobalProperties.GetIPGlobalProperties();
+                return string.Equals(serverName, properties.HostName, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrEmpty(properties.DomainName) &&
+                    string.Equals(serverName, properties.HostName + "." + properties.DomainName, StringComparison.OrdinalIgnoreCase));
+            }
+            catch (System.Net.NetworkInformation.NetworkInformationException)
+            {
+                return false;
+            }
+        }
+
         private void GetEffectivePermissions_AuthzInitializeResourceManager(string serverName, out bool remoteServerAvailable)
         {
             remoteServerAvailable = false;
@@ -157,7 +187,10 @@ namespace Security2
                     throw new Win32Exception(error);
                 }
 
-                if (serverName == "localhost")
+                // The local authorization manager is the one of this computer, so its result is accurate for any name
+                // of this computer. Before 5.0.0-rc7, only localhost in lowercase counted, and the cmdlet warned for
+                // the others, such as ., the computer name, or LOCALHOST.
+                if (IsLocalComputer(serverName))
                 {
                     remoteServerAvailable = true;
                 }

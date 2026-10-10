@@ -6,6 +6,13 @@
 )]
 param ()
 
+BeforeDiscovery {
+    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
+    # A path on the administrative share of the drive of the sandboxes is another volume for Windows, like a share of a
+    # file server.
+    $canUseAdminShare = Test-AdminShareAvailable
+}
+
 BeforeAll {
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'TestHelpers.psm1') -Force
     $modulePath = Join-Path -Path $PSScriptRoot -ChildPath '..\NTFSSecurity\bin\Release\NTFSSecurity.psd1'
@@ -346,6 +353,62 @@ Describe 'Copy-Item2, Move-Item2, and Remove-Item2 with several paths' {
         $itemErrors[0].FullyQualifiedErrorId | Should -BeLike "$ErrorId,*"
         $itemErrors[0].Exception.Message | Should -BeLike "*'$missingShare'*"
         $first | Should -Exist
+    }
+}
+
+Describe 'Move-Item2' {
+    # Windows can't move a folder to another volume. Before 5.0.0-rc7, the cmdlet let AlphaFS emulate the move by
+    # copying and deleting, which failed for a folder with files with an error that named a file of the source, and
+    # which deleted an empty folder without creating it at the destination.
+    It 'Should refuse to move <Kind> folder to another volume and leave it in place' -Skip:(-not $canUseAdminShare) -ForEach @(
+        @{ Kind = 'an empty' }
+        @{ Kind = 'a non-empty' }
+    ) {
+        $source = New-TestSandboxItem -Sandbox $sandbox -Name 'CrossVolume' -Directory
+        if ($Kind -eq 'a non-empty') {
+            Set-Content -LiteralPath (Join-Path -Path $source -ChildPath 'File.txt') -Value 'File'
+        }
+        $destination = Join-Path -Path $sandbox -ChildPath ('Moved-{0}' -f (Split-Path -Path $source -Leaf))
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $destination
+
+        Move-Item2 -Path $source -Destination (ConvertTo-TestAdminSharePath -Sandbox $sandbox -Path $destination) -ErrorVariable moveErrors -ErrorAction SilentlyContinue
+
+        $moveErrors | Should -HaveCount 1
+        $moveErrors[0].FullyQualifiedErrorId | Should -BeLike 'MoveError,*'
+        $moveErrors[0].CategoryInfo.Category | Should -Be 'InvalidOperation'
+        $moveErrors[0].Exception.Message | Should -BeLike "*'$source'*another volume*"
+        $moveErrors[0].TargetObject | Should -Be $source
+        $source | Should -Exist
+        $destination | Should -Not -Exist
+    }
+
+    It 'Should still move a file to another volume' -Skip:(-not $canUseAdminShare) {
+        $source = New-TestSandboxItem -Sandbox $sandbox -Name 'CrossVolumeFile'
+        $destination = Join-Path -Path $sandbox -ChildPath ('Moved-{0}' -f (Split-Path -Path $source -Leaf))
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $destination
+
+        Move-Item2 -Path $source -Destination (ConvertTo-TestAdminSharePath -Sandbox $sandbox -Path $destination) -ErrorAction Stop
+
+        $source | Should -Not -Exist
+        Get-Content -LiteralPath $destination | Should -Be 'CrossVolumeFile'
+    }
+
+    # With -Force, a file moves without CopyAllowed, which Windows refuses for another volume, as the cmdlet page says.
+    # The cmdlet writes that error of Windows, (17) "The system cannot move the file to a different disk drive", and
+    # not the error for a folder.
+    It 'Should write the error of Windows for a file that it moves with -Force to another volume' -Skip:(-not $canUseAdminShare) {
+        $source = New-TestSandboxItem -Sandbox $sandbox -Name 'CrossVolumeForce'
+        $destination = Join-Path -Path $sandbox -ChildPath ('Moved-{0}' -f (Split-Path -Path $source -Leaf))
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $destination
+
+        Move-Item2 -Path $source -Destination (ConvertTo-TestAdminSharePath -Sandbox $sandbox -Path $destination) -Force -ErrorVariable moveErrors -ErrorAction SilentlyContinue
+
+        $moveErrors | Should -HaveCount 1
+        $moveErrors[0].FullyQualifiedErrorId | Should -BeLike 'MoveError,*'
+        $moveErrors[0].CategoryInfo.Category | Should -Be 'InvalidData'
+        '0x{0:X8}' -f $moveErrors[0].Exception.HResult | Should -Be '0x80070011'
+        $source | Should -Exist
+        $destination | Should -Not -Exist
     }
 }
 

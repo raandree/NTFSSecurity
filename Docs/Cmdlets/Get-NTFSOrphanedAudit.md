@@ -163,7 +163,7 @@ You can pipe paths to this cmdlet, or objects that have a `Path` or `FullName` p
 
 ### Security2.FileSystemSecurity2[]
 
-Security descriptors bind to the inherited `-SecurityDescriptor` parameter, but this cmdlet does not read their audit entries.
+Security descriptors that `Get-NTFSSecurityDescriptor` returned bind to `-SecurityDescriptor`, and the cmdlet examines their audit entries.
 
 ### Security2.IdentityReference2
 
@@ -179,11 +179,13 @@ The cmdlet returns the audit entries whose account SID cannot be translated into
 
 When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.
 
-Reading the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it the cmdlet reads the security descriptor without its SACL and reports no orphaned entries at all, which looks the same as a tree that has none.
+Reading the SACL requires the Security privilege (`SeSecurityPrivilege`, "Manage auditing and security log"), so run this cmdlet in an elevated session of an account that holds that privilege. Without it, the cmdlet writes the non-terminating error `ReadSecurityError` for each item, which reports "A required privilege is not held by the client", like `Get-NTFSAudit`.
 
-If an item cannot be read, the cmdlet writes a warning and continues with the next item. Unlike `Get-NTFSAudit`, it does not try to take ownership of the item when access is denied.
+If the audit entries of an item can't be read, the cmdlet writes a `ReadSecurityError`, with the category `PermissionDenied` when access is denied, and continues with the next item; for a path that doesn't exist, it writes a `ReadError`. Like `Get-NTFSAudit`, it doesn't take ownership of the item, because ownership grants no access to the SACL.
 
 Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor` and wrote the entries of each item as one collection.
+
+Before 5.0.0-rc7, the cmdlet read an item without its SACL when the Security privilege was missing and reported no orphaned entries, which looked the same as an item that has none. For an item that it couldn't read, it wrote a warning instead of an error.
 
 ## RELATED LINKS
 

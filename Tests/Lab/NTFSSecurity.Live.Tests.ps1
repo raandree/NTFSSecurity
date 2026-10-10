@@ -408,13 +408,14 @@ Describe 'Get-NTFSEffectiveAccess for a domain account on a share folder' -Tag '
     }
 
     # The cmdlet page: when the remote authorization manager can't be reached, the cmdlet falls back to the local one
-    # and warns that the result may be inaccurate.
+    # and warns that the result may be inaccurate; since 5.0.0-rc7, the warning names the computer.
     It 'Should fall back to the authorization manager of the client and warn when -ServerName can''t be reached' {
         $result = @(Get-NTFSEffectiveAccess -Path $path -Account $subject -ServerName $configuration.UnreachableServerName -WarningVariable operationWarnings -WarningAction SilentlyContinue -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
 
         Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
-        $operationWarnings.Message | Should -Contain ('The effective rights can only be computed based on group membership on this computer. ' +
-            'For more accurate results, calculate effective access rights on the target computer')
+        $operationWarnings.Message | Should -Contain ('The effective rights can only be computed based on group membership on this computer, ' +
+            "because the computer '$($configuration.UnreachableServerName)' can't be reached for a remote access check. " +
+            'For more accurate results, calculate effective access rights on that computer.')
         $result | Should -HaveCount 1
         Format-LabRight -Right $result[0].AccessRights | Should -Be (Format-LabRight -Right $configuration.EffectiveAccess.ClientRights)
     }

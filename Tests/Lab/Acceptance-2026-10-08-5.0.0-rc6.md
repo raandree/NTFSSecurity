@@ -145,5 +145,28 @@ deletes them.
   gate.
 - File servers that aren't Windows, such as the IBM ESS system of #34:
   only the feedback of the reporter covers them.
-- The package that CI publishes for the tag: the live tests run against it
-  after the release, with `-Version 5.0.0-rc6`.
+
+## After the release
+
+The tag `5.0.0-rc6` on `b51d970`, the merge of #115, published the package
+to the PowerShell Gallery on 2026-10-08 at 20:40 UTC. The **Release** job
+failed after the upload: `Publish-PSResource` stopped waiting for the
+Gallery after 100 seconds while the Gallery accepted the package, and its
+second attempt got the error 409, "already exists". So the job didn't
+create the GitHub release; rerunning the failed job creates it, as
+[If a release fails](../../Docs/Contributing/05-Releasing.md#if-a-release-fails)
+describes.
+
+`Invoke-NTFSSecurityLabTest.ps1 -Version 5.0.0-rc6` downloaded the package
+from the Gallery, checked it against the SHA-512 that the Gallery
+publishes, and ran in both editions, 20:43 to 21:00 UTC. The SHA-256 of
+`NTFSSecurity.5.0.0-rc6.nupkg` is
+`83EBCADEE0698A9523661352A69B9D25F6EB2903F45A6C4FAB36F5BF4B139100`.
+
+The live tests came from the branch of 5.0.0-rc7, which expects the
+warning of `Get-NTFSEffectiveAccess` for a computer that can't be reached
+to name the computer. The package failed only that test, in the role Admin
+of both editions, with exactly the text that the live tests of 5.0.0-rc6
+expect; every other test passed: Delegate 38, ServerAdmin 13, Admin 39,
+and Server 72 with 1 skipped, in each edition. The fixture was removed at
+21:03 UTC, and its removal checked as above.

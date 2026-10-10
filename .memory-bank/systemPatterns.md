@@ -76,8 +76,26 @@ Each Decision record is a file in `decisions/`; read only the relevant ones.
 | 19 | [Cmdlets write only the sections that they change](decisions/0019-write-only-changed-sections.md) |
 | 20 | [Live tests in a lab live in Tests\Lab](decisions/0020-live-tests-in-tests-lab.md) |
 | 21 | [A quality gate before 5.0.0](decisions/0021-quality-gate-before-5.0.0.md) |
+| 22 | [The behavior changes of Phase 2 (proposed)](decisions/0022-phase-2-behavior-changes.md) |
 
 ## Patterns
+
+### Writing cmdlets
+
+- A parameter that takes pipeline input needs a getter that doesn't
+  throw: PowerShell reads it before it binds each input object, and an
+  exception turns every object into `GetDefaultValueFailed` (the link
+  cmdlets before 5.0.0-rc7).
+- An error for one item is non-terminating, so that the cmdlet goes on
+  with the next path or pipeline object; since 5.0.0-rc7, the link cmdlets
+  too. Its message names the item, and its target object is the item that
+  the cmdlet was asked to process. Resolving a path can throw in Windows
+  PowerShell for an invalid character, so that belongs inside the
+  per-item error handling.
+- Folders move without `MoveOptions.CopyAllowed`: for another volume,
+  AlphaFS then copies and deletes, which lost empty folders. Windows
+  refuses such a move with `NotSameDeviceException` (17). Tests reach
+  another volume through `\\localhost\C$`, elevated only.
 
 ### Verifying documentation
 

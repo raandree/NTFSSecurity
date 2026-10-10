@@ -77,6 +77,18 @@ The format is based on
   administrators of the named computer and the members of its group Access
   Control Assistance Operators; any other account gets the error "Access is
   denied" and no result
+- **Breaking:** require `-Path` and `-Target` in `New-NTFSHardLink` and
+  `New-NTFSSymbolicLink`. Without `-Path`, they failed with an index error;
+  without `-Target`, they used the current location, so
+  `New-NTFSSymbolicLink -Path Link` created a link to the current folder
+- **Breaking:** write a non-terminating error in `New-NTFSHardLink` and
+  `New-NTFSSymbolicLink` for a link that they can't create, such as for an
+  existing `-Path`, a missing `-Target`, or a path with a character that
+  Windows doesn't allow, and continue with the next link; they stopped
+  with a terminating error. A script that relies on the stop needs
+  `-ErrorAction Stop`
+- Name the computer in the warning of `Get-NTFSEffectiveAccess` when the
+  computer of `-ServerName` can't be reached
 
 ### Deprecated
 
@@ -328,5 +340,32 @@ The format is based on
   entry, and `Get-NTFSAccess -SecurityDescriptor` stopped with an
   `ArgumentOutOfRangeException` for a descriptor with audit entries, such
   as one that `Get-NTFSSecurityDescriptor` reads in an elevated session
+- Fix `Get-NTFSOrphanedAudit`, which returned nothing without the Security
+  privilege, as for an item without orphaned entries, and wrote a warning
+  for an item that it couldn't read; it now writes a `ReadSecurityError`,
+  like `Get-NTFSAudit`
+- Fix `Get-NTFSSimpleAccess`, which left out a folder whose parent folder it
+  hadn't reported, and with it all of its subfolders, and which compared a
+  drive root with the parent folder of the folder before it; such folders
+  are now reported with all of their entries, and a parent folder is found
+  also when its path differs in case. A folder that came after its parent
+  folder a second time failed with a `ReadError`
+- Fix `Move-Item2` for a folder on another volume, which Windows can't
+  move: the cmdlet copied and deleted it instead, so that an empty folder
+  was deleted without being created at the destination, and a folder with
+  files failed with an error that named one of its files. It now writes a
+  `MoveError` that names the folder and the destination, and leaves the
+  folder in place
+- Fix `New-NTFSHardLink` and `New-NTFSSymbolicLink`, which failed with
+  `GetDefaultValueFailed` for every object piped to them, such as the rows
+  of a CSV file with the columns `Path` and `Target`
+- Fix the errors of `New-NTFSSymbolicLink` for an existing `-Path` and a
+  missing `-Target`, and of `New-NTFSHardLink` for a folder as `-Target`,
+  which named no path. `New-NTFSSymbolicLink` now checks `-Path` first,
+  like `New-NTFSHardLink`
+- Fix `Get-NTFSEffectiveAccess`, which warned that the result might be
+  inaccurate for every name of this computer in `-ServerName` except
+  `localhost` in lowercase, such as `.`, `LOCALHOST`, or the computer name,
+  where the computer doesn't offer the remote access check
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

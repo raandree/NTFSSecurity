@@ -13,6 +13,11 @@ BeforeDiscovery {
     # Assigning an owner other than the user or one of its groups needs the Restore privilege.
     $canAssignAnyOwner = Test-PrivilegeHeld -Name 'SeRestorePrivilege'
     $holdsSecurityPrivilege = Test-PrivilegeHeld -Name 'SeSecurityPrivilege'
+    # Names of this computer for -ServerName of Get-NTFSEffectiveAccess: its NetBIOS name, its DNS host name, and, in a
+    # domain, its fully qualified name
+    $ipProperties = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties()
+    $localComputerNames = @(@('LOCALHOST', '.', $env:COMPUTERNAME, $ipProperties.HostName) +
+        @(if ($ipProperties.DomainName) { '{0}.{1}' -f $ipProperties.HostName, $ipProperties.DomainName }) | Sort-Object -Unique)
 }
 
 BeforeAll {
@@ -145,8 +150,27 @@ Describe 'Get-NTFSEffectiveAccess' {
             $accessErrors | Should -BeNullOrEmpty
             $result | Should -HaveCount 1
             $result[0].AccessRights | Should -Be $expected.AccessRights
-            $accessWarnings.Message | Should -Contain ('The effective rights can only be computed based on group membership on this computer. ' +
-                'For more accurate results, calculate effective access rights on the target computer')
+            # Before 5.0.0-rc7, the warning didn't name the computer.
+            $accessWarnings.Message | Should -Contain ("The effective rights can only be computed based on group membership on this computer, " +
+                "because the computer 'ntfssecurity-test.invalid' can't be reached for a remote access check. " +
+                'For more accurate results, calculate effective access rights on that computer.')
+        }
+    }
+
+    # Not every computer offers the remote interface of the authorization manager; the cmdlet then calculates the result
+    # with the local one, which for a name of this computer is the result of that computer. Before 5.0.0-rc7, the cmdlet
+    # warned that the computer couldn't be reached for every name of this computer but localhost in lowercase.
+    Context 'When -ServerName names this computer' {
+        It 'Should return the result of localhost for <_> and warn no more than for localhost' -ForEach $localComputerNames {
+            $expected = Get-NTFSEffectiveAccess -Path $effectiveFile -WarningVariable expectedWarnings -WarningAction SilentlyContinue -ErrorAction Stop
+
+            $result = @(Get-NTFSEffectiveAccess -Path $effectiveFile -ServerName $_ -WarningVariable accessWarnings -WarningAction SilentlyContinue -ErrorVariable accessErrors -ErrorAction SilentlyContinue)
+
+            $accessErrors | Should -BeNullOrEmpty
+            $result | Should -HaveCount 1
+            $result[0].AccessRights | Should -Be $expected.AccessRights
+            # Without the Security privilege, the cmdlet warns about it for every name.
+            @($accessWarnings.Message) -join '|' | Should -Be (@($expectedWarnings.Message) -join '|')
         }
     }
 }
@@ -324,6 +348,54 @@ Describe 'Get-NTFSSimpleAccess' {
             $result = @(Get-Item2 -Path $parent, $child | Get-NTFSSimpleAccess -IncludeRootFolder:$false -ErrorAction Stop)
 
             @($result | Where-Object -Property FullName -EQ -Value $child).Identity.Sid | Should -Be 'S-1-5-21-1-2-3-3101'
+        }
+
+        # Before 5.0.0-rc7, a folder whose parent folder the cmdlet hadn't reported was left out of the result, so the
+        # entries of the parent here were missing.
+        It 'Should report all entries of a folder whose parent folder it did not report' {
+            $childAlone = @(Get-NTFSSimpleAccess -Path $child -IncludeRootFolder:$false -ErrorAction Stop)
+            $parentAlone = @(Get-NTFSSimpleAccess -Path $parent -IncludeRootFolder:$false -ErrorAction Stop)
+            $parentAlone | Should -Not -BeNullOrEmpty
+
+            $result = @(Get-NTFSSimpleAccess -Path $child, $parent -IncludeRootFolder:$false -ErrorAction Stop)
+
+            @($result | Where-Object -Property FullName -EQ -Value $child) | Should -HaveCount $childAlone.Count
+            @($result | Where-Object -Property FullName -EQ -Value $parent) | Should -HaveCount $parentAlone.Count
+        }
+
+        # Before 5.0.0-rc7, a folder that came after its parent folder a second time failed with a ReadError, "An item
+        # with the same key has already been added."
+        It 'Should compare a folder that it gets twice with its parent folder both times' {
+            $result = @(Get-NTFSSimpleAccess -Path $parent, $child, $child -IncludeRootFolder:$false -ErrorVariable simpleErrors -ErrorAction SilentlyContinue)
+
+            $simpleErrors | Should -BeNullOrEmpty
+            $childEntries = @($result | Where-Object -Property FullName -EQ -Value $child)
+            $childEntries | Should -HaveCount 2
+            $childEntries | ForEach-Object -Process { $_.Identity.Sid | Should -Be 'S-1-5-21-1-2-3-3101' }
+        }
+
+        # Before 5.0.0-rc7, a drive root after the first path was left out as well, because it has no parent folder;
+        # after another folder whose parent was reported, it was compared with that unrelated parent. The test reads the
+        # entries of the drive root and changes nothing there.
+        It 'Should report all entries of a drive root, which has no parent folder' {
+            $root = [IO.Path]::GetPathRoot($child)
+            $rootAlone = @(Get-NTFSSimpleAccess -Path $root -IncludeRootFolder:$false -ErrorAction Stop)
+            $rootAlone | Should -Not -BeNullOrEmpty
+
+            $result = @(Get-NTFSSimpleAccess -Path $child, $root -IncludeRootFolder:$false -ErrorVariable simpleErrors -ErrorAction SilentlyContinue)
+
+            $simpleErrors | Should -BeNullOrEmpty
+            @($result | Where-Object -Property FullName -EQ -Value $root) | Should -HaveCount $rootAlone.Count
+        }
+
+        # Windows doesn't distinguish paths by case. Before 5.0.0-rc7, the cmdlet didn't recognize the parent folder of a
+        # folder whose path differed from it in case, and left the folder out.
+        It 'Should compare a folder with its parent folder also when their paths differ in case' {
+            $result = @(Get-NTFSSimpleAccess -Path $parent, $child.ToUpperInvariant() -IncludeRootFolder:$false -ErrorAction Stop)
+
+            $childEntries = @($result | Where-Object -Property FullName -EQ -Value $child)
+            $childEntries | Should -HaveCount 1
+            $childEntries[0].Identity.Sid | Should -Be 'S-1-5-21-1-2-3-3101'
         }
 
         It 'Should report the parent folder of the first path first by default' {

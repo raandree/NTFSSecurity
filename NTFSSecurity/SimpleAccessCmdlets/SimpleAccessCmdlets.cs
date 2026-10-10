@@ -25,9 +25,9 @@ namespace NTFSSecurity
             set { includeRootFolder = value; }
         }
 
-        Dictionary<string, IEnumerable<SimpleFileSystemAccessRule>> previousAcls = new Dictionary<string, IEnumerable<SimpleFileSystemAccessRule>>();
+        // Case-insensitive, like the paths of Windows, which can reach the cmdlet in different cases.
+        Dictionary<string, IEnumerable<SimpleFileSystemAccessRule>> previousAcls = new Dictionary<string, IEnumerable<SimpleFileSystemAccessRule>>(StringComparer.OrdinalIgnoreCase);
         DirectoryInfo item;
-        FileSystemInfo previousItem;
         bool isFirstFolder = true;
 
         protected override void ProcessRecord()
@@ -73,16 +73,21 @@ namespace NTFSSecurity
 
                         var acl = FilterAccount(FileSystemAccessRule2.GetFileSystemAccessRules(item, !ExcludeExplicit, !ExcludeInherited).Select(ace => ace.ToSimpleFileSystemAccessRule2())).ToList();
 
+                        FileSystemInfo parent = null;
                         try
                         {
-                            previousItem = item.GetParent();
+                            parent = item.GetParent();
                         }
                         catch { }
-                        IEnumerable<SimpleFileSystemAccessRule> previousAcl = null;
 
-                        if (isFirstFolder)
+                        IEnumerable<SimpleFileSystemAccessRule> previousAcl;
+
+                        // A folder whose parent folder the cmdlet didn't report, such as the first one or a drive root,
+                        // is reported with all of its entries. Before 5.0.0-rc7, such a folder after the first one was
+                        // left out, or a drive root was compared with the parent of the folder before it.
+                        if (isFirstFolder || parent == null || !previousAcls.TryGetValue(parent.FullName, out previousAcl))
                         {
-                            previousAcls.Add(item.FullName, acl);
+                            previousAcls[item.FullName] = acl;
                             aceList.AddRange(acl);
                             acl.ForEach(ace => WriteObject(ace));
 
@@ -90,32 +95,16 @@ namespace NTFSSecurity
                         }
                         else
                         {
-                            if (previousAcls.ContainsKey(previousItem.FullName))
-                            {
-                                previousAcl = previousAcls[previousItem.FullName];
-                                previousAcls.Add(item.FullName, acl);
+                            previousAcls[item.FullName] = acl;
 
-                                List<SimpleFileSystemAccessRule> diffAcl = new List<SimpleFileSystemAccessRule>();
+                            // The entries that the parent folder doesn't cover for the same account and access type
+                            var diffAcl = acl.Where(ace => !previousAcl.Any(prevAce =>
+                                prevAce.AccessControlType == ace.AccessControlType &
+                                (prevAce.AccessRights & ace.AccessRights) == ace.AccessRights &
+                                prevAce.Identity == ace.Identity)).ToList();
 
-                                foreach (var ace in acl)
-                                {
-                                    var equalsUser = previousAcl.Where(prevAce => prevAce.Identity == ace.Identity);
-                                    var equalsUserAndAccessType = previousAcl.Where(prevAce => prevAce.Identity == ace.Identity & prevAce.AccessControlType == ace.AccessControlType);
-                                    var equalsRights = previousAcl.Where(prevAce => (prevAce.AccessRights & ace.AccessRights) == ace.AccessRights);
-                                    var totalEqual = previousAcl.Where(prevAce => prevAce.Identity == ace.Identity & prevAce.AccessControlType == ace.AccessControlType & (prevAce.AccessRights & ace.AccessRights) == ace.AccessRights);
-
-                                    if (previousAcl.Where(prevAce =>
-                                        prevAce.AccessControlType == ace.AccessControlType &
-                                        (prevAce.AccessRights & ace.AccessRights) == ace.AccessRights &
-                                        prevAce.Identity == ace.Identity).Count() == 0)
-                                    {
-                                        diffAcl.Add(ace);
-                                    }
-                                }
-
-                                aceList.AddRange(diffAcl);
-                                diffAcl.ForEach(ace => WriteObject(ace));
-                            }
+                            aceList.AddRange(diffAcl);
+                            diffAcl.ForEach(ace => WriteObject(ace));
                         }
                     }
 
