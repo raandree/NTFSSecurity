@@ -101,6 +101,21 @@ acceptance is the maintainer's.
   passed. A dry run of `Run-MatrixSequence.ps1 -Version 5.0.0-rc6` showed that
   the published-package path works. Labs at 07:50 UTC on 2026-10-10: no fixture
   or probe residue; `OSWin11E` shuts itself down an hour after its start.
+- Test coverage of the 5.0.0 code, assessed 2026-10-10 (nothing was changed).
+  Measured at `5a5d58b`: 87.84% of the sequence points (3,192 of 3,634) and
+  93.96% of the explicit branch points; every cmdlet is at 72.5% or more. Of
+  the 442 unvisited points, 181 are in code that no cmdlet calls, 103 are
+  parameter getters, 77 defensive, and 81 environment-specific (47 of them the
+  ownership retry of an audit write over SMB). Since then the production C#
+  changed by 70 inserted lines (`962887a`, `fdd7a8b`), so the ratios are off by
+  2 points at most. A parser scan finds all 36 cmdlets and all 147 documented
+  parameters in the unit tests (four only as keys of data-driven hashtables)
+  and 34 cmdlets in the live tests (not `Enable-Privileges`, `Get-DiskSpace`).
+  Not measured: the coverage of the live tests and of the suite on a domain
+  member, and of the code after the fixes. Not tested: Server Core, other
+  cultures, servers that aren't Windows (#34), and a judged test matrix per
+  parameter set (57 of 64 sets have a test call that binds them; the coverage
+  shows every switch visited).
 - Raw evidence is outside git: the session folder
   `4b12e2f4-d4c7-4a5d-883a-ddb7421c4848\files` (`qg-paths`, the matrix runs, the
   night log) and
@@ -139,4 +154,9 @@ acceptance is the maintainer's.
    Modify; protecting them is a design change of the controller and needs a new
    acceptance). The help could also say that a local standard user who asks
    about a domain account still gets "Access is denied".
-6. Do not release stable 5.0.0 or equate a percentage with gate closure.
+6. The two measurement gaps (Evidence): measure the coverage at the tag again
+   with the method of the paths report (about 1.5 hours, local), and run the
+   live tests with an instrumented build to see what they add, the audit
+   ownership retry first (about 2 to 3 hours with the lab). Neither was
+   requested; the agent starts them on request.
+7. Do not release stable 5.0.0 or equate a percentage with gate closure.
