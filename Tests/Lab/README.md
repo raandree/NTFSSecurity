@@ -208,9 +208,11 @@ the host:
   `Get-NTFSEffectiveAccess` of each module under test returns. It showed the
   state that the controller avoids with a new name for the account of case 3.
 - `Export-CellTimeline.ps1` reads the sequence and run logs of controller cells
-  and writes one row for every cell, edition, and role: the module, the account
-  and its relative ID, the times of the removal of the previous fixture, of the creation
-  of the accounts, and of the Admin role, and the three effective-access tests.
+  and writes one row for every cell and edition in which the Admin role ran: the
+  module, the account and its relative ID, whether the previous cell had the same
+  name and the same account, the times of the removal of the previous fixture, of
+  the creation of the accounts, and of the Admin role, and the three
+  effective-access tests of case 3.
 - `Test-StaleAuthzModel.ps1` replays such a timeline against the model of the
   failures of the effective-access tests (an authorization manager that answers
   for an account name from its first request, for some minutes, also after the
