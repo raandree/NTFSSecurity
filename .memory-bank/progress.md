@@ -11,11 +11,12 @@ source: repository and validation evidence
 
 5.0.0-rc7 is published on the Gallery and GitHub (2026-10-10, tag at
 `fa0701b`); rc6 is the one before it. On 2026-10-10 the maintainer merged the
-whole stack into `master` (`fa0701b`, CI green): #116 (rc7), #120 (it replaced
+whole stack into `master` (CI green): #116 (rc7), #120 (it replaced
 #117, which GitHub closed unmerged when the branch deletion after #116 removed
-its base), #118 (the quality-gate paths), and #119 (the operating-system
-matrix with three module fixes, Decision 24 proposed). The published rc7 still
-needs its lab acceptance (gate 3). Stable Gallery version: 4.2.6.
+its base), #118 (the quality-gate paths), #119 (the operating-system matrix
+with three module fixes, Decision 24 proposed), and #121 (the Memory Bank). The
+published rc7 passed its lab acceptance (gate 3) in the matrix and in the first
+lab. Stable Gallery version: 4.2.6.
 After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 
 ## Recent milestones
@@ -92,6 +93,12 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   approval step (Gallery 12:30:57Z, GitHub 12:31:09Z). The identity check
   (`Test-PublishedRelease.ps1`, 12:33Z) passed: Gallery SHA-512, nupkg and zip
   identical, manifest `5.0.0-rc7`. Hashes: deployment notes.
+- 2026-10-10: gate 3 on the published rc7, 14:29 to 15:30 UTC, in one detached
+  driver: the three matrix cells 1,374 passed, 0 failed, 12 skipped; the suite
+  in 24 runs on six machine classes without a failure; the first lab with case
+  9 245 / 0 / 1 per edition; every end state CLEAN. The counts equal those of
+  the final local candidate. Record:
+  `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`.
 
 ## Stable capabilities
 
@@ -104,9 +111,9 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 
 ## Open work
 
-1. Decision 21 gate: test the published rc7 (identity verified; the first lab
-   and every matrix cell remain) and review Decision 22. Do not release 5.0.0
-   until the remaining-path and OS-matrix gates close. Release steps:
+1. Decision 21 gate: the published rc7 is accepted in the matrix and the first
+   lab (record); review Decision 22 and the open items below. Do not release
+   5.0.0 until the remaining-path and OS-matrix gates close. Release steps:
    `Docs/Contributing/05-Releasing.md`; remove the prerelease label, date
    `[5.0.0]`, add the last prerelease to `$publishedVersions` (never the
    version of the manifest), tag through CI.
@@ -143,8 +150,8 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
    missing, different, or unverifiable outcomes. The agent published nothing,
    so the recovery has never run against the Gallery.
 9. Operating-system matrix (Decision 24, proposed): the lab and the cells exist
-   and the candidate passes them; the published rc7 still needs its acceptance
-   in every cell. #34 has no new reply since 2026-10-06.
+   and the published rc7 passes them (record); the maintainer approves the
+   matrix. #34 has no new reply since 2026-10-06.
 10. Lab rollback evidence: new checkpoints report Standard even after a
     successful temporary ProductionOnly probe; original VM policy restored, no
     checkpoint restored. Don't represent them as verified Production snapshots.

@@ -9,17 +9,19 @@ source: current task evidence
 
 ## Current focus
 
-State at 2026-10-10 12:40 UTC: the maintainer integrated the release-gate stack
-into `master` (`fa0701b`, CI green at 11:40Z): #116 (rc7, `8a6be9f`), #120
+State at 2026-10-10 15:45 UTC: the maintainer integrated the release-gate stack
+into `master` (`6dd799f`, CI green): #116 (rc7, `8a6be9f`), #120
 (`bdb9981`; it replaced #117, which GitHub closed unmerged when the branch
 deletion after #116 removed its base, see Decision 15), #118 (`03bef2c`,
-handoff 1, the paths), and #119 (`fa0701b`, handoff 2, the operating-system
-matrix). He tagged `fa0701b` as `5.0.0-rc7` at about 12:20Z, and rc7 is
-published (Gallery 12:30:57Z, GitHub 12:31:09Z); 4.2.6 stays the stable
-Gallery version. rc7 contains the Phase 2 behavior changes, the path tests and
-fixes, and the three module fixes of the matrix (`962887a`, `fdd7a8b`). The
-Memory Bank update is pull request #121 (CI green at 12:33Z, open when this was
-written). Stable 5.0.0 stays gated (Decision 21).
+handoff 1, the paths), #119 (`fa0701b`, handoff 2, the operating-system
+matrix), and #121 (the Memory Bank). He tagged `fa0701b` as `5.0.0-rc7` at about
+12:20Z, and rc7 is published (Gallery 12:30:57Z, GitHub 12:31:09Z); 4.2.6 stays
+the stable Gallery version. rc7 contains the Phase 2 behavior changes, the path
+tests and fixes, and the three module fixes of the matrix (`962887a`,
+`fdd7a8b`). The published rc7 passed its lab acceptance (gate 3) on the same
+day, in the matrix and in the first lab, with the counts of the final local
+candidate (record `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`). Stable
+5.0.0 stays gated (Decision 21).
 
 The maintainer asked on 2026-10-09 at 21:21 UTC to continue with the
 release-gate handoffs and to decide and report later. The agent's decisions are
@@ -43,6 +45,15 @@ acceptance is the maintainer's.
   (12:33Z): tag commit on `master`, Gallery SHA-512 matches the nupkg, 11
   module files identical in nupkg and zip, manifest `5.0.0-rc7`; hashes in the
   deployment notes, evidence in the session folder `published-rc7`.
+- Gate 3 on the published rc7, 14:29 to 15:30 UTC (one detached driver; record
+  `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`, evidence `gate3-rc7` with
+  a manifest): the three matrix cells (OSFile19, 22, 25 with OSWin11E, both
+  editions) 1,374 passed, 0 failed, 12 skipped, `LIVE_RESULT_VERIFIED` and
+  CLEAN in each; the suite in 24 runs on six machine classes without a failure
+  and with the host's skipped tests; the first lab with case 9 245 / 0 / 1 per
+  edition, CLEAN in four domains and on both machines. Each controller run
+  downloaded the package of the identity check (nupkg and DLL hashes equal).
+  Same counts as the final local candidate; no checkpoint was taken.
 - Handoff 1 (paths), measured at `5a5d58b` (frozen Release, four configurations,
   CI wrappers, then AltCover): 1,310 cases per configuration, zero failures
   (baseline `3442194`: 914 cases); coverage 3,192/3,634 sequence points
@@ -97,13 +108,14 @@ acceptance is the maintainer's.
 
 ## Next step
 
-1. Gate 3 on the published rc7 (the agent runs it on request): the identity
-   check is done (12:33Z); the live controller with `-Version 5.0.0-rc7` in
-   the first lab and `Run-MatrixSequence.ps1 -Version 5.0.0-rc7` for every
-   cell remain (deployment notes, "Accept a published package"). Open: keep or
-   replace the matrix VMs (about 60 GB) and the evaluation client (it shuts
-   down every hour), and a domain cell for Windows 11 26H1, whose client loses
-   the secure channel to the Server 2025 domain controller.
+1. Gate 3 is done for the published rc7 (the record above). A changed binary
+   (rc8, or the build of 5.0.0) needs the same cells again; the release
+   procedure accepts the last prerelease for the stable build (his decision).
+   Open: keep or replace the matrix VMs (about 60 GB) and the evaluation client
+   (it shuts down every hour; `OSWin11E` is off), and a domain cell for Windows
+   11 26H1, whose client loses the secure channel to the Server 2025 domain
+   controller. A kit script for the whole sequence would make the repetition
+   one command (the driver is `Run-Gate3.ps1` in the evidence; not in the kit).
 2. The change that sets the next version (rc8 or 5.0.0) adds `5.0.0-rc7` to
    `$publishedVersions`; adding it earlier fails the reuse test (deployment
    notes). Every release step is the maintainer's.
