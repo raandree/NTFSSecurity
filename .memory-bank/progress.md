@@ -103,7 +103,9 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   `db04ef2`. A second review of the later commits found one Major (the record
   called the cause settled without a baseline replay), addressed by the replay,
   `9344ff7`, and `ab0d8e1`; a follow-up review of those fixes found no Blocker or
-  Major and five Minors, corrected in `e2384e5` and `70f494a`. Record:
+  Major and five Minors, corrected in `e2384e5` and `70f494a`; a second
+  follow-up review (the first-lab run and the cleanup changes) found no Blocker or
+  Major and four Minors, corrected in `b78784d` and `dbb4bd6`. Record:
   `Tests/Lab/Acceptance-2026-10-10-os-matrix.md`; nothing was pushed.
 
 ## Stable capabilities

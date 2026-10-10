@@ -137,7 +137,11 @@ open.
   Reviewed by the built-in code-review agent (custom `security-reviewer`
   unavailable): approve with Minor, fixed; a second review found one Major
   (record accuracy), addressed by the replay; a follow-up review found no
-  Blocker or Major and five Minors, corrected.
+  Blocker or Major and five Minors, corrected; a second follow-up review found no
+  Blocker or Major and four Minors, corrected. State of the labs at 07:30 UTC on
+  2026-10-10: no fixture and no probe residue in either lab (`Verify` of the
+  matrix lab 06:54, of the first lab 07:29); the six VMs of the matrix run, and
+  `OSWin11E` (started 06:44) shuts itself down about an hour after its start.
 
 ## Next step
 
