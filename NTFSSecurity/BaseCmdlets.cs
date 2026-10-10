@@ -8,10 +8,132 @@ using System.Collections;
 
 namespace NTFSSecurity
 {
+    /// <summary>
+    /// Recognizes what a later command in the pipeline raises to end the pipeline or the loop around it: the end of the
+    /// pipeline, for example for Select-Object -First, and a break or continue in a script block. These exceptions pass
+    /// through a cmdlet while it writes to a stream. A catch-all for the failures of an item must pass them on: reported
+    /// as the error of that item, they would end nothing, and the cmdlet would go on with the next item. BaseCmdlet
+    /// notes the exception that each of its Write methods but WriteWarning raises, which includes everything that a
+    /// later command can throw; this check by type is a second line of defense for calls into PowerShell that are not
+    /// noted, such as ShouldProcess in the try block of Remove-Item2. See
+    /// BaseCmdlet.IsFromLaterCommand.
+    /// </summary>
+    internal static class PipelineControl
+    {
+        /// <summary>
+        /// Whether the exception ends the pipeline or the loop around it. PowerShell doesn't make the exceptions of break
+        /// and continue public, so they are recognized by the name of their base type.
+        /// </summary>
+        internal static bool IsEnd(Exception exception)
+        {
+            if (exception is PipelineStoppedException)
+            {
+                return true;
+            }
+
+            for (var type = exception.GetType(); type != null; type = type.BaseType)
+            {
+                if (type.FullName == "System.Management.Automation.FlowControlException")
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
     public class BaseCmdlet : PSCmdlet
     {
         protected List<string> paths = new List<string>();
         protected List<FileSystemSecurity2> securityDescriptors = new List<FileSystemSecurity2>();
+
+        // The exception that a Write method of this cmdlet raised last. A Write method runs the later commands of the
+        // pipeline and so raises what they raise: a throw in a script block, an error with -ErrorAction Stop, the end of the
+        // pipeline, a break or a continue. None of it is a failure of the item that the cmdlet processes. A catch-all for
+        // those failures must pass it on (IsFromLaterCommand), or the cmdlet reports it as the error of that item, goes on
+        // with the next one, and the caller never sees the exception. WriteWarning is the one Write method that isn't
+        // noted, because no catch-all of the module encloses it.
+        private Exception laterCommandException;
+
+        /// <summary>Writes the object to the pipeline and notes what a later command raises, see IsFromLaterCommand.</summary>
+        public new void WriteObject(object sendToPipeline)
+        {
+            try
+            {
+                base.WriteObject(sendToPipeline);
+            }
+            catch (Exception ex)
+            {
+                laterCommandException = ex;
+                throw;
+            }
+        }
+
+        /// <summary>Writes the object to the pipeline and notes what a later command raises, see IsFromLaterCommand.</summary>
+        public new void WriteObject(object sendToPipeline, bool enumerateCollection)
+        {
+            try
+            {
+                base.WriteObject(sendToPipeline, enumerateCollection);
+            }
+            catch (Exception ex)
+            {
+                laterCommandException = ex;
+                throw;
+            }
+        }
+
+        // The error, verbose, and debug streams, which a later command can take too, for example Select-Object -First with 2>&1.
+        /// <summary>Writes the error and notes what a later command raises, see IsFromLaterCommand.</summary>
+        public new void WriteError(ErrorRecord errorRecord)
+        {
+            try
+            {
+                base.WriteError(errorRecord);
+            }
+            catch (Exception ex)
+            {
+                laterCommandException = ex;
+                throw;
+            }
+        }
+
+        /// <summary>Writes a verbose message and notes what a later command raises, see IsFromLaterCommand.</summary>
+        public new void WriteVerbose(string text)
+        {
+            try
+            {
+                base.WriteVerbose(text);
+            }
+            catch (Exception ex)
+            {
+                laterCommandException = ex;
+                throw;
+            }
+        }
+
+        /// <summary>Writes a debug message and notes what a later command raises, see IsFromLaterCommand.</summary>
+        public new void WriteDebug(string text)
+        {
+            try
+            {
+                base.WriteDebug(text);
+            }
+            catch (Exception ex)
+            {
+                laterCommandException = ex;
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Whether the exception comes from a later command of the pipeline, not from the item that the cmdlet processes.
+        /// </summary>
+        protected bool IsFromLaterCommand(Exception exception)
+        {
+            return ReferenceEquals(exception, laterCommandException) || PipelineControl.IsEnd(exception);
+        }
 
         protected override void BeginProcessing()
         {
@@ -192,6 +314,8 @@ namespace NTFSSecurity
         /// <summary>
         /// Takes ownership of the item, runs the action, and restores the previous owner on every exit path.
         /// A failure to restore the owner is written as a RestoreOwnerError and doesn't hide an error of the action.
+        /// An owner that the action did not change, because the current user owned the item already, isn't set again:
+        /// an action such as clearing the DACL can leave nobody the right to do so.
         /// </summary>
         /// <param name="item">The file or folder to take ownership of.</param>
         /// <param name="path">The path the user specified, used as the error target.</param>
@@ -199,8 +323,9 @@ namespace NTFSSecurity
         protected void InvokeAsOwner(Alphaleonis.Win32.Filesystem.FileSystemInfo item, string path, Action action)
         {
             var previousOwner = FileSystemOwner.GetOwner(item).Owner;
+            IdentityReference2 currentUser = System.Security.Principal.WindowsIdentity.GetCurrent().User;
 
-            FileSystemOwner.SetOwner(item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
+            FileSystemOwner.SetOwner(item, currentUser);
 
             try
             {
@@ -208,13 +333,16 @@ namespace NTFSSecurity
             }
             finally
             {
-                try
+                if (previousOwner != currentUser)
                 {
-                    FileSystemOwner.SetOwner(item, previousOwner);
-                }
-                catch (Exception ex)
-                {
-                    WriteError(new ErrorRecord(ex, "RestoreOwnerError", ErrorCategory.WriteError, path));
+                    try
+                    {
+                        FileSystemOwner.SetOwner(item, previousOwner);
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteError(new ErrorRecord(ex, "RestoreOwnerError", ErrorCategory.WriteError, path));
+                    }
                 }
             }
         }
@@ -314,9 +442,10 @@ namespace NTFSSecurity
                 WriteDebug(string.Format("The privilege {0} is disabled...", privilege));
                 //activate it
                 privControl.EnablePrivilege(privilege);
-                WriteDebug(string.Format("..enabled"));
-                //remember the privilege so that we can automatically disable it after the cmdlet finished processing
+                //remember the privilege so that we can automatically disable it after the cmdlet finished processing; before
+                //the next message, which a later command can answer with an exception: Dispose disables only what is noted
                 enabledPrivileges.Add(privilege.ToString());
+                WriteDebug(string.Format("..enabled"));
 
                 privileges = privControl.GetPrivileges();
             }
@@ -340,6 +469,12 @@ namespace NTFSSecurity
             }
             catch(Exception ex)
             {
+                // Not a failure to enable the privilege: a later command that took one of the debug messages raised it.
+                if (IsFromLaterCommand(ex))
+                {
+                    throw;
+                }
+
                 WriteDebug(string.Format("Could not enable privilege {0}. The error was: {1}", privilege, ex.Message));
                 return false;
             }

@@ -104,6 +104,51 @@ The format is based on
 
 ### Fixed
 
+- Retain the supplied path in the public access- and audit-rule constructors
+  so their `FullName`, `Name`, and simplified audit conversions identify
+  the item
+- Reduce `ReadData` to `Read` in simplified audit entries, and compare them
+  with audit entries rather than access entries, preserving equality with
+  themselves and with equivalent simplified audit objects
+- Compare boxed privilege output values by their privilege and attributes;
+  the object overload rejected privilege values and recursively compared
+  an attributes enum instead
+- Fix `Clear-NTFSAccess -DisableInheritance` and `Set-NTFSSecurityDescriptor`,
+  which reported a `RestoreOwnerError` for an owner that had not changed:
+  after they took ownership of an item that the user owned already and left a
+  DACL without the right to set an owner, they failed to set the same owner
+  back
+- Fix `InheritedFrom` of `Get-NTFSAccess` and `Get-NTFSAudit` for an entry
+  whose folder Windows cannot name, such as for an item that was deleted
+  after it was read or a folder above it that the user cannot read: the text
+  read `unknown paren`, and the explicit entries showed it as well. An
+  inherited entry now shows `unknown parent`, and an explicit entry no source;
+  the failed lookup no longer leaks its native buffer
+- Fix `Remove-Item2`, `Copy-Item2`, `Move-Item2`, `Set-NTFSOwner`,
+  `Set-NTFSSecurityDescriptor`, `Get-NTFSSecurityDescriptor`,
+  `Get-NTFSSimpleAccess`, `Get-FileHash2`, `Get-DiskSpace`, and
+  `Get-ChildItem2` below the first folder, which went on with the next item
+  when a later command ended the pipeline: a `break` or `continue`,
+  `Select-Object -First`, or a `throw` was handled as a failure of the item,
+  so that `Remove-Item2 -PassThru | Select-Object -First 1` removed every
+  item, and the caller never saw the `throw`. The same held when the later
+  command took a stream instead of the objects: the verbose messages of
+  `Get-FileHash2` and `Set-NTFSSecurityDescriptor`, the debug messages of
+  `Set-NTFSOwner`, and the errors of `Get-ChildItem2` for a folder that it
+  cannot read, for example with `4>&1` or `2>&1`. They now stop and write no
+  error, and the error of the later command reaches the caller
+- Fix the cmdlets that enable the privileges for the duration of their
+  command, which left a privilege enabled in the session and hid the
+  exception of a later command when that command took the debug message
+  after the enabling, for example with `5>&1 | Select-Object -First 2`; they
+  now disable the privilege and pass the exception on
+- Fix `Get-ChildItem2 -Filter`, which read a bracket as the start of a
+  character class, so that it did not return a file with brackets in its name,
+  such as `Report[1].txt`, for that name; only `*` and `?` are wildcards. A
+  null `-Filter` is rejected as a parameter error
+- Fix `Get-ChildItem2 -Filter *.*`, which returned only the items with a dot
+  in their names and dropped the other files and folders, most folders among
+  them, instead of every item as `Get-ChildItem` does
 - Fix `Get-Help`, which showed only the syntax: ship the help file
   `en-US\NTFSSecurity.dll-Help.xml` generated from the cmdlet documentation,
   including the links that `Get-Help -Online` opens, instead of the outdated
@@ -291,10 +336,12 @@ The format is based on
   for such a path, as in PowerShell 7, and writes the reason as a debug
   message
 - Fix the cmdlets that enable the Backup, Restore, Take Ownership, and
-  Security privileges, which left them enabled in the session when a later
-  command, such as `Select-Object -First`, or a terminating error stopped
-  the pipeline early; they now disable them also then
-- Fix the cmdlets that enable the privileges, which stopped with the error
+  Security privileges for the duration of their command, which left them
+  enabled in the session when a later command, such as `Select-Object -First`,
+  or a terminating error stopped the pipeline early; they now disable them
+  also then. `Enable-Privileges` keeps them enabled by design
+- Fix the cmdlets that enable the privileges for the duration of their
+  command, which stopped with the error
   "Priviledge already disabled" and left the other privileges enabled when
   another command in the pipeline, such as `Disable-Privileges`, had
   disabled one of them; a privilege that they can't disable now gives a

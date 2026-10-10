@@ -143,7 +143,10 @@ and record the evidence in this folder:
 
 Records: [5.0.0-rc6](Acceptance-2026-10-08-5.0.0-rc6.md),
 [5.0.0-rc7](Acceptance-2026-10-08-5.0.0-rc7.md), and
-[quality-gate follow-up](Acceptance-2026-10-09-quality-gate.md).
+[quality-gate follow-up](Acceptance-2026-10-09-quality-gate.md). The review
+of the code that no unit test visits, with the fixes that the lab has to
+repeat, is in
+[Tests/Coverage](../Coverage/Quality-Gate-Paths-2026-10-09.md).
 
 ## Files
 

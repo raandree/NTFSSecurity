@@ -341,6 +341,65 @@ function Set-TestOwner {
     }
 }
 
+function Set-TestNullDacl {
+    <#
+    .SYNOPSIS
+        Replaces the DACL of an item in the sandbox with a NULL DACL, which gives everyone every access.
+    .DESCRIPTION
+        Neither Set-Acl nor icacls can write a NULL DACL, so the helper calls SetNamedSecurityInfo. The DACL is
+        protected, so the item inherits no entries. Everyone can delete the item, so Remove-TestSandbox removes it.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+        'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only writes to sandboxes.'
+    )]
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [string]
+        $Sandbox,
+
+        [Parameter(Mandatory)]
+        [string]
+        $Path
+    )
+
+    Assert-TestSandboxPath -Sandbox $Sandbox -Path $Path
+    $location = (Get-Location -PSProvider FileSystem).ProviderPath
+    $fullName = [IO.Path]::GetFullPath([IO.Path]::Combine($location, $Path))
+    # Assert-TestSandboxPath checks the folders of the path for links, not the item itself, and the native call follows a
+    # link: a junction to a folder outside the sandbox would give everyone every access to that folder.
+    $attributes = try { [IO.File]::GetAttributes($fullName) } catch { $null }
+    if ($null -ne $attributes -and ($attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw "Refusing to change '$fullName', because it is a link."
+    }
+
+    if (-not ('NtfsSecurityTests.NativeAcl' -as [type])) {
+        Add-Type -TypeDefinition @'
+namespace NtfsSecurityTests
+{
+    public static class NativeAcl
+    {
+        [System.Runtime.InteropServices.DllImport("advapi32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern uint SetNamedSecurityInfoW(string objectName, int objectType, uint securityInfo,
+            System.IntPtr owner, System.IntPtr group, System.IntPtr dacl, System.IntPtr sacl);
+
+        // SE_FILE_OBJECT, with DACL_SECURITY_INFORMATION and PROTECTED_DACL_SECURITY_INFORMATION and no DACL
+        public static uint SetNullDacl(string path)
+        {
+            return SetNamedSecurityInfoW(path, 1, 0x00000004u | 0x80000000u,
+                System.IntPtr.Zero, System.IntPtr.Zero, System.IntPtr.Zero, System.IntPtr.Zero);
+        }
+    }
+}
+'@
+    }
+
+    $result = [NtfsSecurityTests.NativeAcl]::SetNullDacl($fullName)
+    if ($result -ne 0) {
+        throw "SetNamedSecurityInfo could not set a NULL DACL on '$fullName' (error $result)."
+    }
+}
+
 function Test-IsElevated {
     <#
     .SYNOPSIS
@@ -422,6 +481,113 @@ function ConvertTo-TestAdminSharePath {
     '\\localhost\{0}${1}' -f $Path.Substring(0, 1), $Path.Substring(2)
 }
 
+function New-TestDriveMapping {
+    <#
+    .SYNOPSIS
+        Maps a free drive letter to a folder of the sandbox with subst and returns the root of the drive, such as Z:\.
+        Returns nothing when the process cannot define a drive letter, as the restricted token of a basic user cannot.
+    .DESCRIPTION
+        For Windows and for the module, the root of the mapped drive is the root folder of a drive, so that a test can
+        change it without changing a volume. The helper checks the folder with Assert-TestSandboxPath first and unmaps
+        the letter again, with an error, when a marker file of the folder is not visible through it, so that a mapping
+        that points elsewhere is never used. Remove the mapping with Remove-TestDriveMapping.
+    .PARAMETER Sandbox
+        The sandbox folder that New-TestSandbox returned.
+    .PARAMETER Path
+        The full path of the folder to map, in the sandbox.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+        'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only maps sandbox folders.'
+    )]
+    [CmdletBinding()]
+    [OutputType([string])]
+    param (
+        [Parameter(Mandatory)]
+        [string]
+        $Sandbox,
+
+        [Parameter(Mandatory)]
+        [string]
+        $Path
+    )
+
+    Assert-TestSandboxPath -Sandbox $Sandbox -Path $Path
+    $marker = [guid]::NewGuid().ToString('N')
+    $markerPath = Join-Path -Path $Path -ChildPath $marker
+    Assert-TestSandboxPath -Sandbox $Sandbox -Path $markerPath
+    Set-Content -LiteralPath $markerPath -Value $marker
+    $subst = Join-Path -Path $env:SystemRoot -ChildPath 'System32\subst.exe'
+
+    # A test run in parallel can map a letter at the same moment, which makes subst fail for that letter.
+    foreach ($letter in 'Z', 'Y', 'X', 'W', 'V', 'U', 'T', 'S') {
+        $root = '{0}:\' -f $letter
+        if (Test-Path -LiteralPath $root) {
+            continue
+        }
+
+        & $subst ('{0}:' -f $letter) $Path *> $null
+        if ($LASTEXITCODE -ne 0) {
+            continue
+        }
+
+        if (Test-Path -LiteralPath (Join-Path -Path $root -ChildPath $marker)) {
+            return $root
+        }
+
+        & $subst ('{0}:' -f $letter) /d *> $null
+        throw "The drive '$root' does not show the sandbox folder '$Path'."
+    }
+}
+
+function Remove-TestDriveMapping {
+    <#
+    .SYNOPSIS
+        Removes a mapping of New-TestDriveMapping.
+    .PARAMETER Root
+        The root of the drive that New-TestDriveMapping returned, such as Z:\.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+        'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only removes its own mapping.'
+    )]
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [ValidatePattern('^[A-Z]:\\$')]
+        [string]
+        $Root
+    )
+
+    & (Join-Path -Path $env:SystemRoot -ChildPath 'System32\subst.exe') $Root.TrimEnd('\') /d *> $null
+    if (Test-Path -LiteralPath $Root) {
+        Write-Error -Message "The drive mapping '$Root' could not be removed."
+    }
+}
+
+function Test-DriveMappingAvailable {
+    <#
+    .SYNOPSIS
+        Returns $true when the process can define a drive letter for a folder with subst, which the restricted token of
+        the basic-user runner cannot.
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param ()
+
+    $sandbox = New-TestSandbox -Name 'DriveProbe'
+    try {
+        $root = New-TestDriveMapping -Sandbox $sandbox -Path $sandbox
+        if ($root) {
+            Remove-TestDriveMapping -Root $root
+        }
+
+        [bool] $root
+    }
+    finally {
+        Remove-TestSandbox -Sandbox $sandbox
+    }
+}
+
 Export-ModuleMember -Function New-TestSandbox, Assert-TestSandboxPath, Remove-TestSandbox, New-TestSandboxItem,
-    Block-TestReadPermission, Block-TestWritePermission, Add-TestDenyRule, Set-TestOwner, Test-IsElevated,
-    Test-PrivilegeHeld, Test-AdminShareAvailable, ConvertTo-TestAdminSharePath
+    Block-TestReadPermission, Block-TestWritePermission, Add-TestDenyRule, Set-TestOwner, Set-TestNullDacl, Test-IsElevated,
+    Test-PrivilegeHeld, Test-AdminShareAvailable, ConvertTo-TestAdminSharePath, New-TestDriveMapping,
+    Remove-TestDriveMapping, Test-DriveMappingAvailable

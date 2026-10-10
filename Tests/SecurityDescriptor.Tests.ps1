@@ -225,6 +225,65 @@ Describe 'Set-NTFSSecurityDescriptor' {
             $result[0].FullName | Should -Be $file
             $result[0].SecurityDescriptor.GetOwner($sidType).Value | Should -Be 'S-1-5-32-544'
         }
+
+        # With a cleared, protected DACL, nobody keeps the right to set an owner, so setting the previous owner back would
+        # fail. The user owned the item already, so there is no owner to set back.
+        It 'Should not report an owner that did not change when the write that took ownership leaves an empty DACL' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'RetryUnchangedOwner'
+            Set-TestOwner -Sandbox $sandbox -Path $file -Sid $currentUser
+            Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ 'S-1-3-4' = 'ChangePermissions' }
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+            Clear-NTFSAccess -SecurityDescriptor $sd -DisableInheritance -ErrorAction Stop
+
+            Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorVariable setErrors -ErrorAction SilentlyContinue
+
+            $setErrors | Should -BeNullOrEmpty
+            $acl = Get-Acl -LiteralPath $file
+            $acl.GetOwner($sidType).Value | Should -Be $currentUser
+            $acl.AreAccessRulesProtected | Should -BeTrue
+            @($acl.GetAccessRules($true, $true, $sidType)) | Should -BeNullOrEmpty
+        }
+
+        # Without the Restore privilege, the user can't set an owner such as TrustedInstaller back. The cmdlet reports it
+        # after it wrote the descriptor.
+        It 'Should report RestoreOwnerError for a previous owner that it cannot set back after the write' -Skip:(-not $canAssignAnyOwner) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'RetryRestoreDenied'
+            Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ $currentUser = 'ChangePermissions' }
+            Set-TestOwner -Sandbox $sandbox -Path $file -Sid $trustedInstaller
+            Get-RestorePrivilegeState | Should -Be 'Disabled'
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+            Add-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData
+
+            Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorVariable setErrors -ErrorAction SilentlyContinue
+
+            $setErrors | Should -HaveCount 1
+            $setErrors[0].FullyQualifiedErrorId | Should -BeLike 'RestoreOwnerError,*'
+            $setErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+            $setErrors[0].TargetObject.FullName | Should -Be $file
+            @(Get-EveryoneRule -Path $file) | Should -HaveCount 1
+            (Get-Acl -LiteralPath $file).GetOwner($sidType).Value | Should -Be $currentUser
+        }
+
+        # The user can set a group of its access token back as the owner without the Restore privilege, such as the group
+        # Administrators of an elevated session, so the cmdlet restores the owner and reports nothing. A deny entry for
+        # OWNER RIGHTS stops the first write, also for the owner; taking ownership drops that entry.
+        It 'Should set a previous owner back that the user can assign after the write that took ownership' -Skip:(-not $canAssignAnyOwner) {
+            $administrators = 'S-1-5-32-544'
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'RetryRestored'
+            Set-TestOwner -Sandbox $sandbox -Path $file -Sid $administrators
+            Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ 'S-1-3-4' = 'ChangePermissions' }
+            Get-RestorePrivilegeState | Should -Be 'Disabled'
+            # A plain write of the DACL is denied, so that the cmdlet has to take ownership for its write.
+            { Add-TestDenyRule -Sandbox $sandbox -Path $file -Rights @{ 'S-1-5-32-546' = 'ReadData' } } | Should -Throw
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+            Add-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData
+
+            Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorVariable setErrors -ErrorAction SilentlyContinue
+
+            $setErrors | Should -BeNullOrEmpty
+            @(Get-EveryoneRule -Path $file) | Should -HaveCount 1
+            (Get-Acl -LiteralPath $file).GetOwner($sidType).Value | Should -Be $administrators
+        }
     }
 
     Context 'A descriptor that cannot be written' {

@@ -257,6 +257,59 @@ Describe 'Test helpers' {
         }
     }
 
+    Context 'Set-TestNullDacl' {
+        BeforeAll {
+            $sandbox = New-TestSandbox -Name 'Helpers'
+        }
+
+        AfterAll {
+            Remove-TestSandbox -Sandbox $sandbox
+        }
+
+        It 'Should replace the DACL of an item in the sandbox with a protected NULL DACL' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'NullDacl'
+            $before = [System.Security.AccessControl.RawSecurityDescriptor]::new((Get-Acl -LiteralPath $file).GetSecurityDescriptorBinaryForm(), 0)
+            $before.ControlFlags.HasFlag([System.Security.AccessControl.ControlFlags]::DiscretionaryAclPresent) | Should -BeTrue
+
+            Set-TestNullDacl -Sandbox $sandbox -Path $file
+
+            $after = [System.Security.AccessControl.RawSecurityDescriptor]::new((Get-Acl -LiteralPath $file).GetSecurityDescriptorBinaryForm(), 0)
+            $after.ControlFlags.HasFlag([System.Security.AccessControl.ControlFlags]::DiscretionaryAclPresent) | Should -BeFalse
+            $after.ControlFlags.HasFlag([System.Security.AccessControl.ControlFlags]::DiscretionaryAclProtected) | Should -BeTrue
+        }
+
+        It 'Should refuse an item outside the sandbox' {
+            { Set-TestNullDacl -Sandbox $sandbox -Path "$sandbox-Other\File.txt" } |
+                Should -Throw -ExpectedMessage 'Refusing to change*'
+        }
+
+        # The native call follows a link, so a junction in the sandbox that points to another folder is refused as the
+        # item itself, not only as a folder of its path.
+        It 'Should refuse an item that is a link, which can point outside the sandbox' {
+            $otherSandbox = New-TestSandbox -Name 'Helpers'
+            try {
+                $link = Join-Path -Path $sandbox -ChildPath 'NullDaclLink'
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $link
+                New-Item -ItemType Junction -Path $link -Value $otherSandbox | Out-Null
+                $before = (Get-Acl -LiteralPath $otherSandbox).Sddl
+
+                { Set-TestNullDacl -Sandbox $sandbox -Path $link } | Should -Throw -ExpectedMessage '*because it is a link*'
+
+                (Get-Acl -LiteralPath $otherSandbox).Sddl | Should -BeExactly $before
+            }
+            finally {
+                Remove-TestSandbox -Sandbox $otherSandbox
+            }
+        }
+
+        It 'Should throw its own error when Windows refuses' {
+            $missing = Join-Path -Path $sandbox -ChildPath 'Missing.txt'
+
+            { Set-TestNullDacl -Sandbox $sandbox -Path $missing } |
+                Should -Throw -ExpectedMessage 'SetNamedSecurityInfo could not set a NULL DACL*'
+        }
+    }
+
     Context 'Test-IsElevated and Test-PrivilegeHeld' {
         It 'Should tell whether the process is elevated' {
             Test-IsElevated | Should -BeOfType [bool]
@@ -302,6 +355,27 @@ Describe 'Test helpers' {
         # Only administrators can open the administrative shares.
         It 'Should not offer the administrative share without elevation' -Skip:$isElevated {
             Test-AdminShareAvailable | Should -BeFalse
+        }
+    }
+
+    # subst maps a letter for the whole logon session, so the guard has to stop before it runs, for every configuration.
+    Context 'New-TestDriveMapping and Remove-TestDriveMapping' {
+        BeforeAll {
+            $sandbox = New-TestSandbox -Name 'Helpers'
+        }
+
+        AfterAll {
+            Remove-TestSandbox -Sandbox $sandbox
+        }
+
+        It 'Should refuse a folder outside the sandbox before it maps anything' {
+            { New-TestDriveMapping -Sandbox $sandbox -Path "$sandbox-Other\Folder" } |
+                Should -Throw -ExpectedMessage 'Refusing to change*'
+        }
+
+        It 'Should refuse a value that is not the root of a drive' {
+            { Remove-TestDriveMapping -Root 'C:\Windows' } |
+                Should -Throw -ErrorId 'ParameterArgumentValidationError,Remove-TestDriveMapping'
         }
     }
 }

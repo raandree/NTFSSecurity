@@ -3520,7 +3520,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="2" aliases="none">
           <maml:name>Filter</maml:name>
           <maml:description>
-            <maml:para>Specifies a name pattern that an item must match to be returned. The pattern supports the ` ` and `?` wildcard characters, and the match ignores case. The default value is ` `, which returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.</maml:para>
+            <maml:para>Specifies a name pattern that an item must match to be returned. The pattern supports the asterisk and the question mark as wildcard characters, an asterisk for any number of characters and a question mark for exactly one, and the match ignores case. Any other character stands for itself; a bracket is an ordinary character, so `Report[1].txt` returns the file of that name. As for `Get-ChildItem`, a pattern of an asterisk, a dot, and an asterisk returns every item, also an item without a dot in its name. The default value is `*`, which returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
           <dev:type>
@@ -3724,7 +3724,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="2" aliases="none">
         <maml:name>Filter</maml:name>
         <maml:description>
-          <maml:para>Specifies a name pattern that an item must match to be returned. The pattern supports the ` ` and `?` wildcard characters, and the match ignores case. The default value is ` `, which returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.</maml:para>
+          <maml:para>Specifies a name pattern that an item must match to be returned. The pattern supports the asterisk and the question mark as wildcard characters, an asterisk for any number of characters and a question mark for exactly one, and the match ignores case. Any other character stands for itself; a bracket is an ordinary character, so `Report[1].txt` returns the file of that name. As for `Get-ChildItem`, a pattern of an asterisk, a dot, and an asterisk returns every item, also an item without a dot in its name. The default value is `*`, which returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
         <dev:type>
@@ -3866,6 +3866,9 @@ PS C:\&gt; Disable-Privileges</dev:code>
         <maml:para>The `PrivateData` section of the module manifest `NTFSSecurity.psd1` contains two settings that this cmdlet reads when it starts. `GetFileSystemModeProperty` adds the calculated `Mode` property to every item. `IdentifyHardLinks` adds the `HardLinkCount` property to every file, which requires an extra call into the file system for each file and therefore slows down large listings noticeably. Set either value to `$false` in the manifest and import the module again if you prefer the faster enumeration over the additional properties.</maml:para>
         <maml:para>A folder that cannot be read produces a non-terminating error with the ID `DirUnauthorizedAccessError` for an access denial or `DirUnspecifiedError` for any other failure, and a path that does not exist produces the error `FileNotFound`. In each case the cmdlet continues with the next path. Failures that occur while `-Recurse` collects the subfolders of a folder are reported as verbose messages only, not as errors.</maml:para>
         <maml:para>Before 5.0.0, a `-Path` value that points to a file stopped the cmdlet with an `InvalidCastException`, `-Attributes` returned only the items that had all the listed attributes, and an empty `-Attributes` value returned every item, also the hidden ones. Earlier builds, including the 5.0.0 prereleases, could also omit the first hidden item with `-Hidden` unless `-Force` was explicitly supplied.</maml:para>
+        <maml:para>Before 5.0.0, `-Filter` read a bracket as the start of a character class, so a file with brackets in its name, such as `Report[1].txt`, was not returned for its name, and a pattern of an asterisk, a dot, and an asterisk dropped the items without a dot in their names, most folders among them.</maml:para>
+        <maml:para>The names are matched twice, by the enumeration of the AlphaFS library and by the cmdlet, which reads a dot as an ordinary character, and their rules for a dot can differ from those of `Get-ChildItem`: a pattern such as `Report.*` does not return the file `Report`, which has no dot, a pattern that ends in a dot returns nothing, and an empty value returns nothing. Only the pattern of an asterisk, a dot, and an asterisk is treated as a single asterisk.</maml:para>
+        <maml:para>Before 5.0.0, a `break`, a `continue`, or a `throw` in a later command of the pipeline did not end the cmdlet for an item below the first folder, also when the later command took the error of a folder that the cmdlet cannot read, for example with `2&gt;&amp;1`.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -3895,6 +3898,13 @@ PS C:\&gt; Disable-Privileges</dev:code>
         <dev:code>PS C:\&gt; dir2 -Path C:\Data -Attributes Hidden, System</dev:code>
         <dev:remarks>
           <maml:para>Uses the `dir2` alias and returns the items of `C:\Data` that have the hidden or the system attribute, like `Get-ChildItem -Attributes Hidden, System`.</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>Example 5: Return every item, with or without a dot in its name</maml:title>
+        <dev:code>PS C:\&gt; Get-ChildItem2 -Path C:\Data -Filter *.*</dev:code>
+        <dev:remarks>
+          <maml:para>Returns every item of `C:\Data`, also the files and folders whose names have no dot, as `Get-ChildItem` does for this filter.</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>
@@ -4380,7 +4390,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
       <maml:para>Reads the discretionary access control list (DACL) of a file or a folder and writes one `Security2.FileSystemAccessRule2` object for every access control entry (ACE) it contains. Each object carries the account, the rights, the access type, the inheritance and propagation flags, whether the ACE is inherited, and the path of the item it was read from.</maml:para>
       <maml:para>In the `Path` parameter set the cmdlet reads the item from disk; relative paths are resolved against the current location, and when `-Path` is omitted the current location is used. In the `SD` parameter set it reads the ACEs from a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor`, which also reflects changes that have not been written back yet.</maml:para>
       <maml:para>By default both explicit and inherited entries are returned. `-ExcludeInherited` limits the result to the entries defined on the item itself, `-ExcludeExplicit` limits it to the entries the item inherits from its parents, and combining both returns nothing. `-Account` filters the result to a single account; an entry matches when the account resolves to the same SID.</maml:para>
-      <maml:para>When the module setting `GetInheritedFrom` is `$true`, which is the default in the `PrivateData` section of NTFSSecurity.psd1, the `InheritedFrom` property of every inherited entry contains the path of the folder the entry originates from. The default table view shows the account, the rights, the scope of the ACE in the wording of the Windows security dialog, the access type, and the inheritance information; setting `ShowAccountSid` to `$true` adds the SID to the account column.</maml:para>
+      <maml:para>When the module setting `GetInheritedFrom` is `$true`, which is the default in the `PrivateData` section of NTFSSecurity.psd1, the `InheritedFrom` property of every inherited entry contains the path of the folder the entry originates from, or `unknown parent` when Windows cannot name that folder, for example because the user cannot read a folder above the item. The default table view shows the account, the rights, the scope of the ACE in the wording of the Windows security dialog, the access type, and the inheritance information; setting `ShowAccountSid` to `$true` adds the SID to the account column.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
@@ -4589,6 +4599,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
         <maml:para>Entries whose account cannot be translated into a name are returned with their SID. Use `Get-NTFSOrphanedAccess` to list only those entries.</maml:para>
         <maml:para>Before 5.0.0, after a path whose ACL could not be read, the cmdlet returned the entries of the previous item again.</maml:para>
         <maml:para>Before 5.0.0-rc6, with `-ExcludeExplicit`, each inherited entry showed the `InheritedFrom` path of another entry, and for a security descriptor with audit entries, such as one that `Get-NTFSSecurityDescriptor` reads in an elevated session, the cmdlet stopped with an `ArgumentOutOfRangeException`.</maml:para>
+        <maml:para>Before 5.0.0, when Windows could not name the folder of an inherited entry, `InheritedFrom` read `unknown paren`, and the explicit entries of the item showed it as well.</maml:para>
         <maml:para>For the root of a drive, such as `C:`, or of a volume, such as `\?\Volume{GUID}`, the cmdlets that read and change security use the root folder of the volume, like Explorer, `icacls`, and `Get-Acl`. Before 5.0.0, they read and changed the security descriptor of the drive itself, a device object with other entries.</maml:para>
       </maml:alert>
     </maml:alertSet>
@@ -4666,7 +4677,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
       <maml:para>The `Get-NTFSAudit` cmdlet returns the audit entries that are stored in the system access control list (SACL) of a file or folder. Each entry is a `Security2.FileSystemAuditRule2` object that reports the audited account, the audited access rights, the audit flags (`Success`, `Failure`, or both), the inheritance and propagation flags, whether the entry is inherited, and the item it is inherited from. The access rights are the same values that `Add-NTFSAccess` and `Add-NTFSAudit` use; for what each right permits, see Concepts (../Concepts.md).</maml:para>
       <maml:para>In the `Path` parameter set the cmdlet reads the security descriptor of every item in `-Path`. Relative paths are resolved against the current location, and when you omit `-Path` the cmdlet uses the current location. The parameter accepts pipeline input by value and by property name through its `FullName` alias, so the output of `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` binds to it. In the `SD` parameter set the cmdlet reads the audit entries from an in-memory `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned instead of reading the item again.</maml:para>
       <maml:para>By default the cmdlet returns explicit and inherited entries. Use `-ExcludeInherited` to return only the entries that are set on the item itself, and `-ExcludeExplicit` to return only the entries that the item inherits from a parent folder. `-Account` filters the result to a single account; the comparison is made on the security identifier (SID), so an account name and its SID select the same entries.</maml:para>
-      <maml:para>The `InheritedFrom` property is filled only when the module setting `GetInheritedFrom` is `$true`, which is the default in the `PrivateData` section of `NTFSSecurity.psd1`.</maml:para>
+      <maml:para>The `InheritedFrom` property is filled only when the module setting `GetInheritedFrom` is `$true`, which is the default in the `PrivateData` section of `NTFSSecurity.psd1`. It contains `unknown parent` for an inherited entry when Windows cannot name the folder that the entry comes from.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
@@ -4873,6 +4884,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
         <maml:para>If reading the audit entries is denied, the cmdlet writes a `ReadSecurityError` with the category `PermissionDenied`. It doesn't take ownership of the item, because ownership grants no access to the SACL.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet returned no entries and no error without the Security privilege, and after a path whose security descriptor could not be read, it returned the entries of the previous item again. The `InheritanceEnabled` property of the entries also reported whether the access entries were inherited instead of the audit entries.</maml:para>
         <maml:para>Before 5.0.0-rc6, with `-ExcludeExplicit`, each inherited entry showed the `InheritedFrom` path of another entry.</maml:para>
+        <maml:para>Before 5.0.0, when Windows could not name the folder of an inherited entry, `InheritedFrom` read `unknown paren`, and the explicit entries of the item showed it as well.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>

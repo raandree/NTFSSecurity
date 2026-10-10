@@ -65,6 +65,14 @@ PS C:\> dir2 -Path C:\Data -Attributes Hidden, System
 
 Uses the `dir2` alias and returns the items of `C:\Data` that have the hidden or the system attribute, like `Get-ChildItem -Attributes Hidden, System`.
 
+### Example 5: Return every item, with or without a dot in its name
+
+```PowerShell
+PS C:\> Get-ChildItem2 -Path C:\Data -Filter *.*
+```
+
+Returns every item of `C:\Data`, also the files and folders whose names have no dot, as `Get-ChildItem` does for this filter.
+
 ## PARAMETERS
 
 ### -Attributes
@@ -134,7 +142,7 @@ Accept wildcard characters: False
 
 ### -Filter
 
-Specifies a name pattern that an item must match to be returned. The pattern supports the `*` and `?` wildcard characters, and the match ignores case. The default value is `*`, which returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.
+Specifies a name pattern that an item must match to be returned. The pattern supports the asterisk and the question mark as wildcard characters, an asterisk for any number of characters and a question mark for exactly one, and the match ignores case. Any other character stands for itself; a bracket is an ordinary character, so `Report[1].txt` returns the file of that name. As for `Get-ChildItem`, a pattern of an asterisk, a dot, and an asterisk returns every item, also an item without a dot in its name. The default value is `*`, which returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.
 
 ```yaml
 Type: String
@@ -308,6 +316,12 @@ The `PrivateData` section of the module manifest `NTFSSecurity.psd1` contains tw
 A folder that cannot be read produces a non-terminating error with the ID `DirUnauthorizedAccessError` for an access denial or `DirUnspecifiedError` for any other failure, and a path that does not exist produces the error `FileNotFound`. In each case the cmdlet continues with the next path. Failures that occur while `-Recurse` collects the subfolders of a folder are reported as verbose messages only, not as errors.
 
 Before 5.0.0, a `-Path` value that points to a file stopped the cmdlet with an `InvalidCastException`, `-Attributes` returned only the items that had all the listed attributes, and an empty `-Attributes` value returned every item, also the hidden ones. Earlier builds, including the 5.0.0 prereleases, could also omit the first hidden item with `-Hidden` unless `-Force` was explicitly supplied.
+
+Before 5.0.0, `-Filter` read a bracket as the start of a character class, so a file with brackets in its name, such as `Report[1].txt`, was not returned for its name, and a pattern of an asterisk, a dot, and an asterisk dropped the items without a dot in their names, most folders among them.
+
+The names are matched twice, by the enumeration of the AlphaFS library and by the cmdlet, which reads a dot as an ordinary character, and their rules for a dot can differ from those of `Get-ChildItem`: a pattern such as `Report.*` does not return the file `Report`, which has no dot, a pattern that ends in a dot returns nothing, and an empty value returns nothing. Only the pattern of an asterisk, a dot, and an asterisk is treated as a single asterisk.
+
+Before 5.0.0, a `break`, a `continue`, or a `throw` in a later command of the pipeline did not end the cmdlet for an item below the first folder, also when the later command took the error of a folder that the cmdlet cannot read, for example with `2>&1`.
 
 ## RELATED LINKS
 

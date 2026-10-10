@@ -45,6 +45,7 @@ namespace NTFSSecurity
         }
 
         [Parameter(Position = 2)]
+        [ValidateNotNull]
         public string Filter
         {
             get { return filter; }
@@ -145,7 +146,12 @@ namespace NTFSSecurity
                 paths = new List<string>() { GetCurrentLocation() };
             }
 
-            wildcard = new WildcardPattern(filter, WildcardOptions.Compiled | WildcardOptions.IgnoreCase);
+            // Only * and ? are wildcards, like in the pattern that the enumeration matches; a bracket or a backtick stands
+            // for itself. Before 5.0.0, [1] was read as a character class, so a file with brackets in its name was not
+            // returned for its name. The enumeration returns every item for *.* as Windows does, so the comparison does
+            // too; with the dot as an ordinary character, it would drop the items without a dot, most folders.
+            var pattern = filter == "*.*" ? "*" : filter;
+            wildcard = new WildcardPattern(pattern.Replace("`", "``").Replace("[", "`[").Replace("]", "`]"), WildcardOptions.Compiled | WildcardOptions.IgnoreCase);
 
             modeMethodInfo = typeof(FileSystemCodeMembers).GetMethod("Mode");
 
@@ -244,8 +250,15 @@ namespace NTFSSecurity
                     {
                         throw ex;
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
+                        // Not what a later command raises, which this catch would hide; the verbose message is for a
+                        // folder that can't be listed.
+                        if (IsFromLaterCommand(ex))
+                        {
+                            throw;
+                        }
+
                         WriteVerbose(string.Format("Cannot access folder '{0}' for recursive operation", di));
                     }
                 }
@@ -260,11 +273,11 @@ namespace NTFSSecurity
             }
             catch (Exception ex)
             {
-                //System.Management.Automation.BreakException or System.Management.Automation.ContinueException cannot be caught due to its protection level in PowerShell v2
-                if (ex.GetType().FullName == "System.Management.Automation.BreakException" | ex.GetType().FullName == "System.Management.Automation.ContinueException")
+                if (IsFromLaterCommand(ex))
                 {
-                    throw ex;
+                    throw;
                 }
+
                 WriteError(new ErrorRecord(ex, "DirUnspecifiedError", ErrorCategory.NotSpecified, di.FullName));
             }
         }

@@ -137,6 +137,28 @@ Describe 'Add-NTFSAudit' {
         }
     }
 
+    # .NET refuses to build an audit entry without rights. The cmdlet reports the exception for the item and goes on.
+    Context 'With -AccessRights None' -Skip:(-not $canReadAudit) {
+        It 'Should write an AddAceError for each item, change nothing, and return nothing with -PassThru' {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'AuditNoneFirst'
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'AuditNoneSecond'
+            $before = @((Get-Acl -LiteralPath $first -Audit).Sddl, (Get-Acl -LiteralPath $second -Audit).Sddl)
+
+            $result = @(Add-NTFSAudit -Path $first, $second -Account 'Everyone' -AccessRights None -AuditFlags Success -PassThru -ErrorVariable auditErrors -ErrorAction SilentlyContinue)
+
+            $result | Should -BeNullOrEmpty
+            $auditErrors | Should -HaveCount 2
+            for ($index = 0; $index -lt 2; $index++) {
+                $auditErrors[$index].FullyQualifiedErrorId | Should -BeLike 'AddAceError,*'
+                $auditErrors[$index].CategoryInfo.Category | Should -Be 'WriteError'
+                $auditErrors[$index].TargetObject | Should -BeExactly @($first, $second)[$index]
+                $auditErrors[$index].Exception | Should -BeOfType [System.ArgumentException]
+            }
+            (Get-Acl -LiteralPath $first -Audit).Sddl | Should -BeExactly $before[0]
+            (Get-Acl -LiteralPath $second -Audit).Sddl | Should -BeExactly $before[1]
+        }
+    }
+
     Context 'When the item has an owner that the user cannot assign' {
         BeforeAll {
             $privateData['EnablePrivileges'] = $false
@@ -510,5 +532,176 @@ Describe 'InheritedFrom of audit entries' {
         @($all | Where-Object -FilterScript { $_.IsInherited })[0].InheritedFrom | Should -Be $folder
         $inherited | Should -HaveCount 1
         $inherited[0].InheritedFrom | Should -Be $folder
+    }
+
+    # Windows names the folders of audit entries only for a caller whose Security privilege is enabled, and the cmdlets
+    # enable it. A caller of the library that doesn't gets the entries without sources. Before 5.0.0, the text lost its
+    # last character, and an explicit entry, which has no source, got it as well.
+    It 'Should name an unknown parent for an inherited entry and no source for an explicit entry when the privilege is disabled' -Skip:(-not $canReadAudit) {
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritedFromDisabled' -Directory
+        Add-NTFSAudit -Path $folder -Account 'S-1-1-0' -AccessRights ReadData -InheritanceFlags 'ContainerInherit, ObjectInherit' -PropagationFlags None
+        $file = Join-Path -Path $folder -ChildPath 'File.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+        Set-Content -LiteralPath $file -Value 'File'
+        Add-NTFSAudit -Path $file -Account 'S-1-5-32-546' -AccessRights Delete -InheritanceFlags None -PropagationFlags None
+        $sd = Get-NTFSSecurityDescriptor -Path $file -ErrorAction Stop
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+
+        $entries = @([Security2.FileSystemAuditRule2]::GetFileSystemAuditRules($sd, $true, $true, $true))
+
+        $inherited = @($entries | Where-Object -FilterScript { $_.IsInherited })
+        $inherited | Should -HaveCount 1
+        $inherited[0].InheritedFrom | Should -BeExactly 'unknown parent'
+        $explicit = @($entries | Where-Object -FilterScript { -not $_.IsInherited })
+        $explicit | Should -HaveCount 1
+        $explicit[0].InheritedFrom | Should -BeNullOrEmpty
+    }
+
+    # The module setting GetInheritedFrom turns off the lookup of the sources, which costs a call for each item.
+    It 'Should leave InheritedFrom empty when the module setting GetInheritedFrom is off' -Skip:(-not $canReadAudit) {
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritedFromOff' -Directory
+        Add-NTFSAudit -Path $folder -Account 'S-1-1-0' -AccessRights ReadData -InheritanceFlags 'ContainerInherit, ObjectInherit' -PropagationFlags None
+        $file = Join-Path -Path $folder -ChildPath 'File.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+        Set-Content -LiteralPath $file -Value 'File'
+        $saved = $privateData['GetInheritedFrom']
+        $privateData['GetInheritedFrom'] = $false
+        try {
+            $result = @(Get-NTFSAudit -Path $file -ErrorAction Stop)
+        }
+        finally {
+            $privateData['GetInheritedFrom'] = $saved
+        }
+
+        $inherited = @($result | Where-Object -FilterScript { $_.IsInherited })
+        $inherited | Should -HaveCount 1
+        $inherited[0].InheritedFrom | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'Audit changes with the Security privilege disabled' {
+    BeforeAll {
+        $holdsSecurityForOperations = Test-PrivilegeHeld -Name 'SeSecurityPrivilege'
+    }
+
+    BeforeEach {
+        $savedEnablePrivileges = $privateData['EnablePrivileges']
+        $securityWasEnabled = (Get-Privileges | Where-Object -Property Privilege -EQ -Value 'Security').PrivilegeState -eq 'Enabled'
+    }
+
+    AfterEach {
+        $privateData['EnablePrivileges'] = $savedEnablePrivileges
+        if ($securityWasEnabled) {
+            $null = [ProcessPrivileges.ProcessExtensions]::EnablePrivilege(
+                [Diagnostics.Process]::GetCurrentProcess(), [ProcessPrivileges.Privilege]::Security
+            )
+        }
+        else {
+            $null = [ProcessPrivileges.ProcessExtensions]::DisablePrivilege(
+                [Diagnostics.Process]::GetCurrentProcess(), [ProcessPrivileges.Privilege]::Security
+            )
+        }
+    }
+
+    It '<Command> should use a held privilege or report a missing one and continue to the next path' -ForEach @(
+        @{ Command = 'Add-NTFSAudit'; ErrorId = 'AddAceError'; Parameters = @{ Account = 'S-1-1-0'; AccessRights = 'ReadData'; PassThru = $true } }
+        @{ Command = 'Remove-NTFSAudit'; ErrorId = 'RemoveAceError'; Parameters = @{ Account = 'S-1-1-0'; AccessRights = 'Delete'; PassThru = $true } }
+        @{ Command = 'Clear-NTFSAudit'; ErrorId = 'ClearAclError'; Parameters = @{ DisableInheritance = $true } }
+        @{ Command = 'Enable-NTFSAuditInheritance'; ErrorId = 'ModifySdError'; Parameters = @{ PassThru = $true; RemoveExplicitAuditRules = $true } }
+        @{ Command = 'Disable-NTFSAuditInheritance'; ErrorId = 'ModifySdError'; Parameters = @{ PassThru = $true; RemoveInheritedAuditRules = $true } }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'DisabledSecurity'
+        $missing = Join-Path -Path $sandbox -ChildPath ('MissingAudit-{0}' -f [guid]::NewGuid().ToString('N'))
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $path, $missing
+        if ($holdsSecurityForOperations) {
+            $privateData['EnablePrivileges'] = $true
+            Add-NTFSAudit -Path $path -Account 'S-1-1-0' -AccessRights Delete -AuditFlags Success -AppliesTo ThisFolderOnly
+            $saclBefore = (Get-NTFSSecurityDescriptor -Path $path).SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit')
+        }
+        $before = (Get-Acl -LiteralPath $path).Sddl
+        $privateData['EnablePrivileges'] = $false
+        $null = [ProcessPrivileges.ProcessExtensions]::DisablePrivilege(
+            [Diagnostics.Process]::GetCurrentProcess(), [ProcessPrivileges.Privilege]::Security
+        )
+
+        (Get-Privileges | Where-Object -Property Privilege -EQ -Value 'Security').PrivilegeState | Should -Not -Be 'Enabled'
+
+        $result = @(& $Command -Path $path, $missing @Parameters -ErrorVariable auditErrors -ErrorAction SilentlyContinue)
+
+        (Get-Acl -LiteralPath $path).Sddl | Should -BeExactly $before
+        if ($holdsSecurityForOperations) {
+            # AlphaFS temporarily enables a held Security privilege for SACL access, even with automatic privileges off.
+            (Get-Privileges | Where-Object -Property Privilege -EQ -Value 'Security').PrivilegeState | Should -Be 'Disabled'
+            $auditErrors | Should -HaveCount 1
+            $auditErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadFileError,*'
+            $auditErrors[0].CategoryInfo.Category | Should -Be 'OpenError'
+            $auditErrors[0].TargetObject | Should -BeExactly $missing
+            $written = Get-NTFSSecurityDescriptor -Path $path
+            $rules = @($written.SecurityDescriptor.GetAuditRules(
+                $true, $false, [System.Security.Principal.SecurityIdentifier]
+            ))
+            switch ($Command) {
+                'Add-NTFSAudit' {
+                    $result | Should -Not -BeNullOrEmpty
+                    $result | ForEach-Object { $_.FullName | Should -BeExactly $path }
+                    @($rules | Where-Object {
+                        $_.IdentityReference.Value -eq 'S-1-1-0' -and $_.FileSystemRights.HasFlag(
+                            [System.Security.AccessControl.FileSystemRights]::ReadData
+                        )
+                    }).Count | Should -BeGreaterThan 0
+                }
+                'Disable-NTFSAuditInheritance' {
+                    $result | Should -HaveCount 1
+                    $result[0].AuditInheritanceEnabled | Should -BeFalse
+                    $rules | Should -HaveCount 1
+                    $rules[0].FileSystemRights | Should -Be ([System.Security.AccessControl.FileSystemRights]::Delete)
+                }
+                'Enable-NTFSAuditInheritance' {
+                    $result | Should -HaveCount 1
+                    $result[0].AuditInheritanceEnabled | Should -BeTrue
+                    $rules | Should -BeNullOrEmpty
+                }
+                default {
+                    $result | Should -BeNullOrEmpty
+                    $rules | Should -BeNullOrEmpty
+                }
+            }
+            $written.SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit') | Should -Not -BeExactly $saclBefore
+        }
+        else {
+            $result | Should -BeNullOrEmpty
+            $auditErrors | Should -HaveCount 2
+            $auditErrors[0].FullyQualifiedErrorId | Should -BeLike "$ErrorId,*"
+            $auditErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+            $auditErrors[0].TargetObject | Should -BeExactly $path
+            $auditErrors[1].FullyQualifiedErrorId | Should -BeLike 'ReadFileError,*'
+            $auditErrors[1].CategoryInfo.Category | Should -Be 'OpenError'
+            $auditErrors[1].TargetObject | Should -BeExactly $missing
+        }
+    }
+}
+Describe 'Clear-NTFSAudit descriptor inheritance' {
+    It 'Should clear and protect the descriptor SACL without writing the <Type>' -Skip:(-not $canReadAudit) -ForEach @(
+        @{ Type = 'file' }
+        @{ Type = 'folder' }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'ClearAuditDescriptor' -Directory:($Type -eq 'folder')
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $path
+        Add-NTFSAudit -Path $path -Account 'S-1-1-0' -AccessRights Delete -AuditFlags Success -AppliesTo ThisFolderOnly
+        $before = Get-NTFSSecurityDescriptor -Path $path
+        $auditBefore = $before.SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit')
+        $daclBefore = (Get-Acl -LiteralPath $path).Sddl
+        $sd = Get-NTFSSecurityDescriptor -Path $path
+
+        Clear-NTFSAudit -SecurityDescriptor $sd -DisableInheritance -ErrorAction Stop
+
+        $sd.SecurityDescriptor.AreAuditRulesProtected | Should -BeTrue
+        @($sd.SecurityDescriptor.GetAuditRules($true, $true, $sidType)) | Should -BeNullOrEmpty
+        (Get-NTFSSecurityDescriptor -Path $path).SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit') |
+            Should -BeExactly $auditBefore
+        Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorAction Stop
+        (Get-NTFSInheritance -Path $path).AuditInheritanceEnabled | Should -BeFalse
+        @(Get-NTFSAudit -Path $path) | Should -BeNullOrEmpty
+        (Get-Acl -LiteralPath $path).Sddl | Should -BeExactly $daclBefore
     }
 }

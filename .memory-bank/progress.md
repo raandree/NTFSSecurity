@@ -12,8 +12,9 @@ source: repository and validation evidence
 5.0.0-rc6 is published on the Gallery and GitHub; its failed Release job
 recovered in attempt 2 on 2026-10-09. #116 (rc7, `d25647d`, base `master`)
 is open and green, not merged or published. Further quality-gate work is
-local on `ai/quality-gate-coverage`; Phase 2 is not complete while the
-remaining-path inventory is open. Stable Gallery version: 4.2.6.
+local: `ai/quality-gate-coverage` (#117) and `ai/quality-gate-paths`, which
+classifies every remaining unvisited path; the open items are the
+maintainer's decisions. Stable Gallery version: 4.2.6.
 After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 
 ## Recent milestones
@@ -62,6 +63,17 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   Lab guards/acceptance committed in `7594e0c`. One independent code review
   approved with no significant finding (custom model unavailable; built-in
   fallback). All 11 tested files match the ZIP. OS/path gates stay open.
+- 2026-10-09: Handoff 1 on `ai/quality-gate-paths` (28 local commits, no
+  push): suite 914 to 1,310 per configuration, zero failures; coverage
+  3,192/3,634 sequence points (87.84%), 1,273/1,978 branches; all 231
+  unvisited methods classified (223 explained, 8 open). Eleven defects
+  fixed, ten with a guard that is red before the fix and green after it (a
+  red/green matrix over ten states of the branch: 76 rows red at the base,
+  none after the last fix), among them a later command's exception that
+  cmdlets swallowed (a `throw` made `Remove-Item2` remove the next item; also
+  through the error stream) and a privilege left enabled. Nine static
+  passes of the built-in code-review agent: no Blocker or Major. Report in
+  `Tests/Coverage`.
 
 ## Stable capabilities
 
@@ -97,17 +109,16 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 6. Optional maintainer cleanup: obsolete AppVeyor/Read the Docs access,
    wiki editing restrictions, `test/transfer`, and old lab checkpoints
    when no longer needed. No remote changes or snapshot restores here.
-7. Fresh coverage inventory at `3442194`: 918 unvisited sequence points.
-   Of these, 244 are in classes unused by cmdlets and 112 in parameter
-   getters; 562 remain for finer review/testing, including unused overloads,
-   defensive/native failures, and environment-specific branches. High-value
-   local gaps closed: folders/Force/DeleteError, RestoreOwnerError, all
-   scopes, file/folder inheritance, enumeration/depth/link skipping,
-   descriptor write failures, and forced file replacement. Remaining
-   candidates: audit ownership-retry failures, SD inheritance edge cases,
-   effective-access unresolved identity, recursive denial/error surfaces,
-   output-object comparisons/formatting. A conditional ACE display remains
-   a .NET representation limit, not evidence of unconditional permissions.
+7. Remaining-path inventory at the final frozen commit of Handoff 1:
+   442 unvisited sequence points in 231 methods, all classified
+   (`Tests/Coverage`): 223 explained from source with evidence, 8 open
+   (`FileSecurity` conversions, `RemoveAll` account filters). Other open
+   decisions: lazy path overloads, abandoned `PrivilegeEnabler`, dot patterns
+   of `Get-ChildItem2 -Filter`, 17 owner-restore handlers that do not pass on
+   what a later command raises (a rare combination), unused classes. An audit
+   write's ownership retry cannot run on a local volume and is covered only
+   by the lab. A conditional ACE display remains a .NET representation limit,
+   not evidence of unconditional permissions.
 8. Publication recovery is implemented locally in `95b827e`, with 14 offline
    tests and exact artifact SHA-512 verification. Original upload errors
    remain errors for missing/different/unverifiable outcomes. Not deployed

@@ -299,5 +299,19 @@ Describe 'Set-NTFSOwner' {
             Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorAction Stop
             Get-TestOwner -Path $file | Should -Be $currentUser
         }
+
+        It 'Should write nothing without -PassThru and leave the owner of the item unchanged' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'SetOwnerDescriptorQuiet'
+            $owner = Get-TestOwner -Path $file
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+            $sidType = [System.Security.Principal.SecurityIdentifier]
+            $sd.SecurityDescriptor.GetOwner($sidType).Value | Should -Not -Be 'S-1-1-0'
+
+            $result = @(Set-NTFSOwner -SecurityDescriptor $sd -Account 'S-1-1-0' -ErrorAction Stop)
+
+            $result | Should -BeNullOrEmpty
+            $sd.SecurityDescriptor.GetOwner($sidType).Value | Should -Be 'S-1-1-0'
+            Get-TestOwner -Path $file | Should -Be $owner
+        }
     }
 }

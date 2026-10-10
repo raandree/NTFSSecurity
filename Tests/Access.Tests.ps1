@@ -155,6 +155,20 @@ Describe 'Get-NTFSEffectiveAccess' {
                 "because the computer 'ntfssecurity-test.invalid' can't be reached for a remote access check. " +
                 'For more accurate results, calculate effective access rights on that computer.')
         }
+
+        # An empty name names no computer, so it names this one no more than any other name that can't be reached.
+        It 'Should return the result of this computer and warn for an empty -ServerName' {
+            $expected = Get-NTFSEffectiveAccess -Path $effectiveFile -WarningAction SilentlyContinue -ErrorAction Stop
+
+            $result = @(Get-NTFSEffectiveAccess -Path $effectiveFile -ServerName '' -WarningVariable accessWarnings -WarningAction SilentlyContinue -ErrorVariable accessErrors -ErrorAction SilentlyContinue)
+
+            $accessErrors | Should -BeNullOrEmpty
+            $result | Should -HaveCount 1
+            $result[0].AccessRights | Should -Be $expected.AccessRights
+            $accessWarnings.Message | Should -Contain ("The effective rights can only be computed based on group membership on this computer, " +
+                "because the computer '' can't be reached for a remote access check. " +
+                'For more accurate results, calculate effective access rights on that computer.')
+        }
     }
 
     # Not every computer offers the remote interface of the authorization manager; the cmdlet then calculates the result
@@ -388,6 +402,19 @@ Describe 'Get-NTFSSimpleAccess' {
             @($result | Where-Object -Property FullName -EQ -Value $root) | Should -HaveCount $rootAlone.Count
         }
 
+        # With -IncludeRootFolder, the default, the cmdlet reports the parent folder of the first path first. A drive root
+        # has none, so it reports the root itself, once. The test reads the entries of the drive root only.
+        It 'Should report no parent folder in front of a drive root by default' {
+            $root = [IO.Path]::GetPathRoot($child)
+            $rootAlone = @(Get-NTFSSimpleAccess -Path $root -IncludeRootFolder:$false -ErrorAction Stop)
+
+            $result = @(Get-NTFSSimpleAccess -Path $root -ErrorVariable simpleErrors -ErrorAction SilentlyContinue)
+
+            $simpleErrors | Should -BeNullOrEmpty
+            $result | Should -HaveCount $rootAlone.Count
+            $result | ForEach-Object -Process { $_.FullName | Should -Be $root }
+        }
+
         # Windows doesn't distinguish paths by case. Before 5.0.0-rc7, the cmdlet didn't recognize the parent folder of a
         # folder whose path differed from it in case, and left the folder out.
         It 'Should compare a folder with its parent folder also when their paths differ in case' {
@@ -501,6 +528,29 @@ Describe 'Remove-NTFSAccess' {
         }
     }
 
+    # .NET refuses to build a deny entry without rights, also to find the entry to remove. The cmdlet reports the
+    # exception for the item and goes on.
+    Context 'With -AccessRights None for a deny entry' {
+        It 'Should write a RemoveAceError for each item, change nothing, and return nothing with -PassThru' {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveDenyNoneFirst'
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveDenyNoneSecond'
+            $before = @((Get-Acl -LiteralPath $first).Sddl, (Get-Acl -LiteralPath $second).Sddl)
+
+            $result = @(Remove-NTFSAccess -Path $first, $second -Account 'Everyone' -AccessRights None -AccessType Deny -PassThru -ErrorVariable removeErrors -ErrorAction SilentlyContinue)
+
+            $result | Should -BeNullOrEmpty
+            $removeErrors | Should -HaveCount 2
+            for ($index = 0; $index -lt 2; $index++) {
+                $removeErrors[$index].FullyQualifiedErrorId | Should -BeLike 'RemoveAceError,*'
+                $removeErrors[$index].CategoryInfo.Category | Should -Be 'WriteError'
+                $removeErrors[$index].TargetObject | Should -BeExactly @($first, $second)[$index]
+                $removeErrors[$index].Exception | Should -BeOfType [System.ArgumentException]
+            }
+            (Get-Acl -LiteralPath $first).Sddl | Should -BeExactly $before[0]
+            (Get-Acl -LiteralPath $second).Sddl | Should -BeExactly $before[1]
+        }
+    }
+
     Context 'When the item has an owner that the user cannot assign' {
         BeforeAll {
             $privateData['EnablePrivileges'] = $false
@@ -591,6 +641,24 @@ Describe 'Remove-NTFSAccess' {
             $removeErrors | Should -BeNullOrEmpty
             Get-GuestsRule -Path $folder | Should -BeNullOrEmpty
         }
+
+        # The entry of another account with exactly the rights to remove is not an exact match for the entry of the
+        # account, so the rights that the entry of the account keeps still have their Synchronize.
+        It 'Should take only the requested generic right from the entry of the account when another account has an exact entry' {
+            $users = [System.Security.Principal.SecurityIdentifier]'S-1-5-32-545'
+            $folder = New-GenericRightFolder -Entry '(A;OICIIO;0x10100000;;;BU)(A;OICIIO;0x90100000;;;BG)'
+
+            Remove-NTFSAccess -Path $folder -Account 'S-1-5-32-546' -AccessRights GenericAll -InheritanceFlags ContainerInherit, ObjectInherit -PropagationFlags InheritOnly -ErrorVariable removeErrors -ErrorAction SilentlyContinue
+
+            $removeErrors | Should -BeNullOrEmpty
+            $guestsRule = @(Get-GuestsRule -Path $folder)
+            $guestsRule | Should -HaveCount 1
+            [int] $guestsRule[0].FileSystemRights | Should -Be 0x80100000
+            $usersRule = @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                    Where-Object -Property IdentityReference -EQ -Value $users)
+            $usersRule | Should -HaveCount 1
+            [int] $usersRule[0].FileSystemRights | Should -Be 0x10100000
+        }
     }
     Context 'With -RemoveSpecific' {
         BeforeEach {
@@ -659,6 +727,28 @@ Describe 'Add-NTFSAccess' {
             $addErrors | Should -HaveCount 1
             $addErrors[0].FullyQualifiedErrorId | Should -BeLike 'AddAceError,*'
             $result | Should -BeNullOrEmpty
+        }
+    }
+
+    # .NET refuses to build a deny entry without rights. The cmdlet reports the exception for the item and goes on.
+    Context 'With -AccessRights None for a deny entry' {
+        It 'Should write an AddAceError for each item, change nothing, and return nothing with -PassThru' {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'DenyNoneFirst'
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'DenyNoneSecond'
+            $before = @((Get-Acl -LiteralPath $first).Sddl, (Get-Acl -LiteralPath $second).Sddl)
+
+            $result = @(Add-NTFSAccess -Path $first, $second -Account 'Everyone' -AccessRights None -AccessType Deny -PassThru -ErrorVariable addErrors -ErrorAction SilentlyContinue)
+
+            $result | Should -BeNullOrEmpty
+            $addErrors | Should -HaveCount 2
+            for ($index = 0; $index -lt 2; $index++) {
+                $addErrors[$index].FullyQualifiedErrorId | Should -BeLike 'AddAceError,*'
+                $addErrors[$index].CategoryInfo.Category | Should -Be 'WriteError'
+                $addErrors[$index].TargetObject | Should -BeExactly @($first, $second)[$index]
+                $addErrors[$index].Exception | Should -BeOfType [System.ArgumentException]
+            }
+            (Get-Acl -LiteralPath $first).Sddl | Should -BeExactly $before[0]
+            (Get-Acl -LiteralPath $second).Sddl | Should -BeExactly $before[1]
         }
     }
 
@@ -811,6 +901,24 @@ Describe 'Security descriptor parameter sets' {
             Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }
         $rule.InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags]::None)
     }
+
+    # A deny entry has no Synchronize right to add or remove, unlike an allow entry.
+    It 'Remove-NTFSAccess should remove a deny entry from the descriptor and leave the item unchanged' {
+        $item = New-TestSandboxItem -Sandbox $sandbox -Name 'DenyInMemory'
+        $sd = Get-NTFSSecurityDescriptor -Path $item
+        Add-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData -AccessType Deny
+        $entries = @($sd.SecurityDescriptor.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
+        $entries | Should -HaveCount 1
+        $entries[0].AccessControlType | Should -Be 'Deny'
+
+        Remove-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData -AccessType Deny -ErrorAction Stop
+
+        @($sd.SecurityDescriptor.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) | Should -BeNullOrEmpty
+        @((Get-Acl -LiteralPath $item).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) | Should -BeNullOrEmpty
+    }
 }
 
 Describe 'Clear-NTFSAccess' {
@@ -940,6 +1048,46 @@ Describe 'InheritedFrom of access entries' {
         $inherited[0].InheritedFrom | Should -Be $parent
     }
 
+    # The module setting GetInheritedFrom turns off the lookup of the sources, which costs a call for each item.
+    It 'Should leave InheritedFrom empty when the module setting GetInheritedFrom is off' {
+        $saved = $privateData['GetInheritedFrom']
+        $privateData['GetInheritedFrom'] = $false
+        try {
+            $result = @(Get-NTFSAccess -Path $inheritedFromFile -ErrorAction Stop)
+        }
+        finally {
+            $privateData['GetInheritedFrom'] = $saved
+        }
+
+        $inherited = @($result | Where-Object -FilterScript { $_.IsInherited })
+        $inherited | Should -Not -BeNullOrEmpty
+        $inherited | ForEach-Object -Process { $_.InheritedFrom | Should -BeNullOrEmpty }
+    }
+
+    # Windows can't name the folders when the item is gone, for example deleted by another process after its security
+    # descriptor was read, or when a folder above it can't be read. The entries still come back. Before 5.0.0, the
+    # text lost its last character, and an explicit entry, which has no source, got it as well.
+    It 'Should name an unknown parent for an inherited entry and no source for an explicit entry when Windows cannot resolve the folders' {
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritedFromGone' -Directory
+        $file = Join-Path -Path $folder -ChildPath 'Gone.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+        Set-Content -LiteralPath $file -Value 'Gone'
+        Add-NTFSAccess -Path $file -Account 'S-1-1-0' -AccessRights ReadData -ErrorAction Stop
+        $sd = Get-NTFSSecurityDescriptor -Path $file -ErrorAction Stop
+        Remove-Item -LiteralPath $file -Force
+
+        $entries = @([Security2.FileSystemAccessRule2]::GetFileSystemAccessRules($sd, $true, $true, $true))
+
+        $inherited = @($entries | Where-Object -FilterScript { $_.IsInherited })
+        $inherited | Should -Not -BeNullOrEmpty
+        foreach ($entry in $inherited) {
+            $entry.InheritedFrom | Should -BeExactly 'unknown parent'
+        }
+        $explicit = @($entries | Where-Object -FilterScript { -not $_.IsInherited })
+        $explicit | Should -HaveCount 1
+        $explicit[0].InheritedFrom | Should -BeNullOrEmpty
+    }
+
     It 'Should read a security descriptor with audit entries and name the same folders' -Skip:(-not $holdsSecurityPrivilege) {
         $file = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritedFromAudit'
         Add-NTFSAccess -Path $file -Account 'S-1-1-0' -AccessRights ReadData
@@ -953,5 +1101,55 @@ Describe 'InheritedFrom of access entries' {
         foreach ($entry in @($result | Where-Object -FilterScript { $_.IsInherited })) {
             $entry.InheritedFrom | Should -Be $expectedSource["$($entry.Account.Sid)"]
         }
+    }
+
+    # A NULL DACL gives everyone every access. It has no entries, so Windows names no source, and .NET reports one
+    # entry for Everyone nevertheless. The sources are looked up by the index of an entry, which this entry exceeds.
+    It 'Should return the one entry that .NET reports for a NULL DACL, without a source' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritedFromNullDacl'
+        Set-TestNullDacl -Sandbox $sandbox -Path $file
+        $privateData['GetInheritedFrom'] | Should -BeTrue
+
+        $entries = @(Get-NTFSAccess -Path $file -ErrorAction Stop)
+
+        $entries | Should -HaveCount 1
+        "$($entries[0].Account.Sid)" | Should -Be 'S-1-1-0'
+        $entries[0].IsInherited | Should -BeFalse
+        $entries[0].InheritedFrom | Should -BeNullOrEmpty
+    }
+}
+Describe 'Get-NTFSEffectiveAccess for an unresolved identity' {
+    It 'Should report the native identity error for each <Source> and return no access entry' -ForEach @(
+        @{ Source = 'Path' }
+        @{ Source = 'SecurityDescriptor' }
+    ) {
+        $first = New-TestSandboxItem -Sandbox $sandbox -Name 'UnresolvedFirst'
+        $next = New-TestSandboxItem -Sandbox $sandbox -Name 'UnresolvedNext'
+        $identity = [Security2.IdentityReference2] 'S-1-5-21-1-2-3-1001'
+        $identity.AccountName | Should -BeNullOrEmpty
+        $identity.LastError | Should -Not -BeNullOrEmpty
+        $before = @((Get-Acl -LiteralPath $first).Sddl, (Get-Acl -LiteralPath $next).Sddl)
+        $parameters = @{ Account = $identity; WarningAction = 'SilentlyContinue'; ErrorAction = 'SilentlyContinue' }
+        if ($Source -eq 'Path') {
+            $parameters.Path = @($first, $next)
+        }
+        else {
+            $parameters.SecurityDescriptor = @(Get-NTFSSecurityDescriptor -Path $first, $next)
+        }
+
+        $result = @(Get-NTFSEffectiveAccess @parameters -ErrorVariable accessErrors)
+
+        $result | Should -BeNullOrEmpty
+        $accessErrors | Should -HaveCount 2
+        for ($index = 0; $index -lt 2; $index++) {
+            $accessErrors[$index].FullyQualifiedErrorId | Should -BeLike 'GetEffectiveAccessError,*'
+            $accessErrors[$index].CategoryInfo.Category | Should -Be 'ReadError'
+            $accessErrors[$index].TargetObject.FullName | Should -BeExactly @($first, $next)[$index]
+            $cause = $accessErrors[$index].Exception.GetBaseException()
+            $cause | Should -BeOfType [System.ComponentModel.Win32Exception]
+            $cause.NativeErrorCode | Should -Be 1332
+        }
+        (Get-Acl -LiteralPath $first).Sddl | Should -BeExactly $before[0]
+        (Get-Acl -LiteralPath $next).Sddl | Should -BeExactly $before[1]
     }
 }

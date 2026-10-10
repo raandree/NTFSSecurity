@@ -182,6 +182,130 @@ Describe 'Privileges when the pipeline stops early' {
     }
 }
 
+# A cmdlet enables the privileges one after the other and writes a debug message before and after each one. A later command
+# that takes the debug stream can end the pipeline or throw at the message after the enabling, before the cmdlet has noted
+# that it enabled the privilege.
+Describe 'Privileges when a later command takes the debug messages of the cmdlet' {
+    BeforeAll {
+        $privateData['EnablePrivileges'] = $true
+        $debugFile = New-TestSandboxItem -Sandbox $sandbox -Name 'DebugStopped'
+    }
+
+    AfterAll {
+        $privateData['EnablePrivileges'] = $enablePrivileges
+    }
+
+    BeforeEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    AfterEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    # Before 5.0.0-rc7, the privilege that the cmdlet had enabled at that moment stayed enabled in the session: nothing
+    # disabled it, because the cmdlet had not noted yet that it enabled it.
+    It 'Should disable the privilege when Select-Object -First ends the pipeline at the message after its enabling' -Skip:(-not $holdsPrivileges) {
+        $DebugPreference = 'Continue'
+        $messages = @(Get-NTFSOwner -Path $debugFile 5>&1 | ForEach-Object -Process { $_.Message })
+        $enabledAt = $messages.IndexOf('..enabled') + 1
+        $enabledAt | Should -BeGreaterThan 0
+        Get-EnabledFileSystemPrivilege | Should -BeNullOrEmpty
+
+        $result = @(Get-NTFSOwner -Path $debugFile 5>&1 | Select-Object -First $enabledAt)
+
+        $result | Should -HaveCount $enabledAt
+        $result[-1].Message | Should -BeExactly '..enabled'
+        Get-EnabledFileSystemPrivilege | Should -BeNullOrEmpty
+    }
+
+    # Before 5.0.0-rc7, the cmdlet took the exception for the failure to enable the privilege, went on with the next
+    # privilege, and the caller never saw it; all four privileges stayed enabled.
+    It 'Should pass on what a later command throws at the message after the enabling and disable the privileges' -Skip:(-not $holdsPrivileges) {
+        $DebugPreference = 'Continue'
+        $caught = $null
+        try {
+            Get-NTFSOwner -Path $debugFile 5>&1 | ForEach-Object -Process {
+                if ($_.Message -eq '..enabled') { throw 'Downstream failure' }
+                $_
+            } | Out-Null
+        }
+        catch {
+            $caught = $_
+        }
+
+        $caught.Exception.Message | Should -BeLike '*Downstream failure*'
+        Get-EnabledFileSystemPrivilege | Should -BeNullOrEmpty
+    }
+}
+
+# Enable-Privileges recognizes the script NTFSSecurity.Init.ps1, which a user adds to start the module, by its name: from
+# that script, it enables the privileges only for the module setting EnablePrivileges, from any other script always. Each
+# test runs the script in a child process, which inherits the privilege states of this one (disabled here, see BeforeEach),
+# so that the privileges of this process stay as they are. With the setting $true, the module enables the privileges
+# itself before the cmdlet runs, so the state alone does not show that the cmdlet did: it also announces that in a verbose
+# message.
+Describe 'Enable-Privileges in the script NTFSSecurity.Init.ps1' {
+    BeforeAll {
+        function Invoke-StartScript {
+            param ([string] $ScriptName, [bool] $Setting)
+
+            $folder = Join-Path -Path $sandbox -ChildPath ('Start-{0}' -f [guid]::NewGuid().ToString('N').Substring(0, 8))
+            $script = Join-Path -Path $folder -ChildPath $ScriptName
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $script
+            New-Item -ItemType Directory -Path $folder | Out-Null
+            Set-Content -LiteralPath $script -Value @'
+param ($ModulePath, $Setting)
+Import-Module -Name $ModulePath -ErrorAction Stop
+(Get-Module -Name NTFSSecurity).PrivateData['EnablePrivileges'] = ($Setting -eq 'True')
+$messages = @(Enable-Privileges -Verbose 4>&1 | ForEach-Object -Process { "$($_.Message)" })
+'ANNOUNCED:{0}' -f [bool] @($messages -like '*are now enabled giving you access*').Count
+'BACKUP:{0}' -f (Get-Privileges | Where-Object -Property Privilege -EQ -Value 'Backup').PrivilegeState
+'@
+            $output = @(& (Get-Process -Id $PID).Path -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -ModulePath ([IO.Path]::GetFullPath($modulePath)) -Setting $Setting)
+            [pscustomobject]@{
+                Announced = @($output | Where-Object -FilterScript { $_ -like 'ANNOUNCED:*' }) -replace '^ANNOUNCED:'
+                Backup    = @($output | Where-Object -FilterScript { $_ -like 'BACKUP:*' }) -replace '^BACKUP:'
+            }
+        }
+    }
+
+    BeforeEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    AfterEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    It 'Should enable the privileges when the module setting EnablePrivileges is $true' -Skip:(-not $holdsPrivileges) {
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+
+        $result = Invoke-StartScript -ScriptName 'NTFSSecurity.Init.ps1' -Setting $true
+
+        $result.Backup | Should -Be 'Enabled'
+        $result.Announced | Should -Be 'True'
+    }
+
+    It 'Should leave the privileges disabled when the module setting EnablePrivileges is $false' -Skip:(-not $holdsPrivileges) {
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+
+        $result = Invoke-StartScript -ScriptName 'NTFSSecurity.Init.ps1' -Setting $false
+
+        $result.Backup | Should -Be 'Disabled'
+        $result.Announced | Should -Be 'False'
+    }
+
+    It 'Should enable the privileges in a script of another name also when the module setting EnablePrivileges is $false' -Skip:(-not $holdsPrivileges) {
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+
+        $result = Invoke-StartScript -ScriptName 'Other.ps1' -Setting $false
+
+        $result.Backup | Should -Be 'Enabled'
+        $result.Announced | Should -Be 'True'
+    }
+}
+
 Describe 'Privileges that another command in the pipeline changes' {
     BeforeAll {
         $privateData['EnablePrivileges'] = $true
@@ -260,5 +384,282 @@ Describe 'Privileges that another command in the pipeline changes' {
         } | Should -Not -Throw
 
         Get-EnabledFileSystemPrivilege | Should -BeNullOrEmpty
+    }
+}
+
+# The library class of the module that the cmdlets leave unused; the tests change only the privileges of the test process.
+Describe 'The PrivilegeEnabler class' {
+    BeforeAll {
+        $privateData['EnablePrivileges'] = $false
+        $backup = [ProcessPrivileges.Privilege]::Backup
+        $changeNotify = [ProcessPrivileges.Privilege]::ChangeNotify
+        $currentProcess = [System.Diagnostics.Process]::GetCurrentProcess()
+
+        # The enabler goes out of scope in the function, so that nothing but the caller's handle refers to what it owns.
+        function New-AbandonedHandle {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only creates an object.'
+            )]
+            param ($Process)
+
+            $enabler = New-Object -TypeName 'ProcessPrivileges.PrivilegeEnabler' -ArgumentList $Process
+            $field = [ProcessPrivileges.PrivilegeEnabler].GetField('accessTokenHandle', [System.Reflection.BindingFlags] 'NonPublic, Instance')
+            $field.GetValue($enabler)
+        }
+    }
+
+    AfterAll {
+        $privateData['EnablePrivileges'] = $enablePrivileges
+    }
+
+    BeforeEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    AfterEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    It 'Should enable a disabled privilege until it is disposed' -Skip:(-not $holdsPrivileges) {
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+
+        $enabler = New-Object -TypeName 'ProcessPrivileges.PrivilegeEnabler' -ArgumentList $currentProcess, $backup
+        try {
+            Get-BackupPrivilegeState | Should -Be 'Enabled'
+        }
+        finally {
+            $enabler.Dispose()
+        }
+
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+        $enabler.Dispose()
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+    }
+
+    It 'Should report a privilege that it modified once and leave it to the instance that enabled it' -Skip:(-not $holdsPrivileges) {
+        $first = New-Object -TypeName 'ProcessPrivileges.PrivilegeEnabler' -ArgumentList $currentProcess
+        $second = New-Object -TypeName 'ProcessPrivileges.PrivilegeEnabler' -ArgumentList $currentProcess
+        try {
+            $first.EnablePrivilege($backup) | Should -Be 'PrivilegeModified'
+            Get-BackupPrivilegeState | Should -Be 'Enabled'
+            $first.EnablePrivilege($backup) | Should -Be 'None'
+            $second.EnablePrivilege($backup) | Should -Be 'None'
+            $second.Dispose()
+            Get-BackupPrivilegeState | Should -Be 'Enabled'
+        }
+        finally {
+            $first.Dispose()
+            $second.Dispose()
+        }
+
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+    }
+
+    It 'Should not disable a privilege that was enabled before' -Skip:(-not $holdsPrivileges) {
+        $null = [ProcessPrivileges.ProcessExtensions]::EnablePrivilege($currentProcess, $backup)
+
+        $enabler = New-Object -TypeName 'ProcessPrivileges.PrivilegeEnabler' -ArgumentList $currentProcess, $backup
+        try {
+            $enabler.EnablePrivilege($backup) | Should -Be 'None'
+        }
+        finally {
+            $enabler.Dispose()
+        }
+
+        Get-BackupPrivilegeState | Should -Be 'Enabled'
+    }
+
+    It 'Should enable a privilege through an access token handle that the caller owns' -Skip:(-not $holdsPrivileges) {
+        $rights = [ProcessPrivileges.TokenAccessRights]::AdjustPrivileges -bor [ProcessPrivileges.TokenAccessRights]::Query
+        $handle = [ProcessPrivileges.ProcessExtensions]::GetAccessTokenHandle($currentProcess, $rights)
+        $enabler = $null
+        try {
+            $enabler = New-Object -TypeName 'ProcessPrivileges.PrivilegeEnabler' -ArgumentList $handle, $backup
+            Get-BackupPrivilegeState | Should -Be 'Enabled'
+            $enabler.Dispose()
+            $enabler = $null
+
+            Get-BackupPrivilegeState | Should -Be 'Disabled'
+            $handle.IsClosed | Should -BeFalse
+        }
+        finally {
+            # The enabler first: a handle that is closed under an enabler that still owns a privilege fails when the
+            # enabler disables the privilege.
+            if ($enabler) {
+                $enabler.Dispose()
+            }
+            $handle.Dispose()
+        }
+
+        $handle.IsClosed | Should -BeTrue
+    }
+
+    # The finalizer closes the token handle that an abandoned enabler opened and drops its registration, so that the next
+    # enabler for the process opens a handle of its own instead of taking a closed one. The handle is private, so the test
+    # reads it by reflection. An enabler that enabled a privilege stays referenced by a static list until it is disposed,
+    # so it is never finalized and its privilege stays enabled; only an enabler without a privilege can be abandoned.
+    It 'Should close the token handle of an enabler that was never disposed when it is finalized' {
+        $handle = New-AbandonedHandle -Process $currentProcess
+        $handle.IsClosed | Should -BeFalse
+
+        for ($attempt = 0; $attempt -lt 10 -and -not $handle.IsClosed; $attempt++) {
+            [GC]::Collect()
+            [GC]::WaitForPendingFinalizers()
+        }
+
+        $handle.IsClosed | Should -BeTrue
+        $enabler = New-Object -TypeName 'ProcessPrivileges.PrivilegeEnabler' -ArgumentList $currentProcess
+        try {
+            $enabler.EnablePrivilege($changeNotify) | Should -Be 'None'
+        }
+        finally {
+            $enabler.Dispose()
+        }
+    }
+
+    # The access tokens of administrators don't hold the privilege to create a token, and those of basic users don't hold
+    # most of the others.
+    It 'Should leave a privilege that the access token does not hold alone' {
+        $removed = [ProcessPrivileges.Privilege]::CreateToken
+        [ProcessPrivileges.ProcessExtensions]::GetPrivilegeState($currentProcess, $removed) | Should -Be 'Removed'
+
+        $enabler = New-Object -TypeName 'ProcessPrivileges.PrivilegeEnabler' -ArgumentList $currentProcess
+        try {
+            $enabler.EnablePrivilege($removed) | Should -Be 'None'
+        }
+        finally {
+            $enabler.Dispose()
+        }
+
+        [ProcessPrivileges.ProcessExtensions]::GetPrivilegeState($currentProcess, $removed) | Should -Be 'Removed'
+    }
+
+    # The enabled flag decides first, then the removed flag; the attributes are not a flags enumeration in .NET.
+    It 'Should derive the state <Expected> from the attribute value <Value>' -ForEach @(
+        @{ Value = 0; Expected = 'Disabled' }
+        @{ Value = 1; Expected = 'Disabled' }
+        @{ Value = 2; Expected = 'Enabled' }
+        @{ Value = 3; Expected = 'Enabled' }
+        @{ Value = 4; Expected = 'Removed' }
+        @{ Value = 6; Expected = 'Enabled' }
+        @{ Value = -2147483648; Expected = 'Disabled' }
+    ) {
+        $attributes = [Enum]::ToObject([ProcessPrivileges.PrivilegeAttributes], $Value)
+
+        [ProcessPrivileges.ProcessExtensions]::GetPrivilegeState($attributes) | Should -Be $Expected
+    }
+}
+
+# Every access token holds the privilege to bypass traverse checking, enabled. The tests use it because they need no other
+# privilege and change nothing: a handle that lacks a right fails before it adjusts anything.
+Describe 'The access token handle of a process' {
+    BeforeAll {
+        $currentProcess = [System.Diagnostics.Process]::GetCurrentProcess()
+        $changeNotify = [ProcessPrivileges.Privilege]::ChangeNotify
+        $tokenRights = [ProcessPrivileges.TokenAccessRights]
+    }
+
+    It 'Should open a handle with all access rights when the caller names none and close it on dispose' {
+        $handle = [ProcessPrivileges.ProcessExtensions]::GetAccessTokenHandle($currentProcess)
+        try {
+            $handle.IsInvalid | Should -BeFalse
+            @([ProcessPrivileges.ProcessExtensions]::GetPrivileges($handle)) | Should -Not -BeNullOrEmpty
+            [ProcessPrivileges.ProcessExtensions]::GetPrivilegeState($handle, $changeNotify) | Should -Be 'Enabled'
+        }
+        finally {
+            $handle.Dispose()
+        }
+
+        $handle.IsClosed | Should -BeTrue
+    }
+
+    It 'Should refuse to enable a privilege through a handle that may only query' {
+        $handle = [ProcessPrivileges.ProcessExtensions]::GetAccessTokenHandle($currentProcess, $tokenRights::Query)
+        try {
+            $failure = { [ProcessPrivileges.ProcessExtensions]::EnablePrivilege($handle, $changeNotify) } | Should -Throw -PassThru
+
+            $failure.Exception.InnerException | Should -BeOfType [System.ComponentModel.Win32Exception]
+            $failure.Exception.InnerException.NativeErrorCode | Should -Be 5
+            [ProcessPrivileges.ProcessExtensions]::GetPrivilegeState($handle, $changeNotify) | Should -Be 'Enabled'
+        }
+        finally {
+            $handle.Dispose()
+        }
+    }
+
+    It 'Should refuse to <Operation> through a handle that may only adjust privileges' -ForEach @(
+        @{ Operation = 'list the privileges' }
+        @{ Operation = 'read the state of a privilege' }
+    ) {
+        $handle = [ProcessPrivileges.ProcessExtensions]::GetAccessTokenHandle($currentProcess, $tokenRights::AdjustPrivileges)
+        try {
+            $failure = {
+                if ($Operation -eq 'list the privileges') {
+                    [ProcessPrivileges.ProcessExtensions]::GetPrivileges($handle)
+                }
+                else {
+                    [ProcessPrivileges.ProcessExtensions]::GetPrivilegeState($handle, $changeNotify)
+                }
+            } | Should -Throw -PassThru
+
+            $failure.Exception.InnerException | Should -BeOfType [System.ComponentModel.Win32Exception]
+            $failure.Exception.InnerException.NativeErrorCode | Should -Be 5
+        }
+        finally {
+            $handle.Dispose()
+        }
+    }
+}
+
+Describe 'The PrivilegeControl class' {
+    BeforeAll {
+        $privateData['EnablePrivileges'] = $false
+        $control = New-Object -TypeName 'Security2.PrivilegeControl'
+        $backup = [ProcessPrivileges.Privilege]::Backup
+    }
+
+    AfterAll {
+        $privateData['EnablePrivileges'] = $enablePrivileges
+    }
+
+    BeforeEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    AfterEach {
+        Disable-Privileges -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    }
+
+    It 'Should refuse to <Operation> a privilege that the access token does not hold' -ForEach @(
+        @{ Operation = 'enable' }
+        @{ Operation = 'disable' }
+    ) {
+        $failure = {
+            if ($Operation -eq 'enable') {
+                $control.EnablePrivilege([ProcessPrivileges.Privilege]::CreateToken)
+            }
+            else {
+                $control.DisablePrivilege([ProcessPrivileges.Privilege]::CreateToken)
+            }
+        } | Should -Throw -PassThru
+
+        $failure.Exception.InnerException | Should -BeOfType [System.Security.AccessControl.PrivilegeNotHeldException]
+        $failure.Exception.InnerException.PrivilegeName | Should -BeExactly 'CreateToken'
+    }
+
+    It 'Should enable and disable a held privilege and refuse to repeat either' -Skip:(-not $holdsPrivileges) {
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
+        $failure = { $control.DisablePrivilege($backup) } | Should -Throw -PassThru
+        $failure.Exception.InnerException | Should -BeOfType [Security2.AdjustPriviledgeException]
+        $failure.Exception.InnerException.Message | Should -BeExactly 'Priviledge already disabled'
+
+        $control.EnablePrivilege($backup) | Should -Be 'PrivilegeModified'
+        Get-BackupPrivilegeState | Should -Be 'Enabled'
+        $failure = { $control.EnablePrivilege($backup) } | Should -Throw -PassThru
+        $failure.Exception.InnerException | Should -BeOfType [Security2.AdjustPriviledgeException]
+        $failure.Exception.InnerException.Message | Should -BeExactly 'Priviledge already enabled'
+
+        $control.DisablePrivilege($backup) | Should -Be 'PrivilegeModified'
+        Get-BackupPrivilegeState | Should -Be 'Disabled'
     }
 }

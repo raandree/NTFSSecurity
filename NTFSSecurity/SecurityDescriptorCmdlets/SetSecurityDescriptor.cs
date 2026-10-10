@@ -67,6 +67,12 @@ namespace NTFSSecurity
                 }
                 catch (Exception ex)
                 {
+                    // Not what a later command raises, for example when it takes the verbose message.
+                    if (IsFromLaterCommand(ex))
+                    {
+                        throw;
+                    }
+
                     WriteError(new ErrorRecord(ex, "WriteSdError", ErrorCategory.WriteError, sd.Item));
                     continue;
                 }
@@ -81,6 +87,11 @@ namespace NTFSSecurity
                     }
                     catch (Exception ex)
                     {
+                        if (IsFromLaterCommand(ex))
+                        {
+                            throw;
+                        }
+
                         WriteError(new ErrorRecord(ex, "ReadSecurityError", ErrorCategory.ReadError, sd.Item));
                     }
                 }
@@ -88,13 +99,16 @@ namespace NTFSSecurity
         }
 
         // Like InvokeAsOwner, takes ownership for the write and sets the previous owner back on every exit path, but not
-        // after a successful write of a descriptor that sets the owner itself, which would undo that owner.
+        // after a successful write of a descriptor that sets the owner itself, which would undo that owner, and not when the
+        // current user owned the item already, so that nothing changed and a descriptor that leaves nobody the right to set
+        // an owner can't make it fail.
         private void WriteChangesAsOwner(FileSystemSecurity2 sd)
         {
             var setsOwner = (sd.ChangedSections & AccessControlSections.Owner) == AccessControlSections.Owner;
             var previousOwner = FileSystemOwner.GetOwner(sd.Item).Owner;
+            IdentityReference2 currentUser = System.Security.Principal.WindowsIdentity.GetCurrent().User;
 
-            FileSystemOwner.SetOwner(sd.Item, System.Security.Principal.WindowsIdentity.GetCurrent().User);
+            FileSystemOwner.SetOwner(sd.Item, currentUser);
 
             var written = false;
             try
@@ -104,7 +118,7 @@ namespace NTFSSecurity
             }
             finally
             {
-                if (!(written && setsOwner))
+                if (!(written && setsOwner) && previousOwner != currentUser)
                 {
                     try
                     {

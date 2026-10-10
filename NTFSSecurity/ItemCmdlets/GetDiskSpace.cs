@@ -1,4 +1,5 @@
 ﻿using Alphaleonis.Win32.Filesystem;
+using System;
 using System.Linq;
 using System.Management.Automation;
 
@@ -35,17 +36,22 @@ namespace NTFSSecurity
             foreach (var letter in driveLetter)
             {
                 var diskSpaceInfo = new DiskSpaceInfo(letter);
+                var hasSpace = false;
                 try
                 {
                     diskSpaceInfo.Refresh();
-                    if (diskSpaceInfo.TotalNumberOfBytes > 0)
-                    {
-                        this.WriteObject(diskSpaceInfo);
-                    }
+                    hasSpace = diskSpaceInfo.TotalNumberOfBytes > 0;
                 }
-                catch
+                catch (Exception)
                 {
                     this.WriteWarning(string.Format("Could not get drive details for '{0}'", letter));
+                    continue;
+                }
+
+                // Outside the try: what a later command raises while it takes the object is not a failure of the drive.
+                if (hasSpace)
+                {
+                    this.WriteObject(diskSpaceInfo);
                 }
             }
         }

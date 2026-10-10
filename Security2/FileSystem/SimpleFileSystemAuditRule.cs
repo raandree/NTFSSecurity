@@ -42,6 +42,9 @@ namespace Security2
                 if ((accessRights & FileSystemRights2.Read) == FileSystemRights2.Read)
                 { result |= SimpleFileSystemAccessRights.Read; }
 
+                if ((accessRights & FileSystemRights2.ReadData) == FileSystemRights2.ReadData)
+                { result |= SimpleFileSystemAccessRights.Read; }
+
                 if ((accessRights & FileSystemRights2.CreateFiles) == FileSystemRights2.CreateFiles)
                 { result |= SimpleFileSystemAccessRights.Write; }
 
@@ -109,7 +112,7 @@ namespace Security2
 
         public override bool Equals(object obj)
         {
-            var compareObject = obj as SimpleFileSystemAccessRule;
+            var compareObject = obj as SimpleFileSystemAuditRule;
 
             if (compareObject == null)
             {

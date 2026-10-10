@@ -140,10 +140,132 @@ Describe 'Get-ChildItem2' {
             ($relative | Sort-Object) -join ',' | Should -Be (($Expected | Sort-Object) -join ',')
         }
 
+        # The pattern must match the name of the item, not its short name (8.3), which Get-ChildItem in Windows PowerShell
+        # also compares: there, *.htm returns Page2.html on a volume that creates short names.
+        It 'Should return only the items whose name matches -Filter <Filter>' -ForEach @(
+            @{ Filter = '*.htm'; Expected = @('Page.htm') }
+            @{ Filter = 'Page?.html'; Expected = @('Page2.html') }
+            @{ Filter = 'PAGE*'; Expected = @('Page.htm', 'Page2.html') }
+        ) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterNames' -Directory
+            foreach ($name in 'Page.htm', 'Page2.html') {
+                $file = Join-Path -Path $folder -ChildPath $name
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+                Set-Content -LiteralPath $file -Value $name
+            }
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter $Filter -ErrorAction Stop)
+
+            ($result.Name | Sort-Object) -join ',' | Should -Be (($Expected | Sort-Object) -join ',')
+        }
+
+        # Only * and ? are wildcards in -Filter. A bracket stands for itself, so a file with brackets in its name is found
+        # by its name, as Get-ChildItem finds it, and the file that the brackets would select as a character class is not.
+        # Before 5.0.0, the cmdlet read [1] as a character class and returned nothing.
+        It 'Should find a file whose name contains brackets by that name with -Filter' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterBrackets' -Directory
+            foreach ($name in 'Report[1].txt', 'Report1.txt') {
+                $file = Join-Path -Path $folder -ChildPath $name
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+                Set-Content -LiteralPath $file -Value $name
+            }
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter 'Report[1].txt' -ErrorAction Stop)
+
+            $result | Should -HaveCount 1
+            $result[0].Name | Should -BeExactly 'Report[1].txt'
+        }
+
+        # The dot is an ordinary character of the pattern, but not in *.*, which Windows, Get-ChildItem, and .NET read as
+        # every item. Before 5.0.0, the cmdlet compared each name with the pattern again and dropped the items without a
+        # dot, files and folders alike, so that a listing of a tree with this filter missed most of its folders.
+        It 'Should return every item for -Filter *.*, also the ones without a dot in their names' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterDot' -Directory
+            $paths = @('Page.htm', 'NoExtension', 'NoExtensionFolder') | ForEach-Object -Process { Join-Path -Path $folder -ChildPath $_ }
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $paths
+            Set-Content -LiteralPath $paths[0] -Value 'Page'
+            Set-Content -LiteralPath $paths[1] -Value 'NoExtension'
+            New-Item -ItemType Directory -Path $paths[2] | Out-Null
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter '*.*' -ErrorAction Stop)
+
+            ($result.Name | Sort-Object) -join ',' | Should -BeExactly 'NoExtension,NoExtensionFolder,Page.htm'
+        }
+
+        # The enumeration returns every item for *.*.*, as Get-ChildItem does. The cmdlet compares each name with the whole
+        # pattern again, so that the dots of the pattern are characters of the name, as the help says.
+        It 'Should return only the items that match the whole pattern for -Filter *.*.*' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterDots' -Directory
+            foreach ($name in 'Page.htm', 'NoExtension', 'Two.dots.txt') {
+                $file = Join-Path -Path $folder -ChildPath $name
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+                Set-Content -LiteralPath $file -Value $name
+            }
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter '*.*.*' -ErrorAction Stop)
+
+            ($result.Name -join ',') | Should -BeExactly 'Two.dots.txt'
+        }
+
+        # The names are matched twice, by the enumeration and by the cmdlet, and the rules for a dot differ from those of
+        # Get-ChildItem, where Report.* also returns Report. The documentation lists this as a limitation; these cases pin
+        # it, so that a change of the rules is a decision. Report* is the control: without a dot in the pattern, the names
+        # without a dot are returned.
+        It 'Should return <Outcome> for -Filter "<Filter>"' -ForEach @(
+            @{ Filter = 'Report.*'; Expected = 'Report.txt'; Outcome = 'only the names with a dot' }
+            @{ Filter = 'Report*'; Expected = 'Report,Report.txt'; Outcome = 'the names with and without a dot' }
+            @{ Filter = 'Report.'; Expected = ''; Outcome = 'nothing' }
+            @{ Filter = 'Rep*.'; Expected = ''; Outcome = 'nothing' }
+            @{ Filter = '*.'; Expected = ''; Outcome = 'nothing' }
+            @{ Filter = ''; Expected = ''; Outcome = 'nothing' }
+        ) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterDotRules' -Directory
+            foreach ($name in 'Report', 'Report.txt', 'Other') {
+                $file = Join-Path -Path $folder -ChildPath $name
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+                Set-Content -LiteralPath $file -Value $name
+            }
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter $Filter -ErrorAction Stop)
+
+            ($result.Name | Sort-Object) -join ',' | Should -BeExactly $Expected
+        }
+
+        It 'Should reject a null -Filter' {
+            { Get-ChildItem2 -Path $tree -Filter $null -ErrorAction Stop } |
+                Should -Throw -ErrorId 'ParameterArgumentValidationError,NTFSSecurity.GetChildItem2' -ExpectedMessage "*'Filter'*"
+        }
+
         It 'Should stop a recursive pipeline without recording an enumeration error' {
             $result = @(Get-ChildItem2 -Path $tree -Recurse -ErrorVariable childErrors -ErrorAction SilentlyContinue | Select-Object -First 1)
 
             $result | Should -HaveCount 1
+            $childErrors | Should -BeNullOrEmpty
+        }
+
+        # The second file comes from a sub folder, so the pipeline stops while the cmdlet is inside the recursion.
+        It 'Should stop a recursive pipeline inside a sub folder without recording an enumeration error' {
+            $result = @(Get-ChildItem2 -Path $tree -Recurse -File -ErrorVariable childErrors -ErrorAction SilentlyContinue | Select-Object -First 2)
+
+            $result | Should -HaveCount 2
+            $childErrors | Should -BeNullOrEmpty
+        }
+
+        # A break or continue in a later pipeline stage passes through the cmdlet as an exception, which it must not
+        # report as a failed folder.
+        It 'Should end a recursive enumeration for <Keyword> in a later pipeline stage without recording an enumeration error' -ForEach @(
+            @{ Keyword = 'break' }
+            @{ Keyword = 'continue' }
+        ) {
+            $names = [System.Collections.Generic.List[string]]::new()
+            foreach ($round in 1) {
+                Get-ChildItem2 -Path $tree -Recurse -File -ErrorVariable childErrors -ErrorAction SilentlyContinue | ForEach-Object -Process {
+                    $names.Add($_.Name)
+                    if ($Keyword -eq 'break') { break } else { continue }
+                }
+            }
+
+            $names | Should -HaveCount 1
             $childErrors | Should -BeNullOrEmpty
         }
     }
@@ -200,6 +322,31 @@ Describe 'Get-ChildItem2' {
             $result[0].FullName | Should -Be $link
             Get-Content -LiteralPath $file | Should -Be 'Target'
         }
+
+        # A junction whose target is gone passes the existence check, but the folder behind it can't be opened. The
+        # error belongs to that folder, and the enumeration goes on with the next one.
+        It 'Should report a junction whose target was removed as a DirUnspecifiedError and continue with the next folder' {
+            $root = New-TestSandboxItem -Sandbox $sandbox -Name 'BrokenJunction' -Directory
+            $target = New-TestSandboxItem -Sandbox $sandbox -Name 'RemovedTarget' -Directory
+            $link = Join-Path -Path $root -ChildPath 'Broken'
+            $sibling = Join-Path -Path $root -ChildPath 'Sibling'
+            $file = Join-Path -Path $sibling -ChildPath 'Sibling.txt'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $link, $sibling, $file
+            New-Item -ItemType Directory -Path $sibling | Out-Null
+            Set-Content -LiteralPath $file -Value 'Sibling'
+            New-Item -ItemType Junction -Path $link -Value $target | Out-Null
+            Remove-Item -LiteralPath $target -Force
+
+            $result = @(Get-ChildItem2 -Path $root -Recurse -ErrorVariable childErrors -ErrorAction SilentlyContinue)
+
+            $childErrors | Should -HaveCount 1
+            $childErrors[0].FullyQualifiedErrorId | Should -BeLike 'DirUnspecifiedError,*'
+            $childErrors[0].CategoryInfo.Category | Should -Be 'NotSpecified'
+            $childErrors[0].TargetObject | Should -Be $link
+            $childErrors[0].Exception | Should -BeOfType [System.IO.DirectoryNotFoundException]
+            @($result.FullName | Sort-Object) | Should -Be @(@($link, $sibling, $file) | Sort-Object)
+            Get-Content -LiteralPath $file | Should -Be 'Sibling'
+        }
     }
 
     Context 'Optional object properties' {
@@ -243,6 +390,46 @@ Describe 'Get-ChildItem2' {
             $item = Get-ChildItem2 -Path $file -Force -ErrorAction Stop
 
             $item.Mode | Should -BeExactly '--rhs'
+        }
+
+        It 'Should render a folder with a d in the Mode property' {
+            $parent = New-TestSandboxItem -Sandbox $sandbox -Name 'ModeFolder' -Directory
+            $folder = Join-Path -Path $parent -ChildPath 'Inner'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $folder
+            New-Item -ItemType Directory -Path $folder | Out-Null
+            $settings['GetFileSystemModeProperty'] = $true
+
+            $item = Get-ChildItem2 -Path $parent -ErrorAction Stop
+
+            $item | Should -BeOfType [Alphaleonis.Win32.Filesystem.DirectoryInfo]
+            $item.Mode | Should -BeExactly 'd----'
+        }
+
+        It 'Should return an empty Mode for no object' {
+            [NTFSSecurity.FileSystemCodeMembers]::Mode($null) | Should -BeExactly ''
+        }
+
+        # Windows can't list the hard links of a file on a network share, (50) "The request is not supported". The cmdlet
+        # still returns the file, without HardLinkCount, and says why in a debug message. The test sets the preference,
+        # because -Debug would prompt in Windows PowerShell.
+        It 'Should return a file on a network share without HardLinkCount and say why in a debug message' -Skip:(-not $canUseAdminShare) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ShareProperties' -Directory
+            $file = Join-Path -Path $folder -ChildPath 'Share.txt'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+            Set-Content -LiteralPath $file -Value 'Share'
+            $sharePath = ConvertTo-TestAdminSharePath -Sandbox $sandbox -Path $file
+            $settings['IdentifyHardLinks'] = $true
+            $DebugPreference = 'Continue'
+
+            $output = @(Get-ChildItem2 -Path $sharePath -ErrorVariable childErrors -ErrorAction SilentlyContinue 5>&1)
+
+            $childErrors | Should -BeNullOrEmpty
+            $items = @($output | Where-Object -FilterScript { $_ -isnot [Management.Automation.DebugRecord] })
+            $items | Should -HaveCount 1
+            $items[0].Name | Should -BeExactly 'Share.txt'
+            $items[0].PSObject.Properties['HardLinkCount'] | Should -BeNullOrEmpty
+            $messages = @($output | Where-Object -FilterScript { $_ -is [Management.Automation.DebugRecord] } | ForEach-Object -Process { $_.Message })
+            $messages | Should -Contain "Could not read hard links for '$sharePath'"
         }
     }
 
@@ -557,6 +744,83 @@ Describe 'Copy-Item2, Move-Item2, and Remove-Item2 with several paths' {
         $itemErrors[0].Exception.Message | Should -BeLike "*'$missingShare'*"
         $first | Should -Exist
     }
+
+    # A sharing violation is an IOException, which both cmdlets write as InvalidData; the error belongs to its source
+    # only, and no object comes out for it with -PassThru.
+    It '<Command> should write a <ErrorId> for a source that another process has locked and continue with the next path' -ForEach @(
+        @{ Command = 'Copy-Item2'; ErrorId = 'CopyError' }
+        @{ Command = 'Move-Item2'; ErrorId = 'MoveError' }
+    ) {
+        $stream = [IO.File]::Open($first, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::None)
+        try {
+            $result = @(& $Command -Path $first, $second -Destination $destination -PassThru $true -ErrorVariable itemErrors -ErrorAction SilentlyContinue)
+        }
+        finally {
+            $stream.Dispose()
+        }
+
+        $itemErrors | Should -HaveCount 1
+        $itemErrors[0].FullyQualifiedErrorId | Should -BeLike "$ErrorId,*"
+        $itemErrors[0].CategoryInfo.Category | Should -Be 'InvalidData'
+        $itemErrors[0].TargetObject | Should -Be $first
+        $itemErrors[0].Exception | Should -BeOfType [System.IO.IOException]
+        $result | Should -HaveCount 1
+        $result[0].FullName | Should -Be (Join-Path -Path $destination -ChildPath 'Second.txt')
+        Join-Path -Path $destination -ChildPath 'First.txt' | Should -Not -Exist
+        Get-Content -LiteralPath $first | Should -Be 'First'
+        Get-Content -LiteralPath (Join-Path -Path $destination -ChildPath 'Second.txt') | Should -Be 'Second'
+    }
+
+    # Any other failure of Windows is not an IOException, and both cmdlets write it as NotSpecified. A deny entry for
+    # Everyone also applies to an administrator, who doesn't bypass the DACL without a backup privilege.
+    It '<Command> should write a <ErrorId> for each source when the destination folder denies new files' -ForEach @(
+        @{ Command = 'Copy-Item2'; ErrorId = 'CopyError' }
+        @{ Command = 'Move-Item2'; ErrorId = 'MoveError' }
+    ) {
+        $denied = Join-Path -Path $folder -ChildPath 'Denied'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $denied
+        New-Item -ItemType Directory -Path $denied | Out-Null
+        Add-TestDenyRule -Sandbox $sandbox -Path $denied -Rights @{ 'S-1-1-0' = 'CreateFiles' }
+
+        $result = @(& $Command -Path $first, $second -Destination $denied -PassThru $true -ErrorVariable itemErrors -ErrorAction SilentlyContinue)
+
+        $itemErrors | Should -HaveCount 2
+        for ($index = 0; $index -lt 2; $index++) {
+            $itemErrors[$index].FullyQualifiedErrorId | Should -BeLike "$ErrorId,*"
+            $itemErrors[$index].CategoryInfo.Category | Should -Be 'NotSpecified'
+            $itemErrors[$index].TargetObject | Should -Be @($first, $second)[$index]
+            $itemErrors[$index].Exception | Should -BeOfType [System.UnauthorizedAccessException]
+        }
+        $result | Should -BeNullOrEmpty
+        @(Get-ChildItem -LiteralPath $denied -Force) | Should -BeNullOrEmpty
+        Get-Content -LiteralPath $first | Should -Be 'First'
+        Get-Content -LiteralPath $second | Should -Be 'Second'
+    }
+
+    # A destination on a drive letter without a volume has no folder that the cmdlet could name, so Windows reports the
+    # drive as not ready, which AlphaFS raises as an IOException.
+    It '<Command> should write a <ErrorId> for a destination on a drive that does not exist and keep the source' -ForEach @(
+        @{ Command = 'Copy-Item2'; ErrorId = 'CopyError' }
+        @{ Command = 'Move-Item2'; ErrorId = 'MoveError' }
+    ) {
+        $used = @((Get-PSDrive -PSProvider FileSystem).Name) + @([System.IO.DriveInfo]::GetDrives() | ForEach-Object -Process { $_.Name.Substring(0, 1) })
+        # The lowest free letter: New-TestDriveMapping takes letters from Z downward, also in a run in parallel.
+        $letter = [char[]](68..90) | Where-Object -FilterScript { [string] $_ -notin $used } | Select-Object -First 1
+        if (-not $letter) {
+            Set-ItResult -Skipped -Because 'every drive letter is in use'
+            return
+        }
+
+        $result = @(& $Command -Path $first -Destination "${letter}:\" -PassThru $true -ErrorVariable itemErrors -ErrorAction SilentlyContinue)
+
+        $itemErrors | Should -HaveCount 1
+        $itemErrors[0].FullyQualifiedErrorId | Should -BeLike "$ErrorId,*"
+        $itemErrors[0].CategoryInfo.Category | Should -Be 'InvalidData'
+        $itemErrors[0].TargetObject | Should -Be $first
+        $itemErrors[0].Exception | Should -BeOfType [System.IO.IOException]
+        $result | Should -BeNullOrEmpty
+        Get-Content -LiteralPath $first | Should -Be 'First'
+    }
 }
 
 Describe 'Move-Item2' {
@@ -637,6 +901,45 @@ Describe 'Copy-Item2' {
             Join-Path -Path $destination -ChildPath 'File.txt' | Should -Exist
             Join-Path -Path $destination -ChildPath 'Subfolder\Other.txt' | Should -Exist
         }
+    }
+}
+
+Describe 'Relative paths' {
+    BeforeAll {
+        $parent = New-TestSandboxItem -Sandbox $sandbox -Name 'RelativeParent' -Directory
+        $child = Join-Path -Path $parent -ChildPath 'Child'
+        $sibling = Join-Path -Path $parent -ChildPath 'Sibling'
+        $siblingFile = Join-Path -Path $sibling -ChildPath 'Sibling.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $child, $sibling, $siblingFile
+        New-Item -ItemType Directory -Path $child, $sibling | Out-Null
+        Set-Content -LiteralPath $siblingFile -Value 'Sibling'
+    }
+
+    It 'Get-Item2 should resolve <Path> against the current location' -ForEach @(
+        @{ Path = '.'; Expected = 'Child' }
+        @{ Path = '.\'; Expected = 'Child' }
+        @{ Path = '..'; Expected = 'Parent' }
+        @{ Path = '..\Sibling'; Expected = 'Sibling' }
+        @{ Path = '..\Sibling\Sibling.txt'; Expected = 'SiblingFile' }
+        @{ Path = '..\..'; Expected = 'Grandparent' }
+    ) {
+        $expectedPath = switch ($Expected) {
+            'Child' { $child }
+            'Parent' { $parent }
+            'Sibling' { $sibling }
+            'SiblingFile' { $siblingFile }
+            'Grandparent' { Split-Path -Path $parent -Parent }
+        }
+        Push-Location -LiteralPath $child
+        try {
+            $result = @(Get-Item2 -Path $Path -ErrorAction Stop)
+        }
+        finally {
+            Pop-Location
+        }
+
+        $result | Should -HaveCount 1
+        $result[0].FullName.TrimEnd('\') | Should -Be $expectedPath
     }
 }
 
@@ -759,7 +1062,8 @@ Describe 'Get-DiskSpace' {
 
     It 'Should warn and return nothing for a drive letter without a volume' {
         $used = @((Get-PSDrive -PSProvider FileSystem).Name) + @([System.IO.DriveInfo]::GetDrives() | ForEach-Object -Process { $_.Name.Substring(0, 1) })
-        $letter = [char[]](68..90) | Where-Object -FilterScript { [string] $_ -notin $used } | Select-Object -Last 1
+        # The lowest free letter: New-TestDriveMapping takes letters from Z downward, also in a run in parallel.
+        $letter = [char[]](68..90) | Where-Object -FilterScript { [string] $_ -notin $used } | Select-Object -First 1
         if (-not $letter) {
             Set-ItResult -Skipped -Because 'every drive letter is in use'
             return
@@ -775,5 +1079,38 @@ Describe 'Get-DiskSpace' {
     It 'Should reject a drive letter without a colon' {
         { Get-DiskSpace -DriveLetter 'C' -ErrorAction Stop } |
             Should -Throw -ErrorId 'ParameterArgumentValidationError,NTFSSecurity.GetDiskSpace'
+    }
+}
+Describe 'Get-ChildItem2 when recursive enumeration becomes denied' {
+    It 'Should name the failed recursion in verbose output and continue with the next path' {
+        $root = New-TestSandboxItem -Sandbox $sandbox -Name 'ChangingReadPermission' -Directory
+        $child = Join-Path -Path $root -ChildPath 'Child'
+        $first = Join-Path -Path $root -ChildPath 'First.txt'
+        $nested = Join-Path -Path $child -ChildPath 'Nested.txt'
+        $next = New-TestSandboxItem -Sandbox $sandbox -Name 'NextRecursivePath' -Directory
+        $nextFile = Join-Path -Path $next -ChildPath 'Next.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $root, $child, $first, $nested, $nextFile
+        New-Item -ItemType Directory -Path $child | Out-Null
+        Set-Content -LiteralPath $first -Value 'First'
+        Set-Content -LiteralPath $nested -Value 'Nested'
+        Set-Content -LiteralPath $nextFile -Value 'Next'
+        $ownerBefore = (Get-Acl -LiteralPath $root).Owner
+
+        # The first file is emitted before the separate recursive directory enumeration opens the folder again.
+        $records = @(Get-ChildItem2 -Path $root, $next -File -Recurse -Verbose -ErrorVariable childErrors -ErrorAction SilentlyContinue 4>&1 |
+                ForEach-Object {
+                    if ($_ -is [Alphaleonis.Win32.Filesystem.FileInfo] -and $_.FullName -eq $first) {
+                        Add-TestDenyRule -Sandbox $sandbox -Path $root -Rights @{ 'S-1-1-0' = 'ReadData' }
+                    }
+                    $_
+                })
+
+        $childErrors | Should -BeNullOrEmpty
+        $files = @($records | Where-Object { $_ -is [Alphaleonis.Win32.Filesystem.FileInfo] })
+        @($files.FullName | Sort-Object) | Should -Be @(@($first, $nextFile) | Sort-Object)
+        $messages = @($records | Where-Object { $_ -is [System.Management.Automation.VerboseRecord] })
+        $messages.Message | Should -Contain "Cannot access folder '$root' for recursive operation"
+        (Get-Acl -LiteralPath $root).Owner | Should -BeExactly $ownerBefore
+        Get-Content -LiteralPath $nested | Should -BeExactly 'Nested'
     }
 }
