@@ -9,17 +9,13 @@ source: repository and validation evidence
 
 ## Current status
 
-5.0.0-rc6 is published on the Gallery and GitHub; its failed Release job
-recovered in attempt 2 on 2026-10-09. #116 (rc7, `d25647d`) was merged into
-`master` on 2026-10-10 (`8a6be9f`); rc7 is neither tagged nor published. #117
-was closed unmerged when its base branch was deleted, so a new pull request
-from `ai/quality-gate-coverage` replaces it. Further quality-gate work is
-`ai/quality-gate-paths` (draft #118), which classifies every remaining
-unvisited path (the open items are the maintainer's decisions), and
-`ai/quality-gate-lab-matrix` (draft #119, stacked on #118): the
-operating-system matrix, three fixes of the module found by it, and the
-controller changes (Decision 24, proposed).
-Stable Gallery version: 4.2.6.
+5.0.0-rc7 is published on the Gallery and GitHub (2026-10-10, tag at
+`fa0701b`); rc6 is the one before it. On 2026-10-10 the maintainer merged the
+whole stack into `master` (`fa0701b`, CI green): #116 (rc7), #120 (it replaced
+#117, which GitHub closed unmerged when the branch deletion after #116 removed
+its base), #118 (the quality-gate paths), and #119 (the operating-system
+matrix with three module fixes, Decision 24 proposed). The published rc7 still
+needs its lab acceptance (gate 3). Stable Gallery version: 4.2.6.
 After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 
 ## Recent milestones
@@ -50,75 +46,52 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   Published rc6 live tests differed only in rc7's warning expectation.
 - 2026-10-09: release attempt 2 succeeded; rc6 GitHub prerelease and zip
   appeared at 07:01:34 UTC. #116 passed CI on `d25647d`.
-- 2026-10-09: autonomous follow-up on `ai/quality-gate-coverage`, through
-  `3442194`, adds 202 cases above rc7: deletion/owner failures, all 13
-  scopes, inheritance transitions, enumeration, forced replacement,
-  descriptor failures, and offline CI recovery. Reproduced/fixed rooted
-  result-path handling and first-hidden-item omission. Publication recovery
-  verifies exact SHA-512 identity, not merely version existence.
-- 2026-10-09: final uninstrumented suite: 914 per configuration, zero
-  failures; coverage: 2,641/3,559 sequence points (74.21%) and 974/1,933
-  branches (50.39%), aggregate of four runs without AltCover `--save`.
-  All skipped templates have executed counterparts. Mutation guards were
-  proved and production source restored; Release build/checks pass.
-- 2026-10-09: live comparison, 09:20 to 09:51 UTC: candidate 330 passed,
-  zero failed, two expected skips; published rc6 four expected Hidden/
-  warning-text failures only. Independent cleanup probes verified fixture
-  absence; raw host-verifier failures retained with corrected verification.
-  Lab guards/acceptance committed in `7594e0c`. One independent code review
-  approved with no significant finding (custom model unavailable; built-in
-  fallback). All 11 tested files match the ZIP. OS/path gates stay open.
-- 2026-10-09: Handoff 1 on `ai/quality-gate-paths` (28 local commits, no
-  push): suite 914 to 1,310 per configuration, zero failures; coverage
-  3,192/3,634 sequence points (87.84%), 1,273/1,978 branches; all 231
-  unvisited methods classified (223 explained, 8 open). Eleven defects
-  fixed, ten with a guard that is red before the fix and green after it (a
-  red/green matrix over ten states of the branch: 76 rows red at the base,
-  none after the last fix), among them a later command's exception that
-  cmdlets swallowed (a `throw` made `Remove-Item2` remove the next item; also
-  through the error stream) and a privilege left enabled. Nine static
-  passes of the built-in code-review agent: no Blocker or Major. Report in
-  `Tests/Coverage`.
-- 2026-10-09: lab acceptance of those fixes, `83149ee` against its base
-  `f11ff41` with the same 244 tests per edition (78 new, case 10): candidate
-  486 passed, 0 failed, 2 expected skips; baseline 338 passed, 148 failed, all
-  148 green on the candidate; fixture removed and verified clean on six
-  machines. Record: `Tests/Lab/Acceptance-2026-10-09-quality-gate-paths.md`.
+- 2026-10-09: autonomous follow-up on `ai/quality-gate-coverage` (#117, then
+  #120), through `3442194`: 202 cases above rc7 (deletion/owner failures, all
+  13 scopes, inheritance transitions, enumeration, forced replacement,
+  descriptor failures, offline CI recovery); fixed rooted result paths and the
+  first-hidden-item omission; publication recovery verifies the exact SHA-512
+  identity, not merely the version. Suite: 914 per configuration, zero
+  failures; 2,641/3,559 sequence points (74.21%), 974/1,933 branches (50.39%).
+  Live comparison, 09:20 to 09:51 UTC: candidate 330 passed, 0 failed, 2
+  expected skips; published rc6 only its four expected failures (`7594e0c`).
+- 2026-10-09: handoff 1 (#118): suite 914 to 1,310 per configuration, zero
+  failures; 3,192/3,634 sequence points (87.84%), 1,273/1,978 branches; all 231
+  unvisited methods classified (223 explained, 8 open). Eleven defects fixed,
+  ten with a guard that is red before the fix and green after it (76 rows red
+  at the base), among them a later command's exception that cmdlets swallowed
+  (a `throw` made `Remove-Item2` remove the next item) and a privilege left
+  enabled. Lab acceptance, `83149ee` against `f11ff41`: 486 passed, 0 failed, 2
+  expected skips against 338 passed, 148 failed. Report in `Tests/Coverage`;
+  record `Tests/Lab/Acceptance-2026-10-09-quality-gate-paths.md`.
 - 2026-10-09 to 10: handoffs 2 to 4 under the maintainer's delegation (decisions
-  D1 to D46 in the night log of the session files). The matrix lab
-  `NtfsSecurityOsMatrixLab` (Server 2019, 2022, and 2025 file servers, Windows 11
-  Enterprise 22H2 client, Windows 11 26H1 suite only) found three defects of the
-  module, fixed in `962887a` and `fdd7a8b`: audit inheritance by descriptor,
-  `Get-NTFSEffectiveAccess -ServerName ''`, and the same cmdlet for a user who
-  isn't an administrator on a domain member. The final candidate passes the
-  module's suite on every machine (24 runs, no failure) and the live controller
-  in three cells (1,374 passed, 0 failed, 12 skipped) and in the first lab with
-  case 9 (245 passed, 0 failed, 1 skipped per edition). The failures of the
-  effective-access tests in the Server 2022 cell were not a defect of the module:
-  in a replay of the same cells the baseline failed two of three and the final
-  candidate one of three (not counting the warm-up cell), and one model (the
-  remote authorization managers answer for an account name for about ten minutes
-  after the account was created again) fits all 43 Admin-role runs of 27 cells;
-  the Windows mechanism is unknown. The controller
-  names the account of case 3 anew for each fixture (`1dec389`). A read-only
-  built-in review of the kit and the fixes approved with Minor findings, fixed in
-  `db04ef2`. A second review of the later commits found one Major (the record
-  called the cause settled without a baseline replay), addressed by the replay,
-  `9344ff7`, and `ab0d8e1`; a follow-up review of those fixes found no Blocker or
-  Major and five Minors, corrected in `e2384e5` and `70f494a`; a second
-  follow-up review (the first-lab run and the cleanup changes) found no Blocker or
-  Major and four Minors, corrected in `b78784d` and `dbb4bd6`; the built-in
-  `security-review` agent found no exploitable vulnerability and two LOW items
-  that are not changed (record, Limits). Record:
-  `Tests/Lab/Acceptance-2026-10-10-os-matrix.md`; the agent pushed nothing.
-- 2026-10-10: the maintainer merged #116 (`8a6be9f`, 09:10:12Z) with `gh pr
-  merge --delete-branch` and pushed the matrix branch as draft #119 (`49734ef`).
-  The deletion removed the base branch of #117, and GitHub closed #117
-  unmerged three seconds later instead of retargeting it (events
-  `base_ref_deleted`, `closed`; the same pair is in `cli/cli#14223`). The
-  earlier guidance, which relied on a retarget, was wrong. Nothing is lost; a
-  new pull request from `ai/quality-gate-coverage` replaces #117 (deployment
-  notes).
+  D1 to D47 in the night log of the session files). The matrix lab
+  `NtfsSecurityOsMatrixLab` (Server 2019, 2022, 2025, a Windows 11 Enterprise
+  22H2 client, Windows 11 26H1 suite only) found three module defects, fixed in
+  `962887a` and `fdd7a8b`: audit inheritance by descriptor,
+  `Get-NTFSEffectiveAccess -ServerName ''`, and the same cmdlet for a
+  non-administrator on a domain member. The final candidate passes the module's
+  suite on every machine (24 runs), the live controller in three cells (1,374
+  passed, 0 failed, 12 skipped), and the first lab with case 9 (245 passed, 0
+  failed, 1 skipped per edition). The Server 2022 effective-access failures
+  were stale account state, not the module (a replay; the Windows mechanism is
+  unknown); the controller names the case-3 account anew (`1dec389`). Built-in
+  reviews: Minors corrected, one Major resolved by the replay, no Blocker; the
+  built-in security review found no exploitable vulnerability and two LOW items
+  left for the maintainer. Record:
+  `Tests/Lab/Acceptance-2026-10-10-os-matrix.md`.
+- 2026-10-10: the maintainer integrated the stack. His branch deletion after the
+  merge of #116 (`8a6be9f`, 09:10:12Z) removed the base branch of #117, and
+  GitHub closed #117 unmerged three seconds later instead of retargeting it
+  (`cli/cli#14223` shows the same events); the earlier guidance that relied on a
+  retarget was wrong. Nothing was lost: #120 (`bdb9981`, 10:50Z) replaced #117,
+  then #118 (`03bef2c`, 11:12Z) and #119 (`fa0701b`, 11:28Z) merged after their
+  retargeting; CI on `master` passed at 11:40Z. Decision 15 has the rule.
+- 2026-10-10: rc7 published. The maintainer tagged `fa0701b` at about 12:20Z;
+  the CI run of the tag passed and the Release job published without an
+  approval step (Gallery 12:30:57Z, GitHub 12:31:09Z). The identity check
+  (`Test-PublishedRelease.ps1`, 12:33Z) passed: Gallery SHA-512, nupkg and zip
+  identical, manifest `5.0.0-rc7`. Hashes: deployment notes.
 
 ## Stable capabilities
 
@@ -131,11 +104,12 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 
 ## Open work
 
-1. Decision 21 gate: review Decision 22, integrate reviewed quality-gate
-   follow-up, publish the next candidate, and test the published package.
-   Do not release 5.0.0 until the remaining-path and OS-matrix gates close.
-   Release steps: `Docs/Contributing/05-Releasing.md`; remove prerelease
-   label, date `[5.0.0]`, update `$publishedVersions`, tag through CI.
+1. Decision 21 gate: test the published rc7 (identity verified; the first lab
+   and every matrix cell remain) and review Decision 22. Do not release 5.0.0
+   until the remaining-path and OS-matrix gates close. Release steps:
+   `Docs/Contributing/05-Releasing.md`; remove the prerelease label, date
+   `[5.0.0]`, add the last prerelease to `$publishedVersions` (never the
+   version of the manifest), tag through CI.
 2. Issues: #110's seven items were addressed by rc6, but #115 deliberately
    used no closing keyword. #34 stays open for non-Windows owner feedback
    or maintainer acceptance. #16, #21, #45, #89 await reporters. #68 tracks
@@ -164,17 +138,13 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
    write's ownership retry cannot run on a local volume and is covered only
    by the lab. A conditional ACE display remains a .NET representation limit,
    not evidence of unconditional permissions.
-8. Publication recovery is implemented locally in `95b827e`, with 14 offline
-   tests and exact artifact SHA-512 verification. Original upload errors
-   remain errors for missing/different/unverifiable outcomes. Not deployed
-   until the maintainer merges/pushes; no publication was performed here.
+8. Publication recovery (`95b827e`, merged in #120): 14 offline tests and exact
+   artifact SHA-512 verification; the original upload errors remain errors for
+   missing, different, or unverifiable outcomes. The agent published nothing,
+   so the recovery has never run against the Gallery.
 9. Operating-system matrix (Decision 24, proposed): the lab and the cells exist
-   and the final local candidate passes them. Open: the acceptance of the
-   published rc7 in every cell, keeping or replacing the VMs (about 60 GB) and
-   the evaluation client (it shuts down every hour), which module fixes go to
-   rc7, and a domain cell for Windows 11 26H1. #34 has no new reply since
-   2026-10-06.
-10. Lab rollback evidence: new checkpoints exist but report Standard even
-    after a successful temporary ProductionOnly probe. Classification is
-    unresolved; original VM policy restored, no checkpoint restored. Do
-    not represent these as verified Production snapshots.
+   and the candidate passes them; the published rc7 still needs its acceptance
+   in every cell. #34 has no new reply since 2026-10-06.
+10. Lab rollback evidence: new checkpoints report Standard even after a
+    successful temporary ProductionOnly probe; original VM policy restored, no
+    checkpoint restored. Don't represent them as verified Production snapshots.

@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-09
+last-verified: 2026-10-10
 owner: active-agent
 source: repository and regression evidence
 ---
@@ -66,82 +66,43 @@ Read only task-relevant records; the index controls routing.
 - Pipeline getters never throw; per-item errors name input and allow continuation.
 - Folder moves never use CopyAllowed; preserve cross-volume source folders.
 - Apply implied Hidden/Force before deciding to emit, including the first item.
-- A catch-all for the failures of one item must pass on what a later command
-  raises through a Write call. A downstream throw is an ordinary exception,
-  so a type check finds only the end of the pipeline, break, and continue.
-  BaseCmdlet notes the exception that its WriteObject, WriteError,
-  WriteVerbose, and WriteDebug raised (WriteWarning is not noted: no catch-all
-  encloses it); `IsFromLaterCommand` recognizes it, and the type check
-  `PipelineControl.IsEnd` backs it up for other calls into PowerShell. A write
-  inside a helper, such as the owner restore of `InvokeAsOwner`, is an
-  accepted gap: its handler reports the item's own error, which raises too.
-  Prefer writing outside the try. `Tests/PipelineControl.Tests.ps1` has rows
-  for every cmdlet: add a row for a new one, and keep the typed-throw rows
-  (they fail if PowerShell stops wrapping a thrown exception).
-- Record an enabled privilege before the next write, which a later command
-  can answer with an exception: Dispose disables only what is recorded.
-- `Get-ChildItem2 -Filter` has two matchers: the AlphaFS enumeration, whose
-  dot rules also differ from those of `Get-ChildItem` (probe: `Report.*` and
-  `Rep*.` in both editions), and a PowerShell wildcard on the name, where only
-  `*` and `?` are special. `*.*` is treated as `*`; the other dot patterns are
-  pinned by `ItemCmdlets.Tests` and are an open maintainer decision.
+- A catch-all for one item's failures passes on what a later command raises
+  through a Write call (`IsFromLaterCommand`, `PipelineControl`; see
+  `BaseCmdlets.cs`); add a row to `Tests/PipelineControl.Tests.ps1` for a new
+  cmdlet. Record an enabled privilege before the next write.
+- `Get-ChildItem2 -Filter` has two matchers (AlphaFS, then a wildcard on the
+  name); `*.*` means `*`, other dot patterns are an open decision.
 
 ### Tests and documentation
 
 - Tests import Release in isolated processes, both editions and privilege
-  modes. File/ACL/link fixtures use shared sandbox guards and cleanup.
-  Privilege-dependent skips must have eligible counterparts in the matrix.
+  modes, with guarded sandboxes; a skip needs an eligible counterpart.
 - Assert persisted state, errors/targets, continuation, and no failed
-  PassThru output. Prove new characterization guards with bounded mutations;
-  restore source exactly and rebuild before green validation or packaging.
-  Apply the mutations of one round together only when no guard can fail
-  because of another mutation; otherwise split the rounds.
-- A test that arranges a retry asserts its precondition (the plain write is
-  denied), or it can pass without reaching the retry.
-- A test variable must not take the name of an automatic variable such as
-  `$foreach`: Pester runs the block inside a foreach, and the value is lost.
-- The CI scripts set `$ErrorActionPreference = 'Stop'`; focused runs do the
-  same, and a test that needs a non-terminating error (for example to take it
-  through `2>&1`) names `-ErrorAction Continue`.
+  PassThru output. Prove new characterization guards with bounded mutations
+  (one round together only if no guard can fail because of another); restore
+  source exactly and rebuild before green validation or packaging. A retry
+  test asserts its precondition (the plain write is denied).
+- CI scripts and focused runs set `Stop`: a test that needs a non-terminating
+  error names `-ErrorAction Continue`. Don't name a test variable like an
+  automatic variable (`$foreach`): Pester runs the block inside a foreach.
 - Fixture DACLs use .NET SetAccessControl, not Set-Acl's unintended SACL writes.
 - Scope/descendant expectations are independent of the production converter.
-- Drive-root tests map a sandbox folder with `subst` through
-  `New-TestDriveMapping` (elevated only; the basic token cannot). Tests that
-  need a letter without a volume take the lowest free one.
-- Desktop platyPS: generate help, rebuild, round-trip unchanged, check links.
-  platyPS 0.14.2 turns a pair of asterisks in a paragraph into emphasis, also
-  inside backticks, and the help drops them: write the words, put patterns in
-  example code blocks, and check the generated XML.
+- Desktop platyPS: generate help, rebuild, round-trip unchanged, check links;
+  platyPS 0.14.2 turns paired asterisks into emphasis, even in backticks.
 - Live tests use only approved lab targets, SMB then independent server state;
   Get/SetFileSecurity preserves stored DACLs; rights oracles use S4U tokens.
-- A suite that is green on the development host and on CI says little about a
-  feature that the environment lacks. The matrix found three defects that every
-  earlier run had missed because the host is outside a domain and the CI
-  runner's token differs: run the suite on a domain member, on other builds, and
-  as a basic user before a release, and classify a failure by a probe under the
-  real tokens (elevated, filtered, local standard, domain standard) before
-  calling it a defect or a design.
-- A fixture that deletes an account and creates it again with the same name can
-  get a wrong answer for about ten minutes: the remote authorization managers
-  answered `0x100000` for the current SID while the local manager and a Kerberos
-  logon were right in the same second, and, when the accounts are created again
-  within seconds, the Kerberos S4U logons returned the old account (7 to 15
-  minutes). A failure that follows the order of the cells and not the version of
-  the module points to such state: run the baseline and the candidate in cells
-  that follow each other and alternate them (the replay of the record) before
-  blaming the code. The controller names the account of case 3 anew for each new
-  fixture.
+- A suite that is green on the host and CI misses defects that need a domain
+  member or another token (the matrix found three): also run a domain member,
+  other builds, and a basic user. A failure that follows cell order, not
+  version, points to stale account state (Decision 24): alternate the cells.
 
-### CI results and publication
+### CI, publication, and integration
 
-- Use Path.Combine then GetFullPath for a rooted-or-repository-relative
-  result path; Join-Path appends even a rooted child and corrupts it.
-- Discovery handles only expected PackageNotFound as absence; repository,
-  authentication, and network errors remain failures.
-- Rerun/uncertain-upload success requires Gallery SHA-512 equality with the
-  exact build artifact. Base64 is case-sensitive: use ordinal comparison.
-  Missing/different/unverifiable metadata preserves the upload error.
-- Secrets stay by environment reference, never in process arguments/logs.
-  Test all external publication commands with mocks; no test may upload.
-- AltCover aggregates all four sequential runs without --save. Report
-  sequence points, not unique source lines; keep unmatched paths visible.
+- Discovery treats only PackageNotFound as absence. Rerun/uncertain-upload
+  success needs Gallery SHA-512 equality with the exact build artifact
+  (ordinal Base64); anything else preserves the upload error. Secrets stay
+  environment references; mock all publication commands, no test uploads.
+- Gate prompts are self-contained: pins are historical, state is rechecked,
+  completion is evidence, risk acceptance is no test pass. In a stack of pull
+  requests, retarget each to `master` before merging the one below; delete a
+  head branch only when no open pull request uses it as its base (Decision 15).
