@@ -12,11 +12,12 @@ param (
 # records the SIDs of the NtfsLive* accounts while the fixture exists. Verify reads the domains and every machine again, and reports
 # the organizational unit, the accounts, the share, the folders, the local group, the memberships of Administrators, Access Control
 # Assistance Operators, and Remote Management Users, and the profiles of those SIDs, and what the suite runs and the probes of the kit leave
-# behind (scheduled tasks, items in the stage folders, the folders of the account probe, standard users, probe accounts of the domain). The
-# result is judged from this log, never from the wrapper of the controller or a global error count. Repair is for a run whose removal failed:
-# with the SIDs of the snapshot, it removes what that run left on the machines (the memberships, also of orphaned SIDs, which net localgroup
-# deletes by SID; the share; the local group; the folders) and what the kit leaves (the items in the stage folders, the folders of the
-# account probe, the scheduled tasks NtfsMatrix*, and the standard users and domain accounts NtfsProbe*), and then reports like Verify.
+# behind (scheduled tasks, items in the stage folders, the folders of the account probe, standard users NtfsProbe* with their profiles and their
+# entries in Performance Log Users, probe accounts of the domain). The result is judged from this log, never from the wrapper of the controller
+# or a global error count. Repair is for a run whose removal failed: with the SIDs of the snapshot, it removes what that run left on the machines
+# (the memberships, also of orphaned SIDs, which net localgroup deletes by SID; the share; the local group; the folders) and what the kit leaves
+# (the items in the stage folders, the folders of the account probe, the scheduled tasks NtfsMatrix*, the standard users NtfsProbe* with their
+# profiles and their entries in Performance Log Users, and the domain accounts NtfsProbe*), and then reports like Verify.
 & {
     $ErrorActionPreference = 'Stop'
     # -File passes an array as one string, so a list may arrive as 'A,B'.
@@ -78,19 +79,29 @@ param (
                 '{0}: {1} fixture member(s)' -f $groupSid, $hits.Count
             }
 
+            # What the account probe leaves: the profiles and the profile folders of its users, and its entries in Performance Log Users. net.exe lists a
+            # local user by its bare name, and an entry of a deleted domain account as its SID, or as its name for a while (the cache of names).
+            $usersFolder = Join-Path -Path $env:SystemDrive -ChildPath 'Users'
+            $probePaths = @(@(Get-CimInstance -ClassName Win32_UserProfile | Where-Object -FilterScript { $_.LocalPath -like (Join-Path -Path $usersFolder -ChildPath 'NtfsProbe*') } | ForEach-Object -Process { $_.LocalPath }) +
+                @(Get-ChildItem -LiteralPath $usersFolder -Filter 'NtfsProbe*' -Force -ErrorAction SilentlyContinue | ForEach-Object -Process { $_.FullName }) | Sort-Object -Unique)
+            $logGroup = ([System.Security.Principal.SecurityIdentifier] 'S-1-5-32-559').Translate([System.Security.Principal.NTAccount]).Value -replace '^.*\\', ''
+            $probeMembers = @(& net.exe localgroup $logGroup 2>&1 | ForEach-Object -Process { "$_".Trim() } | Where-Object -FilterScript { $_ -match '^S-1-5-21-[\d-]+$' -or $_ -match 'NtfsProbe' })
+
             [pscustomobject]@{
-                Share      = [bool] (Get-SmbShare -Name 'NTFSSecurityLive' -ErrorAction SilentlyContinue)
-                ShareRoot  = Test-Path -LiteralPath 'C:\NTFSSecurityLive'
-                Payload    = Test-Path -LiteralPath 'C:\NTFSSecurityLab'
-                LocalGroup = [bool] (Get-LocalGroup -Name 'NtfsLiveLocal' -ErrorAction SilentlyContinue)
-                Groups     = $groups -join '; '
-                Profiles   = @(Get-CimInstance -ClassName Win32_UserProfile | Where-Object -FilterScript { $_.SID -in $Sid }).Count
+                Share         = [bool] (Get-SmbShare -Name 'NTFSSecurityLive' -ErrorAction SilentlyContinue)
+                ShareRoot     = Test-Path -LiteralPath 'C:\NTFSSecurityLive'
+                Payload       = Test-Path -LiteralPath 'C:\NTFSSecurityLab'
+                LocalGroup    = [bool] (Get-LocalGroup -Name 'NtfsLiveLocal' -ErrorAction SilentlyContinue)
+                Groups        = $groups -join '; '
+                Profiles      = @(Get-CimInstance -ClassName Win32_UserProfile | Where-Object -FilterScript { $_.SID -in $Sid }).Count
                 # What the suite runs and the probes of the kit leave behind: scheduled tasks, items in the stage folders, the folders of the
                 # account probe, and standard users
-                Tasks      = @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.TaskName -like 'NtfsMatrix*' }).Count
-                Stages     = @('C:\NtfsMatrixLocal', 'C:\NtfsMatrixProbe' | Where-Object -FilterScript { Test-Path -LiteralPath $_ } | ForEach-Object -Process { Get-ChildItem -LiteralPath $_ -Force -ErrorAction SilentlyContinue }).Count +
+                Tasks         = @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.TaskName -like 'NtfsMatrix*' }).Count
+                Stages        = @('C:\NtfsMatrixLocal', 'C:\NtfsMatrixProbe' | Where-Object -FilterScript { Test-Path -LiteralPath $_ } | ForEach-Object -Process { Get-ChildItem -LiteralPath $_ -Force -ErrorAction SilentlyContinue }).Count +
                 @('C:\NtfsProbeRecreation', 'C:\NtfsProbeModules' | Where-Object -FilterScript { Test-Path -LiteralPath $_ }).Count
-                Users      = @(Get-LocalUser -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.Name -like 'NtfsProbe*' }).Count
+                Users         = @(Get-LocalUser -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.Name -like 'NtfsProbe*' }).Count
+                ProbeProfiles = $probePaths.Count
+                ProbeMembers  = $probeMembers.Count
             }
         }
 
@@ -131,12 +142,28 @@ param (
                     }
 
                     Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.TaskName -like 'NtfsMatrix*' } | ForEach-Object -Process { Unregister-ScheduledTask -TaskName $_.TaskName -Confirm:$false -ErrorAction SilentlyContinue }
-                    foreach ($user in @(Get-LocalUser -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.Name -like 'NtfsProbe*' })) {
-                        foreach ($userProfile in @(Get-CimInstance -ClassName Win32_UserProfile | Where-Object -FilterScript { $_.SID -eq $user.SID.Value })) { Remove-CimInstance -InputObject $userProfile -ErrorAction SilentlyContinue }
-                        Remove-LocalUser -SID $user.SID -ErrorAction SilentlyContinue
+                    foreach ($user in @(Get-LocalUser -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.Name -like 'NtfsProbe*' })) { Remove-LocalUser -SID $user.SID -ErrorAction SilentlyContinue }
+
+                    # The entries of the probe in Performance Log Users go by SID or name through the cmdlet: net.exe doesn't take the SID of an account that its name cache still resolves.
+                    $logGroup = ([System.Security.Principal.SecurityIdentifier] 'S-1-5-32-559').Translate([System.Security.Principal.NTAccount]).Value -replace '^.*\\', ''
+                    foreach ($member in @(& net.exe localgroup $logGroup 2>&1 | ForEach-Object -Process { "$_".Trim() } | Where-Object -FilterScript { $_ -match '^S-1-5-21-[\d-]+$' -or $_ -match 'NtfsProbe' })) {
+                        Remove-LocalGroupMember -SID 'S-1-5-32-559' -Member $member -ErrorAction SilentlyContinue
                     }
 
-                    $messages.Add('stage items, probe folders, probe users, and scheduled tasks of the kit removed')
+                    # A profile that the last task of a probe user used stays loaded for a few seconds, so the removal is repeated. What stays is
+                    # reported by the check that follows, found by its folder and not by its user, who is gone by now.
+                    $usersFolder = Join-Path -Path $env:SystemDrive -ChildPath 'Users'
+                    $attempt = 0
+                    do {
+                        $attempt++
+                        @(Get-CimInstance -ClassName Win32_UserProfile | Where-Object -FilterScript { $_.LocalPath -like (Join-Path -Path $usersFolder -ChildPath 'NtfsProbe*') }) | Remove-CimInstance -ErrorAction SilentlyContinue
+                        Get-ChildItem -LiteralPath $usersFolder -Filter 'NtfsProbe*' -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+                        $left = @(Get-CimInstance -ClassName Win32_UserProfile | Where-Object -FilterScript { $_.LocalPath -like (Join-Path -Path $usersFolder -ChildPath 'NtfsProbe*') }).Count +
+                        @(Get-ChildItem -LiteralPath $usersFolder -Filter 'NtfsProbe*' -Force -ErrorAction SilentlyContinue).Count
+                        if ($left -gt 0 -and $attempt -lt 10) { Start-Sleep -Seconds 3 }
+                    } while ($left -gt 0 -and $attempt -lt 10)
+
+                    $messages.Add(('stage items, probe folders, probe users, their entries in the log group, and scheduled tasks of the kit removed; profile items left: {0} after {1} attempt(s)' -f $left, $attempt))
 
                     $messages
                 }
@@ -149,7 +176,7 @@ param (
             $state = Invoke-LabCommand -ComputerName $name -ActivityName "Check $name" -ScriptBlock $machineScript -ArgumentList (, $sids) @labCommand
             '{0,-9} share={1} C:\NTFSSecurityLive={2} C:\NTFSSecurityLab={3} NtfsLiveLocal={4} profiles={5}' -f $name, $state.Share, $state.ShareRoot, $state.Payload, $state.LocalGroup, $state.Profiles
             '          {0}' -f $state.Groups
-            '          residue: scheduled tasks={0} stage items={1} probe users={2}' -f $state.Tasks, $state.Stages, $state.Users
+            '          residue: scheduled tasks={0} stage items={1} probe users={2} probe profiles={3} probe group members={4}' -f $state.Tasks, $state.Stages, $state.Users, $state.ProbeProfiles, $state.ProbeMembers
         }
     }
 

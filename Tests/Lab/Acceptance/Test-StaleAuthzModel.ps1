@@ -28,6 +28,11 @@ param (
 # controller that reuses the name would have met a stale entry. -Permutations N asks how often a random assignment of the observed outcomes to the runs
 # (the same number of failures, a fixed random seed) reaches the best agreement of the real outcomes for some L: if the position of a cell decides the
 # outcome, it should almost never.
+#
+# The lifetimes are those of a grid with the step -StepMinutes, so a range is known to within one step (use 0.05 to see the ranges of the record). The model
+# doesn't know that a computer restarted. If the state lives in the memory of the computer, a restart would clear it; for the real account names of the series
+# of Decision 24, no restart of the client or of a file server changes a prediction (the entry that a restart would have cleared had expired, or the run that
+# read it had the same account). For -AsIfSameSubject it matters once: the client restarted between ab6 and ab7.
 $ErrorActionPreference = 'Stop'
 $random = New-Object -TypeName 'System.Random' -ArgumentList 20261010
 $rows = @(Import-Csv -LiteralPath $Timeline | ForEach-Object -Process {
@@ -99,13 +104,44 @@ if ($PSBoundParameters.ContainsKey('Lifetime')) {
     return
 }
 
+function Get-Range {
+    # The lifetimes of a result list as ranges of the grid: 'a to b', or 'a to b and c to d' when the list has a gap.
+    param ([object[]] $Result)
+
+    $segments = New-Object -TypeName 'System.Collections.Generic.List[string]'
+    $start = $null
+    $last = $null
+    foreach ($item in $Result) {
+        if ($null -eq $start) {
+            $start = $item.Minutes
+        }
+        elseif ($item.Minutes - $last -gt $StepMinutes * 1.5) {
+            $segments.Add(('{0:N2} to {1:N2}' -f $start, $last))
+            $start = $item.Minutes
+        }
+
+        $last = $item.Minutes
+    }
+
+    if ($null -ne $start) { $segments.Add(('{0:N2} to {1:N2}' -f $start, $last)) }
+    $segments -join ' and '
+}
+
+# Every lifetime is computed from its index, because adding the step again and again drifts and would lose the last grid point of a range.
+$grid = @(for ($step = 0; ; $step++) {
+        $value = [Math]::Round($FromMinutes + $step * $StepMinutes, 6)
+        if ($value -gt $ToMinutes) { break }
+        $value
+    })
+$resultsByTest = @{}
 foreach ($test in 'Test1', 'Test2') {
-    $results = for ($minutes = $FromMinutes; $minutes -le $ToMinutes; $minutes += $StepMinutes) { Test-Model -Minutes $minutes -Test $test }
+    $results = @(foreach ($minutes in $grid) { Test-Model -Minutes $minutes -Test $test })
+    $resultsByTest[$test] = $results
     $best = ($results | Measure-Object -Property Agree -Maximum).Maximum
     $bestResults = @($results | Where-Object -FilterScript { $_.Agree -eq $best })
     $failures = @($rows | Where-Object -FilterScript { -not $_.$test }).Count
-    '{0} ({1}): the model predicts {2} of {3} outcomes for L from {4:N2} to {5:N2} minutes; {6} runs failed' -f $test,
-    $(if ($test -eq 'Test1') { 'the name of the file server' } else { 'the default server name, the client' }), $best, $rows.Count, $bestResults[0].Minutes, $bestResults[-1].Minutes, $failures
+    '{0} ({1}): the model predicts {2} of {3} outcomes for L from {4} minutes; {5} runs failed' -f $test,
+    $(if ($test -eq 'Test1') { 'the name of the file server' } else { 'the default server name, the client' }), $best, $rows.Count, (Get-Range -Result $bestResults), $failures
     if ($ShowMismatches) { foreach ($line in $bestResults[0].Mismatch) { '    mismatch: ' + $line } }
     if ($Permutations -gt 0) {
         $observed = [bool[]] @($rows | ForEach-Object -Process { $_.$test })
@@ -127,3 +163,10 @@ foreach ($test in 'Test1', 'Test2') {
         '    {0} of {1} random assignments of the outcomes to the runs reach {2} of {3} for some L; the best of them reaches {4}' -f $reached, $Permutations, $best, $rows.Count, $highest
     }
 }
+
+# One lifetime for both tests: the range of L at which the model predicts the most outcomes of the two tests together.
+$together = @(for ($index = 0; $index -lt $grid.Count; $index++) {
+        [pscustomobject]@{ Minutes = $grid[$index]; Agree = $resultsByTest['Test1'][$index].Agree + $resultsByTest['Test2'][$index].Agree }
+    })
+$bestTogether = ($together | Measure-Object -Property Agree -Maximum).Maximum
+'Both tests with one L: the model predicts {0} of {1} outcomes for L from {2} minutes' -f $bestTogether, (2 * $rows.Count), (Get-Range -Result @($together | Where-Object -FilterScript { $_.Agree -eq $bestTogether }))

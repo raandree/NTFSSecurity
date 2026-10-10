@@ -5,13 +5,14 @@ param (
     [Parameter(Mandatory)] [string] $OutputPath
 )
 
-# The timeline of the cells of the operating-system matrix (Decision 24): for each cell and edition, in the order in which the cells ran, the module under
-# test, the account of case 3 (its name and its relative ID, which tells two accounts of one name apart within a domain), when the previous fixture was
-# removed, when the accounts were created, when the Admin role started, the minutes between
-# them, and the three effective-access tests of case 3 in the Admin role (result, milliseconds, and the rights that a failing test received). A failing
-# effective-access test of the Admin role is easy to blame on the module or on the environment; this table puts it beside the module, the position of
-# the cell in the sequence, and the age of the accounts. The times come from the logs of Run-MatrixSequence.ps1 and of the controller (UTC). It reads
-# files only; Windows PowerShell 5.1 or PowerShell 7.
+# The timeline of the cells of the operating-system matrix (Decision 24): for each cell and edition in which the Admin role ran, in the order in which the
+# cells ran, the module under test, the account of case 3 (its name and its relative ID, which tells two accounts of one name apart within a domain),
+# whether the previous cell had the same name and the same account, when the previous fixture was removed, when the accounts were created, when the
+# Admin role started, the minutes between them, and the three effective-access tests of case 3 in the Admin role (result, milliseconds, and the rights
+# that a failing test received). A failing effective-access test of the Admin role is easy to blame on the module or on the environment; this table
+# puts it beside the module, the position of the cell in the sequence, and the age of the accounts. Pass every label of a series, also a run that
+# stopped before its tests (it writes no row, but it created and removed the accounts, which the next cell reports as the previous removal). The
+# times come from the logs of Run-MatrixSequence.ps1 and of the controller (UTC). It reads files only; Windows PowerShell 5.1 or PowerShell 7.
 $ErrorActionPreference = 'Stop'
 # -File passes an array as one string, so a list may arrive as 'A,B'.
 $Label = @($Label | ForEach-Object -Process { $_ -split ',' } | Where-Object -FilterScript { $_ })
@@ -36,15 +37,31 @@ foreach ($name in $Label) {
         $removed = if (Test-Path -LiteralPath $removeLog) { Get-LogTime -Lines @(Get-Content -LiteralPath $removeLog) -Pattern 'Removed the live tests' }
         $configuration = Get-ChildItem -LiteralPath (Join-Path -Path $folder.FullName -ChildPath 'Results') -Recurse -Filter 'local-*.json' -ErrorAction SilentlyContinue |
             Where-Object -FilterScript { $_.Name -match '-\d{14}\.json$' } | Select-Object -First 1
-        $subject = if ($configuration) { (Get-Content -LiteralPath $configuration.FullName -Raw | ConvertFrom-Json).Accounts.Subject } else { $null }
+        $subjectName = ''
+        $subjectRid = ''
+        if ($configuration) {
+            $subject = (Get-Content -LiteralPath $configuration.FullName -Raw | ConvertFrom-Json).Accounts.Subject
+            $subjectName = $subject.Name
+            $subjectRid = ($subject.Sid -split '-')[-1]
+        }
+        else {
+            # A cell that stopped before its tests has no result file, but it created and removed the accounts, so the snapshot of its fixture names them.
+            $snapshotLog = Join-Path -Path $folder.FullName -ChildPath 'cleanup-1-snapshot.log'
+            $snapshot = if (Test-Path -LiteralPath $snapshotLog) { Get-Content -LiteralPath $snapshotLog -Raw }
+            if ($snapshot -match '(?m)^(\w+)\.\S+\s+OU NTFSSecurityLive.*\b(NtfsLiveSubject\w*)=S-[\d-]+-(\d+)') {
+                $subjectName = '{0}\{1}' -f $Matches[1], $Matches[2]
+                $subjectRid = $Matches[3]
+            }
+        }
+
         $cells.Add([pscustomobject]@{
                 Run        = $name
                 Candidate  = $candidate
                 FileServer = $folder.Name.Substring($name.Length + 1)
                 Folder     = $folder.FullName
                 Lines      = $run
-                Subject    = $(if ($subject) { $subject.Name } else { '' })
-                SubjectRid = $(if ($subject) { ($subject.Sid -split '-')[-1] } else { '' })
+                Subject    = $subjectName
+                SubjectRid = $subjectRid
                 Started    = Get-LogTime -Lines $run -Pattern 'START live tests'
                 Created    = Get-LogTime -Lines $run -Pattern 'Preparing the accounts'
                 Removed    = $removed
@@ -84,6 +101,7 @@ foreach ($cell in ($cells | Sort-Object -Property Started)) {
         }
 
         $hasPrevious = $null -ne $previous -and $null -ne $previous.Removed
+        $sameName = $null -ne $previous -and $cell.Subject -and $previous.Subject -eq $cell.Subject
         $rows.Add([pscustomobject][ordered]@{
                 Run                       = $cell.Run
                 Candidate                 = $cell.Candidate
@@ -91,7 +109,8 @@ foreach ($cell in ($cells | Sort-Object -Property Started)) {
                 Edition                   = $edition
                 Subject                   = $cell.Subject
                 SubjectRid                = $cell.SubjectRid
-                SameSubjectAsPreviousCell = [bool] ($null -ne $previous -and $cell.Subject -and $previous.Subject -eq $cell.Subject)
+                SameNameAsPreviousCell    = [bool] $sameName
+                SameAccountAsPreviousCell = [bool] ($sameName -and $previous.SubjectRid -eq $cell.SubjectRid)
                 PreviousRemoval           = $(if ($hasPrevious) { '{0:yyyy-MM-dd HH:mm:ss}' -f $previous.Removed })
                 AccountsCreated           = '{0:yyyy-MM-dd HH:mm:ss}' -f $cell.Created
                 AdminRoleStarted          = '{0:yyyy-MM-dd HH:mm:ss}' -f $adminStart
@@ -105,7 +124,7 @@ foreach ($cell in ($cells | Sort-Object -Property Started)) {
             })
     }
 
-    $previous = [pscustomobject]@{ Removed = $cell.Removed; Subject = $cell.Subject }
+    $previous = [pscustomobject]@{ Removed = $cell.Removed; Subject = $cell.Subject; SubjectRid = $cell.SubjectRid }
 }
 
 $rows | Export-Csv -LiteralPath $OutputPath -NoTypeInformation -Encoding ASCII
