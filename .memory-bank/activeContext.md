@@ -9,16 +9,17 @@ source: current task evidence
 
 ## Current focus
 
-State at 2026-10-10 11:47 UTC: the maintainer integrated the release-gate stack
+State at 2026-10-10 12:40 UTC: the maintainer integrated the release-gate stack
 into `master` (`fa0701b`, CI green at 11:40Z): #116 (rc7, `8a6be9f`), #120
 (`bdb9981`; it replaced #117, which GitHub closed unmerged when the branch
 deletion after #116 removed its base, see Decision 15), #118 (`03bef2c`,
 handoff 1, the paths), and #119 (`fa0701b`, handoff 2, the operating-system
-matrix). The remote head branches are deleted. rc7 is not tagged or published:
-rc6 is the latest published prerelease, 4.2.6 the stable Gallery version. rc7
-contains the Phase 2 behavior changes, the path tests and fixes, and the three
-module fixes of the matrix (`962887a`, `fdd7a8b`). Stable 5.0.0 stays gated
-(Decision 21).
+matrix). He tagged `fa0701b` as `5.0.0-rc7` at about 12:20Z, and rc7 is
+published (Gallery 12:30:57Z, GitHub 12:31:09Z); 4.2.6 stays the stable
+Gallery version. rc7 contains the Phase 2 behavior changes, the path tests and
+fixes, and the three module fixes of the matrix (`962887a`, `fdd7a8b`). The
+Memory Bank update is pull request #121 (CI green at 12:33Z, open when this was
+written). Stable 5.0.0 stays gated (Decision 21).
 
 The maintainer asked on 2026-10-09 at 21:21 UTC to continue with the
 release-gate handoffs and to decide and report later. The agent's decisions are
@@ -37,6 +38,11 @@ acceptance is the maintainer's.
   11:12, #119 11:28, head branches deleted 11:34, CI on `master` at `fa0701b`
   green 11:40. A `git merge-tree` simulation of the chain was conflict-free and
   ended in the tree of the matrix branch.
+- rc7 on 2026-10-10: tag at `fa0701b` about 12:20Z, CI run `38051611526`
+  green, Gallery 12:30:57Z, GitHub 12:31:09Z. `Test-PublishedRelease.ps1`
+  (12:33Z): tag commit on `master`, Gallery SHA-512 matches the nupkg, 11
+  module files identical in nupkg and zip, manifest `5.0.0-rc7`; hashes in the
+  deployment notes, evidence in the session folder `published-rc7`.
 - Handoff 1 (paths), measured at `5a5d58b` (frozen Release, four configurations,
   CI wrappers, then AltCover): 1,310 cases per configuration, zero failures
   (baseline `3442194`: 914 cases); coverage 3,192/3,634 sequence points
@@ -91,17 +97,16 @@ acceptance is the maintainer's.
 
 ## Next step
 
-1. The maintainer tags `fa0701b` as `5.0.0-rc7` and pushes the tag; the
-   `release` job then publishes to the Gallery and GitHub after the approval of
-   the `powershell-gallery` environment (deployment notes). Every release step
-   is his.
-2. Gate 3, after rc7 is on the Gallery (the agent runs it on request):
-   `Test-PublishedRelease.ps1 -Version 5.0.0-rc7`, the live controller with
-   `-Version` in the first lab, and `Run-MatrixSequence.ps1 -Version 5.0.0-rc7`
-   for every cell (deployment notes, "Accept a published package"). Open: keep
-   or replace the matrix VMs (about 60 GB) and the evaluation client (it shuts
+1. Gate 3 on the published rc7 (the agent runs it on request): the identity
+   check is done (12:33Z); the live controller with `-Version 5.0.0-rc7` in
+   the first lab and `Run-MatrixSequence.ps1 -Version 5.0.0-rc7` for every
+   cell remain (deployment notes, "Accept a published package"). Open: keep or
+   replace the matrix VMs (about 60 GB) and the evaluation client (it shuts
    down every hour), and a domain cell for Windows 11 26H1, whose client loses
    the secure channel to the Server 2025 domain controller.
+2. The change that sets the next version (rc8 or 5.0.0) adds `5.0.0-rc7` to
+   `$publishedVersions`; adding it earlier fails the reuse test (deployment
+   notes). Every release step is the maintainer's.
 3. He decides the open items of the paths report: `FileSecurity` conversions,
    `RemoveAll` account filters, lazy path overloads, abandoned
    `PrivilegeEnabler`, dot patterns of `Get-ChildItem2 -Filter`, the 17

@@ -9,13 +9,13 @@ source: repository and validation evidence
 
 ## Current status
 
-5.0.0-rc6 is published on the Gallery and GitHub (its failed Release job
-recovered in attempt 2 on 2026-10-09). On 2026-10-10 the maintainer merged the
+5.0.0-rc7 is published on the Gallery and GitHub (2026-10-10, tag at
+`fa0701b`); rc6 is the one before it. On 2026-10-10 the maintainer merged the
 whole stack into `master` (`fa0701b`, CI green): #116 (rc7), #120 (it replaced
 #117, which GitHub closed unmerged when the branch deletion after #116 removed
 its base), #118 (the quality-gate paths), and #119 (the operating-system
-matrix with three module fixes, Decision 24 proposed). rc7 is not tagged or
-published. Stable Gallery version: 4.2.6.
+matrix with three module fixes, Decision 24 proposed). The published rc7 still
+needs its lab acceptance (gate 3). Stable Gallery version: 4.2.6.
 After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 
 ## Recent milestones
@@ -87,6 +87,11 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   retarget was wrong. Nothing was lost: #120 (`bdb9981`, 10:50Z) replaced #117,
   then #118 (`03bef2c`, 11:12Z) and #119 (`fa0701b`, 11:28Z) merged after their
   retargeting; CI on `master` passed at 11:40Z. Decision 15 has the rule.
+- 2026-10-10: rc7 published. The maintainer tagged `fa0701b` at about 12:20Z;
+  the CI run of the tag passed and the Release job published without an
+  approval step (Gallery 12:30:57Z, GitHub 12:31:09Z). The identity check
+  (`Test-PublishedRelease.ps1`, 12:33Z) passed: Gallery SHA-512, nupkg and zip
+  identical, manifest `5.0.0-rc7`. Hashes: deployment notes.
 
 ## Stable capabilities
 
@@ -99,11 +104,12 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 
 ## Open work
 
-1. Decision 21 gate: tag and publish rc7, then test the published package
-   (first lab, every matrix cell) and review Decision 22. Do not release 5.0.0
+1. Decision 21 gate: test the published rc7 (identity verified; the first lab
+   and every matrix cell remain) and review Decision 22. Do not release 5.0.0
    until the remaining-path and OS-matrix gates close. Release steps:
    `Docs/Contributing/05-Releasing.md`; remove the prerelease label, date
-   `[5.0.0]`, update `$publishedVersions`, tag through CI.
+   `[5.0.0]`, add the last prerelease to `$publishedVersions` (never the
+   version of the manifest), tag through CI.
 2. Issues: #110's seven items were addressed by rc6, but #115 deliberately
    used no closing keyword. #34 stays open for non-Windows owner feedback
    or maintainer acceptance. #16, #21, #45, #89 await reporters. #68 tracks

@@ -42,9 +42,9 @@ source: repository and executable evidence
 
 ## Constraints
 
-- Manifest: ModuleVersion 5.0.0, prerelease rc7 (on `master` since
-  2026-10-10, untagged). Latest stable 4.2.6; latest published prerelease
-  rc6 (2026-10-08). rc7 publication is pending.
+- Manifest: ModuleVersion 5.0.0, prerelease rc7, published 2026-10-10 (tag at
+  `fa0701b`). Latest stable 4.2.6. The reuse test fails if `$publishedVersions`
+  holds the manifest's version: add rc7 in the change that sets the next one.
 - Changed-section writes preserve unchanged owner/group/DACL/SACL (19).
   Roots use root-folder APIs, not AlphaFS device security (#41).
 - CHANGELOG contains user-visible changes only (7); tests and CI-only fixes

@@ -7,21 +7,36 @@ source: release gates of 5.0.0 (lab acceptance, OS matrix, publication plan), re
 
 # Deployment notes
 
-## Publish the next prerelease (rc7)
+## Publish the next prerelease (rc7 is published)
 
-State on 2026-10-10 at 11:47 UTC: the whole stack is merged into `master`,
-which stands at `fa0701b` and has the tree of `2b8643f`: #116 (rc7, `8a6be9f`,
-09:10Z), #120 (`bdb9981`, 10:50Z), #118 (`03bef2c`, 11:12Z), and #119
-(`fa0701b`, 11:28Z). #117 had been closed without a merge at 09:10:16Z, when
-the branch deletion after the merge of #116 removed its base branch (Decision
-15, operating rule); #120, a new pull request from its head `f11ff41`,
-replaced it. The remote head branches were deleted at 11:34Z. The CI run on
-`master` at `fa0701b` passed at 11:40Z (Build and test, Wiki, Publish the
-wiki; Release skipped, as for any push without a tag). The manifest says
-`5.0.0` with `Prerelease = 'rc7'`, and `$publishedVersions` in
-`Tests/Repository.Tests.ps1` lists the versions up to rc6, as it must before
-rc7 is published. The release notes of a prerelease are the `[Unreleased]`
-section of `CHANGELOG.md`.
+State on 2026-10-10 at 12:40 UTC: rc7 is published. The whole stack is merged
+into `master` (`fa0701b`, the tree of `2b8643f`): #116 (rc7, `8a6be9f`, 09:10Z),
+#120 (`bdb9981`, 10:50Z), #118 (`03bef2c`, 11:12Z), and #119 (`fa0701b`,
+11:28Z). #117 had been closed without a merge at 09:10:16Z, when the branch
+deletion after the merge of #116 removed its base branch (Decision 15,
+operating rule); #120, a new pull request from its head `f11ff41`, replaced
+it. The CI run on `master` at `fa0701b` passed at 11:40Z. The maintainer pushed
+the lightweight tag `5.0.0-rc7` at `fa0701b` at about 12:20Z. The CI run
+`38051611526` of the tag passed: Build and test, then Release at 12:31:34Z
+without an approval step, because the `powershell-gallery` environment has no
+required reviewer. The Gallery has rc7 since 12:30:57Z, GitHub since 12:31:09Z.
+
+`Test-PublishedRelease.ps1 -Version 5.0.0-rc7` verified the published identity
+at 12:33Z: the tag commit is `fa0701b` on `master`, the Gallery's SHA-512
+matches the downloaded nupkg, the 11 module files are byte-identical in the
+nupkg and the GitHub zip, and the manifest says `5.0.0-rc7`. The evidence is
+outside git, in `published-rc7` of the session folder
+`4b12e2f4-d4c7-4a5d-883a-ddb7421c4848\files`. The published bytes:
+
+- `NTFSSecurity.dll` SHA-256
+  `D3B7CBE362C37D1016559669CB2EFF5034A6945CA1B03DDB49F1361363D203A7`
+- `NTFSSecurity.zip` SHA-256
+  `9705C8CCFA0FB8FC355E401444044D94BF176729BA84104D2C423C429AC1430B`
+- nupkg SHA-256
+  `40922397B7CB307C64DD99960659539AF5C8AD9D2F55C6BF26E8AB434DEC8DCC`
+
+The release notes of a prerelease are the `[Unreleased]` section of
+`CHANGELOG.md`.
 
 rc7 contains everything that is merged: the behavior changes of Phase 2
 (#116), the quality-gate paths (#120, #118), and the three module fixes of
@@ -30,15 +45,13 @@ don't revert separately, because they conflict in `Security2/Win32/Lib.cs` and
 `CHANGELOG.md`), with the kit, the controller changes, and the record of the
 operating-system matrix (Decision 24).
 
-1. Tag the commit `fa0701b` on `master` with `5.0.0-rc7` and push the tag
-   (lightweight tags, as for rc1 to rc6). The `release` job checks the tag
-   against the manifest and builds nothing new: it publishes the package that
-   the `build` job tested. Approve the deployment of the `powershell-gallery`
-   environment if it asks.
-2. Accept the published package (next section): `Test-PublishedRelease.ps1`,
-   the first lab, and every cell of the matrix.
-3. After the publication, add `5.0.0-rc7` to `$publishedVersions` with the
-   next change that goes to `master`.
+1. Accept the published package (next section). The identity check is done;
+   the first lab and every cell of the matrix remain (gate 3).
+2. Add `5.0.0-rc7` to `$publishedVersions` in `Tests/Repository.Tests.ps1`
+   only in the change that sets the next version (rc8 or 5.0.0), as
+   `Docs/Contributing/05-Releasing.md` says. The test "Should not reuse a
+   version that the PowerShell Gallery already has" fails when the list holds
+   the version of the manifest, which still says rc7.
 
 ## Accept a published package
 
@@ -48,7 +61,8 @@ Local `-ModulePath` runs are validation; the gate needs the published bytes.
    -OutputPath <folder>` (read-only): tag and commit on `master`, the CI run
    of the tag, the Gallery's SHA-512 against the downloaded nupkg (ordinal,
    case-sensitive base64), the nupkg against the GitHub zip file by file, and
-   the identity of the manifest. Dry run on rc6: all checks passed.
+   the identity of the manifest. Run on rc6 (dry run) and on rc7 (2026-10-10,
+   12:33Z): all checks passed.
 2. `Tests/Lab/Invoke-NTFSSecurityLabTest.ps1 -Version <version>` in the
    existing lab, both editions, and `Tests/Lab/Acceptance/Run-MatrixSequence.ps1
    -Version <version>` for each cell of the matrix (Decision 24; pass the file
