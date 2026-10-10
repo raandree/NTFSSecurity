@@ -59,8 +59,9 @@ authorization managers that `Get-NTFSEffectiveAccess` asks for a remote computer
 (the one of the client by the default `-ServerName`, the one of the file server
 by its name) answered for about ten minutes as if an account had no groups when
 the account was deleted and created again under the same name, so cells that
-followed each other failed in the effective-access tests, whichever version of
-the module ran. The Kerberos logon that the tests use as the oracle, and the
+followed each other failed in the effective-access tests, for the baseline and
+for the final candidate alike. The Kerberos logon that the tests use as the
+oracle, and the
 local authorization manager, were right in the same second. The mechanism in
 Windows isn't known (see the record of the operating-system matrix). A fixture
 that exists keeps its account, so the runs of one fixture use one name.
@@ -191,7 +192,9 @@ the host:
   validates every role, removes the fixture, and checks the end state
   independently (`Test-MatrixCleanup.ps1`, which takes the lab name and the
   machines, so it checks the first lab as well; `-Mode Repair` removes what a
-  failed cleanup left).
+  failed cleanup left, and what the probes and the suite runner of the kit leave,
+  which includes every unresolved `S-1-5-21-…` member of Performance Log Users:
+  the check treats it as the probe's).
 - `Run-MatrixLocalSuite.ps1` runs the Pester files of the module on a machine of
   the matrix lab, or on the host as the reference, in both editions, elevated
   and as a basic user, and copies the results back. Run it with a candidate

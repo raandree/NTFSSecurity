@@ -17,7 +17,9 @@ param (
 # or a global error count. Repair is for a run whose removal failed: with the SIDs of the snapshot, it removes what that run left on the machines
 # (the memberships, also of orphaned SIDs, which net localgroup deletes by SID; the share; the local group; the folders) and what the kit leaves
 # (the items in the stage folders, the folders of the account probe, the scheduled tasks NtfsMatrix*, the standard users NtfsProbe* with their
-# profiles and their entries in Performance Log Users, and the domain accounts NtfsProbe*), and then reports like Verify.
+# profiles and their entries in Performance Log Users, and the domain accounts NtfsProbe*), and then reports like Verify. Every unresolved
+# S-1-5-21-* member of Performance Log Users counts as an entry of the probe, which is the only writer of that group in these labs and uses the same
+# pattern in its own cleanup: on a machine where something else leaves such members, Verify reports them and Repair removes them.
 & {
     $ErrorActionPreference = 'Stop'
     # -File passes an array as one string, so a list may arrive as 'A,B'.

@@ -1076,7 +1076,7 @@ $modules = @(
 Write-LabProgress 'Preparing the accounts, the file server, and the client'
 # When an account is deleted and created again with the same name, the remote authorization managers of the client and of the file server, which
 # Get-NTFSEffectiveAccess asks for its default -ServerName and for the name of the file server, keep answering for about ten minutes as if the new
-# account had no groups (Synchronize only), whichever version of the module runs. The local manager and a Kerberos S4U logon of the account, which
+# account had no groups (Synchronize only), for the baseline and for the final candidate alike. The local manager and a Kerberos S4U logon of the account, which
 # the oracle uses, are right at that moment (Decision 24). So a new fixture gets a name for the account of case 3 that an earlier fixture is unlikely
 # to have used (four random digits); a fixture that exists keeps its account.
 $existingSubjects = @(Invoke-LabCommand -ComputerName $DomainController -ActivityName 'Look for the account of case 3' -ScriptBlock $findSubjectScript -ArgumentList $organizationalUnitName, $subjectBaseName @labCommand)

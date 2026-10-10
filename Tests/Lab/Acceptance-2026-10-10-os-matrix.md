@@ -21,11 +21,12 @@ isn't a claim that the quality gate is complete.
   1,374 passed, 0 failed, 12 skipped (case 9 and the module test of the Server
   role). An earlier run of the same cells with the old controller had failed in
   the Windows Server 2022 cell. A replay showed that the baseline fails the same
-  way there, so the failures depend on the position of the cell and not on the
-  module (see "The effective-access failures of the Admin role").
+  way there, so the module doesn't decide the outcome: the failures depend on the
+  position of the cell (six replay runs can't rule out a small effect of the
+  module; see "The effective-access failures of the Admin role").
 - The final candidate also passed the live controller in the first lab, where
   case 9 runs: 245 passed, 0 failed, 1 skipped in each edition (see "First lab,
-  final candidate").
+  final candidate (case 9)").
 - The matrix found three defects of the module, fixed in two commits on the
   branch, and each was red on the machines where it shows before its fix and
   green after it: `Get-NTFSInheritance -SecurityDescriptor` for an item without
@@ -38,8 +39,8 @@ isn't a claim that the quality gate is complete.
   Cells that followed each other failed in the effective-access tests of the
   Admin role when the account of case 3 was deleted and created again under the
   same name: the remote authorization managers of the client and of the file
-  server returned no groups for the new account, whichever version of the module
-  ran. A model with a lifetime of about ten minutes fits every run; the mechanism
+  server returned no groups for the new account, for the baseline and for the
+  final candidate alike. A model with a lifetime of about ten minutes fits every run; the mechanism
   in Windows isn't known. This looked like a regression of the module until the
   baseline failed the same way in a replay of the same cells.
 - Windows 11 26H1 (10.0.28000) can't keep a secure channel to the Windows
@@ -102,8 +103,8 @@ replay cells `ab0` to `ab6` is the blob `683aee91ec8805d77a33b2d368acaf876724fa3
 blob `9917cac5820ed20ed2eb5592eff06894677f9874` (`1dec389`), and the first-lab run
 `fl1` with the blob `d269e0fe6ba5f72894dd2dcba5dca7f2dc56624f` (the head of the
 branch then, which differs from `1dec389` by a comment). The earlier cells of the
-baseline ran with the controller blobs `0b46427b…` and `d485b1d0…` and the live
-tests `67b85efe…`, before the cleanup fixes.
+baseline ran with the controller blobs `0b46427b…` and `d485b1d0…` (`rc7d` with
+`4cac0d0b…`) and the live tests `67b85efe…`, before the cleanup fixes.
 
 ## Method
 
@@ -240,7 +241,11 @@ this run found none that only the cell has). The fixture was removed with
 10 SIDs that it recorded before: the accounts of the lab domain and
 `NtfsLiveForeign` in each of the three foreign domains) found the four domains
 and both machines clean: no organizational unit, account, share, folder, local
-group, membership, profile, or residue of the kit; its verdict was CLEAN. This
+group, membership, or profile of the fixture, and none of the residue that the
+check counted then (scheduled tasks, stage items, probe users); its verdict was
+CLEAN. The check has counted the profiles and the log-group entries of the
+account probe since the review that followed, and a `Verify` with that version
+(07:29 UTC, the same SIDs) found none on the two machines either. This
 is one run of one candidate. The baseline didn't run in the first lab on this
 occasion, so the record says nothing about the red state of the new tests there.
 
@@ -533,14 +538,15 @@ either.
 
 **What the evidence supports.** The failures of the Admin role depend on the
 position of the cell relative to the previous fixture with the same account
-name, and not on the module: not counting the warm-up, the baseline fails in two
-of its three replay cells and the final candidate in one of its three, and one
-model with one parameter predicts all 43 runs, including three that it
-predicted before they ran. In a failing cell the remote authorization managers
-of the client and of the file server are the wrong layer: the name resolution,
-a Kerberos logon of the account, and the local authorization manager are right
-in the same second, and the module makes the same Authz calls for both kinds of
-manager. No change of the module is needed for it.
+name, and the module doesn't decide the outcome: not counting the warm-up, the
+baseline fails in two of its three replay cells and the final candidate in one
+of its three, and one model with one parameter predicts all 43 runs, including
+three that it predicted before they ran. In a failing cell the remote
+authorization managers of the client and of the file server are the wrong layer:
+the name resolution, a Kerberos logon of the account, and the local
+authorization manager are right in the same second, and the module makes the
+same Authz calls for both kinds of manager. The replay gives no reason to change
+the module for it.
 
 **What it doesn't establish.** How Windows does it: which component keeps the
 state, and why for about ten minutes. L is estimated from 43 runs on one client
@@ -588,8 +594,9 @@ minutes old) and in `ab9` (5.4 minutes after `ab8`):
 | `ab9` | baseline | `NtfsLiveSubject7705` | 05:50:54 | pass | pass | pass | both tests FAIL |
 | `ab10` | final | `NtfsLiveSubject8799` | 05:56:12 | pass | pass | pass | pass |
 
-The model doesn't know about restarts, and the client restarted ten times during
-the series (Hyper-V worker log, UTC: 23:37, 00:38, 01:43, 01:58, 02:43, 03:23,
+The model doesn't know about restarts, and the client restarted ten times between
+23:37 and 05:34 UTC, nine of them after the first cell had started (Hyper-V worker
+log, UTC: 23:37, 00:38, 01:43, 01:58, 02:43, 03:23,
 03:42, 04:07, 04:55, and 05:34; the file servers and the domain controller
 didn't restart between the first and the last run, except OSFile22 at 01:36).
 If the entry of a remote manager lives in the memory of the computer, a restart
@@ -622,7 +629,7 @@ fails, which the reuse of the name explains and the module doesn't.
 - Case 9 (accounts of other domains and forests) needs trusts that the matrix
   lab doesn't have; it runs only in `WindowsAccessControlLab`, where the
   baseline passed it and the final candidate passed it in run `fl1` (see "First
-  lab, final candidate"). The published package has to run there too.
+  lab, final candidate (case 9)"). The published package has to run there too.
 - The file servers are Windows. A server of another kind is the subject of
   Decision 23.
 - Windows 11 26H1 has no domain cell until the domain controller or the
@@ -658,12 +665,22 @@ fails, which the reuse of the name explains and the module doesn't.
   `C:\NtfsProbeModules` that exists, the scheduled tasks of the matrix, the local
   `NtfsProbe*` users, their profiles and profile folders (`C:\Users\NtfsProbe*`),
   their entries in Performance Log Users, and the `NtfsProbe*` objects of the
-  directory, and `-Mode Repair` removes what it finds. It ran with real residue on
-  the five machines three times: at 06:03 UTC with the code of `9344ff7`, at
+  directory, and `-Mode Repair` removes what it finds. `Verify` and `Repair` treat
+  every unresolved `S-1-5-21-…` member of Performance Log Users as the probe's
+  (the probe is the only writer of that group in these labs, and its own cleanup
+  uses the same pattern); on a machine where something else leaves such members,
+  the check would report them and `Repair` would remove them. A `Verify` on the
+  two machines of the first lab (07:29 UTC) found none. The check ran with real
+  residue on the five machines three times: at 06:03 UTC with the script that
+  `9344ff7` committed at 06:08 UTC, at
   06:44 UTC with the handling of profiles and of the entries in Performance Log
   Users that the follow-up review asked for, and at 06:51 UTC after the second run
   had shown that the check missed the entry of a local user (`net localgroup`
-  lists a local user by its bare name, and the pattern wanted a domain prefix).
+  lists a local user by its bare name, and the pattern wanted a domain prefix). A
+  first attempt at 05:58 UTC died while it made the residue, without a log (the
+  cause is unknown; decision log D37), so the run at 06:03 started in a lab where
+  that attempt might have made some items; its first `Verify` listed exactly the
+  expected ones.
   The last run made residue of every kind at once: a stage item and a local user
   `NtfsProbeDummy` on OSFile19; a local user with a profile and an entry in
   Performance Log Users on OSFile19; a local user with a profile that was deleted
@@ -678,7 +695,9 @@ fails, which the reuse of the name explains and the module doesn't.
   read from the script with the parser and not copied, gave DIRTY. `Repair`
   removed every item, and a second `Verify` gave CLEAN. Not tried: a profile that
   stays loaded (the retries of `Repair` never needed a second attempt), and an
-  entry that `net localgroup` shows as a bare SID.
+  entry that `net localgroup` shows as a bare SID, so the branch for a SID and
+  `Remove-LocalGroupMember` with a SID didn't meet real residue (the cached name
+  of the deleted domain account was removed by name).
 - Decision 24 is the agent's decision under the maintainer's delegation and stays
   `proposed`. So do Decisions 22 and 23.
 
@@ -691,7 +710,8 @@ tables of this record are in the files next to it:
 - [the suite results of the three candidates](Acceptance-2026-10-10-os-matrix-LocalSuite.csv),
 - [the failing tests of every suite run](Acceptance-2026-10-10-os-matrix-Failures.csv),
 - [the controller cells of `rc7c` to `rc7l`](Acceptance-2026-10-10-os-matrix-Cells.csv),
-- [the timeline of the Admin role of every cell and edition, `rc7c` to `rc7l` and the replay `ab0` to `ab10`, with the three effective-access tests](Acceptance-2026-10-10-os-matrix-Timeline.csv).
+- [the timeline of the Admin role of every cell and edition, `rc7c` to `rc7l` and the replay `ab0` to `ab10`, with the three effective-access tests](Acceptance-2026-10-10-os-matrix-Timeline.csv),
+- [the counts of the first-lab run `fl1`](Acceptance-2026-10-10-os-matrix-FirstLab.csv).
 
 The scripts that produced them are in [Acceptance](Acceptance), and the
 decision is `.memory-bank\decisions\0024-os-matrix-lab.md`.
