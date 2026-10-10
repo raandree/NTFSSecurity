@@ -59,6 +59,37 @@ Describe 'Get-NTFSInheritance' {
             $bySecurityDescriptor.AuditInheritanceEnabled | Should -Be $byPath.AuditInheritanceEnabled
         }
 
+        # Windows reports the SACL of an item without audit entries as protected from inheritance on some computers when it
+        # reads all sections together, and as not protected when it reads the SACL alone (domain-joined Windows Server 2022
+        # and 2025, Windows 11). The state by descriptor has to follow the state of the item.
+        It 'Should report the same state as for the path of a <Type> without audit entries' -ForEach @(
+            @{ Type = 'file' }
+            @{ Type = 'folder' }
+        ) {
+            $item = New-TestSandboxItem -Sandbox $sandbox -Name 'Descriptor' -Directory:($Type -eq 'folder')
+
+            $byPath = Get-NTFSInheritance -Path $item
+            $bySecurityDescriptor = Get-NTFSInheritance -SecurityDescriptor (Get-NTFSSecurityDescriptor -Path $item)
+
+            $bySecurityDescriptor.AccessInheritanceEnabled | Should -Be $byPath.AccessInheritanceEnabled
+            $bySecurityDescriptor.AuditInheritanceEnabled | Should -Be $byPath.AuditInheritanceEnabled
+        }
+
+        It 'Should report the disabled audit inheritance of a <Type> as for its path' -Skip:(-not $canChangeAudit) -ForEach @(
+            @{ Type = 'file' }
+            @{ Type = 'folder' }
+        ) {
+            $item = New-TestSandboxItem -Sandbox $sandbox -Name 'Descriptor' -Directory:($Type -eq 'folder')
+            Disable-NTFSAuditInheritance -Path $item -ErrorAction Stop
+
+            $byPath = Get-NTFSInheritance -Path $item
+            $bySecurityDescriptor = Get-NTFSInheritance -SecurityDescriptor (Get-NTFSSecurityDescriptor -Path $item)
+
+            $byPath.AuditInheritanceEnabled | Should -BeFalse
+            $bySecurityDescriptor.AuditInheritanceEnabled | Should -BeFalse
+            $bySecurityDescriptor.AccessInheritanceEnabled | Should -Be $byPath.AccessInheritanceEnabled
+        }
+
         It 'Should report the audit inheritance as $null for a security descriptor without the audit entries' {
             $sd = New-Object -TypeName 'Security2.FileSystemSecurity2' -ArgumentList (
                 (Get-Item2 -Path $file), [System.Security.AccessControl.AccessControlSections]::Access

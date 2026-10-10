@@ -177,16 +177,26 @@ namespace Security2
         {
             remoteServerAvailable = false;
 
-            var rpcInitInfo = new AUTHZ_RPC_INIT_INFO_CLIENT();
-
-            rpcInitInfo.version = AuthzRpcClientVersion.V1;
-            rpcInitInfo.objectUuid = AUTHZ_OBJECTUUID_WITHCAP;
-            rpcInitInfo.protocol = RCP_OVER_TCP_PROTOCOL;
-            rpcInitInfo.server = serverName;
-
-            SafeHGlobalHandle pRpcInitInfo = SafeHGlobalHandle.AllocHGlobalStruct(rpcInitInfo);
-            if (!AuthzInitializeRemoteResourceManager(pRpcInitInfo.ToIntPtr(), out authzRM))
+            // An empty name names no computer. Windows takes it for this computer on some computers, where the remote
+            // interface then refuses the check with "Access is denied", and for an unreachable one on others. So the
+            // remote interface isn't asked, and the local authorization manager calculates the result, like for any
+            // name that can't be reached.
+            if (!string.IsNullOrWhiteSpace(serverName))
             {
+                var rpcInitInfo = new AUTHZ_RPC_INIT_INFO_CLIENT();
+
+                rpcInitInfo.version = AuthzRpcClientVersion.V1;
+                rpcInitInfo.objectUuid = AUTHZ_OBJECTUUID_WITHCAP;
+                rpcInitInfo.protocol = RCP_OVER_TCP_PROTOCOL;
+                rpcInitInfo.server = serverName;
+
+                SafeHGlobalHandle pRpcInitInfo = SafeHGlobalHandle.AllocHGlobalStruct(rpcInitInfo);
+                if (AuthzInitializeRemoteResourceManager(pRpcInitInfo.ToIntPtr(), out authzRM))
+                {
+                    remoteServerAvailable = true;
+                    return;
+                }
+
                 int error = Marshal.GetLastWin32Error();
 
                 // The computer can't be resolved or reached (RPC server unavailable), or it doesn't offer the remote
@@ -203,24 +213,20 @@ namespace Security2
                 {
                     remoteServerAvailable = true;
                 }
-
-                //
-                // As a fallback we do AuthzInitializeResourceManager. But the results can be inaccurate.
-                //
-                if (!AuthzInitializeResourceManager(
-                                AuthzResourceManagerFlags.NO_AUDIT,
-                                IntPtr.Zero,
-                                IntPtr.Zero,
-                                IntPtr.Zero,
-                                "EffectiveAccessCheck",
-                                out authzRM))
-                {
-                    throw new Win32Exception(Marshal.GetLastWin32Error());
-                }
             }
-            else
+
+            //
+            // As a fallback we do AuthzInitializeResourceManager. But the results can be inaccurate.
+            //
+            if (!AuthzInitializeResourceManager(
+                            AuthzResourceManagerFlags.NO_AUDIT,
+                            IntPtr.Zero,
+                            IntPtr.Zero,
+                            IntPtr.Zero,
+                            "EffectiveAccessCheck",
+                            out authzRM))
             {
-                remoteServerAvailable = true;
+                throw new Win32Exception(Marshal.GetLastWin32Error());
             }
         }
 
