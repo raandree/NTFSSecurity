@@ -224,8 +224,9 @@ source: repository and executable evidence
   (`NtfsLiveSubject` and four digits). In the matrix lab, after an account was
   deleted and created again with the same name, the remote authorization
   managers (the client's for the default `-ServerName`, the file server's for its
-  name) answered for about ten minutes as if it had no groups (`0x100000`),
-  whichever module version asked, while the Kerberos S4U logon of the oracle, the
+  name) answered for about ten minutes as if it had no groups (`0x100000`), for
+  the baseline and for the final candidate alike, while the Kerberos S4U logon of
+  the oracle, the
   name resolution, and the local manager were right in the same second. A replay
   with the baseline and the final candidate alternating failed the baseline in two
   of three cells and the final candidate in one of three (not counting the warm-up
@@ -240,5 +241,8 @@ source: repository and executable evidence
   deleted domain account as its SID (or as its cached name for a while);
   deleting a local user removes its entries from the local groups, so only the
   entries of domain accounts stay orphaned. `Test-MatrixCleanup.ps1` finds the
-  entries of the account probe in Performance Log Users by either form and its
-  profiles by their folder `C:\Users\NtfsProbe*`.
+  entries of the account probe in Performance Log Users by a name with
+  `NtfsProbe` or by any unresolved `S-1-5-21-…` SID (every such member counts as
+  the probe's), and its profiles by their folder `C:\Users\NtfsProbe*`. The
+  cached-name form met real residue in a test; the bare-SID form and a profile
+  that stays loaded didn't.
