@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-09
+last-verified: 2026-10-10
 owner: active-agent
 source: repository and validation evidence
 ---
@@ -10,13 +10,15 @@ source: repository and validation evidence
 ## Current status
 
 5.0.0-rc6 is published on the Gallery and GitHub; its failed Release job
-recovered in attempt 2 on 2026-10-09. #116 (rc7, `d25647d`, base `master`)
-is open and green, not merged or published. Further quality-gate work is
-`ai/quality-gate-coverage` (#117) and `ai/quality-gate-paths` (draft #118),
-which classifies every remaining unvisited path; the open items are the
-maintainer's decisions. The local branch `ai/quality-gate-lab-matrix` (stacked
-on #118, not pushed) holds the operating-system matrix, three fixes of the
-module found by it, and the controller changes (Decision 24, proposed).
+recovered in attempt 2 on 2026-10-09. #116 (rc7, `d25647d`) was merged into
+`master` on 2026-10-10 (`8a6be9f`); rc7 is neither tagged nor published. #117
+was closed unmerged when its base branch was deleted, so a new pull request
+from `ai/quality-gate-coverage` replaces it. Further quality-gate work is
+`ai/quality-gate-paths` (draft #118), which classifies every remaining
+unvisited path (the open items are the maintainer's decisions), and
+`ai/quality-gate-lab-matrix` (draft #119, stacked on #118): the
+operating-system matrix, three fixes of the module found by it, and the
+controller changes (Decision 24, proposed).
 Stable Gallery version: 4.2.6.
 After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 
@@ -108,7 +110,15 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   Major and four Minors, corrected in `b78784d` and `dbb4bd6`; the built-in
   `security-review` agent found no exploitable vulnerability and two LOW items
   that are not changed (record, Limits). Record:
-  `Tests/Lab/Acceptance-2026-10-10-os-matrix.md`; nothing was pushed.
+  `Tests/Lab/Acceptance-2026-10-10-os-matrix.md`; the agent pushed nothing.
+- 2026-10-10: the maintainer merged #116 (`8a6be9f`, 09:10:12Z) with `gh pr
+  merge --delete-branch` and pushed the matrix branch as draft #119 (`49734ef`).
+  The deletion removed the base branch of #117, and GitHub closed #117
+  unmerged three seconds later instead of retargeting it (events
+  `base_ref_deleted`, `closed`; the same pair is in `cli/cli#14223`). The
+  earlier guidance, which relied on a retarget, was wrong. Nothing is lost; a
+  new pull request from `ai/quality-gate-coverage` replaces #117 (deployment
+  notes).
 
 ## Stable capabilities
 

@@ -10,11 +10,16 @@ source: current task evidence
 ## Current focus
 
 The maintainer asked on 2026-10-09 at 21:21 UTC to continue with the release-gate
-handoffs and to decide and report later. Handoff 1 (paths) is draft #118
-(`83149ee`, CI green; stacked on #117 and #116, all open; rc6 is the latest
-published candidate, 4.2.6 the stable Gallery version). Handoff 2 (operating-system
-matrix) is the local branch `ai/quality-gate-lab-matrix`, stacked on #118 and not
-pushed: the lab `NtfsSecurityOsMatrixLab`, three fixes of the module in two commits
+handoffs and to decide and report later. On 2026-10-10 at 09:10 UTC he merged
+#116 (rc7, merge commit `8a6be9f`; rc7 is neither tagged nor published). His
+`--delete-branch` also deleted the base branch of #117, so GitHub closed #117
+unmerged; nothing is lost (`ai/quality-gate-coverage` is intact at `f11ff41`,
+and the merge into `master` is conflict-free by simulation), and a new pull
+request replaces it (Next step 1). Handoff 1 (paths) is draft #118 (`83149ee`,
+CI green, base `ai/quality-gate-coverage`; rc6 is the latest published
+candidate, 4.2.6 the stable Gallery version). Handoff 2 (operating-system
+matrix) is draft #119 (`49734ef`, CI green, base `ai/quality-gate-paths`): the
+lab `NtfsSecurityOsMatrixLab`, three fixes of the module in two commits
 that the matrix found (`962887a`, `fdd7a8b`), the kit, the controller changes, and the
 record `Tests/Lab/Acceptance-2026-10-10-os-matrix.md` (Decision 24, proposed).
 The final local candidate `fdd7a8b` passes the module's suite on five operating
@@ -46,8 +51,9 @@ open.
 - rc6 Release run `37839669028`, attempt 2, succeeded; GitHub prerelease
   with zip appeared 2026-10-09 07:01:34 UTC. First attempt proves HTTP 409
   after Gallery publication, not the previously assumed retry chronology.
-- #116 is open, base master, head `d25647d`, CI build/wiki passed. rc7
-  publication is pending. The follow-up does not change that PR's head.
+- #116 was merged into `master` on 2026-10-10 at 09:10:12Z (merge commit
+  `8a6be9f`, head `d25647d`); rc7 isn't tagged or published. #117 was closed
+  unmerged at 09:10:16Z (events `base_ref_deleted`, `closed`).
 - Local changes: deletion/ownership guards (`a97e46f`); all scopes and
   inheritance (`e7ee203`); absolute basic-user results (`51dec86`);
   exact-package publication recovery (`95b827e`); first-hidden-item fix
@@ -150,11 +156,14 @@ open.
 
 ## Next step
 
-1. The maintainer pushes `ai/quality-gate-lab-matrix` as a draft PR with base
-   `ai/quality-gate-paths` and decides which of the module fixes belong to rc7
-   (two commits: `962887a` holds two fixes, `fdd7a8b` one). He reviews and
-   integrates the stack: #116, then #117, then #118, then the matrix branch
-   (Decision 24).
+1. The maintainer integrates the rest of the stack (Decision 15; commands in
+   the deployment notes). A **new** pull request from `ai/quality-gate-coverage`
+   to `master` replaces #117; then #118 and, if its module fixes go into rc7,
+   #119 are retargeted with `gh pr edit <n> --base master`, marked ready, and
+   merged. No `--delete-branch` while another open pull request uses the branch
+   as its base; the head branches are deleted last. He decides which module
+   fixes of the matrix branch belong to rc7 (two commits: `962887a` holds two
+   fixes, `fdd7a8b` one) and reviews them (Decision 24).
 2. He decides the open items listed in the paths report: `FileSecurity`
    conversions, `RemoveAll` account filters, lazy path overloads, abandoned
    `PrivilegeEnabler`, dot patterns of `Get-ChildItem2 -Filter`, the 17
@@ -164,9 +173,9 @@ open.
    the matrix (`Run-MatrixSequence.ps1 -Version`) before the candidate counts as
    accepted; no local upload. The paths fixes were accepted locally (record
    above).
-4. Retain stacked-PR order (15): #116, then #117, then #118; a local merge
-   in that order gives exactly the tree of #118. Confirm or change Decision
-   22.
+4. Retain stacked-PR order (15): #116 (merged), the replacement of #117, #118,
+   then #119; a simulated merge in that order gives exactly the tree of the
+   matrix branch (`62aa1ae`). Confirm or change Decision 22.
 5. #34 stays open (Decision 23): the maintainer chooses between waiting for a
    test of the published candidate on the NetApp, EMC, and IBM ESS servers of
    the reporters (checklist: `Tests/Lab/Non-Windows-File-Server-Test.md`) and
