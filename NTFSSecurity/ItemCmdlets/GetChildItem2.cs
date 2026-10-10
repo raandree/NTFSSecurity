@@ -388,17 +388,17 @@ namespace NTFSSecurity
 
         private sealed class InvariantCultureScope : IDisposable
         {
-            private readonly System.Globalization.CultureInfo previous;
+            private readonly global::System.Globalization.CultureInfo previous;
 
             public InvariantCultureScope()
             {
-                previous = System.Threading.Thread.CurrentThread.CurrentCulture;
-                System.Threading.Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+                previous = global::System.Threading.Thread.CurrentThread.CurrentCulture;
+                global::System.Threading.Thread.CurrentThread.CurrentCulture = global::System.Globalization.CultureInfo.InvariantCulture;
             }
 
             public void Dispose()
             {
-                System.Threading.Thread.CurrentThread.CurrentCulture = previous;
+                global::System.Threading.Thread.CurrentThread.CurrentCulture = previous;
             }
         }
     }
