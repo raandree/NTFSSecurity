@@ -41,6 +41,27 @@ BeforeAll {
         (Get-Acl -LiteralPath $Path).Sddl
     }
 
+    function Get-TestAuditAcl {
+        # The SACL read alone, through .NET. Get-Acl -Audit reads it together with the other sections, and on a domain
+        # member that reports the SACL of an item without audit entries as protected from inheritance, which is not its
+        # state (see Security2\FileSystem\FileSystemSecurity2.cs). Matches the helper of ParameterSets.Inheritance.Tests.ps1.
+        param ([Parameter(Mandatory)] [string] $Path)
+
+        $sections = [System.Security.AccessControl.AccessControlSections]::Audit
+        $info = if (Test-Path -LiteralPath $Path -PathType Container) {
+            New-Object -TypeName 'System.IO.DirectoryInfo' -ArgumentList $Path
+        }
+        else {
+            New-Object -TypeName 'System.IO.FileInfo' -ArgumentList $Path
+        }
+        if ($PSVersionTable.PSEdition -eq 'Desktop') {
+            $info.GetAccessControl($sections)
+        }
+        else {
+            [System.IO.FileSystemAclExtensions]::GetAccessControl($info, $sections)
+        }
+    }
+
     function Get-TestAccessOnlyDescriptor {
         # A descriptor read with the Access section only, like one that Get-NTFSSecurityDescriptor returns without
         # the Security privilege: the audit cmdlets have nothing to read or change and report it the same way.
@@ -337,7 +358,7 @@ Describe 'Clear-NTFSAudit' {
             Clear-NTFSAudit -Path $child -DisableInheritance -ErrorVariable clearErrors -ErrorAction SilentlyContinue
 
             $clearErrors | Should -BeNullOrEmpty
-            (Get-Acl -LiteralPath $child -Audit).AreAuditRulesProtected | Should -BeTrue
+            (Get-TestAuditAcl -Path $child).AreAuditRulesProtected | Should -BeTrue
             @((Get-Acl -LiteralPath $child -Audit).GetAuditRules($true, $true, $sidType)) | Should -BeNullOrEmpty
             Get-TestDaclSddl -Path $child | Should -BeExactly $daclBefore
         }

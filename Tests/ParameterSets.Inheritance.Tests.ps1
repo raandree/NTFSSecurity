@@ -123,6 +123,27 @@ BeforeAll {
             [System.IO.FileSystemAclExtensions]::GetAccessControl($info)
         }
     }
+
+    function Get-TestAuditAcl {
+        # The SACL read alone, through .NET. Get-Acl -Audit reads it together with the other sections, and on a domain
+        # member that reports the SACL of an item without audit entries as protected from inheritance, which is not its
+        # state (see Security2\FileSystem\FileSystemSecurity2.cs). Matches the helper of ParameterSets.Audit.Tests.ps1.
+        param ([string] $Path)
+
+        $sections = [System.Security.AccessControl.AccessControlSections]::Audit
+        $info = if (Test-Path -LiteralPath $Path -PathType Container) {
+            New-Object -TypeName 'System.IO.DirectoryInfo' -ArgumentList $Path
+        }
+        else {
+            New-Object -TypeName 'System.IO.FileInfo' -ArgumentList $Path
+        }
+        if ($PSVersionTable.PSEdition -eq 'Desktop') {
+            $info.GetAccessControl($sections)
+        }
+        else {
+            [System.IO.FileSystemAclExtensions]::GetAccessControl($info, $sections)
+        }
+    }
 }
 
 AfterAll {
@@ -276,7 +297,7 @@ Describe 'State: independent .NET oracles for inheritance transitions and descri
         Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorAction Stop
 
         (Get-Acl -LiteralPath $file).AreAccessRulesProtected | Should -BeTrue
-        (Get-Acl -LiteralPath $file -Audit).AreAuditRulesProtected | Should -BeTrue
+        (Get-TestAuditAcl -Path $file).AreAuditRulesProtected | Should -BeTrue
     }
 
     It 'Set-NTFSOwner should change only the owner and leave the Access entries and the group unchanged' {
@@ -469,7 +490,7 @@ Describe 'Pipeline: binding into the -Path and -SecurityDescriptor sets that no 
             }
             else {
                 $item.AuditInheritanceEnabled | Should -Be $Expected
-                (Get-Acl -LiteralPath $child -Audit).AreAuditRulesProtected | Should -Be (-not $Expected)
+                (Get-TestAuditAcl -Path $child).AreAuditRulesProtected | Should -Be (-not $Expected)
             }
         }
     }
@@ -500,7 +521,7 @@ Describe 'Pipeline: binding into the -Path and -SecurityDescriptor sets that no 
             }
             else {
                 $descriptors[$i].SecurityDescriptor.AreAuditRulesProtected | Should -Be (-not $Expected)
-                (Get-Acl -LiteralPath $files[$i] -Audit).AreAuditRulesProtected | Should -Be $PreDisable
+                (Get-TestAuditAcl -Path $files[$i]).AreAuditRulesProtected | Should -Be $PreDisable
             }
         }
 
@@ -508,7 +529,7 @@ Describe 'Pipeline: binding into the -Path and -SecurityDescriptor sets that no 
 
         foreach ($file in $files) {
             if ($Scope -eq 'access') { (Get-Acl -LiteralPath $file).AreAccessRulesProtected | Should -Be (-not $Expected) }
-            else { (Get-Acl -LiteralPath $file -Audit).AreAuditRulesProtected | Should -Be (-not $Expected) }
+            else { (Get-TestAuditAcl -Path $file).AreAuditRulesProtected | Should -Be (-not $Expected) }
         }
 
         # A direct array binds both descriptors within one ProcessRecord call, unlike the pipeline above, which
