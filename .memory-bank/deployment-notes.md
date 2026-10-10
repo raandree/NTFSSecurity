@@ -9,55 +9,35 @@ source: release gates of 5.0.0 (lab acceptance, OS matrix, publication plan), re
 
 ## Publish the next prerelease (rc7)
 
-State on 2026-10-10 at 09:59 UTC: #116 (rc7, head `d25647d`) is merged into
-`master` (merge commit `8a6be9f`, 09:10:12Z). #117 (head `f11ff41`, base
-`ai/release-5.0.0-rc7`) was **closed without a merge** at 09:10:16Z: the
-`--delete-branch` of `gh pr merge 116` deleted its base branch, and GitHub
-closed it (events `base_ref_deleted`, then `closed`) instead of retargeting it.
-Nothing is lost: `ai/quality-gate-coverage` is intact at `f11ff41`, and
-`master` still lacks its change (25 files). #118 (draft, head `83149ee`, base
-`ai/quality-gate-coverage`) and #119 (draft, head `49734ef`, base
-`ai/quality-gate-paths`) are open and green. A simulated merge chain
-(`git merge-tree --write-tree`, no ref written) with merge commits
-(Decision 15) is conflict-free at every step: the coverage branch into `master`
-gives the tree of `f11ff41`, #118 then gives `b1dc006`, and #119 gives
-`62aa1ae`, the tree of the matrix branch. The manifest says `5.0.0` with
-`Prerelease = 'rc7'`, and `$publishedVersions` in `Tests/Repository.Tests.ps1`
-lists the versions up to rc6, as it must before rc7 is published.
+State on 2026-10-10 at 11:47 UTC: the whole stack is merged into `master`,
+which stands at `fa0701b` and has the tree of `2b8643f`: #116 (rc7, `8a6be9f`,
+09:10Z), #120 (`bdb9981`, 10:50Z), #118 (`03bef2c`, 11:12Z), and #119
+(`fa0701b`, 11:28Z). #117 had been closed without a merge at 09:10:16Z, when
+the branch deletion after the merge of #116 removed its base branch (Decision
+15, operating rule); #120, a new pull request from its head `f11ff41`,
+replaced it. The remote head branches were deleted at 11:34Z. The CI run on
+`master` at `fa0701b` passed at 11:40Z (Build and test, Wiki, Publish the
+wiki; Release skipped, as for any push without a tag). The manifest says
+`5.0.0` with `Prerelease = 'rc7'`, and `$publishedVersions` in
+`Tests/Repository.Tests.ps1` lists the versions up to rc6, as it must before
+rc7 is published. The release notes of a prerelease are the `[Unreleased]`
+section of `CHANGELOG.md`.
 
-The branch `ai/quality-gate-lab-matrix` (draft #119) is stacked on #118. It
-holds three fixes of the module in two commits (`962887a` has two, `fdd7a8b`
-one). `fdd7a8b` reverts cleanly on its own; `962887a` doesn't
-revert while `fdd7a8b` stays (the two conflict in `Security2/Win32/Lib.cs` and
-`CHANGELOG.md`), and its two fixes go together. The branch also holds the kit of the
-operating-system matrix, the changes of the live controller, and the record
-(Decision 24). rc7 contains the module fixes only if the branch is merged after
-#118 and before the tag; otherwise they go to the next prerelease. The
-maintainer decides.
+rc7 contains everything that is merged: the behavior changes of Phase 2
+(#116), the quality-gate paths (#120, #118), and the three module fixes of
+the matrix (#119, in two commits: `962887a` holds two, `fdd7a8b` one; they
+don't revert separately, because they conflict in `Security2/Win32/Lib.cs` and
+`CHANGELOG.md`), with the kit, the controller changes, and the record of the
+operating-system matrix (Decision 24).
 
-Do not delete a head branch while another open pull request uses it as its
-base. On 2026-10-10 the deletion through `gh pr merge --delete-branch` closed
-#117 instead of retargeting it. The open reports `cli/cli#1168` and
-`cli/cli#14223` show the same two events and say that GitHub retargets only
-when the branch is deleted with the button on the pull request page. The
-latter also reports, and this was not tried here, that `gh pr edit --base`
-refuses a closed pull request and that `gh pr reopen` refuses while the base
-branch is missing. A new pull request from the same head is the repair.
-
-1. Open a new pull request from `ai/quality-gate-coverage` to `master` (it
-   replaces #117, same head and title), wait for its CI, and merge it with
-   **Create a merge commit**. Do not delete the branch yet.
-2. Retarget #118 (`gh pr edit 118 --base master`), mark it ready, and merge it
-   the same way. Then do the same for #119 if its module fixes go into rc7.
-   A retarget doesn't start CI again (`pull_request` in `ci.yml` has the
-   default event types), and the merge result is the tree that CI tested.
-3. Delete the head branches only after the last pull request that uses one as
-   its base is merged or retargeted.
-4. Tag the merge commit on `master` with `5.0.0-rc7` and push the tag. The
-   `release` job checks the tag against the manifest and builds nothing new:
-   it publishes the package that the `build` job tested. Approve the
-   deployment of the `powershell-gallery` environment if it asks.
-5. After the publication, add `5.0.0-rc7` to `$publishedVersions` with the
+1. Tag the commit `fa0701b` on `master` with `5.0.0-rc7` and push the tag
+   (lightweight tags, as for rc1 to rc6). The `release` job checks the tag
+   against the manifest and builds nothing new: it publishes the package that
+   the `build` job tested. Approve the deployment of the `powershell-gallery`
+   environment if it asks.
+2. Accept the published package (next section): `Test-PublishedRelease.ps1`,
+   the first lab, and every cell of the matrix.
+3. After the publication, add `5.0.0-rc7` to `$publishedVersions` with the
    next change that goes to `master`.
 
 ## Accept a published package
@@ -163,9 +143,15 @@ Local `-ModulePath` runs are validation; the gate needs the published bytes.
   logons returned the old account on the domain controller and member servers for
   7 to 15 minutes. The five remedies tried (a ticket purge, `nltest /sc_reset`, a
   DNS flush, a restart of the Kerberos service, and waiting) helped only by
-  waiting (see `techContext.md`). The controller names the account of case 3 anew
-  for each new fixture; a script of your own that recreates accounts needs unique
-  names too.
+  waiting. A model with one lifetime (9.95 to 10.25 minutes) fits all 43
+  Admin-role runs of 27 cells; the replay and the model are in the record of the
+  matrix and in Decision 24. The controller names the account of case 3 anew
+  for each new fixture; a script of your own that recreates accounts needs
+  unique names too.
+- `Wait-LabVM` waits for a heartbeat that a client may not report: retry
+  `New-LabPSSession` instead of waiting longer. After an unplanned shutdown,
+  test a domain session, not `nltest /sc_verify` (it stays stale), and repair
+  with `Test-ComputerSecureChannel -Repair`.
 - Restart the evaluation client (`OSWin11E`) right before a sequence or a suite,
   not before several: it shuts down an hour after each start. The restart takes
   about two and a half minutes and may need the repair of the secure channel.
