@@ -159,6 +159,25 @@ Describe 'Identity comparisons and conversions' {
         $identity.Equals($other) | Should -Be $Expected
     }
 
+    # tr-TR lowercases I to U+0131, so a comparison that lowercases both names with the current culture misses an account name that holds an
+    # uppercase I (NT AUTHORITY, BUILTIN) when the other name has another case. The name must match in every culture.
+    It 'Should compare a name with the account ignoring case in Turkish, where I and i are different letters' {
+        $system = [Security2.IdentityReference2] 'S-1-5-18'
+        $system.AccountName | Should -MatchExactly 'I' -Because 'the test needs an account name with an uppercase I'
+        $original = [System.Threading.Thread]::CurrentThread.CurrentCulture
+        try {
+            [System.Threading.Thread]::CurrentThread.CurrentCulture = [System.Globalization.CultureInfo]::GetCultureInfo('tr-TR')
+            'I'.ToLower() | Should -Be ([string][char]0x131) -Because 'the culture of the thread has to be Turkish for the test to mean anything'
+            $system.Equals($system.AccountName) | Should -BeTrue
+            $system.Equals($system.AccountName.ToLowerInvariant()) | Should -BeTrue
+            $system.Equals($system.AccountName.ToUpperInvariant()) | Should -BeTrue
+            $system.Equals('NTFSSecurity-not-an-account') | Should -BeFalse
+        }
+        finally {
+            [System.Threading.Thread]::CurrentThread.CurrentCulture = $original
+        }
+    }
+
     It 'Should compare null operands and distinct instances through both operators' {
         $same = [Security2.IdentityReference2] 'S-1-1-0'
         $different = [Security2.IdentityReference2] 'S-1-5-32-546'

@@ -195,7 +195,8 @@ namespace Security2
 
                 if (this.ntAccount != null)
                 {
-                    if (this.ntAccount.Value.ToLower() == value.ToLower())
+                    // Not ToLower: with the culture of the thread, tr-TR lowercases I to U+0131 and misses names such as NT AUTHORITY\SYSTEM.
+                    if (string.Equals(this.ntAccount.Value, value, StringComparison.OrdinalIgnoreCase))
                     {
                         return true;
                     }

@@ -439,5 +439,11 @@ The format is based on
 
 - Fix [Get-ChildItem2](Docs/Cmdlets/Get-ChildItem2.md) with `-Hidden`,
   which omitted the first hidden item unless `-Force` was also supplied
+- Fix the comparison of an identity with a name, such as
+  `$entry.Account -eq 'nt authority\system'`, in the Turkish culture
+  (`tr-TR`): it changed the case of both names with the culture of the thread,
+  which turns `I` into a dotless `ı`, so an account whose name holds an
+  uppercase `I`, such as `NT AUTHORITY\SYSTEM` or `BUILTIN\Administrators`,
+  did not match the same name in another case
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD
