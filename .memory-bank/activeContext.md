@@ -23,7 +23,7 @@ cells of the matrix (1,374 passed, 0 failed, 12 skipped) and in the first lab,
 where case 9 runs (245 passed, 0 failed, 1 skipped per edition). Handoff 3: Decision 22 was confirmed
 under the delegation and stays proposed; nothing is published. Handoff 4:
 Decision 23 (the #34 dossier); the risk acceptance is the maintainer's. The
-agent's decisions of the night are D1 to D42 in
+agent's decisions of the night are D1 to D46 in
 `decisions-night-2026-10-09.md` of the session files. Stable 5.0.0 stays gated.
 
 The earlier state of handoff 1, from the reviewed head `f11ff41` of #117: 28
@@ -138,10 +138,15 @@ open.
   unavailable): approve with Minor, fixed; a second review found one Major
   (record accuracy), addressed by the replay; a follow-up review found no
   Blocker or Major and five Minors, corrected; a second follow-up review found no
-  Blocker or Major and four Minors, corrected. State of the labs at 07:30 UTC on
-  2026-10-10: no fixture and no probe residue in either lab (`Verify` of the
-  matrix lab 06:54, of the first lab 07:29); the six VMs of the matrix run, and
-  `OSWin11E` (started 06:44) shuts itself down about an hour after its start.
+  Blocker or Major and four Minors, corrected. The built-in `security-review`
+  agent (the custom reviewer is still unavailable) found no exploitable
+  vulnerability in the module changes and two LOW items that are not changed
+  (Next step 6). A dry run of `Run-MatrixSequence.ps1 -Version 5.0.0-rc6` on
+  OSFile19 showed that the published-package path works. State of the labs at
+  07:50 UTC on 2026-10-10: no fixture and no probe residue in either lab
+  (`Verify` of the matrix lab 07:45, of the first lab 07:29); the six VMs of the
+  matrix run, and `OSWin11E` (restarted 07:36) shuts itself down about an hour
+  after its start.
 
 ## Next step
 
@@ -167,4 +172,14 @@ open.
    the reporters (checklist: `Tests/Lab/Non-Windows-File-Server-Test.md`) and
    accepting the untested risk with a release-note caveat. No agent can
    accept it.
-6. Do not release stable 5.0.0 or equate a percentage with gate closure.
+6. He decides the two LOW findings of the security review (record, Limits):
+   the swallowed initialization errors of `GetEffectiveAccess` (a false "no
+   access" instead of an error on an OS that refuses at initialization, and
+   neither warning nor error when the local fallback fails; fix: record the
+   initialization exceptions in `authzException`, with a regression test and a
+   check of the sentence "the error stays" in the help and CHANGELOG), and the
+   ACL of the stage folders under `C:\` in the lab kit (they inherit
+   Authenticated Users: Modify; protecting them is a design change of the
+   controller and needs a new acceptance). The help could also say that a local
+   standard user who asks about a domain account still gets "Access is denied".
+7. Do not release stable 5.0.0 or equate a percentage with gate closure.

@@ -646,7 +646,43 @@ fails, which the reuse of the name explains and the module doesn't.
   throws (an outer `catch { }` that is older than this work). An operating
   system that refused another computer at that step, not at the context as every
   machine of the matrix did, would give a result without rights and a warning
-  instead of the documented error. This is unverified and outside the fixes.
+  instead of the documented error; and a failure of the local fallback for a name
+  of this computer would give a result without rights and neither a warning nor an
+  error, because the flag that suppresses the warning is set before the fallback
+  runs (also older than this work). The help and the CHANGELOG say that the error
+  stays for another computer, which holds for the denial at the creation of the
+  context. This is unverified on every machine of the matrix and outside the
+  fixes (Decision 16 asks for reproducible defects only); recording the
+  initialization exceptions in `authzException` would close it.
+- The built-in `security-review` agent (the custom `security-reviewer` couldn't
+  start: its model isn't offered, and I didn't override it) read `83149ee..664ef3a`
+  and found no exploitable vulnerability in the changes of the module: the
+  decision "this name is this computer" is an exact, case-insensitive match
+  (true for `.`, `localhost`, the machine name, the host name, and the name with
+  the DNS domain; false for null, empty, whitespace, a trailing dot, an IP
+  address, UNC forms, an embedded NUL, and a name of 100,000 characters, all of
+  which keep the remote path and its denial), the fallback runs in the caller's
+  own process and token, and the separate audit read uses the privilege handling
+  of the combined read. It reported two LOW items. The first is the item above.
+  The second is that the kit creates staging folders directly under `C:\`
+  (`C:\NTFSSecurityLab`, `C:\NtfsMatrixLocal`, `C:\NtfsMatrixProbe`,
+  `C:\NtfsProbeModules`) without an ACL, so they inherit Authenticated Users:
+  Modify, while scripts and the module's DLL in them run elevated or as the role
+  accounts: a principal that can run code on a lab VM during a run could replace
+  them. The labs are isolated and the role accounts must read the tests and write
+  results there, so protecting the folders is a design change of the controller
+  that needs a new acceptance; I left it for the maintainer. The reviewer also
+  noted that the lab password crosses remoting and `Register-ScheduledTask
+  -Password` (module or script-block logging on a machine would record it), that
+  the controller reaches the client with CredSSP to an IP address, where the
+  logon inside CredSSP is NTLM-only and the server isn't authenticated (the
+  policy comes from AutomatedLab), and that the help says that a user who isn't an
+  administrator gets the result on a domain computer without saying that a local
+  standard user who asks about a domain account still gets "Access is denied" (the
+  probe table above) or that the answer now comes from the caller's own token and
+  manager. It could not check the ACL of `C:\` on the lab VMs, the behavior of the
+  fallback as a non-administrator on a domain computer, or whether the local
+  manager equals the remote one for every token.
 - The scripts of the kit were read by a reviewer who ran none of them; module
   logging or script-block logging on a machine would record the lab password
   that `Register-ScheduledTask -Password` needs.

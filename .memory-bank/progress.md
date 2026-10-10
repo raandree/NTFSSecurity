@@ -83,7 +83,7 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   148 green on the candidate; fixture removed and verified clean on six
   machines. Record: `Tests/Lab/Acceptance-2026-10-09-quality-gate-paths.md`.
 - 2026-10-09 to 10: handoffs 2 to 4 under the maintainer's delegation (decisions
-  D1 to D42 in the night log of the session files). The matrix lab
+  D1 to D46 in the night log of the session files). The matrix lab
   `NtfsSecurityOsMatrixLab` (Server 2019, 2022, and 2025 file servers, Windows 11
   Enterprise 22H2 client, Windows 11 26H1 suite only) found three defects of the
   module, fixed in `962887a` and `fdd7a8b`: audit inheritance by descriptor,
@@ -105,7 +105,9 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   `9344ff7`, and `ab0d8e1`; a follow-up review of those fixes found no Blocker or
   Major and five Minors, corrected in `e2384e5` and `70f494a`; a second
   follow-up review (the first-lab run and the cleanup changes) found no Blocker or
-  Major and four Minors, corrected in `b78784d` and `dbb4bd6`. Record:
+  Major and four Minors, corrected in `b78784d` and `dbb4bd6`; the built-in
+  `security-review` agent found no exploitable vulnerability and two LOW items
+  that are not changed (record, Limits). Record:
   `Tests/Lab/Acceptance-2026-10-10-os-matrix.md`; nothing was pushed.
 
 ## Stable capabilities
