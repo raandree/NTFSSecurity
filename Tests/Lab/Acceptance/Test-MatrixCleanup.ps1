@@ -12,10 +12,10 @@ param (
 # records the SIDs of the NtfsLive* accounts while the fixture exists. Verify reads the domains and every machine again, and reports
 # the organizational unit, the accounts, the share, the folders, the local group, the memberships of Administrators, Access Control
 # Assistance Operators, and Remote Management Users, and the profiles of those SIDs, and what the suite runs and the probes of the kit leave
-# behind (scheduled tasks, stage folders, standard users, probe accounts of the domain). The result is judged from this log, never from
+# behind (scheduled tasks, items in the stage folders, standard users, probe accounts of the domain). The result is judged from this log, never from
 # the wrapper of the controller or a global error count. Repair is for a run whose removal failed: with the SIDs of the snapshot, it
 # removes what that run left on the machines (the memberships, also of orphaned SIDs, which net localgroup deletes by SID; the share; the
-# local group; the folders) and then reports like Verify.
+# local group; the folders; the stage folders and scheduled tasks of the kit) and then reports like Verify.
 & {
     $ErrorActionPreference = 'Stop'
     # -File passes an array as one string, so a list may arrive as 'A,B'.
@@ -67,9 +67,9 @@ param (
                 LocalGroup = [bool] (Get-LocalGroup -Name 'NtfsLiveLocal' -ErrorAction SilentlyContinue)
                 Groups     = $groups -join '; '
                 Profiles   = @(Get-CimInstance -ClassName Win32_UserProfile | Where-Object -FilterScript { $_.SID -in $Sid }).Count
-                # What the suite runs and the probes of the kit leave behind: scheduled tasks, stage folders, and standard users
+                # What the suite runs and the probes of the kit leave behind: scheduled tasks, items in the stage folders, and standard users
                 Tasks      = @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.TaskName -like 'NtfsMatrix*' }).Count
-                Stages     = @('C:\NtfsMatrixLocal', 'C:\NtfsMatrixProbe' | Where-Object -FilterScript { Test-Path -LiteralPath $_ }).Count
+                Stages     = @('C:\NtfsMatrixLocal', 'C:\NtfsMatrixProbe' | Where-Object -FilterScript { Test-Path -LiteralPath $_ } | ForEach-Object -Process { Get-ChildItem -LiteralPath $_ -Force -ErrorAction SilentlyContinue }).Count
                 Users      = @(Get-LocalUser -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.Name -like 'NtfsProbe*' }).Count
             }
         }
@@ -100,6 +100,14 @@ param (
                         $messages.Add(('{0}: present after {1} attempt(s): {2}' -f $path, $attempt, (Test-Path -LiteralPath $path)))
                     }
 
+                    # What the suite runner and the probes of the kit left in their stage folders, and their scheduled tasks
+                    foreach ($stage in 'C:\NtfsMatrixLocal', 'C:\NtfsMatrixProbe') {
+                        if (Test-Path -LiteralPath $stage) { Get-ChildItem -LiteralPath $stage -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue }
+                    }
+
+                    Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.TaskName -like 'NtfsMatrix*' } | ForEach-Object -Process { Unregister-ScheduledTask -TaskName $_.TaskName -Confirm:$false -ErrorAction SilentlyContinue }
+                    $messages.Add('stage folders and scheduled tasks of the kit removed')
+
                     $messages
                 }
 
@@ -111,7 +119,7 @@ param (
             $state = Invoke-LabCommand -ComputerName $name -ActivityName "Check $name" -ScriptBlock $machineScript -ArgumentList (, $sids) @labCommand
             '{0,-9} share={1} C:\NTFSSecurityLive={2} C:\NTFSSecurityLab={3} NtfsLiveLocal={4} profiles={5}' -f $name, $state.Share, $state.ShareRoot, $state.Payload, $state.LocalGroup, $state.Profiles
             '          {0}' -f $state.Groups
-            '          residue: scheduled tasks={0} stage folders={1} probe users={2}' -f $state.Tasks, $state.Stages, $state.Users
+            '          residue: scheduled tasks={0} stage items={1} probe users={2}' -f $state.Tasks, $state.Stages, $state.Users
         }
     }
 

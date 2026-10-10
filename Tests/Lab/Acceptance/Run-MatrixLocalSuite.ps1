@@ -97,6 +97,7 @@ foreach ($name in $targets) {
     Write-Sequence "machine $name START"
     $session = $null
     $runCredential = $null
+    $resultsCopied = $false
     try {
         if ($name -eq 'LOCAL') {
             $root = Join-Path -Path $env:TEMP -ChildPath "ntfs-localsuite-run-$Label"
@@ -203,6 +204,7 @@ foreach ($name in $targets) {
 
         if ($session) { Copy-Item -FromSession $session -Path (Join-Path -Path $root -ChildPath 'Results\*') -Destination $cellFolder -Recurse -Force }
         else { Copy-Item -Path (Join-Path -Path $root -ChildPath 'Results\*') -Destination $cellFolder -Recurse -Force }
+        $resultsCopied = $true
         foreach ($modeName in $modes) {
             foreach ($editionName in $editions) {
                 $expected = ('{0}-{1}-{2}{3}' -f $Label, $name, $editionName, $(if ($modeName -eq 'Basic') { '-basic' } else { '' })).ToLowerInvariant()
@@ -235,6 +237,17 @@ foreach ($name in $targets) {
             }
             catch {
                 Write-Sequence "machine ${name}: the scheduled tasks of this run could not be removed: $($_.Exception.Message)"
+            }
+
+            # The results are on the host, so the stage on the machine (the module, the tests, and the logs) is not needed any more. After an
+            # early stop it stays for the diagnosis.
+            if ($resultsCopied) {
+                try {
+                    Invoke-Command -Session $session -ArgumentList $root -ScriptBlock { param ($Path) Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue }
+                }
+                catch {
+                    Write-Sequence "machine ${name}: the stage $root could not be removed: $($_.Exception.Message)"
+                }
             }
 
             Remove-PSSession -Session $session -ErrorAction SilentlyContinue
