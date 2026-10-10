@@ -209,9 +209,9 @@ at the first check, so no repair was needed.
 The raw logs, result files, the downloaded packages, and the driver are local,
 outside Git, in the session files of the run (the folders `gate3-rc7` and
 `published-rc7`). `evidence-manifest.csv` in `gate3-rc7` lists the size and the
-SHA-256 of 332 files: everything in `gate3-rc7` except itself, and the four
-files at the top of `published-rc7` (the packages, the identity result, and the
-hashes of the module files). The tables of this record are next to it:
+SHA-256 of every file there except itself, and of the four files at the top of
+`published-rc7` (the packages, the identity result, and the hashes of the module
+files). The tables of this record are next to it:
 
 - [the identity of the module files](Acceptance-2026-10-10-published-rc7-ModuleFiles.csv),
 - [the controller cells](Acceptance-2026-10-10-published-rc7-Cells.csv),
