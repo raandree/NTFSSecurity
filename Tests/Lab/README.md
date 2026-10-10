@@ -54,16 +54,16 @@ which it deletes in every run. For case 9, it creates `NtfsLiveForeign` in the
 organizational unit `NTFSSecurityLive` of each domain of
 `-ForeignDomainController`.
 
-A new fixture gets a new name for the account of case 3, because Windows
-keeps what a Kerberos S4U logon returned for an account under its name. When
-the account is deleted and created again with the same name, a later S4U logon
-returns the old SID and the old groups for more than seven minutes (the probe
-saw it after seven and not after fifteen minutes) on the domain controller and
-the file server, and `Get-NTFSEffectiveAccess` then returns no access for the
-new account. A purge of the ticket cache (`klist purge`) renews the token of
-that session only; `nltest /sc_reset`, flushing the DNS cache, and restarting
-the Kerberos service of the domain controller change nothing. A fixture that
-exists keeps its account, so the runs of one fixture use one name.
+A new fixture gets a new name for the account of case 3. In the matrix lab, the
+authorization managers that `Get-NTFSEffectiveAccess` asks for a remote computer
+(the one of the client by the default `-ServerName`, the one of the file server
+by its name) answered for about ten minutes as if an account had no groups when
+the account was deleted and created again under the same name, so cells that
+followed each other failed in the effective-access tests, whichever version of
+the module ran. The Kerberos logon that the tests use as the oracle, and the
+local authorization manager, were right in the same second. The mechanism in
+Windows isn't known (see the record of the operating-system matrix). A fixture
+that exists keeps its account, so the runs of one fixture use one name.
 
 ## Lab
 
@@ -205,8 +205,22 @@ the host:
 - `Probe-AccountRecreation.ps1` deletes an account and creates it again with the
   same name in a loop. It shows the SID and the groups that Kerberos S4U logons
   report on the domain controller, the client, and the file server, and what
-  `Get-NTFSEffectiveAccess` of each module under test returns, which is why the
-  controller gives a new fixture a new name for the account of case 3.
+  `Get-NTFSEffectiveAccess` of each module under test returns. It showed the
+  state that the controller avoids with a new name for the account of case 3.
+- `Export-CellTimeline.ps1` reads the sequence and run logs of controller cells
+  and writes one row for every cell, edition, and role: the module, the account
+  and its relative ID, the times of the removal of the previous fixture, of the creation
+  of the accounts, and of the Admin role, and the three effective-access tests.
+- `Test-StaleAuthzModel.ps1` replays such a timeline against the model of the
+  failures of the effective-access tests (an authorization manager that answers
+  for an account name from its first request, for some minutes, also after the
+  account was created again) and reports, for the lifetimes that predict most
+  outcomes, how many of the observed ones the model reproduces. With `-Lifetime`
+  it lists every run with the observed and the predicted outcome for that one
+  lifetime, with `-AsIfSameSubject` it shows where a controller that reuses
+  the account name would have met a stale entry, and with `-Permutations` how
+  often a random assignment of the outcomes fits as well. It describes the
+  observations; it doesn't explain Windows.
 - `Add-OsMatrixMachine.ps1`, `Complete-OsMatrixLab.ps1`, and
   `Repair-OsMatrixBoot.ps1` add a machine to the deployed lab, install the tools
   on the machines (the VMs have no internet), and repair the boot files of a
