@@ -109,7 +109,7 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   rule of the paths report corrected; the first lab accepted on the fixed
   builds and the matrix suite passing on Windows Server 2019, 2022, 2025 and
   Windows 11 (1,156 cases, 16 configurations). Open: hard-link names under
-  another root, a piped `AppliesTo` for a path, Server Core, ARM64. Report:
+  another root, a piped `AppliesTo` for a path. Report:
   `Tests/Coverage/Quality-Gate-Unknowns-2026-10-10.md`.
 
 ## Stable capabilities
@@ -142,8 +142,7 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 4. Architecture/cmdlet design: Decision 22 remains proposed; two link
    changes are breaking. Keep unused classes/helper overloads until a
    maintainer decision; do not remove them to improve coverage percentages.
-5. ARM64 workstation: PowerShell 7.6.1 crashed under x64 emulation without
-   module frames; native-x64 CI did not reproduce it.
+5. ARM64 workstation: out of scope (maintainer, 2026-10-11, Decision 25).
 6. Optional maintainer cleanup: obsolete AppVeyor/Read the Docs access,
    wiki editing restrictions, `test/transfer`, and old lab checkpoints
    when no longer needed. No remote changes or snapshot restores here.

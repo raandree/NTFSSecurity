@@ -54,8 +54,10 @@ is open.
   Minor ones; each was resolved, three of the Major ones after a probe (the
   claim about `-eq` was wrong, the filter defect was real, the audit tests of a
   piped `AppliesTo` did not bind the set that they named).
-- **Environments.** `de-DE` and `tr-TR` are tested; Server Core has a plan;
-  ARM64, a localized system, and non-Windows servers stay open.
+- **Environments.** `de-DE` and `tr-TR` are tested. Server Core, ARM64, a
+  localized operating system, and non-Windows file servers are out of scope:
+  the maintainer decided on 2026-10-11 that the audience of the tool does not
+  need them (decision 22 below, Memory Bank Decision 25).
 
 ## Tables
 
@@ -930,69 +932,24 @@ both editions, in `tr-TR` and in `en-US` (`E\probes\review-final4-*.txt`), and
 the test passes in the four configurations (`E\tdd2\green3`: 200 cases of three
 files, elevated and as a basic user).
 
-Not tested: a localized operating system (no such image exists: the ISO files
-are English), the names of built-in accounts in other languages, and the
-localized texts of Windows errors. The review found one test that depends on a
-localized text, the comparison of `Get-Privileges` with the State column of
-`whoami /priv` in `ParameterSets.Items.Tests.ps1`; it compares the state now
-only where `whoami` prints the English words.
+Not tested, and out of scope by the decision below: a localized operating
+system (no such image exists: the ISO files are English), the names of built-in
+accounts in other languages, and the localized texts of Windows errors. The
+review found one test that depends on a localized text, the comparison of
+`Get-Privileges` with the State column of `whoami /priv` in
+`ParameterSets.Items.Tests.ps1`; it compares the state now only where `whoami`
+prints the English words.
 
-### Server Core
+### Out of scope: Server Core, ARM64, a localized system, non-Windows servers
 
-Not deployed: a new machine widens the proposed Decision 24, and the
-maintainer's word is needed. The plan, with numbers measured on this host
-where they exist:
-
-- **Image.** `en-us_windows_server_2025_updated_april_2026_x64_dvd_225d826d.iso`
-  (the ISO of `OSFile25`), index 3, `Windows Server 2025 Datacenter` (the
-  Server Core installation; index 4 is the Desktop Experience installation that
-  every matrix machine uses). The WIM image is 10.9 GB, against 23.6 GB for the
-  Desktop Experience.
-- **Disk.** The base image of the Desktop Experience of the same system is
-  14.5 GB on `V:` and its differencing disk 3.6 GB after the runs; a Core
-  base image is expected at 8 to 10 GB (an estimate from the ratio of the WIM
-  images) and a differencing disk at about 3 GB. `V:` has 191 GB free of 991.9
-  GB, so the machine costs about 12 GB.
-- **Time.** The estimate is under an hour for the machine (the base image, the
-  unattended installation, and the start; `Add-OsMatrixMachine.ps1` allows 40
-  minutes for the start) plus a few minutes for the tools, and 10 to 15 minutes
-  for a cell, like the other cells. It was not measured.
-- **Commands.** In an elevated Windows PowerShell 5.1 on the host, in this
-  order, never together with a controller or another `Import-Lab`:
-
-  ```powershell
-  .\Tests\Lab\Acceptance\Add-OsMatrixMachine.ps1 -LogPath $env:TEMP\add-oscore25.log `
-      -Name OSCore25 -OperatingSystem 'Windows Server 2025 Datacenter' `
-      -IpAddress 192.168.12.26
-  .\Tests\Lab\Acceptance\Complete-OsMatrixLab.ps1 -LogPath $env:TEMP\complete-oscore25.log `
-      -Member OSCore25
-  ```
-
-  Then, with the extracted candidate folder as `<module>`:
-
-  ```powershell
-  .\Tests\Lab\Acceptance\Run-MatrixLocalSuite.ps1 -Label core1 -Machine OSCore25 `
-      -ModulePath <module> -OutputRoot <folder> -Mode Elevated,Basic
-  .\Tests\Lab\Acceptance\Run-MatrixSequence.ps1 -Label core1 -FileServer OSCore25 `
-      -ModulePath <module> -OutputRoot <folder> `
-      -Machines OSFile19,OSFile22,OSFile25,OSCore25,OSWin11E
-  ```
-
-  with `OSWin11E` started shortly before the sequence (it shuts down an hour
-  after its start), and `Test-MatrixCleanup.ps1 -Mode Verify -Machine
-  OSFile19,OSFile22,OSFile25,OSCore25,OSWin11E` after it. The address
-  `192.168.12.26` is not in the hosts file of the host (the matrix lab uses
-  .10, .11, .12, .19, .22, and .25).
-- **What it can find.** Server Core has no shell and no Desktop Experience
-  components; the module is .NET Framework 4.5.2 code with Win32 calls, so a
-  difference would show in the import, in AlphaFS, or in the privilege code. It
-  can not find a difference of a localized system.
-
-### ARM64
-
-No reproduction exists. The crash of PowerShell 7.6.1 under x64 emulation had
-no module frames, and native x64 CI did not reproduce it (`progress.md`, open
-item 5). It stays open.
+The maintainer decided on 2026-10-11 to forget these four environments: the
+audience of the tool does not need them, so they are not open items, and no
+plan, deployment, or test of this work covers them (decision 22 below, Memory
+Bank Decision 25). The Server Core plan that this section had
+(image index 3 of the Server 2025 ISO, about 12 GB, under an hour for the
+machine) was dropped with the decision and stays in the history of this file;
+nothing was deployed. The ARM64 crash of PowerShell 7.6.1 under x64 emulation
+had no module frames and was never reproduced on native x64.
 
 ## Final measurement
 
@@ -1335,6 +1292,7 @@ the maintainer can reverse every one of them.
     tested, to keep the measured commit stable for the lab acceptance.
 13. **Server Core, ARM64, and a localized system** were not tested (Stage D):
     no new machine without the maintainer's word, and no such image exists.
+    Decision 22 drops them.
 14. **No kit script.** The commands of the method are in this report, and the
     scripts of the session are named in the evidence; the handoff calls a kit
     welcome, not required.
@@ -1378,6 +1336,12 @@ the maintainer can reverse every one of them.
     unit suite ran on the three file servers and the client. The cells are the
     acceptance of a new candidate (open item 6), and they cost the matrix lab's
     time (an evaluation client that shuts down every hour).
+22. **Server Core, ARM64, a localized operating system, and non-Windows file
+    servers are out of scope** (the maintainer, 2026-10-11: the audience of the
+    tool does not need them; Memory Bank Decision 25). They are not open items
+    and no further plan, deployment, or test covers them. The decision is about
+    the tests and the acceptance of this work; the question of #34 (Decision 23
+    of the Memory Bank) is not changed by it.
 
 ## Open items for the maintainer
 
@@ -1399,7 +1363,19 @@ of the effective-access check, Decisions 22 and 24, and #34) stay as they are.
    the default set `PathComplex` binds, and the property does not select the
    Simple set (probed for all four cmdlets: `Add-NTFSAccess`,
    `Remove-NTFSAccess`, `Add-NTFSAudit`, and `Remove-NTFSAudit`). For a
-   descriptor it selects `SDSimple`. Intended or not?
+   descriptor it selects `SDSimple`. The cause is the declaration, not
+   PowerShell: when a piped object satisfies the mandatory parameters of the
+   default set, the binder settles on it and never tries a parameter that
+   belongs to another set. Without `DefaultParameterSetName`, a model with the
+   same four sets binds `PathSimple` for an object with `AppliesTo` and
+   `PathComplex` for one without, and every named call resolves as before
+   (`E\probes\p-parameterset-binding*.ps1` and their outputs; the real
+   cmdlets were not changed or tested). The default is a leftover: at 4.2.6
+   `AppliesTo` was optional and the sets overlapped, and `4b1abc9` made it
+   mandatory so that the Complex sets win without it. Intended or not? Leaving
+   it is a documented limit; removing the default is a change of four cmdlet
+   attributes with a new error for an object that carries `AppliesTo` and
+   `InheritanceFlags` both.
 4. **Twelve getters of pipeline parameters** that take pipeline input by
    property name and that no test supplies on a piped object (Stage C lists
    them): tests close them.
@@ -1413,11 +1389,7 @@ of the effective-access check, Decisions 22 and 24, and #34) stay as they are.
    takes them, needs the acceptance (matrix cells and first lab) on its own
    bytes. The acceptance of the fixed build below is evidence for the behavior,
    not for a release.
-7. **Server Core** (the plan of Stage D; it widens the proposed Decision 24),
-   **ARM64**, **a localized operating system** (names of built-in accounts,
-   error texts, and any other comparison that AlphaFS or Windows does with the
-   culture), and **non-Windows file servers**.
-8. **A trivial observation:** `RemoveAudit.cs` converts the scope of an
+7. **A trivial observation:** `RemoveAudit.cs` converts the scope of an
    `-AppliesTo` twice for the set `PathSimple` (at the top of `ProcessRecord`
    and again in the loop). It is idempotent and has no effect.
 
@@ -1430,11 +1402,10 @@ of the effective-access check, Decisions 22 and 24, and #34) stay as they are.
 | The unit suite on a domain member | Closed | `OSFile25`, four configurations, the counts of the rc7 acceptance; 9 sequence and 3 explicit branch points more than the host |
 | The unit suite of the final build on the other operating systems | Closed | the 22 behavior files on Windows Server 2019, 2022, 2025 and Windows 11 (build 28000), elevated and as a basic user, both editions: 1,156 cases in each of the 16 configurations, no failure (`fix5`, `fix5c`); the first run (`fix1`) found one failing test, caused by its oracle and fixed in the test (`f1f3d8f`); both labs verified clean afterwards |
 | The code of `fdd7a8b` | Closed, with one branch visited by nothing | the ServerAdmin tests (lines 478 and 486) and the basic-user runs on the domain member visit the fall back; the answer "RPC server unavailable" of the context initialization is visited by nothing (explained) |
-| `AUDIT-OWNER-RETRY`, `AUDIT-READ-DENIED` | Open | no test visits them; no trigger on a Windows file server (probe of 48 calls); closing needs a non-Windows server (#34) or a seam |
+| `AUDIT-OWNER-RETRY`, `AUDIT-READ-DENIED` | Open, explained | no test visits them; no trigger on a Windows file server (probe of 48 calls); closing needs a non-Windows server (out of scope, decision 22) or a seam (a design change) |
 | The reachable gaps, the judged matrix of the 64 parameter sets | Partly closed | 79 `It` blocks (140 rows), 33 of 35 mutations caught; 7 sets closed, 51 partly, 1 open, 4 `MaintainerDecision`, 1 `None`; 12 getters of pipeline parameters open; one defect (hard-link names) and one behavior (piped `AppliesTo` for a path) for the maintainer |
-| Other cultures | Closed for `de-DE` and `tr-TR`, after two defects | two defects found and fixed test-first: the comparison of an identity with a name (`419cfb3`) and `Get-ChildItem2 -Filter` (`0028ccd`, `fbe0289`, `8a625c8`), the second found by the independent review after the scan had missed its class of call; six `de-DE` failures are assertions on English text; localized names and texts untested |
-| Windows Server Core | Open | a plan with the image index, disk, time, and commands; deploying needs the maintainer's word |
-| ARM64 | Open | no reproduction |
+| Other cultures | Closed for `de-DE` and `tr-TR`, after two defects | two defects found and fixed test-first: the comparison of an identity with a name (`419cfb3`) and `Get-ChildItem2 -Filter` (`0028ccd`, `fbe0289`, `8a625c8`), the second found by the independent review after the scan had missed its class of call; six `de-DE` failures are assertions on English text; localized names and texts are out of scope (decision 22) |
+| Windows Server Core, ARM64, a localized system, non-Windows file servers | Out of scope | the maintainer's decision of 2026-10-11: the audience of the tool does not need them (decision 22) |
 | The final commit | Closed | `61e936e`, built once at `8a625c8` and measured on those bytes: 1,459 cases per configuration, no failure; 3,258/3,664 sequence points (88.92%), 1,090/1,168 explicit branch points; skip eligibility by row (666 skipped rows, none without an executed counterpart); the same 187 unvisited methods as at `b2cb47b`, all classified; the merged tables of the sources are those of `b2cb47b` (Final measurement) |
 | The lab acceptance of the fixed build | Closed for the first lab | three runs on three builds (`b2cb47b`, `0028ccd`, and the final build `8a625c8`), both editions, 245 passed, 0 failed, 1 skipped each, clean end state; the matrix cells were not run again (a new candidate needs them) |
 
@@ -1502,9 +1473,9 @@ by a second review.
   machine of the matrix; open item 6); a hard link through a volume mounted
   into a folder or through a junction to another volume (the defect is
   reproduced with a substituted drive only); the 12 getters; the matrix suite
-  on `OSWin11E` with the new files (`OSWin11` ran it); Windows Server Core;
-  ARM64; a localized operating system; a file server that is not a Windows
-  server.
+  on `OSWin11E` with the new files (`OSWin11` ran it).
+- Out of scope, and not run, by decision 22: Windows Server Core, ARM64, a
+  localized operating system, and a file server that is not a Windows server.
 - The Release build is not byte-reproducible: a hash identifies the measured
   files, not the source. Different code has different denominators; the
   measurements of `5a5d58b`, `fa0701b`, and `b2cb47b` are not increments of

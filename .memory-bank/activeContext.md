@@ -138,8 +138,8 @@ acceptance is the maintainer's.
   that build; the 22 files of the matrix suite 1,156/0 in 16 configurations
   on `OSFile19/22/25` and `OSWin11`; both labs clean at 00:43Z. The tool's
   branch summary percentage is not read (it adds a point per method); the
-  explicit branch points are 1,090/1,168. Not tested: Server Core (plan),
-  ARM64, a localized system, non-Windows servers.
+  explicit branch points are 1,090/1,168. Server Core, ARM64, a localized
+  system, and non-Windows servers are out of scope (Decision 25).
 - Raw evidence is outside git: the session folder
   `4b12e2f4-d4c7-4a5d-883a-ddb7421c4848\files` (`qg-paths`, the matrix runs, the
   night log) and
@@ -183,6 +183,7 @@ acceptance is the maintainer's.
    candidate (rc8), which needs the matrix cells and the first lab on its
    bytes, and he decides the open items of the report: hard-link names under
    another root (a defect with a reproduction), a piped `AppliesTo` property
-   that a path drops, 12 getters of pipeline parameters, the 51 partly closed
-   sets, the audit paths, Server Core (widens Decision 24), and ARM64.
+   that a path drops (cause: the default set; the report has a model of the
+   fix), 12 getters of pipeline parameters, the 51 partly closed sets, and the
+   audit paths.
 7. Do not release stable 5.0.0 or equate a percentage with gate closure.

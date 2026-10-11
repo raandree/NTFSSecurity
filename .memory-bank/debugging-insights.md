@@ -50,3 +50,14 @@ fails without it (Decision 16).
   `SDSimple`. A test that means the Simple set names `-AppliesTo` and asserts
   the scope it gets (a probe that tells the sets uses an entry of the default
   scope: removing `ThisFolderOnly` from it leaves the `InheritOnly` part).
+- The cause is `DefaultParameterSetName = "PathComplex"`: when a piped object
+  satisfies the mandatory parameters of the default set, PowerShell settles on
+  it and never tries a parameter that belongs to another set. A stand-alone
+  model with the four sets and no default binds `PathSimple` for an object with
+  `AppliesTo`, `PathComplex` for one without, and an error for one with
+  `AppliesTo` and `InheritanceFlags`; named calls resolve as before
+  (`probes\p-parameterset-binding*.ps1` in the Handoff 5 evidence). The default
+  dates from 4.2.6, when `AppliesTo` was optional; `4b1abc9` made it mandatory
+  in the Simple sets, so the default no longer decides a named call. Build a
+  model of the parameter sets before you change an attribute, and test the real
+  cmdlet afterwards.

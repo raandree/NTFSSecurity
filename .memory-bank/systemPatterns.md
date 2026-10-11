@@ -49,6 +49,7 @@ Read only task-relevant records; the index controls routing.
 | 22 | [The behavior changes of Phase 2 (proposed)](decisions/0022-phase-2-behavior-changes.md) |
 | 23 | [Non-Windows file servers before 5.0.0, #34 (proposed)](decisions/0023-non-windows-file-servers.md) |
 | 24 | [The operating-system matrix lab (proposed)](decisions/0024-os-matrix-lab.md) |
+| 25 | [Four environments are out of scope for the tests](decisions/0025-out-of-scope-environments.md) |
 
 ## Patterns
 
@@ -70,8 +71,7 @@ Read only task-relevant records; the index controls routing.
   through a Write call (`IsFromLaterCommand`, `PipelineControl`; see
   `BaseCmdlets.cs`); add a row to `Tests/PipelineControl.Tests.ps1` for a new
   cmdlet. Record an enabled privilege before the next write.
-- `Get-ChildItem2 -Filter`: AlphaFS, then a wildcard on the name, both culture
-  invariant (`debugging-insights.md`); `*.*` means `*`, dot rules are open.
+- `Get-ChildItem2 -Filter` matches culture invariant; `*.*` means `*`.
 
 ### Tests and documentation
 
