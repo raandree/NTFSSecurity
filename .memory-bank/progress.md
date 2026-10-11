@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-10
+last-verified: 2026-10-11
 owner: active-agent
 source: repository and validation evidence
 ---
@@ -99,17 +99,21 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   9 245 / 0 / 1 per edition; every end state CLEAN. The counts equal those of
   the final local candidate. Record:
   `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`.
-- 2026-10-10: Handoff 5, the coverage unknowns (local, `ai/coverage-unknowns`,
-  nothing pushed). rc7 measured at `fa0701b`: 3,198/3,649 sequence points;
-  the live suite and the suite on a domain member add 9 sequence and 4
-  explicit branch points (`fdd7a8b`); two `tr-TR` defects fixed test-first
-  (`419cfb3`; `0028ccd`, `fbe0289`, `8a625c8`, the second found by the
-  independent review); 79 `It` blocks added (final `61e936e`, built at
-  `8a625c8`: 1,459 cases per configuration, 3,258/3,664 points); the getter
-  rule of the paths report corrected; the first lab accepted on the fixed
-  builds and the matrix suite passing on Windows Server 2019, 2022, 2025 and
-  Windows 11 (1,156 cases, 16 configurations). Open: hard-link names under
-  another root, a piped `AppliesTo` for a path. Report:
+- 2026-10-10 to 2026-10-11: Handoff 5, the coverage unknowns (local,
+  `ai/coverage-unknowns`; the maintainer pushed `2b97422`, later commits are
+  local). rc7 measured at `fa0701b`: 3,198/3,649 sequence points; the live
+  suite and the suite on a domain member add 9 sequence and 4 explicit branch
+  points (`fdd7a8b`); two `tr-TR` defects fixed test-first (`419cfb3`;
+  `0028ccd`, `fbe0289`, `8a625c8`); 101 `It` blocks added. The piped
+  `AppliesTo` that a path dropped is fixed (`93ed2c7`, `9783d2a`, Decision 26)
+  after three independent reviews and two checks: a carry-over of the scope
+  between piped objects, and false sentences about empty values (`7bc7925`,
+  `2112ee3`). Final `2112ee3`, product code built once at `9783d2a`: 1,492
+  cases per configuration, 3,266/3,668 points. The labs accepted the package:
+  first lab 245/0/1 per edition, the suite 1,189/0 in 16 configurations on
+  four machines, three cells 229/0/2 per edition, every end state clean. Open:
+  hard-link names under another root, the silent default scope of an
+  unconvertible piped `AppliesTo`. Report:
   `Tests/Coverage/Quality-Gate-Unknowns-2026-10-10.md`.
 
 ## Stable capabilities
@@ -146,10 +150,10 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 6. Optional maintainer cleanup: obsolete AppVeyor/Read the Docs access,
    wiki editing restrictions, `test/transfer`, and old lab checkpoints
    when no longer needed. No remote changes or snapshot restores here.
-7. Remaining-path inventory at the final frozen commit of Handoff 5
-   (`61e936e`): 406 unvisited sequence points in 187 methods, all classified
-   (`Tests/Coverage`): 167 explained from source with evidence, 20 open (8:
-   `FileSecurity` conversions, `RemoveAll` account filters; 12 getters of
+7. Remaining-path inventory at the final measured commit of Handoff 5
+   (`2112ee3`): 402 unvisited sequence points in 183 methods, all classified
+   (`Tests/Coverage`): 167 explained from source with evidence, 16 open (8:
+   `FileSecurity` conversions, `RemoveAll` account filters; 8 getters of
    pipeline parameters that no test binds by property name). Other open
    decisions: lazy path overloads, abandoned
    `PrivilegeEnabler`, dot patterns of `Get-ChildItem2 -Filter`, 17
