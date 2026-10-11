@@ -228,10 +228,14 @@ The format is based on
   defaults, as for a path
 - Fix `Add-NTFSAccess`, `Remove-NTFSAccess`, `Add-NTFSAudit`, and
   `Remove-NTFSAudit`, which ignored the `AppliesTo` property of an object
-  piped to them with a path and used the default scope; the property now
-  sets the scope. A piped object that has `AppliesTo` and `InheritanceFlags`
-  or `PropagationFlags` now fails with `AmbiguousParameterSet`, like the
-  same parameters on the command line, instead of using the flags
+  piped to them with a path and used the default scope, and which gave a
+  piped security descriptor object without a scope the scope of the object
+  before it; the property now sets the scope of its own object only. A piped
+  object that has `AppliesTo` and `InheritanceFlags` or `PropagationFlags`
+  now fails with `AmbiguousParameterSet`, like the same parameters on the
+  command line, and one whose `AppliesTo` is empty fails to bind. A call with
+  neither `-Path` nor `-SecurityDescriptor` now fails with
+  `AmbiguousParameterSet` instead of a missing-parameter error for `-Path`
 - Fix `Get-NTFSEffectiveAccess`: `-ExcludeNoneAccessEntries` now leaves out
   items without access, the cmdlet uses the current location when `-Path`
   is omitted, and `-SecurityDescriptor` returns the effective access of the

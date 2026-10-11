@@ -120,9 +120,14 @@ namespace NTFSSecurity
 
         protected override void ProcessRecord()
         {
+            // The flags of this record are locals: the fields behind -InheritanceFlags and -PropagationFlags keep the value of the
+            // previous piped object when the next one binds neither, so the scope that -AppliesTo converts to must not stay in them.
+            var inheritance = inheritanceFlags;
+            var propagation = propagationFlags;
+
             if (ParameterSetName.EndsWith("Simple"))
             {
-                FileSystemSecurity2.ConvertToFileSystemFlags(appliesTo, out inheritanceFlags, out propagationFlags);
+                FileSystemSecurity2.ConvertToFileSystemFlags(appliesTo, out inheritance, out propagation);
             }
 
             if (ParameterSetName.StartsWith("Path"))
@@ -141,14 +146,9 @@ namespace NTFSSecurity
                         continue;
                     }
 
-                    if (ParameterSetName == "PathSimple")
-                    {
-                        FileSystemSecurity2.ConvertToFileSystemFlags(appliesTo, out inheritanceFlags, out propagationFlags);
-                    }
-
                     try
                     {
-                        FileSystemAuditRule2.RemoveFileSystemAuditRule(item, account.ToList(), accessRights, auditFlags, inheritanceFlags, propagationFlags, removeSpecific);
+                        FileSystemAuditRule2.RemoveFileSystemAuditRule(item, account.ToList(), accessRights, auditFlags, inheritance, propagation, removeSpecific);
                     }
                     catch (UnauthorizedAccessException)
                     {
@@ -156,7 +156,7 @@ namespace NTFSSecurity
                         {
                             InvokeAsOwner(item, path, () =>
                             {
-                                FileSystemAuditRule2.RemoveFileSystemAuditRule(item, account.ToList(), accessRights, auditFlags, inheritanceFlags, propagationFlags, removeSpecific);
+                                FileSystemAuditRule2.RemoveFileSystemAuditRule(item, account.ToList(), accessRights, auditFlags, inheritance, propagation, removeSpecific);
                             });
                         }
                         catch (Exception ex2)
@@ -186,7 +186,7 @@ namespace NTFSSecurity
                         continue;
                     }
 
-                    FileSystemAuditRule2.RemoveFileSystemAuditRule(sd, account.ToList(), accessRights, auditFlags, inheritanceFlags, propagationFlags, removeSpecific);
+                    FileSystemAuditRule2.RemoveFileSystemAuditRule(sd, account.ToList(), accessRights, auditFlags, inheritance, propagation, removeSpecific);
 
                     if (passThru == true)
                     {

@@ -110,9 +110,14 @@ namespace NTFSSecurity
 
         protected override void ProcessRecord()
         {
+            // The flags of this record are locals: the fields behind -InheritanceFlags and -PropagationFlags keep the value of the
+            // previous piped object when the next one binds neither, so the scope that -AppliesTo converts to must not stay in them.
+            var inheritance = inheritanceFlags;
+            var propagation = propagationFlags;
+
             if (ParameterSetName.EndsWith("Simple"))
             {
-                FileSystemSecurity2.ConvertToFileSystemFlags(appliesTo, out inheritanceFlags, out propagationFlags);
+                FileSystemSecurity2.ConvertToFileSystemFlags(appliesTo, out inheritance, out propagation);
             }
 
             if (ParameterSetName.StartsWith("Path"))
@@ -133,7 +138,7 @@ namespace NTFSSecurity
 
                     try
                     {
-                        FileSystemAccessRule2.AddFileSystemAccessRule(item, account.ToList(), accessRights, accessType, inheritanceFlags, propagationFlags);
+                        FileSystemAccessRule2.AddFileSystemAccessRule(item, account.ToList(), accessRights, accessType, inheritance, propagation);
                     }
                     catch (UnauthorizedAccessException)
                     {
@@ -141,7 +146,7 @@ namespace NTFSSecurity
                         {
                             InvokeAsOwner(item, path, () =>
                             {
-                                FileSystemAccessRule2.AddFileSystemAccessRule(item, account.ToList(), accessRights, accessType, inheritanceFlags, propagationFlags);
+                                FileSystemAccessRule2.AddFileSystemAccessRule(item, account.ToList(), accessRights, accessType, inheritance, propagation);
                             });
                         }
                         catch (Exception ex2)
@@ -166,7 +171,7 @@ namespace NTFSSecurity
             {
                 foreach (var sd in securityDescriptors)
                 {
-                    FileSystemAccessRule2.AddFileSystemAccessRule(sd, account.ToList(), accessRights, accessType, inheritanceFlags, propagationFlags);
+                    FileSystemAccessRule2.AddFileSystemAccessRule(sd, account.ToList(), accessRights, accessType, inheritance, propagation);
 
                     if (passThru == true)
                     {

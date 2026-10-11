@@ -38,6 +38,17 @@ BeforeAll {
     $enablePrivileges = $privateData['EnablePrivileges']
     $sidType = [System.Security.Principal.SecurityIdentifier]
     $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+
+    function Get-TestAccountScope {
+        # The scopes of the explicit entries of one account, each as 'inheritance flags/propagation flags', joined by ';'
+        param (
+            [Parameter(Mandatory)] [System.Security.AccessControl.FileSystemSecurity] $Acl,
+            [Parameter(Mandatory)] [string] $Account
+        )
+        @($Acl.GetAccessRules($true, $false, $sidType) |
+                Where-Object -FilterScript { $_.IdentityReference.Value -eq $Account } |
+                ForEach-Object -Process { '{0}/{1}' -f $_.InheritanceFlags, $_.PropagationFlags }) -join ';'
+    }
 }
 
 AfterAll {
@@ -119,10 +130,7 @@ Describe 'Add-NTFSAccess' {
 
             [pscustomobject] (@{ Path = $folder; Account = 'S-1-5-32-546'; AccessRights = 'ReadData' } + $Extra) | Add-NTFSAccess -ErrorAction Stop
 
-            $scopes = @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, $sidType) |
-                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-32-546' } |
-                    ForEach-Object -Process { '{0}/{1}' -f $_.InheritanceFlags, $_.PropagationFlags })
-            ($scopes -join ';') | Should -BeExactly $Scope
+            Get-TestAccountScope -Acl (Get-Acl -LiteralPath $folder) -Account 'S-1-5-32-546' | Should -BeExactly $Scope
         }
 
         It 'Should reject a piped object that has both AppliesTo and InheritanceFlags with an AmbiguousParameterSet error and change nothing' {
@@ -133,6 +141,79 @@ Describe 'Add-NTFSAccess' {
             { $object | Add-NTFSAccess -ErrorAction Stop } | Should -Throw -ErrorId 'AmbiguousParameterSet*'
 
             (Get-Acl -LiteralPath $folder).Sddl | Should -BeExactly $before
+        }
+    }
+
+    # PowerShell resets only the parameters that the previous object bound from the pipeline. The scope that the cmdlet
+    # derives from AppliesTo must therefore not stay in the fields behind InheritanceFlags and PropagationFlags: the next
+    # object that has no scope, or only one flag, would get it.
+    Context 'Objects with different scopes in one pipeline' {
+        It 'Should give each piped path object only its own scope: AppliesTo, none, AppliesTo, one flag, none' {
+            $folders = @('AddMixedThisFolderOnly', 'AddMixedNoScope', 'AddMixedInheritOnly', 'AddMixedOneFlag', 'AddMixedNoScopeAgain' |
+                    ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory })
+            $entry = @{ Account = 'S-1-5-32-546'; AccessRights = 'ReadData' }
+
+            @(
+                [pscustomobject] ($entry + @{ Path = $folders[0]; AppliesTo = 'ThisFolderOnly' })
+                [pscustomobject] ($entry + @{ Path = $folders[1] })
+                [pscustomobject] ($entry + @{ Path = $folders[2]; AppliesTo = 'SubfoldersAndFilesOnly' })
+                [pscustomobject] ($entry + @{ Path = $folders[3]; InheritanceFlags = 'ContainerInherit' })
+                [pscustomobject] ($entry + @{ Path = $folders[4] })
+            ) | Add-NTFSAccess -ErrorAction Stop
+
+            $scopes = $folders | ForEach-Object -Process { Get-TestAccountScope -Acl (Get-Acl -LiteralPath $_) -Account 'S-1-5-32-546' }
+            $scopes -join '|' | Should -BeExactly 'None/None|ContainerInherit, ObjectInherit/None|ContainerInherit, ObjectInherit/InheritOnly|ContainerInherit/None|ContainerInherit, ObjectInherit/None'
+        }
+
+        It 'Should give each row of an imported CSV file that has an AppliesTo column its own scope' {
+            $folders = @('AddCsvThisFolderOnly', 'AddCsvSubfolders', 'AddCsvInheritOnly' |
+                    ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory })
+            $rows = @(
+                'Path,Account,AccessRights,AppliesTo'
+                ('"{0}",S-1-5-32-546,ReadData,ThisFolderOnly' -f $folders[0])
+                ('"{0}",S-1-5-32-546,ReadData,ThisFolderAndSubfolders' -f $folders[1])
+                ('"{0}",S-1-5-32-546,ReadData,SubfoldersAndFilesOnly' -f $folders[2])
+            ) | ConvertFrom-Csv
+
+            $rows | Add-NTFSAccess -ErrorAction Stop
+
+            $scopes = $folders | ForEach-Object -Process { Get-TestAccountScope -Acl (Get-Acl -LiteralPath $_) -Account 'S-1-5-32-546' }
+            $scopes -join '|' | Should -BeExactly 'None/None|ContainerInherit/None|ContainerInherit, ObjectInherit/InheritOnly'
+        }
+
+        # An empty cell is not "no scope": the property AppliesTo is there and cannot be bound, so the row fails, loudly, and the
+        # cmdlet goes on with the next row. Before the property was bound at all, such a column was ignored.
+        It 'Should report a binding error for the CSV row whose AppliesTo cell is empty, leave its folder alone, and still process the other rows' {
+            $folders = @('AddCsvEmptyFirst', 'AddCsvEmptyCell', 'AddCsvEmptyLast' |
+                    ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory })
+            $rows = @(
+                'Path,Account,AccessRights,AppliesTo'
+                ('"{0}",S-1-5-32-546,ReadData,ThisFolderOnly' -f $folders[0])
+                ('"{0}",S-1-5-32-546,ReadData,' -f $folders[1])
+                ('"{0}",S-1-5-32-546,ReadData,SubfoldersAndFilesOnly' -f $folders[2])
+            ) | ConvertFrom-Csv
+
+            $rows | Add-NTFSAccess -ErrorVariable addErrors -ErrorAction SilentlyContinue
+
+            @($addErrors) | Should -HaveCount 1
+            $addErrors[0].Exception.Message | Should -BeLike '*AppliesTo*'
+            $scopes = $folders | ForEach-Object -Process { Get-TestAccountScope -Acl (Get-Acl -LiteralPath $_) -Account 'S-1-5-32-546' }
+            $scopes -join '|' | Should -BeExactly 'None/None||ContainerInherit, ObjectInherit/InheritOnly'
+        }
+
+        It 'Should give each piped descriptor object only its own scope: AppliesTo, then none' {
+            $folders = @('AddMixedSDThisFolderOnly', 'AddMixedSDNoScope' |
+                    ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory })
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $folders -ErrorAction Stop)
+            $entry = @{ Account = 'S-1-5-32-546'; AccessRights = 'ReadData' }
+
+            @(
+                [pscustomobject] ($entry + @{ SecurityDescriptor = $descriptors[0]; AppliesTo = 'ThisFolderOnly' })
+                [pscustomobject] ($entry + @{ SecurityDescriptor = $descriptors[1] })
+            ) | Add-NTFSAccess -ErrorAction Stop
+
+            $scopes = $descriptors | ForEach-Object -Process { Get-TestAccountScope -Acl $_.SecurityDescriptor -Account 'S-1-5-32-546' }
+            $scopes -join '|' | Should -BeExactly 'None/None|ContainerInherit, ObjectInherit/None'
         }
     }
 
@@ -210,10 +291,7 @@ Describe 'Remove-NTFSAccess' {
 
             [pscustomobject] (@{ Path = $folder; Account = 'S-1-5-32-546'; AccessRights = 'ReadData' } + $Extra) | Remove-NTFSAccess -ErrorAction Stop
 
-            $remaining = @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, $sidType) |
-                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-32-546' } |
-                    ForEach-Object -Process { '{0}/{1}' -f $_.InheritanceFlags, $_.PropagationFlags })
-            ($remaining -join ';') | Should -BeExactly $Left
+            Get-TestAccountScope -Acl (Get-Acl -LiteralPath $folder) -Account 'S-1-5-32-546' | Should -BeExactly $Left
         }
 
         It 'Should reject a piped object that has both AppliesTo and InheritanceFlags with an AmbiguousParameterSet error and change nothing' {
@@ -225,6 +303,46 @@ Describe 'Remove-NTFSAccess' {
             { $object | Remove-NTFSAccess -ErrorAction Stop } | Should -Throw -ErrorId 'AmbiguousParameterSet*'
 
             (Get-Acl -LiteralPath $folder).Sddl | Should -BeExactly $before
+        }
+    }
+
+    # As for Add-NTFSAccess: the scope that the cmdlet derives from AppliesTo must not stay for the next object.
+    Context 'Objects with different scopes in one pipeline' {
+        It 'Should remove from each piped path object the entry of its own scope: AppliesTo, none, AppliesTo, none' {
+            $folders = @('RemoveMixedFirst', 'RemoveMixedSecond', 'RemoveMixedThird', 'RemoveMixedFourth' | ForEach-Object -Process {
+                    $folder = New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory
+                    Add-NTFSAccess -Path $folder -Account 'S-1-5-32-546' -AccessRights ReadData -AppliesTo ThisFolderSubfoldersAndFiles -ErrorAction Stop
+                    $folder
+                })
+            $entry = @{ Account = 'S-1-5-32-546'; AccessRights = 'ReadData' }
+
+            @(
+                [pscustomobject] ($entry + @{ Path = $folders[0]; AppliesTo = 'ThisFolderOnly' })
+                [pscustomobject] ($entry + @{ Path = $folders[1] })
+                [pscustomobject] ($entry + @{ Path = $folders[2]; AppliesTo = 'ThisFolderOnly' })
+                [pscustomobject] ($entry + @{ Path = $folders[3] })
+            ) | Remove-NTFSAccess -ErrorAction Stop
+
+            $remaining = $folders | ForEach-Object -Process { Get-TestAccountScope -Acl (Get-Acl -LiteralPath $_) -Account 'S-1-5-32-546' }
+            $remaining -join '|' | Should -BeExactly 'ContainerInherit, ObjectInherit/InheritOnly||ContainerInherit, ObjectInherit/InheritOnly|'
+        }
+
+        It 'Should remove from each piped descriptor object the entry of its own scope: AppliesTo, then none' {
+            $folders = @('RemoveMixedSDFirst', 'RemoveMixedSDSecond' | ForEach-Object -Process {
+                    $folder = New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory
+                    Add-NTFSAccess -Path $folder -Account 'S-1-5-32-546' -AccessRights ReadData -AppliesTo ThisFolderSubfoldersAndFiles -ErrorAction Stop
+                    $folder
+                })
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $folders -ErrorAction Stop)
+            $entry = @{ Account = 'S-1-5-32-546'; AccessRights = 'ReadData' }
+
+            @(
+                [pscustomobject] ($entry + @{ SecurityDescriptor = $descriptors[0]; AppliesTo = 'ThisFolderOnly' })
+                [pscustomobject] ($entry + @{ SecurityDescriptor = $descriptors[1] })
+            ) | Remove-NTFSAccess -ErrorAction Stop
+
+            $remaining = $descriptors | ForEach-Object -Process { Get-TestAccountScope -Acl $_.SecurityDescriptor -Account 'S-1-5-32-546' }
+            $remaining -join '|' | Should -BeExactly 'ContainerInherit, ObjectInherit/InheritOnly|'
         }
     }
 

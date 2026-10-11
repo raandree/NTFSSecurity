@@ -78,6 +78,13 @@ BeforeAll {
         )
         @($Acl.GetAuditRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq $Account })
     }
+
+    function Get-TestAuditScope {
+        # The scopes of the explicit audit entries of the probe account, each as 'inheritance flags/propagation flags', joined by ';'
+        param ([Parameter(Mandatory)] [System.Security.AccessControl.FileSystemSecurity] $Acl)
+        @(Get-TestAccountAuditRule -Acl $Acl -Account $probe |
+                ForEach-Object -Process { '{0}/{1}' -f $_.InheritanceFlags, $_.PropagationFlags }) -join ';'
+    }
 }
 
 AfterAll {
@@ -202,9 +209,7 @@ Describe 'Add-NTFSAudit' {
 
             [pscustomobject] (@{ FullName = $folder; Account = $probe; AccessRights = 'ReadData' } + $Extra) | Add-NTFSAudit -ErrorAction Stop
 
-            $scopes = @(Get-TestAccountAuditRule -Acl (Get-Acl -LiteralPath $folder -Audit) -Account $probe |
-                    ForEach-Object -Process { '{0}/{1}' -f $_.InheritanceFlags, $_.PropagationFlags })
-            ($scopes -join ';') | Should -BeExactly $Scope
+            Get-TestAuditScope -Acl (Get-Acl -LiteralPath $folder -Audit) | Should -BeExactly $Scope
         }
 
         It 'Should reject a piped object that has both AppliesTo and InheritanceFlags with an AmbiguousParameterSet error and change nothing' {
@@ -215,6 +220,77 @@ Describe 'Add-NTFSAudit' {
             { $object | Add-NTFSAudit -ErrorAction Stop } | Should -Throw -ErrorId 'AmbiguousParameterSet*'
 
             Get-TestDaclSddl -Path $folder | Should -BeExactly $before
+        }
+    }
+
+    # PowerShell resets only the parameters that the previous object bound from the pipeline. The scope that the cmdlet
+    # derives from AppliesTo must therefore not stay in the fields behind InheritanceFlags and PropagationFlags: the next
+    # object that has no scope, or only one flag, would get it (ParameterSets.Access.Tests.ps1 has the same rows).
+    Context 'Objects with different scopes in one pipeline' {
+        It 'Should give each piped path object only its own scope: AppliesTo, none, AppliesTo, one flag, none' -Skip:(-not $canReadAudit) {
+            $folders = @('AddMixedAuditThisFolderOnly', 'AddMixedAuditNoScope', 'AddMixedAuditInheritOnly', 'AddMixedAuditOneFlag', 'AddMixedAuditNoScopeAgain' |
+                    ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory })
+
+            @(
+                [pscustomobject] ($entry + @{ FullName = $folders[0]; AppliesTo = 'ThisFolderOnly' })
+                [pscustomobject] ($entry + @{ FullName = $folders[1] })
+                [pscustomobject] ($entry + @{ FullName = $folders[2]; AppliesTo = 'SubfoldersAndFilesOnly' })
+                [pscustomobject] ($entry + @{ FullName = $folders[3]; InheritanceFlags = 'ContainerInherit' })
+                [pscustomobject] ($entry + @{ FullName = $folders[4] })
+            ) | Add-NTFSAudit -ErrorAction Stop
+
+            $scopes = $folders | ForEach-Object -Process { Get-TestAuditScope -Acl (Get-Acl -LiteralPath $_ -Audit) }
+            $scopes -join '|' | Should -BeExactly 'None/None|ContainerInherit, ObjectInherit/None|ContainerInherit, ObjectInherit/InheritOnly|ContainerInherit/None|ContainerInherit, ObjectInherit/None'
+        }
+
+        It 'Should give each row of an imported CSV file that has an AppliesTo column its own scope' -Skip:(-not $canReadAudit) {
+            $folders = @('AddCsvAuditThisFolderOnly', 'AddCsvAuditSubfolders', 'AddCsvAuditInheritOnly' |
+                    ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory })
+            $rows = @(
+                'FullName,Account,AccessRights,AppliesTo'
+                ('"{0}",{1},ReadData,ThisFolderOnly' -f $folders[0], $probe)
+                ('"{0}",{1},ReadData,ThisFolderAndSubfolders' -f $folders[1], $probe)
+                ('"{0}",{1},ReadData,SubfoldersAndFilesOnly' -f $folders[2], $probe)
+            ) | ConvertFrom-Csv
+
+            $rows | Add-NTFSAudit -ErrorAction Stop
+
+            $scopes = $folders | ForEach-Object -Process { Get-TestAuditScope -Acl (Get-Acl -LiteralPath $_ -Audit) }
+            $scopes -join '|' | Should -BeExactly 'None/None|ContainerInherit/None|ContainerInherit, ObjectInherit/InheritOnly'
+        }
+
+        # An empty cell is not "no scope": the property AppliesTo is there and cannot be bound, so the row fails, loudly, and the
+        # cmdlet goes on with the next row (ParameterSets.Access.Tests.ps1 has the same row).
+        It 'Should report a binding error for the CSV row whose AppliesTo cell is empty, leave its folder alone, and still process the other rows' -Skip:(-not $canReadAudit) {
+            $folders = @('AddCsvAuditEmptyFirst', 'AddCsvAuditEmptyCell', 'AddCsvAuditEmptyLast' |
+                    ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory })
+            $rows = @(
+                'FullName,Account,AccessRights,AppliesTo'
+                ('"{0}",{1},ReadData,ThisFolderOnly' -f $folders[0], $probe)
+                ('"{0}",{1},ReadData,' -f $folders[1], $probe)
+                ('"{0}",{1},ReadData,SubfoldersAndFilesOnly' -f $folders[2], $probe)
+            ) | ConvertFrom-Csv
+
+            $rows | Add-NTFSAudit -ErrorVariable auditErrors -ErrorAction SilentlyContinue
+
+            @($auditErrors) | Should -HaveCount 1
+            $auditErrors[0].Exception.Message | Should -BeLike '*AppliesTo*'
+            $scopes = $folders | ForEach-Object -Process { Get-TestAuditScope -Acl (Get-Acl -LiteralPath $_ -Audit) }
+            $scopes -join '|' | Should -BeExactly 'None/None||ContainerInherit, ObjectInherit/InheritOnly'
+        }
+
+        It 'Should give each piped descriptor object only its own scope: AppliesTo, then none' -Skip:(-not $canReadAudit) {
+            $folders = @('AddMixedAuditSDThisFolderOnly', 'AddMixedAuditSDNoScope' |
+                    ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory })
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $folders -ErrorAction Stop)
+
+            @(
+                [pscustomobject] ($entry + @{ SecurityDescriptor = $descriptors[0]; AppliesTo = 'ThisFolderOnly' })
+                [pscustomobject] ($entry + @{ SecurityDescriptor = $descriptors[1] })
+            ) | Add-NTFSAudit -ErrorAction Stop
+
+            $scopes = $descriptors | ForEach-Object -Process { Get-TestAuditScope -Acl $_.SecurityDescriptor }
+            $scopes -join '|' | Should -BeExactly 'None/None|ContainerInherit, ObjectInherit/None'
         }
     }
 
@@ -249,8 +325,8 @@ Describe 'Add-NTFSAudit' {
 
 Describe 'Remove-NTFSAudit' {
     Context 'Binding -Path from the pipeline by property name' {
-        # The PathSimple row pipes AppliesTo, which selects the set; the PathSimpleNamed row names -AppliesTo instead, and the
-        # piped object brings only the path.
+        # The PathSimple row pipes AppliesTo and the PathSimpleNamed row names it. Neither can tell the sets apart here: the
+        # entry is on a file, where the scope does not matter. The Contexts on folders below do.
         It "Should remove the audit entry for the piped <Set> object that exists, write a ReadFileError for the one that does not, and keep the other account's entry" -ForEach @(
             @{ Set = 'PathComplex'; ExtraProperties = @{ InheritanceFlags = 'None'; PropagationFlags = 'None' }; Named = @{} }
             @{ Set = 'PathSimple'; ExtraProperties = @{ AppliesTo = 'ThisFolderOnly' }; Named = @{} }
@@ -323,9 +399,7 @@ Describe 'Remove-NTFSAudit' {
 
             [pscustomobject] (@{ FullName = $folder; Account = $probe; AccessRights = 'ReadData' } + $Extra) | Remove-NTFSAudit -ErrorAction Stop
 
-            $remaining = @(Get-TestAccountAuditRule -Acl (Get-Acl -LiteralPath $folder -Audit) -Account $probe |
-                    ForEach-Object -Process { '{0}/{1}' -f $_.InheritanceFlags, $_.PropagationFlags })
-            ($remaining -join ';') | Should -BeExactly $Left
+            Get-TestAuditScope -Acl (Get-Acl -LiteralPath $folder -Audit) | Should -BeExactly $Left
         }
 
         It 'Should reject a piped object that has both AppliesTo and InheritanceFlags with an AmbiguousParameterSet error and change nothing' {
@@ -336,6 +410,44 @@ Describe 'Remove-NTFSAudit' {
             { $object | Remove-NTFSAudit -ErrorAction Stop } | Should -Throw -ErrorId 'AmbiguousParameterSet*'
 
             Get-TestDaclSddl -Path $folder | Should -BeExactly $before
+        }
+    }
+
+    # As for Add-NTFSAudit: the scope that the cmdlet derives from AppliesTo must not stay for the next object.
+    Context 'Objects with different scopes in one pipeline' {
+        It 'Should remove from each piped path object the entry of its own scope: AppliesTo, none, AppliesTo, none' -Skip:(-not $canReadAudit) {
+            $folders = @('RemoveMixedAuditFirst', 'RemoveMixedAuditSecond', 'RemoveMixedAuditThird', 'RemoveMixedAuditFourth' | ForEach-Object -Process {
+                    $folder = New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory
+                    Add-NTFSAudit -Path $folder @entry -ErrorAction Stop
+                    $folder
+                })
+
+            @(
+                [pscustomobject] ($entry + @{ FullName = $folders[0]; AppliesTo = 'ThisFolderOnly' })
+                [pscustomobject] ($entry + @{ FullName = $folders[1] })
+                [pscustomobject] ($entry + @{ FullName = $folders[2]; AppliesTo = 'ThisFolderOnly' })
+                [pscustomobject] ($entry + @{ FullName = $folders[3] })
+            ) | Remove-NTFSAudit -ErrorAction Stop
+
+            $remaining = $folders | ForEach-Object -Process { Get-TestAuditScope -Acl (Get-Acl -LiteralPath $_ -Audit) }
+            $remaining -join '|' | Should -BeExactly 'ContainerInherit, ObjectInherit/InheritOnly||ContainerInherit, ObjectInherit/InheritOnly|'
+        }
+
+        It 'Should remove from each piped descriptor object the entry of its own scope: AppliesTo, then none' -Skip:(-not $canReadAudit) {
+            $folders = @('RemoveMixedAuditSDFirst', 'RemoveMixedAuditSDSecond' | ForEach-Object -Process {
+                    $folder = New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory
+                    Add-NTFSAudit -Path $folder @entry -ErrorAction Stop
+                    $folder
+                })
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $folders -ErrorAction Stop)
+
+            @(
+                [pscustomobject] ($entry + @{ SecurityDescriptor = $descriptors[0]; AppliesTo = 'ThisFolderOnly' })
+                [pscustomobject] ($entry + @{ SecurityDescriptor = $descriptors[1] })
+            ) | Remove-NTFSAudit -ErrorAction Stop
+
+            $remaining = $descriptors | ForEach-Object -Process { Get-TestAuditScope -Acl $_.SecurityDescriptor }
+            $remaining -join '|' | Should -BeExactly 'ContainerInherit, ObjectInherit/InheritOnly|'
         }
     }
 
