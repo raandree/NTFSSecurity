@@ -6,8 +6,9 @@ paths from source; an explanation is not a test. This report measures what
 was still unmeasured and tests what the new numbers show. It does not close
 the gate: the stable 5.0.0 stays blocked, the open items of the
 [paths report](Quality-Gate-Paths-2026-10-09.md) stay with the maintainer, and
-a coverage percentage never closes a gate. Nothing was pushed, merged, tagged,
-or published.
+a coverage percentage never closes a gate. The agent pushed, merged, tagged,
+and published nothing; the maintainer pushed the branch himself (`2b97422` on
+2026-10-11).
 
 The work is on `ai/coverage-unknowns`, from `origin/master` at `6696f68`
 (PR #123). Every stage is described below; the
@@ -31,29 +32,63 @@ is open.
   the gaps of the judged matrix of the 64 parameter sets: 7 sets closed, 51
   partly, 1 open, 4 left to the maintainer. The unit suite then visits 45
   more sequence points, all getters of parameters with pipeline input, which
-  corrects an explanation of the paths report. At the final commit `61e936e`
-  (built once, at `8a625c8`) the suite has 1,459 cases per configuration
-  without a failure and covers 3,258 of 3,664 sequence points (88.92%); the
-  same 187 methods stay unvisited, all classified. On the file servers of the
+  corrects an explanation of the paths report. On the file servers of the
   matrix lab, one new test failed in every elevated configuration of the first
   run because of its oracle (`Get-Acl -Audit` reads the SACL of an item
   without audit entries as protected on a domain member; the module was
-  right); five assertions now read the SACL alone (`f1f3d8f`), and the final
-  build with the final tests passes the 22 files of the matrix suite on
-  Windows Server 2019, 2022, and 2025 and on Windows 11 in all 16
-  configurations (1,156 cases each).
-- **Two defects fixed, one open.** Two comparisons were wrong in `tr-TR`, and
+  right); five assertions now read the SACL alone (`f1f3d8f`). The fix of the
+  piped `AppliesTo` adds 22 `It` blocks (33 rows) to the two ParameterSets
+  files. At the final commit `2112ee3`, whose product code was built once (at
+  `9783d2a`), the suite has 1,492 cases per configuration without a failure and
+  covers 3,266 of 3,668 sequence points (89.04%); 183 methods stay unvisited,
+  all classified (at the earlier commit `61e936e`: 1,459 cases, 3,258 of 3,664
+  points, 187 methods).
+- **The acceptance of the final package in the labs.** The package is the
+  Release build of `9783d2a` with the help file of `7bc7925`; the four
+  assemblies are the ones that the first lab accepted. The first lab passed
+  245, 0 failed, 1 skipped in each edition (`ap7`). The unit suite passed in
+  all 16 configurations on the three file servers and on the Windows 11
+  client, 1,189 cases each (`ap8`). The three cells of the matrix lab passed
+  229, 0 failed, 2 skipped in each edition (`ap8`; the first start of the
+  cells, with the command that I had given the maintainer, did nothing because
+  it did not set the module path, see the section on the acceptance). Every end
+  state was `CLEAN`. This is acceptance of the behavior on these bytes, not of a
+  release.
+- **Three defects fixed, one open.** Two comparisons were wrong in `tr-TR`, and
   both are fixed test-first: an identity compared with a name by `Equals`
   (`419cfb3`), and `Get-ChildItem2 -Filter` (`0028ccd`, `fbe0289`, `8a625c8`),
   which the independent review found after the first scan had missed its class
-  of call. The first lab passes on the final build (245 passed, 1 skipped per
-  edition). The hard-link cmdlets (`New-NTFSHardLink -PassThru`,
-  `Get-NTFSHardLink`) fail for a path whose root is not the volume root; the
-  defect is reproduced and left to the maintainer.
-- **The review.** One independent review found four Major findings and several
-  Minor ones; each was resolved, three of the Major ones after a probe (the
-  claim about `-eq` was wrong, the filter defect was real, the audit tests of a
-  piped `AppliesTo` did not bind the set that they named).
+  of call. The third is the piped `AppliesTo`: a path dropped the property
+  without a message, because the cmdlets declared a default parameter set. The
+  maintainer decided to fix it, and it is fixed test-first (`93ed2c7`). The
+  third independent review found that this fix let the scope of a piped
+  object reach the next one, a defect that rc7 has for piped
+  `-SecurityDescriptor` objects too; it is fixed in `9783d2a`. The check of
+  that fix found a false sentence in the documents: only a `$null` `AppliesTo`
+  fails to bind, while a value that PowerShell cannot convert to a scope (a
+  blank CSV cell, a misspelled name) is ignored, and the object is handled as
+  one without `AppliesTo`, silently (open item 3). `7bc7925` corrected the
+  words and the tests; a second check found the sentence still too narrow (the
+  object then uses its own flags before it gets the default scope, and a CSV
+  row with fewer fields than its header gives `$null`), and `2112ee3` corrects
+  it again. The hard-link
+  cmdlets (`New-NTFSHardLink -PassThru`, `Get-NTFSHardLink`) fail for a path
+  whose root is not the volume root; the defect is reproduced and left to the
+  maintainer.
+- **The reviews.** Three independent reviews and two follow-up checks of the
+  third reviewer read the work, all by the built-in `code-review` agent. The
+  first review found four Major findings and several Minor ones; each was
+  resolved, three of the Major ones after a probe (the claim about `-eq` was
+  wrong, the filter defect was real, the audit tests of a piped `AppliesTo`
+  did not bind the set that they named). The second found five Minor findings
+  in tests and documents. The third, of the `AppliesTo` fix, found one Major
+  defect of the fix and two Minor findings. Its first check of the correction
+  found one more Major finding (the false sentence above) and one Minor
+  finding; its second check, of `7bc7925` and of this report, found seven
+  Minor findings and no Major. Each finding was resolved (the section on the
+  fix and the section Review). The last commits carry the words and the test
+  titles that the second check asked for; runs verified them, and no agent
+  read them again.
 - **Environments.** `de-DE` and `tr-TR` are tested. Server Core, ARM64, a
   localized operating system, and non-Windows file servers are out of scope:
   the maintainer decided on 2026-10-11 that the audience of the tool does not
@@ -66,7 +101,7 @@ is open.
 | [Methods](Quality-Gate-Unknowns-2026-10-10-Methods.csv) | the 232 unvisited methods of `fa0701b` with the rule, the category, the disposition, and what the other sources and the build of `b2cb47b` visit |
 | [Cmdlets](Quality-Gate-Unknowns-2026-10-10-Cmdlets.csv) | per cmdlet, the visited sequence and explicit branch points of each source (the final column is the build of `b2cb47b`; see Final measurement) |
 | [Reconciliation](Quality-Gate-Unknowns-2026-10-10-Reconciliation.csv) | the 232 methods against the 231 of `5a5d58b` |
-| [ParameterSets](Quality-Gate-Unknowns-2026-10-10-ParameterSets.csv) | the judged matrix of the 64 sets and its status after the new tests; the cited file:line references point at the tests of the final commit (mapped through the hunks of `git diff` from `fa0701b`, and for the new files from the commit that added each) |
+| [ParameterSets](Quality-Gate-Unknowns-2026-10-10-ParameterSets.csv) | the judged matrix of the 64 sets and its status after the new tests; the cited file:line references point at the tests of the final commit (mapped through the hunks of `git diff` from `fa0701b`, and for the new files from the commit that added each; a line that the free text of `Gap` and `Evidence` names without a file name is not mapped); the column `Default` is the declaration of rc7 (the four `PathComplex` sets of the Add and Remove cmdlets for access and audit lost their default in `93ed2c7`) |
 | [Mutations](Quality-Gate-Unknowns-2026-10-10-Mutations.csv) | the 35 mutations of the new tests |
 | [LiveRoles](Quality-Gate-Unknowns-2026-10-10-LiveRoles.csv) | the points that each role of the live suite visits |
 | [Cultures](Quality-Gate-Unknowns-2026-10-10-Cultures.csv) | the unit suite in `de-DE` and `tr-TR` |
@@ -715,26 +750,37 @@ finding below.
   implementer):
 
   ```powershell
-  $folder = Join-Path -Path $env:TEMP -ChildPath 'HardLinkRoot'
+  $folder = Join-Path -Path $env:TEMP -ChildPath ('HardLinkRoot-{0}' -f [guid]::NewGuid().ToString('N').Substring(0, 8))
   $null = New-Item -ItemType Directory -Path $folder
-  subst.exe Z: $folder
-  Set-Content -LiteralPath Z:\Target.txt -Value 'Target'
-  # A terminating FileNotFoundException; the link exists on disk
-  New-NTFSHardLink -Path Z:\Link.txt -Target Z:\Target.txt -PassThru
-  # Writes FileNotFound for a file that exists
-  Get-NTFSHardLink -Path Z:\Target.txt
-  subst.exe Z: /d
-  Remove-Item -LiteralPath $folder -Recurse -Force
+  # The last drive letter that is free, so that no drive or SUBST mapping of yours is touched
+  $letter = 90..68 | ForEach-Object -Process { [char] $_ } | Where-Object -FilterScript { -not (Test-Path -LiteralPath ('{0}:\' -f $_)) } | Select-Object -First 1
+  $root = '{0}:\' -f $letter
+  subst.exe ('{0}:' -f $letter) $folder
+  try {
+      Set-Content -LiteralPath "${root}Target.txt" -Value 'Target'
+      try {
+          # A terminating FileNotFoundException; the link exists on disk
+          New-NTFSHardLink -Path "${root}Link.txt" -Target "${root}Target.txt" -PassThru
+      }
+      catch { $_.Exception.Message }
+      # Writes FileNotFound for a file that exists
+      Get-NTFSHardLink -Path "${root}Target.txt"
+  }
+  finally {
+      subst.exe ('{0}:' -f $letter) /d
+      Remove-Item -LiteralPath $folder -Recurse -Force
+  }
   ```
 
-- **A piped property does not select the Simple set of a path.** An object
-  with the properties `FullName`, `Account`, `AccessRights`, and `AppliesTo`,
-  piped into `Add-NTFSAccess`, `Remove-NTFSAccess`, `Add-NTFSAudit`, or
-  `Remove-NTFSAudit`, does not bind `PathSimple`: the mandatory parameters of
-  the default set `PathComplex` are satisfiable from the same object, so
-  PowerShell resolves the set before it binds the property, and the property
-  is dropped without a message; an added entry gets the default scope
-  (`ContainerInherit, ObjectInherit`). The first probe ran in both editions on
+- **A piped property did not select the Simple set of a path (fixed).** An
+  object with the properties `FullName`, `Account`, `AccessRights`, and
+  `AppliesTo`, piped into `Add-NTFSAccess`, `Remove-NTFSAccess`,
+  `Add-NTFSAudit`, or `Remove-NTFSAudit`, did not bind `PathSimple`: the
+  mandatory parameters of the default set `PathComplex` were satisfiable from
+  the same object, so PowerShell settled on the default set before it tried
+  the property, and the property was dropped without a message; an added entry
+  got the default scope (`ContainerInherit, ObjectInherit`). The first probe
+  ran in both editions on
   the package of `0028ccd` (`E\probes\review2-*.txt`; the binding code is not
   part of the later changes) and told the set for the first three cmdlets; for
   `Remove-NTFSAudit` the entries that remained were the same with and without
@@ -747,16 +793,22 @@ finding below.
   `-AppliesTo ThisFolderOnly` left the `InheritOnly` entry
   (`E\probes\p-remove-audit-appliesto.ps1`, outputs
   `remove-audit-appliesto-Desktop.txt` and `-Core.txt`). For a descriptor, the
-  property does select `SDSimple`, because the default set does not compete (no
-  path is on the object): both Add cmdlets gave the scope `None`, and
-  `Remove-NTFSAudit` left the `InheritOnly` entry. The judged
+  property did select `SDSimple` in the real cmdlets of both editions: both
+  Add cmdlets gave the scope `None`, and `Remove-NTFSAudit` left the
+  `InheritOnly` entry. A stand-alone model of the binder (the section on the
+  fix) binds `PathComplex` for such an object, so the model does not explain
+  that case, which the real cmdlets show; its mechanism is not explained here.
+  The judged
   notes had assumed the opposite for paths, and the first audit tests named
   rows `PathSimple` that piped the property, so they bound `PathComplex` and
   could not tell the sets; the independent review caught the contradiction with
-  the access tests, and the rows now name `-AppliesTo` and assert the scope
-  (`61e936e`). Not pinned: whether the dropped property is intended is the
-  maintainer's decision, and it is why the getter of `AppliesTo` of the access
-  cmdlets stays unvisited.
+  the access tests, and the rows named `-AppliesTo` and asserted the scope
+  (`61e936e`).
+
+  The maintainer decided on 2026-10-11 to fix it (decision 23): the section
+  [The fix of the piped `AppliesTo`](#the-fix-of-the-piped-appliesto) has the
+  change, the tests, the third independent review, which found a defect of the
+  first fix, the measurement, and the acceptance.
 - **The `-SecurityDescriptor` cmdlets and the pipeline.** See the mutation
   `Set-NTFSOwner` above: a test that only pipes descriptors cannot show that a
   cmdlet always acts on the first one.
@@ -953,9 +1005,13 @@ had no module frames and was never reproduced on native x64.
 
 ## Final measurement
 
-The code and the tests of the work are frozen at the commit
-`61e936e80fd307cdc341a893c4afbbd155986756` of `ai/coverage-unknowns`; the
-commits after it change documents only. Against `fa0701b` the production code
+The code and the tests of the work were frozen at the commit
+`61e936e80fd307cdc341a893c4afbbd155986756` of `ai/coverage-unknowns` for the
+measurement below; the fix of the piped `AppliesTo` came after it (the section
+on the fix, with its measurement of `9783d2a`, built once, and of `7bc7925` and
+`2112ee3` on the same product bytes), and the commits after `2112ee3` change
+documents only. Against
+`fa0701b` the production code at `61e936e`
 differs in two classes (`IdentityReference2.Equals`, and the filter of
 `Get-ChildItem2`), and the tests grew by 145 rows. The measurement was made
 three times, in a new frozen worktree each time and with the same commands:
@@ -1106,6 +1162,7 @@ start.
 | `fix1` | `b2cb47b` (`DB725D52…`) | the comparison of an identity with a name; no cmdlet uses it (the cmdlets compare identities by SID, and no line of the C# of the cmdlets compares an identity with a string) and no live test does | 21:30:18Z |
 | `fix3` | `0028ccd` (`C0D10ED6…`), the first and incomplete fix of the filter; evidence, not final | the matcher of `Get-ChildItem2 -Filter` | 23:40:04Z |
 | `fix4` | `8a625c8` (`6A3F4239…`), the final build, the bytes of the final measurement | the filter, complete: the culture scope around AlphaFS | 00:00:35Z |
+| `ap7` | `9783d2a` (`DFA943D1…`; the package of `final7build`) | the four Add and Remove cmdlets of access and audit: no default parameter set, and the flags of a record in locals | 12:24:38Z |
 
 The first run is evidence that the identity fix changes nothing in the lab. The
 live tests do call `Get-ChildItem2` (a long path, `-Hidden`, the listing of a
@@ -1113,10 +1170,19 @@ share folder, a folder that the account cannot read, and `-Filter` on a share
 folder), so `fix3` and `fix4` run the changed code in the three client roles,
 over SMB, in `en-US`. They cannot show the `tr-TR` defect, which the unit tests
 show; they show that the culture scope around the enumeration changes nothing
-there. None of the runs is a release acceptance: a new candidate needs its own
+there. The live tests also call the four cmdlets of the fix of the piped
+`AppliesTo` (17 calls: `Add-NTFSAccess` and `Remove-NTFSAccess`,
+`Add-NTFSAudit` and `Remove-NTFSAudit`, with `-Path` and with
+`-SecurityDescriptor`, with and without `-InheritanceFlags` and
+`-AppliesTo`), so `ap7` shows that the removal of the default set changes no
+named call in the lab, in any of the four roles. No live test pipes an object
+into them; the unit tests show that. The acceptance ran on the package of
+`9783d2a`; the package of `7bc7925` has the same four assemblies (the section
+on the measurement of `7bc7925`), and the matrix cells and the suites below ran
+on it. None of the runs is a release acceptance: a new candidate needs its own
 (open item 6).
 
-Per role (the same in all three runs and in both editions):
+Per role (the same in all four runs and in both editions):
 
 | Role | Account | Passed | Failed | Skipped | Exit code |
 | --- | --- | ---: | ---: | ---: | ---: |
@@ -1125,7 +1191,7 @@ Per role (the same in all three runs and in both editions):
 | Admin | `A\NtfsLiveAdmin` | 64 | 0 | 0 | 0 |
 | Server | `A\install` | 76 | 0 | 1 | 0 |
 
-All three runs gave the same counts in both editions: 245 passed, 0 failed, 1
+All four runs gave the same counts in both editions: 245 passed, 0 failed, 1
 skipped (`LIVE_RESULT_VERIFIED`), the counts of the rc7 acceptance and of the
 instrumented runs. The removal of the fixture and the independent check of the
 end state found no account, share, folder, profile, task, or group member left
@@ -1140,8 +1206,52 @@ servers `OSFile19`, `OSFile22`, and `OSFile25`) and the first lab (the four
 domains, `F1AFile1`, and `F1AFile2`) are `CLEAN`. The Windows 11 client
 `OSWin11`, which the kit does not check, was read with `Verify-Client.ps1`: no
 scheduled task `NtfsMatrix*`, no stage item, no probe user or profile, no
-share, and no folder or user of the fixture. `OSWin11E` was not started and
-nothing in this work ran in it after the runs of Stage B.
+share, and no folder or user of the fixture. `OSWin11E` had not been started,
+and nothing in this work had run in it since the runs of Stage B.
+
+**The cells of the matrix lab on the fixed builds.** The handoff accepts a fix
+in the first lab; the matrix cells ran on the final build as well, because the
+maintainer asked for them. A cell is one call of `Run-MatrixSequence.ps1`: the
+evaluation client `OSWin11E` against one file server, both editions, the four
+roles, the unmodified controller and live tests, and the extracted package of
+the build. The first start of the cells, with the command that I had given the
+maintainer, did nothing: started from a PowerShell 7 session,
+`Start-Process powershell.exe` gives Windows PowerShell 5.1 the module path of
+PowerShell 7, so `Get-FileHash` could not load, and the hidden window ended
+without a log. The cells were started again from a process with the module
+path of Windows PowerShell (the README of the lab kit says so now). They ran
+twice, each time in sequence: on the package of `8a625c8` (`mxf`), and again on
+the final package, after the fix of the piped `AppliesTo` (`ap8`):
+
+| Run | Package | Cell | Start to end | Passed, failed, skipped per edition | Clean end state |
+| --- | --- | --- | --- | --- | --- |
+| `mxf` | `8a625c8` (`6A3F4239…`) | `OSFile19` | 07:33:10 to 07:40:10Z | 229, 0, 2 | 07:40:10Z |
+| `mxf` | `8a625c8` (`6A3F4239…`) | `OSFile22` | 07:40:10 to 07:47:13Z | 229, 0, 2 | 07:47:13Z |
+| `mxf` | `8a625c8` (`6A3F4239…`) | `OSFile25` | 07:47:13 to 07:56:57Z | 229, 0, 2 | 07:56:57Z |
+| `ap8` | the final package (`DFA943D1…`) | `OSFile19` | 13:19:36 to 13:26:40Z | 229, 0, 2 | 13:26:40Z |
+| `ap8` | the final package (`DFA943D1…`) | `OSFile22` | 13:26:40 to 13:33:22Z | 229, 0, 2 | 13:33:22Z |
+| `ap8` | the final package (`DFA943D1…`) | `OSFile25` | 13:33:22 to 13:43:00Z | 229, 0, 2 | 13:43:00Z |
+
+The final package is the Release build of `9783d2a` with the help file of
+`7bc7925` (the section on the measurement of `7bc7925`). Both runs used the
+controller and the live tests of the repository (Git blobs `635bf162…` and
+`efe36e50…`), and the log of `ap8` starts with the hash of `NTFSSecurity.dll`.
+
+Per role (the same in each cell, in both editions, and in both runs): Delegate
+69, 0, 0; ServerAdmin 36, 0, 0; Admin 51, 0, 1; Server 73, 0, 1 (passed,
+failed, skipped). The validation of each cell gave exit code 0, and the
+clean-up verdict was `CLEAN`. A read-only check of both labs at 10:46 and
+10:47Z (`E\verify-final2`) found no fixture, scheduled task, stage item, probe
+account, or profile left in the matrix lab or in the first lab.
+
+**The end state after the last run** (`ap8`, 13:43 to 13:45Z, `E\verify-ap8`).
+The same read-only checks, with the SIDs of the last fixtures: the matrix lab
+(13:43:43Z) and the first lab (13:44:28Z) are `CLEAN`, with no fixture,
+scheduled task, stage item, probe account, profile, or group member left, and
+`Verify-Client.ps1` found on `OSWin11` (13:44:43Z) no scheduled task
+`NtfsMatrix*`, no stage item, no probe user or profile, no share, and no folder
+or user of the fixture. `OSWin11E` shuts itself down an hour after its start
+(it was started at 13:15Z).
 
 ## The suite on the machines of the matrix lab
 
@@ -1245,6 +1355,415 @@ removes its scheduled tasks and its stage folder on each machine at the end of
 a run; an independent check of the end state of the labs followed (the end of
 the section Lab acceptance of the fixed build).
 
+**The suite on the final package.** The fix of the piped `AppliesTo` came after
+`fix5`. The chain `ap6` ran the 22 files of `93ed2c7` on the three file servers
+(`E\localsuite-ap6`; evidence of that commit only: 1,175 cases in each of the
+12 configurations, no failure). The chain `ap8` ran the 22 files of `7bc7925`
+on the package of the final build: on the three file servers from 12:24 to
+13:05Z (`E\localsuite-ap8`) and on the Windows 11 client from 13:05 to 13:15Z
+(`E\localsuite-ap8-client`). The log of each run starts with the hash of
+`NTFSSecurity.dll` (`DFA943D1…`) and the hashes of the staged files, which
+equal those of the commit. Each of the 16 configurations ran 1,189 cases (the
+1,175 of `ap6` and the 14 rows that the later commits added) and passed, and
+the four machines gave the same counts:
+
+| Configuration | Passed | Failed | Skipped | Total |
+| --- | ---: | ---: | ---: | ---: |
+| Windows PowerShell 5.1, elevated | 1,170 | 0 | 19 | 1,189 |
+| Windows PowerShell 5.1, basic user | 905 | 0 | 284 | 1,189 |
+| PowerShell 7, elevated | 1,168 | 0 | 21 | 1,189 |
+| PowerShell 7, basic user | 903 | 0 | 286 | 1,189 |
+
+The skips of the elevated runs are those of `fix5` (19 and 21), and the 15
+more skips of the basic-user runs are the audit rows that need the Security
+privilege (the host has the same 15 more in each of its two basic-user
+configurations, 696 skipped rows against 666 at `61e936e`). The commit
+`6143545` changed three titles of audit rows after these runs, and removed from
+them a comparison of the DACL before and after a call that fails while the
+parameters bind; it cannot make a test fail, and the host ran the files of
+`2112ee3` (the measurement of `2112ee3`, in the section on the fix), but the
+domain members ran the files of `7bc7925`.
+
+## The fix of the piped `AppliesTo`
+
+The maintainer asked on 2026-10-11 why a piped `AppliesTo` is dropped for a
+path, was told the cause, and decided to fix it test-first and to accept the
+fix in the labs (decision 23). The work is six commits on `21188b1`, in the
+order that the evidence tells it: `88ed362` (a test for a Minor finding of the
+second review), `93ed2c7` (the fix), `9783d2a` (a defect of that fix, found by
+the third independent review), `7bc7925` (the words and tests that the first
+check of the correction asked for), `6143545` (three test titles) and
+`2112ee3` (the words that the second check asked for); the commits of this
+report and of the Memory Bank follow them.
+
+### The change
+
+`Add-NTFSAccess`, `Remove-NTFSAccess`, `Add-NTFSAudit`, and `Remove-NTFSAudit`
+declared `DefaultParameterSetName = "PathComplex"`. An object piped with
+`Path`, `Account`, and `AccessRights` satisfied the mandatory parameters of
+that set, so PowerShell settled on it and never tried `PathSimple`, and the
+property `AppliesTo` was dropped. `4b1abc9` had made `-AppliesTo` mandatory in
+the Simple sets, so that a `-SecurityDescriptor` call without a scope resolves;
+since then the default set decides no named call. `93ed2c7` removes the
+argument, one line in each cmdlet. What an object that is piped with a path
+does:
+
+| The object has | Before | After |
+| --- | --- | --- |
+| `AppliesTo` | `PathComplex`; the property is dropped and the entry gets the default scope | `PathSimple`; the entry gets the scope |
+| `InheritanceFlags` or `PropagationFlags` | `PathComplex` | `PathComplex` |
+| none of them | `PathComplex`, the default scope | `PathComplex`, the default scope |
+| `AppliesTo` and `InheritanceFlags` | `PathComplex`; `AppliesTo` is dropped | `AmbiguousParameterSet`, like the same two named parameters |
+| `Path` and `SecurityDescriptor` (a hand-built object; no cmdlet of the module produces one) | `PathComplex`: the path wins, and the descriptor is ignored | `AmbiguousParameterSet` |
+| an `AppliesTo` that is `$null` (also the missing column of a CSV row that has fewer fields than its header) | ignored | the binding fails for that object ("Cannot bind argument to parameter 'AppliesTo' because it is null"), and the cmdlet goes on with the next |
+| an `AppliesTo` that PowerShell cannot convert to a scope (the blank cell that `Import-Csv` reads, a misspelled name) | ignored | ignored, as before: the object is handled as one without `AppliesTo`, so it uses its own `InheritanceFlags` and `PropagationFlags`, and gets the default scope when it has none |
+
+The probe `E\probes\p-proto-appliesto.ps1` (15 calls, run in both editions on
+the package of the build before the fix, on a scratch build of the change, and
+on the package of `93ed2c7`) shows the differences of the first and fourth rows
+of the table, and the sets in the order of the declaration, and nothing else.
+The scratch build and the package of `93ed2c7` agree line by
+line, and so do the two editions. The last three rows of the table were probed
+later, with the package of the fixed build and the build before the fix, both
+editions: `E\probes\p-empty-appliesto.ps1` (`empty-appliesto-*.txt`) for the
+empty and the invalid values, and `E\probes\p-unconvertible-appliesto.ps1`
+(`unconvertible-appliesto-*.txt`) for the empty string and the misspelled name
+alone and next to a flag, for `$null`, for a CSV row with fewer fields than its
+header, and for an object with `Path` and `SecurityDescriptor`; the fixed build
+is the package of `9783d2a` with the help file of `7bc7925`.
+Unchanged are the named calls with and
+without `-AppliesTo` (the conflict with `-InheritanceFlags` fails as before),
+`-SecurityDescriptor` without a scope (the case of `4b1abc9`), a piped
+descriptor object with `AppliesTo`, the round trip
+`Get-NTFSAccess -Path $source | Add-NTFSAccess -Path $target`, and
+`Get-ChildItem | Add-NTFSAccess -Account ... -AccessRights ...`. The rule
+objects (`FileSystemAccessRule2`, `FileSystemAuditRule2`), the descriptors, and
+the file objects carry no property `AppliesTo`, so the documented pipeline
+input binds `PathComplex` as before. `Get-Command` lists the sets in the order
+of the declaration, `PathSimple` first, and no default.
+
+A stand-alone model of the binder with no default set predicted this before
+the real cmdlets were touched. The first (`E\probes\p-parameterset-binding.ps1`)
+has the two Path sets, in four variants of the default set; the second
+(`p-parameterset-binding2.ps1`) has the four sets, with and without the
+default, and a class of the same shape as the descriptor. Both, in both
+editions, give `PathSimple` for an object with `AppliesTo`, `PathComplex` for
+one without, an error for one with `AppliesTo` and `InheritanceFlags`, and
+named calls as before. The second model binds `PathComplex` for a piped
+descriptor object, where the real cmdlets bind `SDSimple`: a model predicts, the
+cmdlet decides, so the real cmdlets were probed before the change was kept.
+
+Two consequences are in the changelog entry, as the rows of the table: an
+object with `Path` and a `SecurityDescriptor` fails with `AmbiguousParameterSet`
+where the path won, and a call with neither `-Path` nor `-SecurityDescriptor`
+fails with `AmbiguousParameterSet` instead of a missing-parameter error for
+`-Path`.
+
+### The third independent review
+
+The review of `21188b1..93ed2c7` (the built-in `code-review` agent again,
+read-only, one pass) found one Major and two Minor findings and no Blocker. It
+checked the compatibility of removing the default set: no reader of
+`DefaultParameterSet` in `Tests`, `.github`, `Docs`, the wiki export, or the
+lab controller; identical results on both builds, in both editions, for the
+rule objects of `Get-NTFSAccess` and `Get-NTFSAudit` piped back in (also through
+`Export-Csv` and `Import-Csv`), for file objects with a named account, for
+`Get-NTFSSecurityDescriptor` output, for positional and named calls, and for a
+piped hashtable.
+
+**The Major finding, reproduced in both editions on the package of `93ed2c7`.**
+`ProcessRecord` of the four cmdlets wrote the scope that it converts from
+`AppliesTo` into the fields behind `-InheritanceFlags` and
+`-PropagationFlags`. PowerShell resets only the parameters that the previous
+piped object bound, so an object with no scope, or with one flag, took the
+scope of the object before it: `AppliesTo ThisFolderOnly`, then none, gave
+`None` twice, and the Remove cmdlets left the `InheritOnly` part of every
+entry. The change of `93ed2c7` made that reachable for piped path objects. For
+piped `-SecurityDescriptor` objects it is a defect of rc7: the probe
+`E\probes\p-csv-blank-appliesto.ps1` on the package of the build before the fix
+gives `None/None` twice for two descriptor objects with `AppliesTo
+ThisFolderOnly` and none. My first tests piped one object per call, so they
+could not see a value that stays for the next object; a pipeline test needs two
+objects of different shape.
+
+**The fix (`9783d2a`).** The flags of a record are locals, and the fields keep
+only what the parameters bound. The loops of `Remove-NTFSAccess` and
+`Remove-NTFSAudit` converted the scope a second time into the same fields (the
+trivial observation of the first version of this report); the locals make that
+redundant, so it is gone. The tests pipe objects of different shape in one
+call into each of the four cmdlets, for paths and for descriptors, and the
+changelog names the new errors.
+
+The two Minor findings: the `PathSimple` row of the Remove-NTFSAudit pipe test
+passes without the fix of `93ed2c7`, because its entry is on a file, where the
+scope does not matter (its comment says so now, and the new Contexts on
+folders tell the sets apart); and the changelog entry did not name the error
+of a call without a path.
+
+**The verification of the fix.** The same reviewer, asked to verify `9783d2a`
+(probes of a copy of the package in both editions, identical results), found the
+production change correct: no value of one piped record
+reaches the next in the four cmdlets (it probed `-AccessType`, records without
+a mandatory parameter or without a path, two paths in one record, named calls,
+descriptor calls, and `-RemoveSpecific`), the lambdas capture the right locals,
+and the rc7 tag has the same carry-over for descriptor objects. It found one
+Major and one Minor finding, both about the empty cell. The statement of the
+changelog entry and of the four pages that an empty `AppliesTo` fails to bind
+holds for `$null` only: an empty string, such as a blank cell that `Import-Csv`
+reads from a file, is ignored and the row gets the default scope, and so is a
+value that is not the name of a scope (`'NoSuchScope'`: the entry gets the
+default scope, which is the broader one; a loud failure for it needs code, a
+design change: open item 3). My probes and tests had used `ConvertFrom-Csv` of
+strings, which makes a trailing blank cell `$null`, so they had shown the one
+route where the statement holds. `7bc7925` corrected the changelog entry, the
+four pages, and the help file, and the tests read a file with `Import-Csv`.
+
+**The second check, of `7bc7925` and of this report.** The same reviewer,
+asked to verify `7bc7925` and the new sections of this report (probes of copies
+of the packages of `93ed2c7` and of the final package, in both editions, with
+identical results; the labs and the Memory Bank were outside its scope), found
+no Blocker and no Major finding, and seven Minor findings. It confirmed that
+the statements about `$null`, an empty string, a space, a misspelled name,
+`AmbiguousParameterSet` for a scope together with a flag, and for a call with
+neither `-Path` nor `-SecurityDescriptor` are true in both editions; that the
+pages and the help file say the same; that the three tests of the CSV route in
+each file fail on the build before the fix for the stated reasons and pass on
+the fixed build; and the numbers of the measurement of `7bc7925` (1,492 cases,
+3,266 of 3,668 points, 696 skipped rows of 174 tests, the inventory and the
+classification byte-equal to those of `9783d2a`). The findings:
+
+| # | Finding | Resolution |
+| --- | --- | --- |
+| 1 | "An empty string or a value that is not the name of a scope is ignored, and the object gets the default scope" is too general. A number converts (`'0'` and `0` give `ThisFolderOnly`; 13, 14, 99, and -1 are ignored), `'ThisFolderOnly,SubfoldersOnly'` binds `SubfoldersOnly`, an array of names and a padded or lower-case name bind. An unusable `AppliesTo` next to a flag gives the flag, not the default scope. A CSV row with fewer fields than its header gives `$null` and fails | The changelog entry, the four pages, and the help file now say that a value that PowerShell cannot convert is ignored, that the object is then handled as one without `AppliesTo` (its own flags, else the default scope), and that a CSV row with fewer fields gives `$null` (`2112ee3`). My probe `p-unconvertible-appliesto.ps1` (both editions, the package of the fix and the package before it) shows the empty string, a misspelling, and 99 ignored; the flag next to an empty string; `$null` and the short CSV row failing; and a lower-case name, a padded name, `0`, `'0'`, and an array of one name binding. The rules for lists and other numbers are those of an enum parameter and are not repeated in the text |
+| 2 | "Two consequences are in the changelog entry": the second one, an object with `Path` and a `SecurityDescriptor`, was not | The entry and the four pages name it (`2112ee3`), and the table of the change has a row for it |
+| 3 | "The blank-cell test cannot go red through the product code alone" is false | Run on the package of `93ed2c7` (`E\tdd5red93`), the 89 cases fail in 10 places elevated and 5 as a basic user, the two blank-cell tests among them (the tests, red and green) |
+| 4 | `7bc7925` is said to correct the decision and this report, but it changed the changelog, the pages, the help file, and two test files; "no agent read it again" is out of date | The text names the commit of each change, and the review of `7bc7925` is this check |
+| 5 | Decision 24 says "the Major finding of the second review", which was the third review's; it does not name the second stop of the chain | Decision 24 names the third review and both stops |
+| 6 | "The first version of the model was unfaithful (`SecurityDescriptor` was an `[object[]]`)": no saved file shows it | The text says what the two saved models contain |
+| 7 | The three audit rows that reject a call with `AppliesTo` and `InheritanceFlags` say that they change nothing, but compare the DACL, which the audit cmdlets never write | The rows say and assert the error only (`6143545`); the access rows compare the DACL, which is what those cmdlets write |
+
+The reviewer could not check the durations of the reviews, which no file of
+the evidence records (the report no longer states them), the first build of
+`mutA` (the report says that it is not kept), the interactive prompt of a call
+without `-Path` (open item 3 says so), and platyPS.
+
+### The tests, red and green
+
+Each run is the focused Pester run of the files in the four configurations
+(`E\tdd3`, `E\tdd4`, `E\tdd5`, `E\tdd5red`, `E\tdd5red93`, `E\tdd6`; the logs
+`tdd3red2-*`, `tdd3green-*`, `tdd4red2-*`, `tdd4green-*`, `tdd5-*`, `tdd5red-*`,
+`tdd5red93-*`, and `tdd6-*`):
+
+| Run | Build | Files and cases | Elevated, Desktop and Core | Basic user, Desktop and Core |
+| --- | --- | --- | --- | --- |
+| red for `93ed2c7` | the build before the fix | the two ParameterSets files, 75 cases | 62 passed, 12 failed, 1 skipped | 38 passed, 8 failed, 29 skipped |
+| green for `93ed2c7` | `93ed2c7` | the two files and the Items file, 209 cases | 208 and 207 passed, 0 failed | 174 and 173 passed, 0 failed |
+| red for `9783d2a` | `93ed2c7` | the two files, 87 cases | 78 passed, 8 failed, 1 skipped | 48 passed, 4 failed, 35 skipped |
+| green for `9783d2a` | `9783d2a` | the three files, 221 cases | 220 and 219 passed, 0 failed | 180 and 179 passed, 0 failed |
+| red for `7bc7925` | the build before the fix (`8a625c8`) | the two files with the `Import-Csv` and `$null` rows, 89 cases | 62 passed, 26 failed, 1 skipped | 38 passed, 15 failed, 36 skipped |
+| red for `7bc7925` | `93ed2c7` | the same 89 cases | 78 passed, 10 failed, 1 skipped | 48 passed, 5 failed, 36 skipped |
+| green for `7bc7925` | `9783d2a` (the same source) | the same 89 cases | 88 passed, 0 failed, 1 skipped | 53 passed, 0 failed, 36 skipped |
+| green for `2112ee3` | `9783d2a` (the package of the lab runs `ap8`) | the two files after `6143545` changed three titles, 89 cases | 88 passed, 0 failed, 1 skipped | 53 passed, 0 failed, 36 skipped |
+
+The 12 failures of the first red run are, for Add-NTFSAccess, the three rows
+that pipe `AppliesTo` (the entry gets the default scope) and the row that pipes
+`AppliesTo` and `InheritanceFlags` (no error); for Add-NTFSAudit the same four,
+one of them the `PathSimple` row of the older test; and for each of the two
+Remove cmdlets the row with `AppliesTo` (the entry is removed whole) and the
+row with both properties. The 8 failures of the basic runs are the six access
+rows and the two audit rows that need no privilege. The 8 failures of the
+second red run are exactly the eight tests that pipe objects of different
+shape; the CSV rows of that round passed on `93ed2c7`, because each of their
+rows has an `AppliesTo` of its own, and no value stays from a row that has
+none. Two defects of my own tests showed. Two rows of the first red run failed
+for the wrong reason (the variable `$left` of the test body overwrote the row
+variable `$Left`, because PowerShell variable names ignore case). The CSV rows
+of the second round read strings with `ConvertFrom-Csv`, which makes a
+trailing blank cell `$null`, and said that an empty cell fails to bind; the
+follow-up review showed that this holds for `$null` only. A blank cell that
+`Import-Csv` reads from a file is an empty string, which the binder cannot
+convert, so `PathSimple` does not bind and the row gets the default scope. The
+tests read a CSV file with `Import-Csv`, the route that the documentation
+shows, and pin the blank cell as the default scope and the `$null` object as a
+binding error for that object only (`7bc7925`). Run against the build before the
+fix, the three tests of that route fail in each of the two files, for the
+expected reasons (every row gets the default scope, and the `$null` object
+gives no error; `E\tdd5red`). Run against `93ed2c7`, the 89 cases fail in 10
+places elevated and in 5 as a basic user (`E\tdd5red93`): the eight tests of
+the mixed pipelines and the two blank-cell tests, because the scope of the row
+before reaches the blank row. An earlier version of this paragraph said that the
+blank-cell test cannot go red through the product code alone; that was a
+conclusion without a run, and the run shows the opposite. On `9783d2a`, all
+of them pass. The commit `6143545` then changed three titles of audit rows
+(the second check, finding 7); the run `tdd6` is the proof that nothing else
+changed.
+
+**Mutations of the culture test** (the Minor finding 1 of the first review,
+`88ed362`): the test now reads the culture of the thread in the next pipeline
+stage for each item, and once after the call. Three mutations of
+`GetChildItem2.cs`, each in a scratch worktree (`E\proto-appliesto`) and
+restored after the run, fail it: writing the item inside the scope of the
+invariant culture (`mutB`: 4 rows fail, 130 passed of 134 in Windows PowerShell
+5.1, elevated); leaving the scope without restoring the culture (`mutA2`: 4
+rows fail in both editions); and (`mutC`) restoring it only after a `MoveNext`
+that returns an item, which only the assertion after the call catches. The
+first build of `mutA` did not hold the mutation (a restore of the file ran at
+the same time as the edit; a probe of that build, which shows the culture of
+the thread empty after the call, was run on the second build), and its run is
+not evidence. `mutC` fails the same four rows in both editions, and the
+message is the one of the assertion after the call ("because the cmdlet
+restores the culture of the caller": `'tr-TR'` expected, `''` found), so each
+of the two assertions has a mutation that only it catches (`E\tdd3`, `E\tdd4`).
+
+### The measurement of `9783d2a`
+
+`93ed2c7` was measured first (`E\final6`: 1,478 cases per configuration,
+3,262/3,664 sequence points) and was superseded by `9783d2a` before its lab run
+was finished, so the numbers below are those of `9783d2a`. It was built once,
+in a new frozen worktree (`E\final7build`: Release, 0 errors, 317 warnings, the
+same as at `fa0701b`; the package that `New-ModulePackage.ps1` makes and its
+extracted copy are hash-equal, `NTFSSecurity.dll` `DFA943D1…`), and measured
+with the commands of the earlier measurements (`Chain-Remeasure.ps1`:
+Validate, Coverage, and the skip eligibility on a second tree that holds the
+same bytes).
+
+- Validate (no instrumentation): 1,490 cases in each of the four
+  configurations, no failure (1,459 at `61e936e`; the 31 rows of the
+  `AppliesTo` fix):
+
+| Configuration | Passed | Failed | Skipped | Total |
+| --- | ---: | ---: | ---: | ---: |
+| Windows PowerShell 5.1, elevated | 1,464 | 0 | 26 | 1,490 |
+| Windows PowerShell 5.1, basic user | 1,200 | 0 | 290 | 1,490 |
+| PowerShell 7, elevated | 1,433 | 0 | 57 | 1,490 |
+| PowerShell 7, basic user | 1,169 | 0 | 321 | 1,490 |
+
+- Skip eligibility, by row: 694 skipped rows of 173 distinct tests (666 and 165
+  at `61e936e`). Every skipped row executes in at least two other
+  configurations, and no skipped row lacks an executed counterpart. The 28 new
+  skipped rows are 14 audit rows in each of the two basic-user configurations,
+  which need the Security privilege.
+- The instrumented runs gave the same counts. The measured assemblies:
+
+| Assembly | SHA-256 |
+| --- | --- |
+| `NTFSSecurity.dll` | `DFA943D15B9DA0580020625EB4741F635F70E1679D72046660E602470480842A` |
+| `Security2.dll` | `9B8AA25ADA31337388E9C2EDAD3D93B42D2EAE6EE7CF0146D85FFDABFB29A33F` |
+| `ProcessPrivileges.dll` | `615774328D04633DE27ED78A1971AD3C09C0D9FA922C4DE7CDA3EFB6CA6A4ECC` |
+| `PrivilegeControl.dll` | `585F8FFD630A75FDC1041C0AC50AF3FCE0719048A3D7ACE055D6BD44B855D5BF` |
+
+| Assembly | Sequence points | Sequence coverage | Branch points | Branch coverage |
+| --- | ---: | ---: | ---: | ---: |
+| NTFSSecurity | 1,980/2,187 | 90.53% | 679/1,093 | 62.12% |
+| Security2 | 1,061/1,240 | 85.56% | 509/753 | 67.60% |
+| ProcessPrivileges | 205/219 | 93.61% | 72/125 | 57.60% |
+| PrivilegeControl | 20/22 | 90.91% | 12/17 | 70.59% |
+| Aggregate | 3,266/3,668 | 89.04% | 1,272/1,988 | 63.98% |
+
+The explicit branch points that a person wrote are 1,086/1,164 (93.30%;
+1,090/1,168 at `61e936e`): the two conditions of the second conversion in the
+loops of the Remove cmdlets, four points, are gone. The sequence points grew by
+four: the two locals of each of the four methods add eight, and the second
+conversion removes four. The build visits eight points more than the build of
+`61e936e`: the eight of the locals, and the four getters that the new rows
+supply (`AddAccess.AppliesTo`, `.InheritanceFlags`, `.PropagationFlags`, and
+`RemoveAccess.AppliesTo`), less the four visited points that were removed.
+The unvisited inventory has 183 methods, 402 sequence points, and 78 explicit
+branch points: the 187 methods of `61e936e` less the four getters. Each is
+classified (none unclassified), 167 as explained and 16 as open (the 8 methods
+that the paths report left to the maintainer, and 8 getters of pipeline
+parameters; `classification-final7.csv`). Two unvisited lambdas of the audit
+cmdlets have new compiler-generated names (`<>c__DisplayClass35_1` and
+`39_1`).
+
+Compared by position with `61e936e` (`merge\final5-vs-final7-points.csv`),
+4,618 points (3,506 sequence points and 1,112 explicit branch points) exist in
+both builds. None of them is visited by the run of one build and not by the
+other, but the four getters, which only the new run visits. The other 214
+positions of each build are in the four changed `ProcessRecord` methods, their
+lambdas, and the two `EndProcessing` methods that follow them (their lines
+moved), and they cannot be aligned: 196 of them are visited in each build, and
+18 are not. The merged tables of the sources (Methods and Cmdlets) are still
+those of `b2cb47b`.
+
+### The measurement of `7bc7925`
+
+`7bc7925` changes two test files, the changelog, the four cmdlet pages, and the
+help file; the product code is that of `9783d2a`. A Release build is not
+byte-reproducible, and a new build would not be the one that the labs accepted,
+so none was made: `E\final8build` is the pristine Release folder of
+`E\final7build` with the help file of `7bc7925` (`en-US\NTFSSecurity.dll-Help.xml`;
+the four assemblies, the manifest, and every other file are hash-equal to those
+of `final7build`, and `bytes-note.txt` says so). The chain
+`Chain-Remeasure.ps1` refused to run when a file outside the tests and the
+documents differs from the commit of the pristine build (none does), copied the
+20 files of the pristine folder into a new frozen worktree and a new
+eligibility worktree (all hashes equal), and ran Validate, Coverage, and the
+skip eligibility (`E\final8`, `E\eligibility-final8`; 12:22 to 12:39Z).
+
+- Validate (no instrumentation): 1,492 cases in each of the four
+  configurations, no failure (1,490 at `9783d2a`: each of the two files has one
+  more test of the CSV route):
+
+| Configuration | Passed | Failed | Skipped | Total |
+| --- | ---: | ---: | ---: | ---: |
+| Windows PowerShell 5.1, elevated | 1,466 | 0 | 26 | 1,492 |
+| Windows PowerShell 5.1, basic user | 1,201 | 0 | 291 | 1,492 |
+| PowerShell 7, elevated | 1,435 | 0 | 57 | 1,492 |
+| PowerShell 7, basic user | 1,170 | 0 | 322 | 1,492 |
+
+- Skip eligibility, by row: 696 skipped rows of 174 distinct tests (694 and 173
+  at `9783d2a`). Every skipped row executes in at least two other
+  configurations, and no skipped row lacks an executed counterpart. The two new
+  skipped rows are the new audit test in each of the two basic-user
+  configurations, which need the Security privilege.
+- The instrumented runs gave the same counts and the same measurement as
+  `9783d2a`: 3,266/3,668 sequence points (89.04%), 1,272/1,988 branch points of
+  the summary (63.98%), and 1,086/1,164 explicit branch points (93.30%). The 19
+  measured files of the two runs have the same names and hashes, so the four
+  assemblies are those of the table above. Merged by position with the run of
+  `9783d2a` (`merge\final7-vs-final8-points.csv`), both runs have the same 3,668
+  sequence points and 1,164 explicit branch points and visit the same ones: the
+  second run adds none. The inventory of the unvisited methods (183 methods,
+  402 sequence points, 78 explicit branch points) and the classification (167
+  explained, 16 open) are byte-equal to those of `9783d2a`.
+
+The unit suite on the machines of the matrix lab and the cells of the matrix lab
+ran on this package (the sections on the suite and on the acceptance), and the
+first lab ran on the package of `9783d2a`; the two packages differ in the help
+file only.
+
+### The measurement of `2112ee3`
+
+`6143545` changes one test file (three titles, and the comparison of the DACL
+that they no longer claim), and `2112ee3` the changelog, the four cmdlet pages,
+and the help file; the product code is still that of `9783d2a`. As for
+`7bc7925`, no build was made: `E\final9build` is the pristine Release folder of
+`E\final8build` with the help file of `2112ee3`, and `bytes-note.txt` says that
+this file is the only one outside the tests and the documents that differs from
+`9783d2a`, and the only one that differs from the package of the lab runs. The
+chain ran Validate, Coverage, and the skip eligibility on those bytes
+(`E\final9`, `E\eligibility-final9`; 13:24 to 13:41Z). The run also executes the
+tests that check the texts of the final commit: the help tests, which compare
+what `Get-Help` shows with the pages of `Docs\Cmdlets`, and the tests of the
+release notes, which parse `CHANGELOG.md`.
+
+- Validate (no instrumentation): 1,492 cases in each of the four
+  configurations, no failure, and the same passed and skipped counts as at
+  `7bc7925` (1,466 and 26, 1,201 and 291, 1,435 and 57, 1,170 and 322).
+- Skip eligibility, by row: the same 696 skipped rows of 174 tests as at
+  `7bc7925` (no row differs), each executed in at least two other
+  configurations.
+- The instrumented runs: 3,266/3,668 sequence points, 1,272/1,988 branch
+  points of the summary, and 1,086/1,164 explicit branch points, as before.
+  The 19 measured files have the same names and hashes as those of `7bc7925`,
+  the merge by position with that run (`merge\final8-vs-final9-points.csv`)
+  adds 0 points, and the inventory (183 unvisited methods) and the
+  classification (167 explained, 16 open) are byte-equal.
+
+The commits after `2112ee3` change the report, its tables, the lab README, and
+the Memory Bank only.
+
 ## Decisions made
 
 The decisions below are the agent's, taken inside the limits of the handoff;
@@ -1324,24 +1843,64 @@ the maintainer can reverse every one of them.
     as evidence. The merged tables of the sources (Methods and Cmdlets) are those
     of `b2cb47b`: the other sources must run the same code, and `GetChildItem2`
     changed since, so its final row is measured on its own.
-20. **One independent review, not two.** The review (the built-in `code-review`
-    agent, 44 minutes, read-only) found four Major findings and several Minor
-    ones; each was resolved or answered with a probe, a test, or a text change
-    (section Review). The changes made to resolve them were not reviewed by a
-    second agent: runs verified them (red and green tests, probes, the lab
-    acceptance), and the handoff asks for one review.
-21. **The cells of the matrix lab were not run again for the final build.** The
-    change after the acceptance that the matrix gave to rc7 is one class,
-    `GetChildItem2`, which the live suite of the first lab exercises and the
-    unit suite ran on the three file servers and the client. The cells are the
-    acceptance of a new candidate (open item 6), and they cost the matrix lab's
-    time (an evaluation client that shuts down every hour).
+20. **Three independent reviews and two checks, on request.** The first review
+    (the built-in `code-review` agent, read-only) found four Major findings and
+    several Minor ones. The maintainer then asked for `review: on`, and each
+    finished delta was read again: the second review found five Minor
+    findings; the third (of the fix of the piped `AppliesTo`) one Major and two
+    Minor; its first check of the correction one more Major and one Minor; and
+    its second check, of `7bc7925` and of this report, seven Minor findings and
+    no Major (section Review). Runs verified every fix. The second review also
+    read the fixes of the first, and the checks read the fix of the third. The
+    commits `6143545` and `2112ee3`, the three test titles and the words that
+    the second check asked for, were not read again.
+21. **The cells of the matrix lab ran on the final builds.** For the build of
+    `8a625c8` they were first not run, because the change after the acceptance
+    that the matrix gave to rc7 is one class, `GetChildItem2`, which the live
+    suite of the first lab exercises and the unit suite ran on the three file
+    servers and the client. The maintainer asked for them, and they ran on the
+    package of `8a625c8` (`mxf`, 2026-10-11 07:33 to 07:57Z; the section Lab
+    acceptance of the fixed build). They ran again on the final package, the
+    Release build of `9783d2a` with the help file of `7bc7925` (`ap8`, 13:19 to
+    13:43Z), after the fix of the piped `AppliesTo`.
+    The evaluation client shuts down an hour after each start, so it starts
+    right before the cells.
 22. **Server Core, ARM64, a localized operating system, and non-Windows file
     servers are out of scope** (the maintainer, 2026-10-11: the audience of the
     tool does not need them; Memory Bank Decision 25). They are not open items
     and no further plan, deployment, or test covers them. The decision is about
     the tests and the acceptance of this work; the question of #34 (Decision 23
     of the Memory Bank) is not changed by it.
+23. **The piped `AppliesTo` is fixed by removing the default parameter set**
+    (the maintainer, 2026-10-11, after the question why a piped property is
+    dropped; Memory Bank Decision 26). The options were to leave it as a
+    documented limit; to remove the default set (four attributes; new errors
+    for an object with `AppliesTo` and a flag, for an object with `Path` and
+    `SecurityDescriptor`, for a `$null` `AppliesTo`, and for a call with
+    neither `-Path` nor `-SecurityDescriptor`, see the section on the fix); or
+    to keep the default and make `AppliesTo` an optional parameter of the
+    Complex sets, which changes the public syntax. The dropped property was a
+    silent change of the scope (`ThisFolderOnly` became
+    `ThisFolderSubfoldersAndFiles`), and the second option changes the
+    declaration only and keeps every named call, so it was taken.
+24. **Two lab chains were stopped when a finding arrived.** The chain of
+    `93ed2c7` (`ap6`) was stopped when the Major finding of the third review
+    arrived. The suite stage that was running on the file servers was left to
+    finish, because stopping it would have skipped the clean-up of its runner;
+    its results (`localsuite-ap6`: 12 configurations, 1,175 cases each, no
+    failure) are evidence of `93ed2c7`, not of the final build. The first
+    stage of that chain, the acceptance of the first lab, had failed at once
+    (11:21:53Z): `Run-AcceptStage.ps1` has `$PSScriptRoot` in a parameter
+    default, which is empty in Windows PowerShell 5.1 with `-File`, and the
+    chain judges nothing and went on. A second chain (`ap6b`), meant to repeat
+    the acceptance alone, never started a stage; its log has the start line
+    only. The chain of `9783d2a` (`ap7`), queued behind that suite stage, was
+    stopped at 12:15:58Z, when the first check of the correction found the
+    false sentence about empty values, while its first stage, the acceptance
+    of the first lab, was running; that stage ran on and ended with exit code
+    0 at 12:24:39Z (`accept-ap7.log`). The stages after it ran in the chain
+    `ap8`, on the package of `7bc7925` (`final8build`), which names the script
+    explicitly.
 
 ## Open items for the maintainer
 
@@ -1359,39 +1918,47 @@ of the effective-access check, Decisions 22 and 24, and #34) stay as they are.
    have no trigger on a Windows file server. Closing them needs an answer of a
    file server that is not a Windows server (#34), or a seam that injects the
    exception (a design change).
-3. **A piped property `AppliesTo`** is dropped for a path, without a message:
-   the default set `PathComplex` binds, and the property does not select the
-   Simple set (probed for all four cmdlets: `Add-NTFSAccess`,
-   `Remove-NTFSAccess`, `Add-NTFSAudit`, and `Remove-NTFSAudit`). For a
-   descriptor it selects `SDSimple`. The cause is the declaration, not
-   PowerShell: when a piped object satisfies the mandatory parameters of the
-   default set, the binder settles on it and never tries a parameter that
-   belongs to another set. Without `DefaultParameterSetName`, a model with the
-   same four sets binds `PathSimple` for an object with `AppliesTo` and
-   `PathComplex` for one without, and every named call resolves as before
-   (`E\probes\p-parameterset-binding*.ps1` and their outputs; the real
-   cmdlets were not changed or tested). The default is a leftover: at 4.2.6
-   `AppliesTo` was optional and the sets overlapped, and `4b1abc9` made it
-   mandatory so that the Complex sets win without it. Intended or not? Leaving
-   it is a documented limit; removing the default is a change of four cmdlet
-   attributes with a new error for an object that carries `AppliesTo` and
-   `InheritanceFlags` both.
-4. **Twelve getters of pipeline parameters** that take pipeline input by
-   property name and that no test supplies on a piped object (Stage C lists
-   them): tests close them.
+3. **A piped property `AppliesTo`** was dropped for a path, without a message.
+   It is fixed (decision 23, the section on the fix): the four cmdlets declare
+   no default parameter set, and the flags of a record are locals. What stays
+   for the maintainer is to read the consequences that the changelog entry
+   names. An object that has `AppliesTo` together with `InheritanceFlags` or
+   `PropagationFlags` fails with `AmbiguousParameterSet`, and so does an object
+   that has both `Path` and `SecurityDescriptor`. An `AppliesTo` that is
+   `$null` fails to bind for that object, and a CSV row with fewer fields than
+   its header has `$null` there. A call with neither `-Path` nor
+   `-SecurityDescriptor` fails with `AmbiguousParameterSet` instead of a
+   missing-parameter error for `-Path`, so an interactive host no longer
+   prompts for the path (the prompt was not exercised). One limit remains, and
+   it is silent: a value that PowerShell cannot convert to a scope, such as the
+   empty cell that `Import-Csv` reads or a misspelled name
+   (`ThisFolderOnlyy`), is ignored, and the object is handled as one without
+   `AppliesTo`: it uses its own flags, and gets the default scope, the broader
+   one, when it has none. The binder swallows a value that it cannot convert
+   to the enum, and a cmdlet does not see the object that is piped, so
+   failing loudly needs a design change: `AppliesTo` as an optional parameter
+   of the Complex sets too (a change of the syntax), or a string that the
+   cmdlet parses itself.
+4. **Eight getters of pipeline parameters** that take pipeline input by
+   property name and that no test supplies on a piped object
+   (`AddAccess.AccessType`, `AddAudit.AuditFlags`, `CopyItem2.Destination`,
+   `GetEffectiveAccess.Account`, `GetFileHash2.Algorithm`,
+   `MoveItem2.Destination`, `RemoveAudit.AuditFlags`, `SetOwner.Account`):
+   tests close them. The rows of the `AppliesTo` fix visit four of the twelve
+   that Stage C counted (`AddAccess.AppliesTo`, `.InheritanceFlags`,
+   `.PropagationFlags`, and `RemoveAccess.AppliesTo`).
 5. **The remaining gaps of 52 sets** in the ParameterSets table (62 `budget`,
    16 `Limit`, 2 `would-pin`, and 3 `MaintainerDecision` mentions), and the four
    `MaintainerDecision` sets with the open item 1 of the paths report. The
    `-SecurityDescriptor` sets other than three were not tested with a direct
    call that passes several descriptors.
-6. **A new candidate.** The fixes `419cfb3`, `0028ccd`, `fbe0289`, and
-   `8a625c8` and the tests are changes after the tag; a new candidate, if he
-   takes them, needs the acceptance (matrix cells and first lab) on its own
-   bytes. The acceptance of the fixed build below is evidence for the behavior,
-   not for a release.
-7. **A trivial observation:** `RemoveAudit.cs` converts the scope of an
-   `-AppliesTo` twice for the set `PathSimple` (at the top of `ProcessRecord`
-   and again in the loop). It is idempotent and has no effect.
+6. **A new candidate.** The fixes `419cfb3`, `0028ccd`, `fbe0289`, `8a625c8`,
+   `93ed2c7`, and `9783d2a` and the tests are changes after the tag; a new
+   candidate, if he takes them, needs the acceptance (matrix cells and first
+   lab) on its own bytes. The acceptance of the final package (the first lab on
+   the build of `9783d2a`; the suites and the cells on that build with the help
+   file of `7bc7925`; the sections on the acceptance and on the fix) is evidence
+   for the behavior, not for a release.
 
 ## Completion matrix
 
@@ -1400,23 +1967,32 @@ of the effective-access check, Decisions 22 and 24, and #34) stay as they are.
 | Coverage of the shipped code (rc7, `fa0701b`) | Closed | Stage A: 3,198/3,649 sequence points (87.64%), 1,090/1,168 explicit branch points; 232 methods classified, none unclassified; the Methods, Cmdlets, and Reconciliation tables |
 | Coverage of the live tests | Closed | Stage B: first lab and three matrix cells, 245 and 229 passed per edition, the counts of the uninstrumented acceptance; 1,861 sequence points each, 9 sequence and 4 explicit branch points more than the host unit suite; the cells add nothing to the first lab |
 | The unit suite on a domain member | Closed | `OSFile25`, four configurations, the counts of the rc7 acceptance; 9 sequence and 3 explicit branch points more than the host |
-| The unit suite of the final build on the other operating systems | Closed | the 22 behavior files on Windows Server 2019, 2022, 2025 and Windows 11 (build 28000), elevated and as a basic user, both editions: 1,156 cases in each of the 16 configurations, no failure (`fix5`, `fix5c`); the first run (`fix1`) found one failing test, caused by its oracle and fixed in the test (`f1f3d8f`); both labs verified clean afterwards |
+| The unit suite of the final build on the other operating systems | Closed | the 22 behavior files on Windows Server 2019, 2022, 2025 and Windows 11 (build 28000), elevated and as a basic user, both editions: 1,156 cases in each of the 16 configurations at `61e936e`, no failure (`fix5`, `fix5c`), and 1,189 cases in each at `7bc7925` on the final package, no failure (`ap8`); the first run (`fix1`) found one failing test, caused by its oracle and fixed in the test (`f1f3d8f`); both labs verified clean afterwards |
 | The code of `fdd7a8b` | Closed, with one branch visited by nothing | the ServerAdmin tests (lines 478 and 486) and the basic-user runs on the domain member visit the fall back; the answer "RPC server unavailable" of the context initialization is visited by nothing (explained) |
 | `AUDIT-OWNER-RETRY`, `AUDIT-READ-DENIED` | Open, explained | no test visits them; no trigger on a Windows file server (probe of 48 calls); closing needs a non-Windows server (out of scope, decision 22) or a seam (a design change) |
-| The reachable gaps, the judged matrix of the 64 parameter sets | Partly closed | 79 `It` blocks (140 rows), 33 of 35 mutations caught; 7 sets closed, 51 partly, 1 open, 4 `MaintainerDecision`, 1 `None`; 12 getters of pipeline parameters open; one defect (hard-link names) and one behavior (piped `AppliesTo` for a path) for the maintainer |
+| The reachable gaps, the judged matrix of the 64 parameter sets | Partly closed | 79 `It` blocks (140 rows) and, for the piped `AppliesTo`, 22 more (33 rows); 33 of 35 mutations caught; 7 sets closed, 51 partly, 1 open, 4 `MaintainerDecision`, 1 `None` (the statuses are those of Stage C; the tests of the fix were not judged again); 8 getters of pipeline parameters open; one defect (hard-link names) for the maintainer |
 | Other cultures | Closed for `de-DE` and `tr-TR`, after two defects | two defects found and fixed test-first: the comparison of an identity with a name (`419cfb3`) and `Get-ChildItem2 -Filter` (`0028ccd`, `fbe0289`, `8a625c8`), the second found by the independent review after the scan had missed its class of call; six `de-DE` failures are assertions on English text; localized names and texts are out of scope (decision 22) |
 | Windows Server Core, ARM64, a localized system, non-Windows file servers | Out of scope | the maintainer's decision of 2026-10-11: the audience of the tool does not need them (decision 22) |
-| The final commit | Closed | `61e936e`, built once at `8a625c8` and measured on those bytes: 1,459 cases per configuration, no failure; 3,258/3,664 sequence points (88.92%), 1,090/1,168 explicit branch points; skip eligibility by row (666 skipped rows, none without an executed counterpart); the same 187 unvisited methods as at `b2cb47b`, all classified; the merged tables of the sources are those of `b2cb47b` (Final measurement) |
-| The lab acceptance of the fixed build | Closed for the first lab | three runs on three builds (`b2cb47b`, `0028ccd`, and the final build `8a625c8`), both editions, 245 passed, 0 failed, 1 skipped each, clean end state; the matrix cells were not run again (a new candidate needs them) |
+| The final commit | Closed | `2112ee3`, with the product code of `9783d2a`, built once (`NTFSSecurity.dll` `DFA943D1…`) and measured on those bytes (the help file of the commit in the package): 1,492 cases per configuration, no failure; 3,266/3,668 sequence points (89.04%), 1,086/1,164 explicit branch points; skip eligibility by row (696 skipped rows, none without an executed counterpart); 183 unvisited methods, all classified; the merged tables of the sources are those of `b2cb47b` (Final measurement; the section on the fix). At the earlier `61e936e` (built at `8a625c8`): 1,459 cases, 3,258/3,664 points, 187 methods |
+| The lab acceptance of the fixed build | Closed, on the final package | the first lab: four runs on four builds (`b2cb47b`, `0028ccd`, `8a625c8`, and `9783d2a`), both editions, 245 passed, 0 failed, 1 skipped each, clean end state; the three cells of the matrix lab on `8a625c8` (`mxf`) and on the final package (`ap8`), 229 passed, 0 failed, 2 skipped per edition each time, clean end states; the unit suite on the final package in 16 configurations (`ap8`). A new candidate needs its own acceptance (open item 6) |
 
 ## Review
 
-One independent review, as the handoff asks: the built-in `code-review` agent
-(the custom `security-reviewer` cannot start), read-only, one pass of 44 minutes
-over `6696f68..bea855e`, which covered the production fix, the new tests, the
-numbers of this report, the Memory Bank, and the change of the matrix runner.
-It found four Major and several Minor findings, and no Blocker. Each was
-resolved or answered with evidence:
+The handoff asks for one independent review. The maintainer asked for
+`review: on` after it, so each finished delta was read again: three reviews and
+two checks of the third reviewer, all by the built-in `code-review` agent (the
+custom `security-reviewer` cannot start), read-only, and none by the agent that
+wrote the code.
+
+| Review | Read | Result |
+| --- | --- | --- |
+| first | `6696f68..bea855e`, one pass: the production fix, the new tests, the numbers of this report, the Memory Bank, and the change of the matrix runner | 4 Major, several Minor, no Blocker |
+| second | `bea855e..21188b1`: the second culture defect, the test changes, the final measurement, the acceptance, and the decision on the environments | no Blocker, no Major, 5 Minor, all in tests and documents |
+| third | `21188b1..93ed2c7`, one pass: the fix of the piped `AppliesTo` | 1 Major, 2 Minor, no Blocker |
+| first check | the commit `9783d2a`, by the reviewer of the third review, asked to verify the correction of its finding | 1 Major, 1 Minor |
+| second check | the commit `7bc7925`, the corrected sections of this report, and the probes of the packages, by the same reviewer | no Blocker, no Major, 7 Minor |
+
+**The findings of the first review**, each resolved or answered with evidence:
 
 | # | Severity | Finding | Resolution |
 | --- | --- | --- | --- |
@@ -1430,7 +2006,7 @@ resolved or answered with evidence:
 | 8 | Minor | Numbers and wording: 67.59% (it is 67.60%); the counts of the 52 sets (they are of the 57 not closed); "each of them asserts the error ID" (only the filter test does); the Runs table (it lacked the final runs); a sentence that no cmdlet reaches an unexplained point (65 methods have no explanation) | All corrected here; the Runs table lists every run |
 | 9 | Minor | `b2cb47b` is still called the final commit, and the Memory Bank has the same wording and one overstatement | Updated with the final measurement |
 
-The reviewer checked and found clean: the production fix of the identity
+The first reviewer checked and found clean: the production fix of the identity
 comparison (null and empty arguments, `GetHashCode`, the operators, the red and
 green logs, the restoration of the thread culture, the changelog group);
 PSScriptAnalyzer on the new files; the Pester 5 pitfalls (the use of
@@ -1441,10 +2017,64 @@ SACL with `Get-Acl -Audit` (they hold audit entries); about 40 numbers of this
 report against the tables; the change of `Run-MatrixLocalSuite.ps1`; and the
 agreement of the Memory Bank with the report.
 
-The review saw `bea855e`. Everything after it, the second culture defect, the
-test changes, the new measurement, and the acceptance, was verified by runs
-(Stage D, and the sections on the final measurement and the acceptance) and not
-by a second review.
+**The findings of the second review**, all Minor, each resolved:
+
+| # | Finding | Resolution |
+| --- | --- | --- |
+| 1 | The `tr-TR` test of `Get-ChildItem2 -Filter` never asserts that the thread culture is restored after the call or in a later pipeline stage; its own `finally` resets the culture | The test reads the culture in the next stage for each item and once after the call (`88ed362`); three mutations of the restore fail it (the section on the fix) |
+| 2 | The Memory Bank lists `string.Equals` without a comparer as culture-sensitive; it is ordinal, and the defect was `ToLower()` | The list names `ToLower`, `ToUpper`, `Compare`, and `StartsWith`, `EndsWith`, and `IndexOf` without a `StringComparison` |
+| 3 | The hard-link repro of this report maps `Z:` without a check that the letter is free, and removes the mapping at the end, which would delete a mapping of the user | The repro takes a free drive letter and cleans up in a `finally` |
+| 4 | "Nothing was pushed" was stale: the remote branch had been updated by a push 15 minutes before the last commit | The text says that the maintainer pushed the branch (`2b97422`, 2026-10-11), in this report and in the Memory Bank |
+| 5 | The mechanism that the report gave for the audit test of a piped descriptor ("because the default set does not compete") contradicts the stand-alone model of the binder | The text says what was measured, that the model is not faithful for a piped descriptor (it binds `PathComplex` where the real cmdlets bind `SDSimple`), and that the real cmdlets are the reference |
+
+The second reviewer checked and found clean: that exactly two production files
+differ from rc7 (`GetChildItem2.cs` and `IdentityReference2.cs`) and that
+nothing but tests, documents, and the changelog differs between `8a625c8` and
+the head of that review; that the culture of the thread is restored on every
+path and that nothing writes to the pipeline inside the scope; the cost of the
+scope (0.1 to 0.3 µs per item, measured on .NET 10; Windows PowerShell 5.1 not
+measured); that no other call in the four projects is culture-sensitive;
+PSScriptAnalyzer on the three test files; the Pester 5 phases; every number of
+the final measurement recomputed from the OpenCover XML; the Runs CSV (all 120
+rows), the Evidence CSV (all 1,168 rows), and the references of the
+ParameterSets CSV against their sources; and a scan of the added lines and of
+the evidence for secrets and unsafe commands.
+
+**The findings of the third review and of the first check:**
+
+| # | Severity | Finding | Resolution |
+| --- | --- | --- | --- |
+| 1 | Major | `ProcessRecord` of the four cmdlets wrote the scope of a piped object into the fields behind `-InheritanceFlags` and `-PropagationFlags`, so the next object without a scope took it (rc7 has the same for piped descriptor objects) | The flags of a record are locals (`9783d2a`); eight pipeline tests with objects of different shape, red on `93ed2c7`, green after |
+| 2 | Minor | The `PathSimple` row of the Remove-NTFSAudit pipe test passes without the fix, because its entry is on a file | The comment says so, and the new Contexts on folders tell the sets apart (`9783d2a`) |
+| 3 | Minor | The changelog entry did not name the error of a call without a path | Named (`9783d2a`) |
+| 4 | Major (check) | "An empty `AppliesTo` fails to bind" holds for `$null` only: an empty string, or a value that is not the name of a scope, is ignored and the object gets the default scope | The changelog entry, the four cmdlet pages, the help file, and the tests say so (`7bc7925`); the second check refined the statement (finding 1 below) |
+| 5 | Minor (check) | The tests read the CSV rows with `ConvertFrom-Csv`, which makes a trailing blank cell `$null`: the one route where the statement holds | The tests read a file with `Import-Csv` and pin the blank cell (the default scope) and the `$null` object (a binding error for that object) (`7bc7925`) |
+
+The third reviewer checked and found clean: the compatibility of removing the
+default set (no reader of `DefaultParameterSet` in the tests, the workflows, the
+documents, the wiki export, or the lab controller; identical results on both
+builds for the rule objects of `Get-NTFSAccess` and `Get-NTFSAudit` piped back
+in, also through `Export-Csv` and `Import-Csv`, for file objects with a named
+account, for descriptors, for positional and named calls, and for a piped
+hashtable); and, in the first check, the correction itself (no value of one
+piped record reaches the next in the four cmdlets, and the lambdas capture the
+right locals).
+
+**The findings of the second check** (no Blocker, no Major; the table with the
+resolutions is in the section on the fix, under the third review) were seven
+Minor findings: the statement about an unconvertible value was too general; the
+changelog entry lacked one of its two consequences; a sentence of this report
+about the blank-cell test had no run behind it and was false; the text
+credited `7bc7925` with edits of later commits; Decision 24 named the wrong
+review and one stop too few; the text described a first model that no file
+shows; and three audit rows claimed more than they assert. Each was resolved in
+`6143545`, `2112ee3`, and the commits of this report.
+
+The last commits, `6143545` and `2112ee3`, carry the test titles and the words
+that the second check asked for. No agent read them again: the runs verified
+them (the probes, the focused tests in four configurations, and the
+measurement of `2112ee3`). The first two reviews saw the code before the fix
+of the piped `AppliesTo`; the third and the checks saw the fix.
 
 ## Checks not run, and limits
 
@@ -1468,12 +2098,21 @@ by a second review.
 - The culture scan covers the C# of the four projects and the filter that
   `Get-ChildItem2` passes to AlphaFS; the rest of AlphaFS, a third-party
   library, was not scanned.
-- Not run: the live suite of the matrix cells (`Run-MatrixSequence.ps1`) on
-  the final build (the first lab ran it, and the unit suite ran on every
-  machine of the matrix; open item 6); a hard link through a volume mounted
-  into a folder or through a junction to another volume (the defect is
-  reproduced with a substituted drive only); the 12 getters; the matrix suite
-  on `OSWin11E` with the new files (`OSWin11` ran it).
+- Not run: a hard link through a volume mounted into a folder or through a
+  junction to another volume (the defect is reproduced with a substituted
+  drive only); the 8 getters of pipeline parameters that no test supplies on a
+  piped object; the interactive prompt of a call without `-Path` (the error of
+  the non-interactive call is tested); the matrix suite on `OSWin11E` with the
+  new files (`OSWin11` ran it); tests of the values of a piped `AppliesTo`
+  other than a valid name, a blank cell, and `$null` (probed in both editions,
+  `empty-appliesto-*` and `unconvertible-appliesto-*`); an acceptance of the
+  first lab on the package with the help file of `7bc7925` (it ran on the
+  package of `9783d2a`; the suites and the cells ran on the package with the
+  help file of `7bc7925`; the packages differ in the help file only); and any
+  lab run on the help file of `2112ee3` (the host ran the help tests on it).
+- The domain members and the Windows 11 client ran the test files of `7bc7925`.
+  The later changes of the tests (`6143545`: three titles of audit rows, and
+  the comparison of the DACL that they no longer claim) ran on the host only.
 - Out of scope, and not run, by decision 22: Windows Server Core, ARM64, a
   localized operating system, and a file server that is not a Windows server.
 - The Release build is not byte-reproducible: a hash identifies the measured
@@ -1483,22 +2122,26 @@ by a second review.
 - The custom `security-reviewer` cannot start (its model is unavailable), and
   no model setting was overridden; the independent review (section Review) is
   the read-only built-in `code-review` agent.
-- Nothing was pushed, merged, tagged, or published. The stable 5.0.0 stays
-  gated by the other gates, and a percentage never closes a gate.
+- The agent pushed, merged, tagged, and published nothing; the maintainer
+  pushed the branch himself (`2b97422` on 2026-10-11), and later commits stay
+  local until he pushes them. The stable 5.0.0 stays gated by the other gates,
+  and a percentage never closes a gate.
 
 ## Evidence outside git
 
 The raw evidence is in the session folder
 `C:\Users\install\.copilot\session-state\816cf47d-2f80-4eba-8ac9-41702c49560b\files\qg-unknowns`
 (`E` above). [The Evidence CSV](Quality-Gate-Unknowns-2026-10-10-Evidence.csv)
-lists its files with size and SHA-256; the folders are:
+lists the files that this report relies on, with size and SHA-256: the copies
+of `.dll` and `.pdb` files outside the packages, the frozen worktrees, and the
+folders of runs that fed no number are not in it. The folders are:
 
 | Folder | Content |
 | --- | --- |
 | `fa0701b`, `eligibility-fa0701b`, `inventory-fa0701b`, `classification-fa0701b.csv`, `reconciliation-fa0701b.csv` | Stage A: the frozen worktree, the reports and logs of the four configurations, the pristine and saved assemblies with hashes, the skip rows, and the inventory |
 | `live-inst2`, `live-fl1b`, `live-fl2`, `localsuite-osfile25`, `live-matrix`, `probe-auditdenied` | Stage B: the instrumented module and its zero-hit report, the rejected first design, the first lab, the unit suite on the domain member, the matrix cells, and the audit probe, each with the report, the snapshots per process, the validation, and the logs |
 | `paramsets`, `impl` | Stage C: the scan, the judged tables and notes, the status tables, and the run logs of the implementers |
-| `cultures`, `probes`, `tdd`, `tdd2` | Stage D and the two culture defects: the four culture runs, the probes (`hardlink-root` has the reproduction, `alphafs-*` the enumeration of AlphaFS, `review-*`, `eq-mechanism-*`, and `remove-audit-appliesto-*` the findings of the review), and the red and green runs of the identity comparison (`tdd`) and of the filter (`tdd2`) |
+| `cultures`, `probes`, `tdd`, `tdd2` | Stage D and the two culture defects: the four culture runs, the probes (`hardlink-root` has the reproduction, `alphafs-*` the enumeration of AlphaFS, `review-*`, `eq-mechanism-*`, and `remove-audit-appliesto-*` the findings of the first review; `p-parameterset-binding*`, `p-proto-appliesto*`, `proto-appliesto-*`, and `csv-blank-*` the model of the binder, the real cmdlets with and without the default set, and the mixed pipelines of the third review; `empty-appliesto-*` the empty and the invalid values of the first check, and `unconvertible-appliesto-*` the values, the CSV row with fewer fields, and the object with `Path` and `SecurityDescriptor` of the second check), and the red and green runs of the identity comparison (`tdd`) and of the filter (`tdd2`) |
 | `final`, `eligibility-final`, `inventory-final`, `classification-final.csv` | the measurement of `b2cb47b` and its package |
 | `final2`, `eligibility-final2`, `inventory-final2`, `chain-final2.log`, `merge\final-vs-final2-*` | the measurement of `f1f3d8f` on the same bytes, and its comparison with the first by position |
 | `final3`, `live-fix3` | the build of `0028ccd` (the first, incomplete fix of the filter) and its acceptance in the first lab |
@@ -1507,5 +2150,13 @@ lists its files with size and SHA-256; the folders are:
 | `live-fix4`, `localsuite-final5`, `localsuite-final5-client`, `verify-pre`, `verify-final` | the lab acceptance of the final build, the unit suite of the final build on the file servers (`fix5`) and on the Windows 11 client (`fix5c`), and the read-only checks of both labs before the work and after the last run |
 | `repro`, `repro-fixed`, `repro-host`, `repro-root`, `localsuite-final2`, `localsuite-final2-client` | the diagnosis of the failing oracle (`rep1`), the runs after the fix on the file servers (`rep2`) and the host (`hostfix`), the test roots of the diagnosis, and the full unit suite at `f1f3d8f` on the file servers (`fix2`) and the client (`fix2c`) |
 | `merge`, `scripts` | the merged points by position, and every script of the method |
+| `live-matrix-final`, `verify-final2` | the cells of the matrix lab on the package of `8a625c8` (`mxf`) and the read-only check of both labs after them |
+| `final6build`, `final6`, `eligibility-final6`, `inventory-final6`, `classification-final6.csv`, `chain-final6.log`, `merge\final5-vs-final6-*`, `tdd3` | the intermediate commit `93ed2c7`, the fix with the defect: its package, its measurement, the red and green runs of its tests, and the mutations of the culture test |
+| `chain-reaccept-ap6.log`, `chain-reaccept-ap6b.log`, `stage-accept-ap6`, `stage-suite-ap6`, `localsuite-ap6` | the stopped chain of the lab run of `93ed2c7` (`ap6b` has the start line only) and the suite stage that ran on |
+| `final7build`, `final7`, `eligibility-final7`, `inventory-final7`, `classification-final7.csv`, `chain-final7.log`, `merge\final5-vs-final7-*`, `tdd4` | the build `9783d2a`: its package, its measurement, and the red and green runs of its tests |
+| `chain-reaccept-ap7.log`, `accept-ap7.log`, `stage-accept-ap7`, `live-ap7` | the first lab on the package of `9783d2a` (the chain driver was stopped after that stage began) |
+| `final8build`, `final8`, `eligibility-final8`, `inventory-final8`, `classification-final8.csv`, `chain-final8.log`, `merge\final7-vs-final8-*`, `tdd5`, `tdd5red`, `tdd5red93` | the final package (`9783d2a` with the help file of `7bc7925`, `bytes-note.txt`), the measurement of `7bc7925` on it, and the runs of the tests of the CSV route on the build before the fix, on `93ed2c7`, and on `9783d2a` |
+| `chain-reaccept-ap8.log`, `stage-suite-ap8`, `stage-suitec-ap8`, `stage-matrix-ap8`, `stage-verify-labs-ap8`, `stage-verify-client-ap8`, `localsuite-ap8`, `localsuite-ap8-client`, `live-matrix-ap8`, `verify-ap8` | the lab acceptance of the final package after the first lab: the unit suite on the file servers and the client, the cells, and the read-only checks of both labs and of the client |
+| `final9build`, `final9`, `eligibility-final9`, `inventory-final9`, `classification-final9.csv`, `chain-final9.log`, `merge\final8-vs-final9-*`, `tdd6` | the measurement of `2112ee3` on the final package with its help file (`bytes-note.txt`), and the focused run of the two ParameterSets files after the change of three titles |
 
 Nothing in the evidence holds a password; the controller keeps them in memory.
