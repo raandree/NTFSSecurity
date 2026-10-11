@@ -233,11 +233,15 @@ The format is based on
   before it; the property now sets the scope of its own object only. A piped
   object that has `AppliesTo` and `InheritanceFlags` or `PropagationFlags`
   now fails with `AmbiguousParameterSet`, like the same parameters on the
-  command line, and one whose `AppliesTo` is `$null` fails to bind; an
-  `AppliesTo` that is an empty string or not the name of a scope is ignored,
-  and the object gets the default scope. A call with neither `-Path` nor
-  `-SecurityDescriptor` now fails with `AmbiguousParameterSet` instead of a
-  missing-parameter error for `-Path`
+  command line, and so does an object that has both `Path` and
+  `SecurityDescriptor`, where the path won before. An `AppliesTo` that is
+  `$null` fails to bind for that object (a row of a CSV file that has fewer
+  fields than its header gives `$null`). A value that PowerShell can't
+  convert to a scope, such as the empty cell of a CSV file or a misspelled
+  name, is ignored, and the object is handled as one without `AppliesTo`: it
+  gets its own flags, or the default scope if it has none. A call with
+  neither `-Path` nor `-SecurityDescriptor` now fails with
+  `AmbiguousParameterSet` instead of a missing-parameter error for `-Path`
 - Fix `Get-NTFSEffectiveAccess`: `-ExcludeNoneAccessEntries` now leaves out
   items without access, the cmdlet uses the current location when `-Path`
   is omitted, and `-SecurityDescriptor` returns the effective access of the
