@@ -104,6 +104,38 @@ Describe 'Add-NTFSAccess' {
         }
     }
 
+    # The property AppliesTo selects PathSimple, InheritanceFlags and PropagationFlags select PathComplex, and an object that
+    # has none of them gets the default scope. No parameter set is the default: while PathComplex was, an object that had
+    # AppliesTo bound PathComplex as well, and the cmdlet dropped the property.
+    Context 'Choosing the parameter set of an object bound through the pipeline by property name' {
+        It 'Should give the entry for the piped object that has <Shape> the scope <Scope>' -ForEach @(
+            @{ Name = 'AddPipedThisFolderOnly'; Shape = 'AppliesTo ThisFolderOnly'; Extra = @{ AppliesTo = 'ThisFolderOnly' }; Scope = 'None/None' }
+            @{ Name = 'AddPipedSubfolders'; Shape = 'AppliesTo ThisFolderAndSubfolders'; Extra = @{ AppliesTo = 'ThisFolderAndSubfolders' }; Scope = 'ContainerInherit/None' }
+            @{ Name = 'AddPipedInheritOnly'; Shape = 'AppliesTo SubfoldersAndFilesOnly'; Extra = @{ AppliesTo = 'SubfoldersAndFilesOnly' }; Scope = 'ContainerInherit, ObjectInherit/InheritOnly' }
+            @{ Name = 'AddPipedFlags'; Shape = 'InheritanceFlags and PropagationFlags'; Extra = @{ InheritanceFlags = 'ContainerInherit'; PropagationFlags = 'InheritOnly' }; Scope = 'ContainerInherit/InheritOnly' }
+            @{ Name = 'AddPipedNoScope'; Shape = 'no scope'; Extra = @{}; Scope = 'ContainerInherit, ObjectInherit/None' }
+        ) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name $Name -Directory
+
+            [pscustomobject] (@{ Path = $folder; Account = 'S-1-5-32-546'; AccessRights = 'ReadData' } + $Extra) | Add-NTFSAccess -ErrorAction Stop
+
+            $scopes = @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, $sidType) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-32-546' } |
+                    ForEach-Object -Process { '{0}/{1}' -f $_.InheritanceFlags, $_.PropagationFlags })
+            ($scopes -join ';') | Should -BeExactly $Scope
+        }
+
+        It 'Should reject a piped object that has both AppliesTo and InheritanceFlags with an AmbiguousParameterSet error and change nothing' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'AddPipedBoth' -Directory
+            $before = (Get-Acl -LiteralPath $folder).Sddl
+            $object = [pscustomobject]@{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AppliesTo = 'ThisFolderOnly'; InheritanceFlags = 'None' }
+
+            { $object | Add-NTFSAccess -ErrorAction Stop } | Should -Throw -ErrorId 'AmbiguousParameterSet*'
+
+            (Get-Acl -LiteralPath $folder).Sddl | Should -BeExactly $before
+        }
+    }
+
     Context 'PathSimple parameter set' {
         It 'Should report a missing path''s error by category and target, still scope the next path''s entry, and keep binding -Path through the pipeline once -AppliesTo selects the set' {
             $missing = Join-Path -Path $sandbox -ChildPath ('AddSimpleMissing-{0}' -f [guid]::NewGuid().ToString('N').Substring(0, 8))
@@ -119,11 +151,7 @@ Describe 'Add-NTFSAccess' {
             $fileRule = @((Get-Acl -LiteralPath $file).GetAccessRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
             $fileRule | Should -HaveCount 1
 
-            # A plain object with an AppliesTo property does not steer the pipeline to PathSimple by itself: both
-            # PathComplex (default) and PathSimple can bind the object's Path/Account/AccessRights, and the module
-            # resolves the ambiguity to the default set, PathComplex, silently ignoring the unmatched AppliesTo
-            # property (see the report). -AppliesTo named explicitly still selects PathSimple while -Path arrives
-            # through the pipeline.
+            # -AppliesTo named explicitly selects PathSimple while -Path arrives through the pipeline.
             $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'AddSimplePipedFolder' -Directory
 
             Get-Item2 -Path $folder | Add-NTFSAccess -Account 'S-1-5-32-546' -AccessRights ReadData -AppliesTo ThisFolderAndSubfolders -ErrorAction Stop
@@ -167,6 +195,36 @@ Describe 'Remove-NTFSAccess' {
                 $_.FullName | Should -Be $next
             }
             @($result | Where-Object -FilterScript { $_.Account.Sid -eq 'S-1-1-0' }) | Should -BeNullOrEmpty
+        }
+    }
+
+    # As for Add-NTFSAccess, the property AppliesTo of the piped object selects PathSimple, and the entry that the cmdlet
+    # addresses is the one of the scope it names: the rest of an entry of a wider scope stays.
+    Context 'Choosing the parameter set of an object bound through the pipeline by property name' {
+        It 'Should leave <Meaning> of an entry that applies to this folder, subfolders, and files when the piped object that has <Shape> removes its rights' -ForEach @(
+            @{ Name = 'RemovePipedThisFolderOnly'; Shape = 'AppliesTo ThisFolderOnly'; Extra = @{ AppliesTo = 'ThisFolderOnly' }; Meaning = 'the part that only subfolders and files inherit'; Left = 'ContainerInherit, ObjectInherit/InheritOnly' }
+            @{ Name = 'RemovePipedNoScope'; Shape = 'no scope'; Extra = @{}; Meaning = 'nothing'; Left = '' }
+        ) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name $Name -Directory
+            Add-NTFSAccess -Path $folder -Account 'S-1-5-32-546' -AccessRights ReadData -AppliesTo ThisFolderSubfoldersAndFiles -ErrorAction Stop
+
+            [pscustomobject] (@{ Path = $folder; Account = 'S-1-5-32-546'; AccessRights = 'ReadData' } + $Extra) | Remove-NTFSAccess -ErrorAction Stop
+
+            $remaining = @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, $sidType) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-32-546' } |
+                    ForEach-Object -Process { '{0}/{1}' -f $_.InheritanceFlags, $_.PropagationFlags })
+            ($remaining -join ';') | Should -BeExactly $Left
+        }
+
+        It 'Should reject a piped object that has both AppliesTo and InheritanceFlags with an AmbiguousParameterSet error and change nothing' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'RemovePipedBoth' -Directory
+            Add-NTFSAccess -Path $folder -Account 'S-1-1-0' -AccessRights ReadData -AppliesTo ThisFolderOnly -ErrorAction Stop
+            $before = (Get-Acl -LiteralPath $folder).Sddl
+            $object = [pscustomobject]@{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AppliesTo = 'ThisFolderOnly'; InheritanceFlags = 'None' }
+
+            { $object | Remove-NTFSAccess -ErrorAction Stop } | Should -Throw -ErrorId 'AmbiguousParameterSet*'
+
+            (Get-Acl -LiteralPath $folder).Sddl | Should -BeExactly $before
         }
     }
 

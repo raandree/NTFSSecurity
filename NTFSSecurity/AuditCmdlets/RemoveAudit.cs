@@ -7,7 +7,7 @@ using System.Security.AccessControl;
 
 namespace NTFSSecurity
 {
-    [Cmdlet(VerbsCommon.Remove, "NTFSAudit", DefaultParameterSetName = "PathComplex")]
+    [Cmdlet(VerbsCommon.Remove, "NTFSAudit")]
     [OutputType(typeof(FileSystemAuditRule2))]
     public class RemoveAudit : BaseCmdletWithPrivControl
     {

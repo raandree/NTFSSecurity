@@ -13,17 +13,17 @@ Adds an access control entry (ACE) to a file, a folder, or a security descriptor
 
 ## SYNTAX
 
-### PathComplex (Default)
-```
-Add-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
- [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
- [-PropagationFlags <PropagationFlags>] [-PassThru] [<CommonParameters>]
-```
-
 ### PathSimple
 ```
 Add-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
  [-AccessType <AccessControlType>] -AppliesTo <ApplyTo> [-PassThru] [<CommonParameters>]
+```
+
+### PathComplex
+```
+Add-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
+ [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
+ [-PropagationFlags <PropagationFlags>] [-PassThru] [<CommonParameters>]
 ```
 
 ### SDSimple
@@ -46,7 +46,7 @@ Adds an access control entry (ACE) to the discretionary access control list (DAC
 
 `-AccessRights` accepts the basic rights such as `Read`, `Modify`, and `FullControl` as well as the granular rights such as `CreateFiles` or `WriteAttributes`, and several values can be combined, for example `-AccessRights ReadData, WriteData, Delete`. For the mapping between the values of this module, the rights that Windows displays, and the entries of the advanced security dialog, see [Concepts](../Concepts.md).
 
-The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`; both describe the same ACE flags, and `PathComplex` is the default. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.
+The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`; both describe the same ACE flags. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor, and a command that has `-AppliesTo` together with `-InheritanceFlags` or `-PropagationFlags` fails, because PowerShell can't choose between the sets. The same holds for an object that you pipe in: its property `AppliesTo` selects a `Simple` set, its properties `InheritanceFlags` and `PropagationFlags` select a `Complex` set, and an object that has both kinds fails. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.
 
 When `-AccessType`, `-AppliesTo`, `-InheritanceFlags`, and `-PropagationFlags` are omitted, the cmdlet adds an `Allow` ACE that applies to this folder, subfolders, and files, which corresponds to the inheritance flags `ContainerInherit, ObjectInherit` and no propagation flags. An `Allow` ACE always receives the `Synchronize` right in addition to the requested rights, inheritance and propagation flags are ignored on files, and rights for an account that already has an ACE with the same access type and the same flags are merged into that ACE. The cmdlet writes no output unless `-PassThru` is used, and a failure on one item is reported as a non-terminating error while the remaining items are processed.
 
@@ -196,7 +196,7 @@ Specifies the path of one or more files or folders the ACE is added to. Relative
 
 ```yaml
 Type: String[]
-Parameter Sets: PathComplex, PathSimple
+Parameter Sets: PathSimple, PathComplex
 Aliases: FullName
 
 Required: True

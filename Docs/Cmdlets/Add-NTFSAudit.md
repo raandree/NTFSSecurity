@@ -13,17 +13,17 @@ Adds an audit entry to a file or folder.
 
 ## SYNTAX
 
-### PathComplex (Default)
-```
-Add-NTFSAudit [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
- [-AuditFlags <AuditFlags>] [-InheritanceFlags <InheritanceFlags>] [-PropagationFlags <PropagationFlags>]
- [-PassThru] [<CommonParameters>]
-```
-
 ### PathSimple
 ```
 Add-NTFSAudit [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
  [-AuditFlags <AuditFlags>] -AppliesTo <ApplyTo> [-PassThru] [<CommonParameters>]
+```
+
+### PathComplex
+```
+Add-NTFSAudit [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
+ [-AuditFlags <AuditFlags>] [-InheritanceFlags <InheritanceFlags>] [-PropagationFlags <PropagationFlags>]
+ [-PassThru] [<CommonParameters>]
 ```
 
 ### SDSimple
@@ -46,7 +46,7 @@ The `Add-NTFSAudit` cmdlet adds an audit entry to the system access control list
 
 In the `PathSimple` and `PathComplex` parameter sets the cmdlet reads the security descriptor of every item in `-Path`, adds the entry, and writes the descriptor back right away. In the `SDSimple` and `SDComplex` parameter sets it adds the entry to an in-memory `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned; that change only reaches the file system when you pass the object to `Set-NTFSSecurityDescriptor`. The simple sets describe the scope of the entry with the single `-AppliesTo` parameter, the complex sets with `-InheritanceFlags` and `-PropagationFlags`.
 
-`PathComplex` is the default parameter set. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.
+A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor, and a command that has `-AppliesTo` together with `-InheritanceFlags` or `-PropagationFlags` fails, because PowerShell can't choose between the sets. The same holds for an object that you pipe in: its property `AppliesTo` selects a `Simple` set, its properties `InheritanceFlags` and `PropagationFlags` select a `Complex` set, and an object that has both kinds fails. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.
 
 When you omit them, `-AuditFlags` is `Success, Failure`, `-InheritanceFlags` is `ContainerInherit, ObjectInherit`, `-PropagationFlags` is `None`, and `-AppliesTo` is `ThisFolderSubfoldersAndFiles`, so both the simple and the complex set audit the item, its subfolders, and its files by default. Inheritance applies to folders only: when the item is a file, the cmdlet stores the entry without inheritance and propagation flags.
 
@@ -196,7 +196,7 @@ Specifies the files or folders the audit entry is added to. Relative paths are r
 
 ```yaml
 Type: String[]
-Parameter Sets: PathComplex, PathSimple
+Parameter Sets: PathSimple, PathComplex
 Aliases: FullName
 
 Required: True

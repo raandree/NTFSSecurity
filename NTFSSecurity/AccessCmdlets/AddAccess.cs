@@ -7,7 +7,7 @@ using System.Security.AccessControl;
 
 namespace NTFSSecurity
 {
-    [Cmdlet(VerbsCommon.Add, "NTFSAccess", DefaultParameterSetName = "PathComplex")]
+    [Cmdlet(VerbsCommon.Add, "NTFSAccess")]
     [OutputType(typeof(FileSystemAccessRule2))]
     public class AddAccess : BaseCmdletWithPrivControl
     {

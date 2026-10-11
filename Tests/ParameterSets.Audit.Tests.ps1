@@ -117,12 +117,12 @@ Describe 'Audit cmdlets with a security descriptor that has no audit section' {
 
 Describe 'Add-NTFSAudit' {
     Context 'Binding -Path from the pipeline by property name' {
-        # -AppliesTo is named for the Simple row, not piped: an object with an AppliesTo property binds the default set
-        # PathComplex and the property is dropped (the folders show it: the scope of the entry stays the default one), so
-        # only the named parameter selects PathSimple.
+        # The PathSimple row pipes AppliesTo, which selects the set; the PathSimpleNamed row names -AppliesTo instead, and the
+        # piped object brings only the path.
         It 'Should add the audit entry for the piped <Set> object that exists, write a ReadFileError for the one that does not, and leave the DACL unchanged' -ForEach @(
             @{ Set = 'PathComplex'; ExtraProperties = @{ InheritanceFlags = 'None'; PropagationFlags = 'None' }; Named = @{} }
-            @{ Set = 'PathSimple'; ExtraProperties = @{}; Named = @{ AppliesTo = 'ThisFolderOnly' } }
+            @{ Set = 'PathSimple'; ExtraProperties = @{ AppliesTo = 'ThisFolderOnly' }; Named = @{} }
+            @{ Set = 'PathSimpleNamed'; ExtraProperties = @{}; Named = @{ AppliesTo = 'ThisFolderOnly' } }
         ) -Skip:(-not $canReadAudit) {
             $missing = Join-Path -Path $sandbox -ChildPath ('AddPipeMissing-{0}' -f [guid]::NewGuid().ToString('N'))
             Assert-TestSandboxPath -Sandbox $sandbox -Path $missing
@@ -157,8 +157,8 @@ Describe 'Add-NTFSAudit' {
         ) -Skip:(-not $canReadAudit) {
             $badFile = New-TestSandboxItem -Sandbox $sandbox -Name "AddPipeSDBad$Set"
             $sdBad = Get-TestAccessOnlyDescriptor -Path $badFile
-            # A folder, so that the scope of the entry is observable; for a descriptor the piped AppliesTo property does bind
-            # SDSimple (no default set competes: Path is not on the object), unlike for a path
+            # A folder, so that the scope of the entry is observable; the piped AppliesTo property binds SDSimple, as it binds
+            # PathSimple for a path
             $goodFile = New-TestSandboxItem -Sandbox $sandbox -Name "AddPipeSDGood$Set" -Directory
             $auditBefore = Get-TestAuditSddl -Path $goodFile
             $daclBefore = Get-TestDaclSddl -Path $goodFile
@@ -186,6 +186,35 @@ Describe 'Add-NTFSAudit' {
             (Get-TestAccountAuditRule -Acl (Get-TestAuditAcl -Path $goodFile) -Account $probe) | Should -HaveCount 1
             Get-TestAuditSddl -Path $goodFile | Should -Not -BeExactly $auditBefore
             Get-TestDaclSddl -Path $goodFile | Should -BeExactly $daclBefore
+        }
+    }
+
+    # The property AppliesTo selects PathSimple, InheritanceFlags and PropagationFlags select PathComplex, and an object that
+    # has none of them gets the default scope, as for Add-NTFSAccess (ParameterSets.Access.Tests.ps1).
+    Context 'Choosing the parameter set of an object bound through the pipeline by property name' {
+        It 'Should give the audit entry for the piped object that has <Shape> the scope <Scope>' -ForEach @(
+            @{ Name = 'AddPipedAuditThisFolderOnly'; Shape = 'AppliesTo ThisFolderOnly'; Extra = @{ AppliesTo = 'ThisFolderOnly' }; Scope = 'None/None' }
+            @{ Name = 'AddPipedAuditSubfolders'; Shape = 'AppliesTo ThisFolderAndSubfolders'; Extra = @{ AppliesTo = 'ThisFolderAndSubfolders' }; Scope = 'ContainerInherit/None' }
+            @{ Name = 'AddPipedAuditFlags'; Shape = 'InheritanceFlags and PropagationFlags'; Extra = @{ InheritanceFlags = 'ContainerInherit'; PropagationFlags = 'InheritOnly' }; Scope = 'ContainerInherit/InheritOnly' }
+            @{ Name = 'AddPipedAuditNoScope'; Shape = 'no scope'; Extra = @{}; Scope = 'ContainerInherit, ObjectInherit/None' }
+        ) -Skip:(-not $canReadAudit) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name $Name -Directory
+
+            [pscustomobject] (@{ FullName = $folder; Account = $probe; AccessRights = 'ReadData' } + $Extra) | Add-NTFSAudit -ErrorAction Stop
+
+            $scopes = @(Get-TestAccountAuditRule -Acl (Get-Acl -LiteralPath $folder -Audit) -Account $probe |
+                    ForEach-Object -Process { '{0}/{1}' -f $_.InheritanceFlags, $_.PropagationFlags })
+            ($scopes -join ';') | Should -BeExactly $Scope
+        }
+
+        It 'Should reject a piped object that has both AppliesTo and InheritanceFlags with an AmbiguousParameterSet error and change nothing' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'AddPipedAuditBoth' -Directory
+            $before = Get-TestDaclSddl -Path $folder
+            $object = [pscustomobject]@{ FullName = $folder; Account = $probe; AccessRights = 'ReadData'; AppliesTo = 'ThisFolderOnly'; InheritanceFlags = 'None' }
+
+            { $object | Add-NTFSAudit -ErrorAction Stop } | Should -Throw -ErrorId 'AmbiguousParameterSet*'
+
+            Get-TestDaclSddl -Path $folder | Should -BeExactly $before
         }
     }
 
@@ -220,11 +249,12 @@ Describe 'Add-NTFSAudit' {
 
 Describe 'Remove-NTFSAudit' {
     Context 'Binding -Path from the pipeline by property name' {
-        # -AppliesTo is named for the Simple row, not piped: a piped AppliesTo property would be dropped for a path (the
-        # default set PathComplex wins), so only the named parameter selects PathSimple.
+        # The PathSimple row pipes AppliesTo, which selects the set; the PathSimpleNamed row names -AppliesTo instead, and the
+        # piped object brings only the path.
         It "Should remove the audit entry for the piped <Set> object that exists, write a ReadFileError for the one that does not, and keep the other account's entry" -ForEach @(
             @{ Set = 'PathComplex'; ExtraProperties = @{ InheritanceFlags = 'None'; PropagationFlags = 'None' }; Named = @{} }
-            @{ Set = 'PathSimple'; ExtraProperties = @{}; Named = @{ AppliesTo = 'ThisFolderOnly' } }
+            @{ Set = 'PathSimple'; ExtraProperties = @{ AppliesTo = 'ThisFolderOnly' }; Named = @{} }
+            @{ Set = 'PathSimpleNamed'; ExtraProperties = @{}; Named = @{ AppliesTo = 'ThisFolderOnly' } }
         ) -Skip:(-not $canReadAudit) {
             $missing = Join-Path -Path $sandbox -ChildPath ('RemovePipeMissing-{0}' -f [guid]::NewGuid().ToString('N'))
             Assert-TestSandboxPath -Sandbox $sandbox -Path $missing
@@ -278,6 +308,34 @@ Describe 'Remove-NTFSAudit' {
             $result | ForEach-Object -Process { $_.FullName | Should -Be $goodFile }
             (Get-TestAccountAuditRule -Acl $sdGood.SecurityDescriptor -Account $probe) | Should -BeNullOrEmpty
             (Get-TestAccountAuditRule -Acl $sdGood.SecurityDescriptor -Account $keeper) | Should -HaveCount 1
+        }
+    }
+
+    # As for Add-NTFSAudit, the property AppliesTo of the piped object selects PathSimple, and the entry that the cmdlet
+    # addresses is the one of the scope it names: the rest of an entry of a wider scope stays.
+    Context 'Choosing the parameter set of an object bound through the pipeline by property name' {
+        It 'Should leave <Meaning> of an audit entry that applies to this folder, subfolders, and files when the piped object that has <Shape> removes its rights' -ForEach @(
+            @{ Name = 'RemovePipedAuditThisFolderOnly'; Shape = 'AppliesTo ThisFolderOnly'; Extra = @{ AppliesTo = 'ThisFolderOnly' }; Meaning = 'the part that only subfolders and files inherit'; Left = 'ContainerInherit, ObjectInherit/InheritOnly' }
+            @{ Name = 'RemovePipedAuditNoScope'; Shape = 'no scope'; Extra = @{}; Meaning = 'nothing'; Left = '' }
+        ) -Skip:(-not $canReadAudit) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name $Name -Directory
+            Add-NTFSAudit -Path $folder @entry -ErrorAction Stop
+
+            [pscustomobject] (@{ FullName = $folder; Account = $probe; AccessRights = 'ReadData' } + $Extra) | Remove-NTFSAudit -ErrorAction Stop
+
+            $remaining = @(Get-TestAccountAuditRule -Acl (Get-Acl -LiteralPath $folder -Audit) -Account $probe |
+                    ForEach-Object -Process { '{0}/{1}' -f $_.InheritanceFlags, $_.PropagationFlags })
+            ($remaining -join ';') | Should -BeExactly $Left
+        }
+
+        It 'Should reject a piped object that has both AppliesTo and InheritanceFlags with an AmbiguousParameterSet error and change nothing' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'RemovePipedAuditBoth' -Directory
+            $before = Get-TestDaclSddl -Path $folder
+            $object = [pscustomobject]@{ FullName = $folder; Account = $probe; AccessRights = 'ReadData'; AppliesTo = 'ThisFolderOnly'; InheritanceFlags = 'None' }
+
+            { $object | Remove-NTFSAudit -ErrorAction Stop } | Should -Throw -ErrorId 'AmbiguousParameterSet*'
+
+            Get-TestDaclSddl -Path $folder | Should -BeExactly $before
         }
     }
 
