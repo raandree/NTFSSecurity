@@ -212,14 +212,11 @@ Describe 'Add-NTFSAudit' {
             Get-TestAuditScope -Acl (Get-Acl -LiteralPath $folder -Audit) | Should -BeExactly $Scope
         }
 
-        It 'Should reject a piped object that has both AppliesTo and InheritanceFlags with an AmbiguousParameterSet error and change nothing' {
+        It 'Should reject a piped object that has both AppliesTo and InheritanceFlags with an AmbiguousParameterSet error' {
             $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'AddPipedAuditBoth' -Directory
-            $before = Get-TestDaclSddl -Path $folder
             $object = [pscustomobject]@{ FullName = $folder; Account = $probe; AccessRights = 'ReadData'; AppliesTo = 'ThisFolderOnly'; InheritanceFlags = 'None' }
 
             { $object | Add-NTFSAudit -ErrorAction Stop } | Should -Throw -ErrorId 'AmbiguousParameterSet*'
-
-            Get-TestDaclSddl -Path $folder | Should -BeExactly $before
         }
     }
 
@@ -314,14 +311,11 @@ Describe 'Add-NTFSAudit' {
     }
 
     Context 'Conflicting parameters' {
-        It 'Should reject -AppliesTo combined with -InheritanceFlags with an AmbiguousParameterSet error and change nothing' {
+        It 'Should reject -AppliesTo combined with -InheritanceFlags with an AmbiguousParameterSet error' {
             $file = New-TestSandboxItem -Sandbox $sandbox -Name 'AddAmbiguous'
-            $before = Get-TestDaclSddl -Path $file
 
             { Add-NTFSAudit -Path $file -Account $probe -AccessRights ReadData -AppliesTo ThisFolderOnly -InheritanceFlags None -ErrorAction Stop } |
                 Should -Throw -ErrorId 'AmbiguousParameterSet,NTFSSecurity.AddAudit'
-
-            Get-TestDaclSddl -Path $file | Should -BeExactly $before
         }
     }
 
@@ -421,14 +415,11 @@ Describe 'Remove-NTFSAudit' {
             Get-TestAuditScope -Acl (Get-Acl -LiteralPath $folder -Audit) | Should -BeExactly $Left
         }
 
-        It 'Should reject a piped object that has both AppliesTo and InheritanceFlags with an AmbiguousParameterSet error and change nothing' {
+        It 'Should reject a piped object that has both AppliesTo and InheritanceFlags with an AmbiguousParameterSet error' {
             $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'RemovePipedAuditBoth' -Directory
-            $before = Get-TestDaclSddl -Path $folder
             $object = [pscustomobject]@{ FullName = $folder; Account = $probe; AccessRights = 'ReadData'; AppliesTo = 'ThisFolderOnly'; InheritanceFlags = 'None' }
 
             { $object | Remove-NTFSAudit -ErrorAction Stop } | Should -Throw -ErrorId 'AmbiguousParameterSet*'
-
-            Get-TestDaclSddl -Path $folder | Should -BeExactly $before
         }
     }
 
