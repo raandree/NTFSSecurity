@@ -180,13 +180,20 @@ Describe 'Get-ChildItem2' {
                 [System.Threading.Thread]::CurrentThread.CurrentCulture = [System.Globalization.CultureInfo]::GetCultureInfo('tr-TR')
                 'I'.ToLower() | Should -Be ([string][char]0x131) -Because 'the culture of the thread has to be Turkish for the test to mean anything'
 
-                $result = @(Get-ChildItem2 -Path $folder -Filter $Filter -ErrorAction Stop)
+                # The next stage of the pipeline reads the culture of the thread for each item, and the test reads it once more
+                # after the cmdlet has returned: Turkish both times shows that the cmdlet restores the culture and writes no
+                # item inside the scope of the invariant culture.
+                $result = @(Get-ChildItem2 -Path $folder -Filter $Filter -ErrorAction Stop |
+                        ForEach-Object -Process { [pscustomobject]@{ Name = $_.Name; Culture = [System.Threading.Thread]::CurrentThread.CurrentCulture.Name } })
+                $cultureAfter = [System.Threading.Thread]::CurrentThread.CurrentCulture.Name
             }
             finally {
                 [System.Threading.Thread]::CurrentThread.CurrentCulture = $original
             }
 
             ($result.Name | Sort-Object) -join ',' | Should -BeExactly $Expected
+            (@($result.Culture) | Select-Object -Unique) -join ',' | Should -BeExactly 'tr-TR' -Because 'the cmdlet writes each item outside the scope of the invariant culture'
+            $cultureAfter | Should -BeExactly 'tr-TR' -Because 'the cmdlet restores the culture of the caller'
         }
 
         # Only * and ? are wildcards in -Filter. A bracket stands for itself, so a file with brackets in its name is found
