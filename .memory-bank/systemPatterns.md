@@ -70,8 +70,8 @@ Read only task-relevant records; the index controls routing.
   through a Write call (`IsFromLaterCommand`, `PipelineControl`; see
   `BaseCmdlets.cs`); add a row to `Tests/PipelineControl.Tests.ps1` for a new
   cmdlet. Record an enabled privilege before the next write.
-- `Get-ChildItem2 -Filter` has two matchers (AlphaFS, then a wildcard on the
-  name); `*.*` means `*`, other dot patterns are an open decision.
+- `Get-ChildItem2 -Filter`: AlphaFS, then a wildcard on the name, both culture
+  invariant (`debugging-insights.md`); `*.*` means `*`, dot rules are open.
 
 ### Tests and documentation
 
@@ -95,6 +95,8 @@ Read only task-relevant records; the index controls routing.
   member or another token (the matrix found three): also run a domain member,
   other builds, and a basic user. A failure that follows cell order, not
   version, points to stale account state (Decision 24): alternate the cells.
+  Oracles differ there too: `Get-Acl -Audit` reads an item without audit
+  entries as SACL-protected, so a test reads the SACL alone (.NET).
 
 ### CI, publication, and integration
 

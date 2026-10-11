@@ -102,11 +102,14 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 - 2026-10-10: Handoff 5, the coverage unknowns (local, `ai/coverage-unknowns`,
   nothing pushed). rc7 measured at `fa0701b`: 3,198/3,649 sequence points;
   the live suite and the suite on a domain member add 9 sequence and 4
-  explicit branch points (`fdd7a8b`); one defect fixed (`419cfb3`, `tr-TR`),
-  79 `It` blocks added (`b2cb47b`: 1,455 cases per configuration, 3,243
-  points); the getter rule of the paths report corrected; the first lab
-  accepted on the fixed build. Open: hard-link names under another root, a
-  piped `AppliesTo`, Server Core, ARM64. Report:
+  explicit branch points (`fdd7a8b`); two `tr-TR` defects fixed test-first
+  (`419cfb3`; `0028ccd`, `fbe0289`, `8a625c8`, the second found by the
+  independent review); 79 `It` blocks added (final `61e936e`, built at
+  `8a625c8`: 1,459 cases per configuration, 3,258/3,664 points); the getter
+  rule of the paths report corrected; the first lab accepted on the fixed
+  builds and the matrix suite passing on Windows Server 2019, 2022, 2025 and
+  Windows 11 (1,156 cases, 16 configurations). Open: hard-link names under
+  another root, a piped `AppliesTo` for a path, Server Core, ARM64. Report:
   `Tests/Coverage/Quality-Gate-Unknowns-2026-10-10.md`.
 
 ## Stable capabilities
@@ -145,17 +148,18 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
    wiki editing restrictions, `test/transfer`, and old lab checkpoints
    when no longer needed. No remote changes or snapshot restores here.
 7. Remaining-path inventory at the final frozen commit of Handoff 5
-   (`b2cb47b`): 406 unvisited sequence points in 187 methods, all classified
+   (`61e936e`): 406 unvisited sequence points in 187 methods, all classified
    (`Tests/Coverage`): 167 explained from source with evidence, 20 open (8:
    `FileSecurity` conversions, `RemoveAll` account filters; 12 getters of
    pipeline parameters that no test binds by property name). Other open
    decisions: lazy path overloads, abandoned
    `PrivilegeEnabler`, dot patterns of `Get-ChildItem2 -Filter`, 17
    owner-restore handlers that do not pass on
-   what a later command raises (a rare combination), unused classes. An audit
-   write's ownership retry cannot run on a local volume or on a Windows file
-   server (probe) and no test reaches it. A conditional ACE display remains a
-   .NET representation limit, not evidence of unconditional permissions.
+   what a later command raises (a rare combination), unused classes. No
+   trigger for an audit write's ownership retry was found on a local volume or
+   a Windows file server (probe of 48 calls) and no test reaches it. A
+   conditional ACE display remains a .NET representation limit, not evidence
+   of unconditional permissions.
 8. Publication recovery (`95b827e`, merged in #120): 14 offline tests and exact
    artifact SHA-512 verification; the original upload errors remain errors for
    missing, different, or unverifiable outcomes. The agent published nothing,

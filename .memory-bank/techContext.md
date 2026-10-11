@@ -107,10 +107,11 @@ source: repository and executable evidence
   before passing native arguments, not inline Join-Path expressions.
 - Report sequence points, not unique source lines. Four-run baselines:
   `3442194` 2,641/3,559 (74.21%); `5a5d58b` 3,192/3,634 (87.84%); `fa0701b`
-  (rc7) 3,198/3,649 (87.64%); `b2cb47b` 3,243/3,649 (88.87%). The code
+  (rc7) 3,198/3,649 (87.64%); `61e936e` 3,258/3,664 (88.92%). The code
   changes the denominators: never present these as same-source increments.
-  The branch summary counts 821 compiler-generated points; report the
-  explicit branch points too (1,090/1,168, 93.32%). Suite at `b2cb47b`: 1,455
+  The branch summary of the tool adds a point to most methods (never visited
+  for the 626 without a branch): report the explicit branch points
+  (1,090/1,168, 93.32%), not the summary percentage. Suite at `61e936e`: 1,459
   per configuration, zero failures (skipped: 26 and 57 elevated, 276 and 307
   basic, Desktop and Core).
 - NUnit skipped ForEach names retain placeholders and parameter tuples,
@@ -128,7 +129,7 @@ source: repository and executable evidence
   logged a flush. Merge by position, never by `uspid`. PowerShell reads the
   getter of a parameter that it binds from a piped object: unvisited getters
   point at missing pipeline tests.
-- Remaining inventory at `b2cb47b`: 406 points in 187 methods, classified by
+- Remaining inventory at `61e936e`: 406 points in 187 methods, classified by
   rule (`Tests/Coverage`). Preserve raw XML, row CSVs, logs, commit identity,
   and build hashes: the frozen Build rewrites its hash file, so save the
   hashes of the measured assemblies (AltCover `__Saved` copies) first.

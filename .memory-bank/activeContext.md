@@ -9,17 +9,20 @@ source: current task evidence
 
 ## Current focus
 
-State at 2026-10-10 22:00 UTC: Handoff 5 (the coverage unknowns) is done
+State at 2026-10-11 00:55 UTC: Handoff 5 (the coverage unknowns) is done
 locally on `ai/coverage-unknowns`, from `origin/master` `6696f68`; nothing is
 pushed. The report is `Tests/Coverage/Quality-Gate-Unknowns-2026-10-10.md`
 with nine CSV tables. rc7 (`fa0701b`) was measured at 3,198/3,649 sequence
 points (87.64%); the live suite (first lab, three matrix cells) and the unit
 suite on a domain member add only 9 sequence and 4 explicit branch points, all
-of `fdd7a8b`. One defect is fixed (`419cfb3`, an identity compared with a name
-in `tr-TR`), 79 `It` blocks in four files are added (final commit `b2cb47b`:
-1,455 cases per configuration, 3,243 points), and a defect is open (hard-link
-names under a root that is not the volume root). The maintainer decides
-whether the fix and the tests enter a new candidate.
+of `fdd7a8b`. Two `tr-TR` defects are fixed test-first (`419cfb3`, an identity
+compared with a name; `0028ccd`, `fbe0289`, `8a625c8`, `Get-ChildItem2
+-Filter`, found by the independent review), 79 `It` blocks in four files are
+added (final commit `61e936e`, built once at `8a625c8`: 1,459 cases per
+configuration, 3,258/3,664 points, 88.92%; the matrix suite passes on Windows
+Server 2019, 2022, 2025 and Windows 11 in 16 configurations), and a defect is
+open (hard-link names under a root that is not the volume root). The
+maintainer decides whether the fixes and the tests enter a new candidate.
 
 State at 2026-10-10 15:45 UTC: the maintainer integrated the release-gate stack
 into `master` (`6dd799f`, CI green): #116 (rc7, `8a6be9f`), #120
@@ -126,8 +129,17 @@ acceptance is the maintainer's.
   audit read denial. The new tests add 45 points (getters of pipeline
   parameters; the paths report was wrong that no caller invokes a getter);
   7 of 64 parameter sets closed, 51 partly, 1 open, 4 left to the maintainer.
-  Cultures `de-DE` and `tr-TR`: one defect, fixed (`419cfb3`). Not tested:
-  Server Core (plan), ARM64, a localized system, non-Windows servers.
+  Cultures `de-DE` and `tr-TR`: two defects, fixed (`419cfb3`; `0028ccd`,
+  `fbe0289`, `8a625c8`); the second was found by the one independent review
+  (`code-review`: four Major findings, all resolved; the later delta had no
+  second review). Final measurement
+  `61e936e` (build `8a625c8`): 1,459 cases per configuration, 3,258/3,664
+  points, the same 187 unvisited methods; first lab 245/0/1 per edition on
+  that build; the 22 files of the matrix suite 1,156/0 in 16 configurations
+  on `OSFile19/22/25` and `OSWin11`; both labs clean at 00:43Z. The tool's
+  branch summary percentage is not read (it adds a point per method); the
+  explicit branch points are 1,090/1,168. Not tested: Server Core (plan),
+  ARM64, a localized system, non-Windows servers.
 - Raw evidence is outside git: the session folder
   `4b12e2f4-d4c7-4a5d-883a-ddb7421c4848\files` (`qg-paths`, the matrix runs, the
   night log) and
@@ -166,11 +178,11 @@ acceptance is the maintainer's.
    Modify; protecting them is a design change of the controller and needs a new
    acceptance). The help could also say that a local standard user who asks
    about a domain account still gets "Access is denied".
-6. Handoff 5 is done (Evidence). The maintainer decides whether the fix
-   `419cfb3` and the tests enter a new candidate (rc8), which needs the matrix
-   cells and the first lab on its bytes, and he decides the open items of the
-   report: hard-link names under another root (a defect with a
-   reproduction), a piped `AppliesTo` property that doesn't select the Simple
-   set, 12 getters of pipeline parameters, the 52 partly closed sets, the audit
-   paths, Server Core (widens Decision 24), and ARM64.
+6. Handoff 5 is done (Evidence). The maintainer decides whether the fixes
+   `419cfb3`, `0028ccd`, `fbe0289`, `8a625c8` and the tests enter a new
+   candidate (rc8), which needs the matrix cells and the first lab on its
+   bytes, and he decides the open items of the report: hard-link names under
+   another root (a defect with a reproduction), a piped `AppliesTo` property
+   that a path drops, 12 getters of pipeline parameters, the 51 partly closed
+   sets, the audit paths, Server Core (widens Decision 24), and ARM64.
 7. Do not release stable 5.0.0 or equate a percentage with gate closure.
