@@ -243,38 +243,57 @@ Describe 'Add-NTFSAudit' {
             $scopes -join '|' | Should -BeExactly 'None/None|ContainerInherit, ObjectInherit/None|ContainerInherit, ObjectInherit/InheritOnly|ContainerInherit/None|ContainerInherit, ObjectInherit/None'
         }
 
-        It 'Should give each row of an imported CSV file that has an AppliesTo column its own scope' -Skip:(-not $canReadAudit) {
+        It 'Should give each row of a CSV file that Import-Csv reads and that has an AppliesTo column its own scope' -Skip:(-not $canReadAudit) {
             $folders = @('AddCsvAuditThisFolderOnly', 'AddCsvAuditSubfolders', 'AddCsvAuditInheritOnly' |
                     ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory })
-            $rows = @(
+            $csv = Join-Path -Path $sandbox -ChildPath 'AddCsvAuditScopes.csv'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $csv
+            Set-Content -LiteralPath $csv -Value @(
                 'FullName,Account,AccessRights,AppliesTo'
                 ('"{0}",{1},ReadData,ThisFolderOnly' -f $folders[0], $probe)
                 ('"{0}",{1},ReadData,ThisFolderAndSubfolders' -f $folders[1], $probe)
                 ('"{0}",{1},ReadData,SubfoldersAndFilesOnly' -f $folders[2], $probe)
-            ) | ConvertFrom-Csv
+            )
 
-            $rows | Add-NTFSAudit -ErrorAction Stop
+            Import-Csv -LiteralPath $csv | Add-NTFSAudit -ErrorAction Stop
 
             $scopes = $folders | ForEach-Object -Process { Get-TestAuditScope -Acl (Get-Acl -LiteralPath $_ -Audit) }
             $scopes -join '|' | Should -BeExactly 'None/None|ContainerInherit/None|ContainerInherit, ObjectInherit/InheritOnly'
         }
 
-        # An empty cell is not "no scope": the property AppliesTo is there and cannot be bound, so the row fails, loudly, and the
-        # cmdlet goes on with the next row (ParameterSets.Access.Tests.ps1 has the same row).
-        It 'Should report a binding error for the CSV row whose AppliesTo cell is empty, leave its folder alone, and still process the other rows' -Skip:(-not $canReadAudit) {
-            $folders = @('AddCsvAuditEmptyFirst', 'AddCsvAuditEmptyCell', 'AddCsvAuditEmptyLast' |
+        # A blank cell that Import-Csv reads is an empty string, not $null: the row gets the default scope (ParameterSets.Access.Tests.ps1
+        # has the same rows and says why).
+        It 'Should give the row of a CSV file whose AppliesTo cell is blank the default scope, and the other rows their own' -Skip:(-not $canReadAudit) {
+            $folders = @('AddCsvAuditBlankFirst', 'AddCsvAuditBlankCell', 'AddCsvAuditBlankLast' |
                     ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory })
-            $rows = @(
+            $csv = Join-Path -Path $sandbox -ChildPath 'AddCsvAuditBlank.csv'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $csv
+            Set-Content -LiteralPath $csv -Value @(
                 'FullName,Account,AccessRights,AppliesTo'
                 ('"{0}",{1},ReadData,ThisFolderOnly' -f $folders[0], $probe)
                 ('"{0}",{1},ReadData,' -f $folders[1], $probe)
                 ('"{0}",{1},ReadData,SubfoldersAndFilesOnly' -f $folders[2], $probe)
-            ) | ConvertFrom-Csv
+            )
 
-            $rows | Add-NTFSAudit -ErrorVariable auditErrors -ErrorAction SilentlyContinue
+            Import-Csv -LiteralPath $csv | Add-NTFSAudit -ErrorAction Stop
+
+            $scopes = $folders | ForEach-Object -Process { Get-TestAuditScope -Acl (Get-Acl -LiteralPath $_ -Audit) }
+            $scopes -join '|' | Should -BeExactly 'None/None|ContainerInherit, ObjectInherit/None|ContainerInherit, ObjectInherit/InheritOnly'
+        }
+
+        # $null cannot be bound at all: the object fails, loudly, and the cmdlet goes on with the next one.
+        It 'Should report a binding error for the piped object whose AppliesTo is $null, leave its folder alone, and still process the other objects' -Skip:(-not $canReadAudit) {
+            $folders = @('AddNullAuditFirst', 'AddNullAuditMiddle', 'AddNullAuditLast' |
+                    ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory })
+
+            @(
+                [pscustomobject] ($entry + @{ FullName = $folders[0]; AppliesTo = 'ThisFolderOnly' })
+                [pscustomobject] ($entry + @{ FullName = $folders[1]; AppliesTo = $null })
+                [pscustomobject] ($entry + @{ FullName = $folders[2]; AppliesTo = 'SubfoldersAndFilesOnly' })
+            ) | Add-NTFSAudit -ErrorVariable auditErrors -ErrorAction SilentlyContinue
 
             @($auditErrors) | Should -HaveCount 1
-            $auditErrors[0].Exception.Message | Should -BeLike '*AppliesTo*'
+            $auditErrors[0].FullyQualifiedErrorId | Should -BeLike 'ParameterArgumentValidationErrorNullNotAllowed,*'
             $scopes = $folders | ForEach-Object -Process { Get-TestAuditScope -Acl (Get-Acl -LiteralPath $_ -Audit) }
             $scopes -join '|' | Should -BeExactly 'None/None||ContainerInherit, ObjectInherit/InheritOnly'
         }

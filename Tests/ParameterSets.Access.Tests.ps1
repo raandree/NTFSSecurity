@@ -165,38 +165,59 @@ Describe 'Add-NTFSAccess' {
             $scopes -join '|' | Should -BeExactly 'None/None|ContainerInherit, ObjectInherit/None|ContainerInherit, ObjectInherit/InheritOnly|ContainerInherit/None|ContainerInherit, ObjectInherit/None'
         }
 
-        It 'Should give each row of an imported CSV file that has an AppliesTo column its own scope' {
+        It 'Should give each row of a CSV file that Import-Csv reads and that has an AppliesTo column its own scope' {
             $folders = @('AddCsvThisFolderOnly', 'AddCsvSubfolders', 'AddCsvInheritOnly' |
                     ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory })
-            $rows = @(
+            $csv = Join-Path -Path $sandbox -ChildPath 'AddCsvScopes.csv'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $csv
+            Set-Content -LiteralPath $csv -Value @(
                 'Path,Account,AccessRights,AppliesTo'
                 ('"{0}",S-1-5-32-546,ReadData,ThisFolderOnly' -f $folders[0])
                 ('"{0}",S-1-5-32-546,ReadData,ThisFolderAndSubfolders' -f $folders[1])
                 ('"{0}",S-1-5-32-546,ReadData,SubfoldersAndFilesOnly' -f $folders[2])
-            ) | ConvertFrom-Csv
+            )
 
-            $rows | Add-NTFSAccess -ErrorAction Stop
+            Import-Csv -LiteralPath $csv | Add-NTFSAccess -ErrorAction Stop
 
             $scopes = $folders | ForEach-Object -Process { Get-TestAccountScope -Acl (Get-Acl -LiteralPath $_) -Account 'S-1-5-32-546' }
             $scopes -join '|' | Should -BeExactly 'None/None|ContainerInherit/None|ContainerInherit, ObjectInherit/InheritOnly'
         }
 
-        # An empty cell is not "no scope": the property AppliesTo is there and cannot be bound, so the row fails, loudly, and the
-        # cmdlet goes on with the next row. Before the property was bound at all, such a column was ignored.
-        It 'Should report a binding error for the CSV row whose AppliesTo cell is empty, leave its folder alone, and still process the other rows' {
-            $folders = @('AddCsvEmptyFirst', 'AddCsvEmptyCell', 'AddCsvEmptyLast' |
+        # A blank cell that Import-Csv reads is an empty string: not $null, and not a scope name. The binder cannot convert it, so
+        # PathSimple does not bind, and the row gets the default scope, as an object without the property does.
+        It 'Should give the row of a CSV file whose AppliesTo cell is blank the default scope, and the other rows their own' {
+            $folders = @('AddCsvBlankFirst', 'AddCsvBlankCell', 'AddCsvBlankLast' |
                     ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory })
-            $rows = @(
+            $csv = Join-Path -Path $sandbox -ChildPath 'AddCsvBlank.csv'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $csv
+            Set-Content -LiteralPath $csv -Value @(
                 'Path,Account,AccessRights,AppliesTo'
                 ('"{0}",S-1-5-32-546,ReadData,ThisFolderOnly' -f $folders[0])
                 ('"{0}",S-1-5-32-546,ReadData,' -f $folders[1])
                 ('"{0}",S-1-5-32-546,ReadData,SubfoldersAndFilesOnly' -f $folders[2])
-            ) | ConvertFrom-Csv
+            )
 
-            $rows | Add-NTFSAccess -ErrorVariable addErrors -ErrorAction SilentlyContinue
+            Import-Csv -LiteralPath $csv | Add-NTFSAccess -ErrorAction Stop
+
+            $scopes = $folders | ForEach-Object -Process { Get-TestAccountScope -Acl (Get-Acl -LiteralPath $_) -Account 'S-1-5-32-546' }
+            $scopes -join '|' | Should -BeExactly 'None/None|ContainerInherit, ObjectInherit/None|ContainerInherit, ObjectInherit/InheritOnly'
+        }
+
+        # $null cannot be bound at all (ConvertFrom-Csv makes it of a trailing blank cell): the object fails, loudly, and the cmdlet goes
+        # on with the next one.
+        It 'Should report a binding error for the piped object whose AppliesTo is $null, leave its folder alone, and still process the other objects' {
+            $folders = @('AddNullFirst', 'AddNullMiddle', 'AddNullLast' |
+                    ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory })
+            $entry = @{ Account = 'S-1-5-32-546'; AccessRights = 'ReadData' }
+
+            @(
+                [pscustomobject] ($entry + @{ Path = $folders[0]; AppliesTo = 'ThisFolderOnly' })
+                [pscustomobject] ($entry + @{ Path = $folders[1]; AppliesTo = $null })
+                [pscustomobject] ($entry + @{ Path = $folders[2]; AppliesTo = 'SubfoldersAndFilesOnly' })
+            ) | Add-NTFSAccess -ErrorVariable addErrors -ErrorAction SilentlyContinue
 
             @($addErrors) | Should -HaveCount 1
-            $addErrors[0].Exception.Message | Should -BeLike '*AppliesTo*'
+            $addErrors[0].FullyQualifiedErrorId | Should -BeLike 'ParameterArgumentValidationErrorNullNotAllowed,*'
             $scopes = $folders | ForEach-Object -Process { Get-TestAccountScope -Acl (Get-Acl -LiteralPath $_) -Account 'S-1-5-32-546' }
             $scopes -join '|' | Should -BeExactly 'None/None||ContainerInherit, ObjectInherit/InheritOnly'
         }

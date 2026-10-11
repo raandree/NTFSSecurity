@@ -233,9 +233,11 @@ The format is based on
   before it; the property now sets the scope of its own object only. A piped
   object that has `AppliesTo` and `InheritanceFlags` or `PropagationFlags`
   now fails with `AmbiguousParameterSet`, like the same parameters on the
-  command line, and one whose `AppliesTo` is empty fails to bind. A call with
-  neither `-Path` nor `-SecurityDescriptor` now fails with
-  `AmbiguousParameterSet` instead of a missing-parameter error for `-Path`
+  command line, and one whose `AppliesTo` is `$null` fails to bind; an
+  `AppliesTo` that is an empty string or not the name of a scope is ignored,
+  and the object gets the default scope. A call with neither `-Path` nor
+  `-SecurityDescriptor` now fails with `AmbiguousParameterSet` instead of a
+  missing-parameter error for `-Path`
 - Fix `Get-NTFSEffectiveAccess`: `-ExcludeNoneAccessEntries` now leaves out
   items without access, the cmdlet uses the current location when `-Path`
   is omitted, and `-SecurityDescriptor` returns the effective access of the
