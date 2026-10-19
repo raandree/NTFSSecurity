@@ -150,8 +150,10 @@ namespace NTFSSecurity
             // for itself. Before 5.0.0, [1] was read as a character class, so a file with brackets in its name was not
             // returned for its name. The enumeration returns every item for *.* as Windows does, so the comparison does
             // too; with the dot as an ordinary character, it would drop the items without a dot, most folders.
+            // CultureInvariant: like the enumeration (see MoveNextInvariant), the comparison would otherwise treat I and i as
+            // different letters with tr-TR and drop items that the enumeration returned.
             var pattern = filter == "*.*" ? "*" : filter;
-            wildcard = new WildcardPattern(pattern.Replace("`", "``").Replace("[", "`[").Replace("]", "`]"), WildcardOptions.Compiled | WildcardOptions.IgnoreCase);
+            wildcard = new WildcardPattern(pattern.Replace("`", "``").Replace("[", "`[").Replace("]", "`]"), WildcardOptions.Compiled | WildcardOptions.IgnoreCase | WildcardOptions.CultureInvariant);
 
             modeMethodInfo = typeof(FileSystemCodeMembers).GetMethod("Mode");
 
@@ -206,18 +208,33 @@ namespace NTFSSecurity
                 {
                     if (directory)
                     {
-                        var files = di.EnumerateDirectories(filter, global::System.IO.SearchOption.TopDirectoryOnly);
-                        WriteFileSystemInfoCollection(files.GetEnumerator());
+                        IEnumerator files;
+                        using (new InvariantCultureScope())
+                        {
+                            files = di.EnumerateDirectories(filter, global::System.IO.SearchOption.TopDirectoryOnly).GetEnumerator();
+                        }
+
+                        WriteFileSystemInfoCollection(files);
                     }
                     else if (file)
                     {
-                        var files = di.EnumerateFiles(filter, global::System.IO.SearchOption.TopDirectoryOnly);
-                        WriteFileSystemInfoCollection(files.GetEnumerator());
+                        IEnumerator files;
+                        using (new InvariantCultureScope())
+                        {
+                            files = di.EnumerateFiles(filter, global::System.IO.SearchOption.TopDirectoryOnly).GetEnumerator();
+                        }
+
+                        WriteFileSystemInfoCollection(files);
                     }
                     else
                     {
-                        var files = di.EnumerateFileSystemInfos(filter, global::System.IO.SearchOption.TopDirectoryOnly);
-                        WriteFileSystemInfoCollection(files.GetEnumerator());
+                        IEnumerator files;
+                        using (new InvariantCultureScope())
+                        {
+                            files = di.EnumerateFileSystemInfos(filter, global::System.IO.SearchOption.TopDirectoryOnly).GetEnumerator();
+                        }
+
+                        WriteFileSystemInfoCollection(files);
                     }
                 }
 
@@ -284,7 +301,7 @@ namespace NTFSSecurity
 
         protected void WriteFileSystemInfoCollection(IEnumerator fileSystemInfos)
         {
-            while (fileSystemInfos.MoveNext())
+            while (MoveNextInvariant(fileSystemInfos))
             {
                 FileSystemInfo current = (FileSystemInfo)fileSystemInfos.Current;
                 if (!wildcard.IsMatch(current.Name))
@@ -356,6 +373,33 @@ namespace NTFSSecurity
         protected override void EndProcessing()
         {
             base.EndProcessing();
+        }
+
+        // AlphaFS 2.2 matches the filter with a regular expression that takes the culture of the thread, and with tr-TR the
+        // letters I and i differ: index* did not match Index.txt. The enumeration therefore runs with the invariant culture,
+        // which is back before an item reaches the pipeline, so that no later command sees it.
+        private static bool MoveNextInvariant(IEnumerator enumerator)
+        {
+            using (new InvariantCultureScope())
+            {
+                return enumerator.MoveNext();
+            }
+        }
+
+        private sealed class InvariantCultureScope : IDisposable
+        {
+            private readonly global::System.Globalization.CultureInfo previous;
+
+            public InvariantCultureScope()
+            {
+                previous = global::System.Threading.Thread.CurrentThread.CurrentCulture;
+                global::System.Threading.Thread.CurrentThread.CurrentCulture = global::System.Globalization.CultureInfo.InvariantCulture;
+            }
+
+            public void Dispose()
+            {
+                global::System.Threading.Thread.CurrentThread.CurrentCulture = previous;
+            }
         }
     }
 }

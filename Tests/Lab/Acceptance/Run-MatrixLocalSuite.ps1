@@ -35,7 +35,8 @@ $editions = @($Edition -split ',' | Where-Object -FilterScript { $_ })
 $modes = @($Mode -split ',' | Where-Object -FilterScript { $_ })
 if ($modes | Where-Object -FilterScript { $_ -notin 'Elevated', 'Basic' }) { throw "-Mode takes Elevated, Basic, or both, separated by a comma." }
 $localCredential = @($LocalCredentialMachine -split ',' | Where-Object -FilterScript { $_ })
-$behaviorFiles = 'Access', 'Audit', 'DriveRoot', 'FileHash', 'Inheritance', 'ItemCmdlets', 'Links', 'ObjectApis', 'OutputTypes', 'Owner', 'PathErrors',
+$behaviorFiles = 'Access', 'Audit', 'DriveRoot', 'FileHash', 'Inheritance', 'ItemCmdlets', 'Links', 'ObjectApis', 'OutputTypes', 'Owner',
+    'ParameterSets.Access', 'ParameterSets.Audit', 'ParameterSets.Inheritance', 'ParameterSets.Items', 'PathErrors',
     'PermissionScopes', 'PipelineControl', 'Privileges', 'Remove-Item2', 'SecurityDescriptor', 'SecurityDescriptorSets', 'TestHelpers'
 $null = New-Item -ItemType Directory -Path $OutputRoot -Force
 $sequenceLog = Join-Path -Path $OutputRoot -ChildPath "$Label-localsuite.log"

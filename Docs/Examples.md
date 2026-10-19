@@ -173,8 +173,8 @@ Set-NTFSOwner -Path C:\Data -Account 'BUILTIN\Administrators'
 ## Make several changes in one write
 
 Get the security descriptor once, change it in memory, and write it back.
-With security descriptor input, specify `-AppliesTo` (or the inheritance and
-propagation flags) so that PowerShell can choose the parameter set:
+`-AppliesTo` sets the scope of the entry; without it, the entry applies to this
+folder, subfolders, and files:
 
 ```powershell
 $sd = Get-NTFSSecurityDescriptor -Path C:\Data

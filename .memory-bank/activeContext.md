@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-10
+last-verified: 2026-10-11
 owner: active-agent
 source: current task evidence
 ---
@@ -8,6 +8,23 @@ source: current task evidence
 # Active context
 
 ## Current focus
+
+State at 2026-10-11 13:50 UTC: Handoff 5 (the coverage unknowns) is done
+locally on `ai/coverage-unknowns`, from `origin/master` `6696f68`; the
+maintainer pushed the branch at `2b97422`, and the later commits are local.
+The report is `Tests/Coverage/Quality-Gate-Unknowns-2026-10-10.md` with nine
+CSV tables. rc7 (`fa0701b`) was measured at 3,198/3,649 sequence points. Three
+defects are fixed test-first: two `tr-TR` comparisons (`419cfb3`; `0028ccd`,
+`fbe0289`, `8a625c8`) and the piped `AppliesTo` that a path dropped (`93ed2c7`,
+`9783d2a`: no default parameter set for Add and Remove of access and audit,
+Decision 26); one defect is open (hard-link names under a root that is not the
+volume root). 101 new `It` blocks; at `2112ee3` (product code built once at
+`9783d2a`): 1,492 cases per configuration, 3,266/3,668 points. The final
+package passed in the labs (first lab 245/0/1 per edition; the suite on the file
+servers and the client, 16 configurations; the three cells 229/0/2 per
+edition), every end state clean. Three independent reviews and two checks read
+the work, with no Blocker. The maintainer decides whether the fixes and the
+tests enter a new candidate.
 
 State at 2026-10-10 15:45 UTC: the maintainer integrated the release-gate stack
 into `master` (`6dd799f`, CI green): #116 (rc7, `8a6be9f`), #120
@@ -101,21 +118,31 @@ acceptance is the maintainer's.
   passed. A dry run of `Run-MatrixSequence.ps1 -Version 5.0.0-rc6` showed that
   the published-package path works. Labs at 07:50 UTC on 2026-10-10: no fixture
   or probe residue; `OSWin11E` shuts itself down an hour after its start.
-- Test coverage of the 5.0.0 code, assessed 2026-10-10 (nothing was changed).
-  Measured at `5a5d58b`: 87.84% of the sequence points (3,192 of 3,634) and
-  93.96% of the explicit branch points; every cmdlet is at 72.5% or more. Of
-  the 442 unvisited points, 181 are in code that no cmdlet calls, 103 are
-  parameter getters, 77 defensive, and 81 environment-specific (47 of them the
-  ownership retry of an audit write over SMB). Since then the production C#
-  changed by 70 inserted lines (`962887a`, `fdd7a8b`), so the ratios are off by
-  2 points at most. A parser scan finds all 36 cmdlets and all 147 documented
-  parameters in the unit tests (four only as keys of data-driven hashtables)
-  and 34 cmdlets in the live tests (not `Enable-Privileges`, `Get-DiskSpace`).
-  Not measured: the coverage of the live tests and of the suite on a domain
-  member, and of the code after the fixes. Not tested: Server Core, other
-  cultures, servers that aren't Windows (#34), and a judged test matrix per
-  parameter set (57 of 64 sets have a test call that binds them; the coverage
-  shows every switch visited).
+- Handoff 5, the coverage unknowns, 2026-10-10 to 11 (report
+  `Tests/Coverage/Quality-Gate-Unknowns-2026-10-10.md`; raw evidence in the
+  session folder `816cf47d-2f80-4eba-8ac9-41702c49560b\files\qg-unknowns`
+  with a hash manifest). rc7 measured at `fa0701b` (four frozen
+  configurations, AltCover): 3,198/3,649 sequence points (87.64%), 1,090/1,168
+  explicit branch points; 232 unvisited methods, all classified. Live suite on
+  an instrumented copy (first lab and three cells) and unit suite on
+  `OSFile25`: together +9 sequence and +4 explicit branch points (the code of
+  `fdd7a8b`); no test or probe reaches the audit ownership retry or the audit
+  read denial. 101 new `It` blocks; 7 of 64 parameter sets closed, 51 partly,
+  1 open, 4 left to the maintainer. Cultures `de-DE` and `tr-TR`: two defects,
+  fixed. The piped
+  `AppliesTo` (Decision 26, debugging insights): fixed in `93ed2c7`; the
+  independent reviews then found a carry-over of the scope between piped
+  objects (`9783d2a`; rc7 had it for descriptor objects) and two false
+  sentences of the documents about empty values (`7bc7925`, `2112ee3`). Final
+  commit `2112ee3`, product code of `9783d2a` (its help file differs from the
+  package that the labs accepted): 1,492 cases per configuration, 3,266/3,668
+  points, 183 unvisited methods, all classified. The labs accepted the package
+  (`ap7`, `ap8`): first lab 245/0/1 per edition; the 22 files on
+  `OSFile19/22/25` and `OSWin11` 1,189/0 in 16 configurations; the three cells
+  229/0/2 per edition; all end states clean at 13:45Z. The first start of the
+  cells did nothing: a `powershell.exe` that PowerShell 7 starts inherits its
+  `PSModulePath` (lab README). Server Core, ARM64, a localized system, and
+  non-Windows servers are out of scope (Decision 25).
 - Raw evidence is outside git: the session folder
   `4b12e2f4-d4c7-4a5d-883a-ddb7421c4848\files` (`qg-paths`, the matrix runs, the
   night log) and
@@ -154,9 +181,12 @@ acceptance is the maintainer's.
    Modify; protecting them is a design change of the controller and needs a new
    acceptance). The help could also say that a local standard user who asks
    about a domain account still gets "Access is denied".
-6. The two measurement gaps (Evidence): measure the coverage at the tag again
-   with the method of the paths report (about 1.5 hours, local), and run the
-   live tests with an instrumented build to see what they add, the audit
-   ownership retry first (about 2 to 3 hours with the lab). Neither was
-   requested; the agent starts them on request.
+6. Handoff 5 is done (Evidence). The maintainer decides whether the fixes
+   (`419cfb3`, `0028ccd`, `fbe0289`, `8a625c8`, `93ed2c7`, `9783d2a`) and the
+   tests enter a new candidate (rc8), which needs the matrix cells and the
+   first lab on its own bytes, and he decides the open items of the report:
+   hard-link names under another root (a defect with a reproduction), the
+   silent default scope for a piped `AppliesTo` that PowerShell cannot convert
+   (a design change), 8 getters of pipeline parameters, the 51 partly closed
+   sets, and the audit paths.
 7. Do not release stable 5.0.0 or equate a percentage with gate closure.

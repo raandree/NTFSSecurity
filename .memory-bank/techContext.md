@@ -105,35 +105,41 @@ source: repository and executable evidence
   four configurations sequentially with the real CI wrappers, then
   AltCover runner --collect recalculates the report. Compute option paths
   before passing native arguments, not inline Join-Path expressions.
-- Report sequence points, not unique source lines. Four-run baselines: rc5
-  2,020/3,476 (58.1%); rc6 2,412/3,540 (68.14%); `3442194` 2,641/3,559
-  (74.21%); `5a5d58b` 3,192/3,634 (87.84%), branches 1,273/1,978 (64.36%).
-  The code changes the denominators: never present these as same-source
-  increments. The branch summary counts 820 compiler-generated points; report
-  the explicit branch points too (1,088/1,158, 93.96%). Suite at `5a5d58b`:
-  1,310 per configuration, zero failures (skipped: 24 and 55 elevated, 234
-  and 265 basic, Desktop and Core).
+- Report sequence points, not unique source lines. Four-run baselines:
+  `3442194` 2,641/3,559 (74.21%); `5a5d58b` 3,192/3,634 (87.84%); `fa0701b`
+  (rc7) 3,198/3,649 (87.64%); `61e936e` 3,258/3,664 (88.92%). The code
+  changes the denominators: never present these as same-source increments.
+  The branch summary of the tool adds a point to most methods (never visited
+  for the 626 without a branch): report the explicit branch points
+  (1,090/1,168, 93.32%), not the summary percentage. Suite at `61e936e`: 1,459
+  per configuration, zero failures (skipped: 26 and 57 elevated, 276 and 307
+  basic, Desktop and Core).
 - NUnit skipped ForEach names retain placeholders and parameter tuples,
   executed names expand them: raw-name intersection and positional alignment
   are invalid. Check skip eligibility by row: run the suite once per
   configuration with Pester PassThru and match skipped with executed rows by
   file, line, path, name, and data (discovery alone misses tests that skip
   while running; write primitives, as `ConvertTo-Json` of rich rows hangs).
-- Remaining inventory: 442 points in 231 methods, classified by rule with
-  evidence (probe, IL scan, source reading); see `Tests/Coverage`. Preserve
-  raw XML, row CSVs, logs, commit identity, and build hashes: the frozen
-  Build rewrites its hash file, so save the hashes of the measured assemblies
-  (AltCover `__Saved` copies) before any mutation build.
-- Bounded mutations: one script per round on the frozen worktree, with guards
-  that no other mutation of the round can trip (an escape can be an overlap
-  or an equivalent mutant: check before changing a test). Restore the source
-  exactly and rebuild.
-- Red/green matrix (a guard fails without its fix): build each state of the
-  branch in its own Release worktree, lay the final `Tests` over it, run the
-  guarding files with the focused runner in all four configurations, and count
-  failed rows per name with multiplicity; the last state is the control. Keep
-  the logs, a manifest with hashes, and the hash of each build: the first red
-  runs of Handoff 1 were deleted and could not be reproduced.
+- Live and domain-member coverage: instrument a copy of the package without
+  `--portable`, with an absolute report path outside the payload
+  (`C:\NtfsMatrixProbe\Coverage`, `icacls` Authenticated Users modify) and a
+  SYSTEM task that snapshots the report after each process (a role that is not
+  an administrator of the client can't write next to the module). It counts
+  only when its counts equal the uninstrumented acceptance and every role
+  logged a flush. Merge by position, never by `uspid`. PowerShell reads the
+  getter of a parameter that it binds from a piped object: unvisited getters
+  point at missing pipeline tests.
+- Remaining inventory at `61e936e`: 406 points in 187 methods, classified by
+  rule (`Tests/Coverage`). Preserve raw XML, row CSVs, logs, commit identity,
+  and build hashes: the frozen Build rewrites its hash file, so save the
+  hashes of the measured assemblies (AltCover `__Saved` copies) first.
+- Mutation proofs: bounded one-statement changes on a second frozen worktree,
+  source restored exactly and rebuilt (an escape can be an overlap, an
+  equivalent mutant, or a masked case: check before changing a test). Red/green
+  matrix for a fix: build each state in its own Release worktree, lay the
+  final `Tests` over it, count failed rows per name in all four
+  configurations, and keep logs and hashes (Handoff 1's first red runs were
+  deleted and could not be reproduced).
 
 ## Lab acceptance
 

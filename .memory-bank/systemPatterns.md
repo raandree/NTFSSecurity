@@ -49,6 +49,8 @@ Read only task-relevant records; the index controls routing.
 | 22 | [The behavior changes of Phase 2 (proposed)](decisions/0022-phase-2-behavior-changes.md) |
 | 23 | [Non-Windows file servers before 5.0.0, #34 (proposed)](decisions/0023-non-windows-file-servers.md) |
 | 24 | [The operating-system matrix lab (proposed)](decisions/0024-os-matrix-lab.md) |
+| 25 | [Four environments are out of scope for the tests](decisions/0025-out-of-scope-environments.md) |
+| 26 | [No default parameter set for Add and Remove (access, audit)](decisions/0026-no-default-parameter-set-add-remove.md) |
 
 ## Patterns
 
@@ -70,8 +72,7 @@ Read only task-relevant records; the index controls routing.
   through a Write call (`IsFromLaterCommand`, `PipelineControl`; see
   `BaseCmdlets.cs`); add a row to `Tests/PipelineControl.Tests.ps1` for a new
   cmdlet. Record an enabled privilege before the next write.
-- `Get-ChildItem2 -Filter` has two matchers (AlphaFS, then a wildcard on the
-  name); `*.*` means `*`, other dot patterns are an open decision.
+- `Get-ChildItem2 -Filter` matches culture invariant; `*.*` means `*`.
 
 ### Tests and documentation
 
@@ -93,8 +94,9 @@ Read only task-relevant records; the index controls routing.
   Get/SetFileSecurity preserves stored DACLs; rights oracles use S4U tokens.
 - A suite that is green on the host and CI misses defects that need a domain
   member or another token (the matrix found three): also run a domain member,
-  other builds, and a basic user. A failure that follows cell order, not
-  version, points to stale account state (Decision 24): alternate the cells.
+  other builds, and a basic user; a failure that follows cell order points to
+  stale account state (Decision 24). Oracles differ there too: `Get-Acl -Audit`
+  reads an item without audit entries as SACL-protected; read the SACL alone.
 
 ### CI, publication, and integration
 

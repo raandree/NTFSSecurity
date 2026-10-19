@@ -176,7 +176,12 @@ A run with `-ModulePath` validates a build. The acceptance of a release is the
 run with `-Version` of the exact prerelease on the PowerShell Gallery, as
 `Docs\Contributing\05-Releasing.md` describes. The scripts in the folder
 [Acceptance](Acceptance) support it, and each runs in Windows PowerShell 5.1 on
-the host:
+the host. Start them in a Windows PowerShell window. A `powershell.exe` that
+PowerShell 7 starts inherits the `PSModulePath` of PowerShell 7, and the script
+stops at its first call of `Get-FileHash`, without a log when its window is
+hidden; from PowerShell 7, set `$env:PSModulePath` to the three
+`WindowsPowerShell\Modules` folders (Documents, Program Files, and System32)
+before you start one:
 
 - `Test-PublishedRelease.ps1 -Version <version> -OutputPath <folder>` checks a
   published version and changes nothing: the tag and its commit on `master`,

@@ -226,6 +226,22 @@ The format is based on
   `-PropagationFlags`; `-AppliesTo` is now mandatory in the `Simple`
   parameter sets, so such a command uses the flag parameters and their
   defaults, as for a path
+- Fix `Add-NTFSAccess`, `Remove-NTFSAccess`, `Add-NTFSAudit`, and
+  `Remove-NTFSAudit`, which ignored the `AppliesTo` property of an object
+  piped to them with a path and used the default scope, and which gave a
+  piped security descriptor object without a scope the scope of the object
+  before it; the property now sets the scope of its own object only. A piped
+  object that has `AppliesTo` and `InheritanceFlags` or `PropagationFlags`
+  now fails with `AmbiguousParameterSet`, like the same parameters on the
+  command line, and so does an object that has both `Path` and
+  `SecurityDescriptor`, where the path won before. An `AppliesTo` that is
+  `$null` fails to bind for that object (a row of a CSV file that has fewer
+  fields than its header gives `$null`). A value that PowerShell can't
+  convert to a scope, such as the empty cell of a CSV file or a misspelled
+  name, is ignored, and the object is handled as one without `AppliesTo`: it
+  gets its own flags, or the default scope if it has none. A call with
+  neither `-Path` nor `-SecurityDescriptor` now fails with
+  `AmbiguousParameterSet` instead of a missing-parameter error for `-Path`
 - Fix `Get-NTFSEffectiveAccess`: `-ExcludeNoneAccessEntries` now leaves out
   items without access, the cmdlet uses the current location when `-Path`
   is omitted, and `-SecurityDescriptor` returns the effective access of the
@@ -439,5 +455,16 @@ The format is based on
 
 - Fix [Get-ChildItem2](Docs/Cmdlets/Get-ChildItem2.md) with `-Hidden`,
   which omitted the first hidden item unless `-Force` was also supplied
+- Fix the comparison of an identity with a name by its `Equals` method, such
+  as `$entry.Account.Equals('nt authority\system')`, in the Turkish culture
+  (`tr-TR`): it changed the case of both names with the culture of the thread,
+  which turns `I` into a dotless `ı`, so an account whose name holds an
+  uppercase `I`, such as `NT AUTHORITY\SYSTEM` or `BUILTIN\Administrators`,
+  did not match the same name in another case. The operators `-eq`,
+  `-contains`, and `-in` were not affected
+- Fix [Get-ChildItem2](Docs/Cmdlets/Get-ChildItem2.md) with `-Filter` in the
+  Turkish culture (`tr-TR`), which dropped the items whose names differ from
+  the filter in the case of an `I`, such as `Index.txt` for `-Filter 'index*'`
+  or `SETTINGS.INI` for `-Filter '*.ini'`
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD

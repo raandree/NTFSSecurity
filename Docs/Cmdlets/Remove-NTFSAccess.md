@@ -13,17 +13,17 @@ Removes rights from the access control entries (ACEs) of a file, a folder, or a 
 
 ## SYNTAX
 
-### PathComplex (Default)
-```
-Remove-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
- [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
- [-PropagationFlags <PropagationFlags>] [-RemoveSpecific] [-PassThru] [<CommonParameters>]
-```
-
 ### PathSimple
 ```
 Remove-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
  [-AccessType <AccessControlType>] -AppliesTo <ApplyTo> [-RemoveSpecific] [-PassThru] [<CommonParameters>]
+```
+
+### PathComplex
+```
+Remove-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
+ [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
+ [-PropagationFlags <PropagationFlags>] [-RemoveSpecific] [-PassThru] [<CommonParameters>]
 ```
 
 ### SDSimple
@@ -48,7 +48,7 @@ Only the specified rights are taken away: when an entry grants more than `-Acces
 
 Inherited entries cannot be removed from the item that inherits them. Remove them from the folder named in the `InheritedFrom` property, or run `Disable-NTFSAccessInheritance` on the item first, which copies the inherited entries into it as explicit ones that this cmdlet can then remove.
 
-The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`, and `PathComplex` is the default. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets. All relevant parameters bind by property name, so the output of `Get-NTFSAccess` and `Get-NTFSOrphanedAccess` can be piped directly into this cmdlet. The cmdlet writes no output unless `-PassThru` is used.
+The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor, and a command that has `-AppliesTo` together with `-InheritanceFlags` or `-PropagationFlags` fails, because PowerShell can't choose between the sets. The same holds for an object that you pipe in: its property `AppliesTo` selects a `Simple` set, its properties `InheritanceFlags` and `PropagationFlags` select a `Complex` set, and an object that has both kinds, an object that has both `Path` and `SecurityDescriptor`, or one whose `AppliesTo` is `$null`, fails. `Import-Csv` gives `$null` for a column that a row lacks because it has fewer fields than the header. An `AppliesTo` that PowerShell can't convert to a scope, such as the blank cell of a CSV file or a misspelled name, is ignored, and the object is handled as one without `AppliesTo`: it uses its own `InheritanceFlags` and `PropagationFlags`, or the default scope if it has none. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets. All relevant parameters bind by property name, so the output of `Get-NTFSAccess` and `Get-NTFSOrphanedAccess` can be piped directly into this cmdlet. The cmdlet writes no output unless `-PassThru` is used.
 
 ## EXAMPLES
 
@@ -192,7 +192,7 @@ Specifies the path of one or more files or folders whose access control entries 
 
 ```yaml
 Type: String[]
-Parameter Sets: PathComplex, PathSimple
+Parameter Sets: PathSimple, PathComplex
 Aliases: FullName
 
 Required: True

@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-10
+last-verified: 2026-10-11
 owner: active-agent
 source: repository and validation evidence
 ---
@@ -99,6 +99,22 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   9 245 / 0 / 1 per edition; every end state CLEAN. The counts equal those of
   the final local candidate. Record:
   `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`.
+- 2026-10-10 to 2026-10-11: Handoff 5, the coverage unknowns (local,
+  `ai/coverage-unknowns`; the maintainer pushed `2b97422`, later commits are
+  local). rc7 measured at `fa0701b`: 3,198/3,649 sequence points; the live
+  suite and the suite on a domain member add 9 sequence and 4 explicit branch
+  points (`fdd7a8b`); two `tr-TR` defects fixed test-first (`419cfb3`;
+  `0028ccd`, `fbe0289`, `8a625c8`); 101 `It` blocks added. The piped
+  `AppliesTo` that a path dropped is fixed (`93ed2c7`, `9783d2a`, Decision 26)
+  after three independent reviews and two checks: a carry-over of the scope
+  between piped objects, and false sentences about empty values (`7bc7925`,
+  `2112ee3`). Final `2112ee3`, product code built once at `9783d2a`: 1,492
+  cases per configuration, 3,266/3,668 points. The labs accepted the package:
+  first lab 245/0/1 per edition, the suite 1,189/0 in 16 configurations on
+  four machines, three cells 229/0/2 per edition, every end state clean. Open:
+  hard-link names under another root, the silent default scope of an
+  unconvertible piped `AppliesTo`. Report:
+  `Tests/Coverage/Quality-Gate-Unknowns-2026-10-10.md`.
 
 ## Stable capabilities
 
@@ -130,21 +146,23 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 4. Architecture/cmdlet design: Decision 22 remains proposed; two link
    changes are breaking. Keep unused classes/helper overloads until a
    maintainer decision; do not remove them to improve coverage percentages.
-5. ARM64 workstation: PowerShell 7.6.1 crashed under x64 emulation without
-   module frames; native-x64 CI did not reproduce it.
+5. ARM64 workstation: out of scope (maintainer, 2026-10-11, Decision 25).
 6. Optional maintainer cleanup: obsolete AppVeyor/Read the Docs access,
    wiki editing restrictions, `test/transfer`, and old lab checkpoints
    when no longer needed. No remote changes or snapshot restores here.
-7. Remaining-path inventory at the final frozen commit of Handoff 1:
-   442 unvisited sequence points in 231 methods, all classified
-   (`Tests/Coverage`): 223 explained from source with evidence, 8 open
-   (`FileSecurity` conversions, `RemoveAll` account filters). Other open
-   decisions: lazy path overloads, abandoned `PrivilegeEnabler`, dot patterns
-   of `Get-ChildItem2 -Filter`, 17 owner-restore handlers that do not pass on
-   what a later command raises (a rare combination), unused classes. An audit
-   write's ownership retry cannot run on a local volume and is covered only
-   by the lab. A conditional ACE display remains a .NET representation limit,
-   not evidence of unconditional permissions.
+7. Remaining-path inventory at the final measured commit of Handoff 5
+   (`2112ee3`): 402 unvisited sequence points in 183 methods, all classified
+   (`Tests/Coverage`): 167 explained from source with evidence, 16 open (8:
+   `FileSecurity` conversions, `RemoveAll` account filters; 8 getters of
+   pipeline parameters that no test binds by property name). Other open
+   decisions: lazy path overloads, abandoned
+   `PrivilegeEnabler`, dot patterns of `Get-ChildItem2 -Filter`, 17
+   owner-restore handlers that do not pass on
+   what a later command raises (a rare combination), unused classes. No
+   trigger for an audit write's ownership retry was found on a local volume or
+   a Windows file server (probe of 48 calls) and no test reaches it. A
+   conditional ACE display remains a .NET representation limit, not evidence
+   of unconditional permissions.
 8. Publication recovery (`95b827e`, merged in #120): 14 offline tests and exact
    artifact SHA-512 verification; the original upload errors remain errors for
    missing, different, or unverifiable outcomes. The agent published nothing,

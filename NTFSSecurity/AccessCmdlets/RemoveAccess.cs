@@ -7,7 +7,7 @@ using System.Security.AccessControl;
 
 namespace NTFSSecurity
 {
-    [Cmdlet(VerbsCommon.Remove, "NTFSAccess", DefaultParameterSetName = "PathComplex")]
+    [Cmdlet(VerbsCommon.Remove, "NTFSAccess")]
     [OutputType(typeof(FileSystemAccessRule2))]
     public class RemoveAccess : BaseCmdletWithPrivControl
     {
@@ -121,9 +121,14 @@ namespace NTFSSecurity
 
         protected override void ProcessRecord()
         {
+            // The flags of this record are locals: the fields behind -InheritanceFlags and -PropagationFlags keep the value of the
+            // previous piped object when the next one binds neither, so the scope that -AppliesTo converts to must not stay in them.
+            var inheritance = inheritanceFlags;
+            var propagation = propagationFlags;
+
             if (ParameterSetName.EndsWith("Simple"))
             {
-                FileSystemSecurity2.ConvertToFileSystemFlags(appliesTo, out inheritanceFlags, out propagationFlags);
+                FileSystemSecurity2.ConvertToFileSystemFlags(appliesTo, out inheritance, out propagation);
             }
 
             if (ParameterSetName.StartsWith("Path"))
@@ -142,14 +147,9 @@ namespace NTFSSecurity
                         continue;
                     }
 
-                    if (ParameterSetName == "PathSimple")
-                    {
-                        FileSystemSecurity2.ConvertToFileSystemFlags(appliesTo, out inheritanceFlags, out propagationFlags);
-                    }
-
                     try
                     {
-                        FileSystemAccessRule2.RemoveFileSystemAccessRule(item, account.ToList(), accessRights, accessType, inheritanceFlags, propagationFlags, removeSpecific);
+                        FileSystemAccessRule2.RemoveFileSystemAccessRule(item, account.ToList(), accessRights, accessType, inheritance, propagation, removeSpecific);
                     }
                     catch (UnauthorizedAccessException)
                     {
@@ -157,7 +157,7 @@ namespace NTFSSecurity
                         {
                             InvokeAsOwner(item, path, () =>
                             {
-                                FileSystemAccessRule2.RemoveFileSystemAccessRule(item, account.ToList(), accessRights, accessType, inheritanceFlags, propagationFlags, removeSpecific);
+                                FileSystemAccessRule2.RemoveFileSystemAccessRule(item, account.ToList(), accessRights, accessType, inheritance, propagation, removeSpecific);
                             });
                         }
                         catch (Exception ex2)
@@ -182,7 +182,7 @@ namespace NTFSSecurity
             {
                 foreach (var sd in securityDescriptors)
                 {
-                    FileSystemAccessRule2.RemoveFileSystemAccessRule(sd, account.ToList(), accessRights, accessType, inheritanceFlags, propagationFlags, removeSpecific);
+                    FileSystemAccessRule2.RemoveFileSystemAccessRule(sd, account.ToList(), accessRights, accessType, inheritance, propagation, removeSpecific);
 
                     if (passThru == true)
                     {
