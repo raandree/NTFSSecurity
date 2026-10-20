@@ -104,6 +104,8 @@ Hard links exist only within a single NTFS volume. Every object that this cmdlet
 
 Windows can't list the names of a file on a network share, also when the share lies on an NTFS volume of the file server. For such a file the cmdlet writes a non-terminating `GetHardLinkError` with the message "The request is not supported" and continues with the next path; run the cmdlet on the file server itself instead. Before 5.0.0, a file on a network share and a folder stopped the cmdlet with a terminating error, so that it skipped the remaining paths.
 
+The cmdlet combines the names that the file system reports with the root of the path that you pass in, which is right only when that root is the root of the volume that holds the file. For a path on a drive that you made with `subst`, the cmdlet writes a non-terminating `FileNotFound` error for a file that exists and returns no object; use `D:\Data\Report.txt` instead of `Z:\Report.txt` for the drive `Z:` that `subst Z: D:\Data` made. A volume that is mounted into a folder, and a junction or a symbolic link to another volume, probably behave the same way. Use a path that starts at the root of the volume.
+
 Because all hard links of a file share the same data, they also share the file content, the file size, and the time stamps. The security descriptor is stored with the file as well, so changing permissions through one name changes them for every name.
 
 The cmdlet resolves paths through the AlphaFS library and therefore also works with paths that exceed the 260-character `MAX_PATH` limit.

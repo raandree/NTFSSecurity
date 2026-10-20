@@ -89,6 +89,14 @@ The format is based on
   `-ErrorAction Stop`
 - Name the computer in the warning of `Get-NTFSEffectiveAccess` when the
   computer of `-ServerName` can't be reached
+- Document that `Get-NTFSHardLink` and `New-NTFSHardLink -PassThru` fail for
+  a path whose root isn't the root of the volume that holds the file, such
+  as a path on a drive made with `subst`. `Get-NTFSHardLink` writes a
+  `FileNotFound` error for a file that exists, and
+  `New-NTFSHardLink -PassThru` creates the link and then stops with a
+  `FileNotFoundException`. A volume that is mounted into a folder, and a
+  junction or symbolic link to another volume, probably fail the same way.
+  Use a path that starts at the root of the volume
 
 ### Deprecated
 
