@@ -164,7 +164,9 @@ and record the evidence in this folder:
    `.github\scripts\New-ModulePackage.ps1`, and record the SHA-256 of the
    packages and of the module files.
 2. Check that WinRM, LDAP, Kerberos, the secure channel, and the clocks of
-   the lab machines work.
+   the lab machines work. Machines that were saved (`Save-VM`) come first: restore
+   the domain controllers, wait a minute for the directory services, then restore
+   the other machines, and run the readiness check until it passes.
 3. Take a checkpoint of the machines, named after the candidate and its
    commit.
 4. Run the tests with `-ModulePath` of the extracted `NTFSSecurity.zip` in
@@ -249,15 +251,17 @@ module of the release (`Test-PublishedRelease.ps1` leaves it in the folder
 controller with `-Version` in the first lab, where case 9 runs. Start the suites
 a minute or more apart, because AutomatedLab imports one lab at a time, and
 never together with a controller. The
-[record of the published 5.0.0-rc7](Acceptance-2026-10-10-published-rc7.md) ran
-the stages that way.
+[record of the published 5.0.0-rc7](Acceptance-2026-10-10-published-rc7.md) and
+the [record of the published 5.0.0-rc8](Acceptance-2026-10-20-published-rc8.md)
+ran the stages that way.
 
 Records: [5.0.0-rc6](Acceptance-2026-10-08-5.0.0-rc6.md),
 [5.0.0-rc7](Acceptance-2026-10-08-5.0.0-rc7.md),
 [quality-gate follow-up](Acceptance-2026-10-09-quality-gate.md),
 [quality-gate paths follow-up](Acceptance-2026-10-09-quality-gate-paths.md),
-[operating-system matrix](Acceptance-2026-10-10-os-matrix.md), and
-[the published 5.0.0-rc7](Acceptance-2026-10-10-published-rc7.md).
+[operating-system matrix](Acceptance-2026-10-10-os-matrix.md),
+[the published 5.0.0-rc7](Acceptance-2026-10-10-published-rc7.md), and
+[the published 5.0.0-rc8](Acceptance-2026-10-20-published-rc8.md).
 The review of the code that no unit test visits, with the fixes that the lab
 has to repeat, is in
 [Tests/Coverage](../Coverage/Quality-Gate-Paths-2026-10-09.md).
