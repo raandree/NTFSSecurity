@@ -78,8 +78,14 @@ check, three matrix cells 1,374/0/12, the suite in 24 runs, the first lab
 `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`). The fix of the swallowed
 initialization errors went in with a review (one Minor, the warning before the
 error, fixed), and the hard-link known limit is in the pages and the
-CHANGELOG. The exit criterion "matrix on published bytes" is met for rc8; open
-are the tests-only round (until 2026-11-02), #34 (2026-11-02), and the key
-check. The stable build is new bytes: the stable change may touch only the
+CHANGELOG. The exit criterion "matrix on published bytes" is met for rc8. The
+tests-only round ran the same afternoon (report
+`Tests/Coverage/Quality-Gate-Test-Round-2026-10-20.md`): 89 `It` blocks, 121
+cases, the suite 1,494 to 1,615 per configuration with no failure, 38 of 64
+parameter sets closed, 26 with a leftover (16 Limit, 7 MaintainerDecision, 3
+would-pin), no defect. It is on `ai/tests-round-1` and has not run on the
+GitHub runner. Open are that pull request, the leftovers until 2026-11-02, #34
+(2026-11-02), and the key check. The stable build is new bytes: the stable
+change may touch only the
 label, the CHANGELOG, and `$publishedVersions`; any other product change needs
 rc9 and the same acceptance.

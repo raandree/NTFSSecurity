@@ -9,7 +9,7 @@ source: current task evidence
 
 ## Current focus
 
-State at 2026-10-20 12:40 UTC: 5.0.0-rc8 is published and accepted. The
+State at 2026-10-20 14:55 UTC: 5.0.0-rc8 is published and accepted. The
 maintainer merged #126 (the decisions of 2026-10-19) and #127 (`c719197`: the
 fix of the false "no access" of `Get-NTFSEffectiveAccess`, the known limit of
 the hard-link cmdlets in the pages and the CHANGELOG, and the label `rc8`) and
@@ -20,10 +20,12 @@ passed. The lab acceptance of the published bytes passed in one detached driver
 six machine classes, the first lab 245/0/1 per edition, every end state CLEAN
 (record `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`, #128). The boundary
 of the new error, a computer name of 32,718 characters, holds on Server 2019,
-2022, 2025, and Windows 11 26H1. Open before the stable pull request: the
-tests-only round for the plain gaps (until 2026-11-02), the maintainer's #34
-decision on that date (no reply to his follow-up of 2026-10-19), and his check
-of `PSGALLERY_API_KEY`. The stable build is new bytes that no lab has run; the
+2022, 2025, and Windows 11 26H1. The tests-only round for the plain gaps ran
+the same afternoon (Next step 6; branch `ai/tests-round-1`, not pushed). Open
+before the stable pull request: its pull request and the CI on the runner, the
+maintainer's #34 decision on 2026-11-02 (no reply to his follow-up of
+2026-10-19), and his check of `PSGALLERY_API_KEY`. The stable build is new
+bytes that no lab has run; the
 procedure accepts the last prerelease, so the stable change touches only the
 label, the CHANGELOG, and `$publishedVersions`. Any other product change needs
 rc9 and the same acceptance, about 70 minutes with the chain script.
@@ -180,12 +182,15 @@ Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
    about a domain account still gets "Access is denied".
 6. Handoff 5 is done and merged (Evidence). Decided on 2026-10-19 (Decision
    21): the hard-link names under another root stay a known limit; the pages
-   and the CHANGELOG say so since rc8. The plain test items (68 `budget`
-   mentions in the 57 sets that are not closed) are closed in a tests-only
-   round until 2026-11-02: four implementers, one per `ParameterSets.*` test
-   file, work in worktrees from `master`; their commits go into one branch
-   with the report and the ParameterSets table updated, and what is left is
-   listed. A defect that a test finds needs his decision and rc9. Still his: the
-   silent default scope for a piped `AppliesTo` that PowerShell cannot convert
-   (a design change), the 8 getters of pipeline parameters, and the audit paths.
+   and the CHANGELOG say so since rc8. The tests-only round for the plain items
+   (68 `budget` mentions) ran on 2026-10-20: four implementers, one
+   `ParameterSets.*` file each, integrated on `ai/tests-round-1` (`d28c7a0`, not
+   pushed): 89 `It` blocks, 121 cases, the suite 1,494 to 1,615 per
+   configuration, 0 failed; 38 of 64 sets closed, 26 with a leftover (16
+   Limit, 7 MaintainerDecision, 3 would-pin), no defect; report
+   `Tests/Coverage/Quality-Gate-Test-Round-2026-10-20.md`. The GitHub runner
+   has not run the tests yet. A defect that a test finds needs his decision and
+   rc9. Still his: the silent default scope for a piped `AppliesTo` that
+   PowerShell cannot convert (a design change), the 8 getters of pipeline
+   parameters, and the audit paths.
 7. Do not release stable 5.0.0 or equate a percentage with gate closure.

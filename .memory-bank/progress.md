@@ -129,8 +129,13 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   configuration); the first lab 245/0/1 per edition; every end state CLEAN. A
   probe on four operating systems showed the boundary of the new error (a name
   of 32,718 characters). Record
-  `Tests/Lab/Acceptance-2026-10-20-published-rc8.md` (#128). The tests-only
-  round for the plain gaps started the same day.
+  `Tests/Lab/Acceptance-2026-10-20-published-rc8.md` (#128).
+- 2026-10-20: tests-only round (Decision 21). Four implementers, one
+  `ParameterSets.*` test file each; integrated on `ai/tests-round-1`
+  (`d28c7a0`, not pushed): 89 `It` blocks, 121 cases, the suite 1,494 to 1,615
+  per configuration, 0 failed in four configurations; 38 of 64 sets closed (7
+  before), 26 with a leftover (16 Limit, 7 MaintainerDecision, 3 would-pin); no
+  defect. Report: `Tests/Coverage/Quality-Gate-Test-Round-2026-10-20.md`.
 
 ## Stable capabilities
 
@@ -145,8 +150,9 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 
 1. Decision 21 gate: the published rc7 and rc8 are accepted in the matrix and
    the first lab (records); stable follows rc8 (Decision 21, "Closing the
-   gate"). Do not release 5.0.0 until the other gates close: the tests-only
-   round, #34 on 2026-11-02, and the key check. Release steps:
+   gate"). Do not release 5.0.0 until the other gates close: the tests PR (CI
+   on the runner) and the rest of the plain gaps, #34 on 2026-11-02, and the
+   key check. Release steps:
    `Docs/Contributing/05-Releasing.md`; remove the prerelease label, date
    `[5.0.0]`, add the last prerelease (rc8) to `$publishedVersions` (never the
    version of the manifest), tag through CI.

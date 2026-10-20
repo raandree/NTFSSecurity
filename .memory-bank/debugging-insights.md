@@ -2,7 +2,7 @@
 status: current
 last-verified: 2026-10-20
 owner: software-engineer
-source: Handoff 5 (the coverage unknowns) and the rc8 fix: probes, red and green runs, and the independent reviews
+source: Handoff 5 (the coverage unknowns), the rc8 fix, and the tests-only round: probes, red and green runs, and the independent reviews
 ---
 
 # Debugging insights
@@ -115,3 +115,16 @@ fails without it (Decision 16).
   !OperationFailed`); the tests assert its absence next to the error.
 - A word in the CHANGELOG is a claim: "an overlong name" suggested 256
   characters, where 1722 still falls back. The entry names the probed length.
+
+## A helper that waits for a child that never started
+
+- The helper that ran a test file in the four CI configurations passed the
+  Pester name filter to the basic-user run through `runas /trustlevel:0x20000
+  "…"`. A filter with spaces (`*treat a path with brackets*`) broke the nested
+  quotes, the child never started, and the helper waited for its whole timeout
+  (30 minutes). An implementer blamed the load of four agents at once; a call
+  alone with the same spaced filter showed the helper.
+- The filter now travels as base64 (`-FullNameBase64`), and a basic-user run
+  gives up after 60 seconds when its runner never started (about 6 seconds
+  normally). Before you blame the load for a stall, repeat the call alone with
+  the same arguments.
