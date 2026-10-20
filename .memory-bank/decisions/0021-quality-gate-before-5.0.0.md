@@ -1,9 +1,9 @@
 ---
 status: accepted
 date: 2026-10-08
-last-verified: 2026-10-08
+last-verified: 2026-10-19
 owner: shared
-source: maintainer decision of 2026-10-08
+source: maintainer decision of 2026-10-08; closing choices of 2026-10-19
 ---
 
 # Decision 21: A quality gate before 5.0.0
@@ -35,3 +35,37 @@ source: maintainer decision of 2026-10-08
   (Decision 16); so do the 244 lines of classes that no cmdlet calls, the
   operating systems of Phase 3, and how to cover file servers that aren't
   Windows (#34).
+
+## Closing the gate (maintainer, 2026-10-19)
+
+After Handoff 5 and the merges of #125 and #124 (`master` at `354ce04`), the
+maintainer answered five questions, each time with the recommended option:
+
+- rc8 is the next prerelease and carries `master`, which is ahead of rc7 by the
+  seven product files of #125. Stable 5.0.0 is accepted through the last
+  prerelease (`Docs/Contributing/05-Releasing.md`), so rc8 is mandatory.
+- Code before rc8: fix the false "no access" of `Get-NTFSEffectiveAccess` (the
+  swallowed initialization errors, a LOW finding of the security review),
+  test-first, with an independent review. The hard-link names under a root that
+  is not the volume root stay a known limit that the release notes list (the
+  exit criterion allows "fixed, or accepted and listed"). The other open items
+  of the paths report and of Handoff 5 are not decided yet.
+- Test gaps: the plain test items that the ParameterSets table marks `budget`
+  (68 mentions in the 57 sets that are not closed) are closed in a round of
+  tests only, time-boxed to 2026-11-02; the report lists what is left. The
+  shipped DLL does not change by it. A defect that a test finds needs its own
+  decision and a new prerelease.
+- #34: wait for a tester until 2026-11-02, then choose between waiting longer
+  and accepting the untested risk (Decision 23, option 3).
+- Decisions 22 and 24 are accepted (their records).
+- A tester's result on rc7 counts for rc8 only while no change of rc8 touches
+  the code that writes a section of a security descriptor (Decision 19). The
+  seven product files of #125 have no such line, and the fix of
+  `Get-NTFSEffectiveAccess` reads.
+- Path to stable: the rc8 pull request (label `rc8`, `5.0.0-rc7` into
+  `$publishedVersions`, changelog), the tag, the acceptance of the published
+  rc8 (matrix cells, first lab, suite on the four machines), the stable pull
+  request (no `Prerelease`, `## [5.0.0] - <date>`, `5.0.0-rc8` into
+  `$publishedVersions`), the tag. The maintainer checks the expiry of
+  `PSGALLERY_API_KEY` before the stable tag. After 5.0.0 the repository is
+  archived (Decision 18), so what ships stays.

@@ -1,9 +1,9 @@
 ---
-status: proposed
+status: accepted
 date: 2026-10-09
-last-verified: 2026-10-09
+last-verified: 2026-10-19
 owner: shared
-source: agent assessment for the maintainer (Handoff 4), from #34 read on 2026-10-09 21:33 UTC
+source: agent assessment for the maintainer (Handoff 4), from #34 read on 2026-10-09 21:33 UTC; option 3 chosen by the maintainer on 2026-10-19
 ---
 
 # Decision 23: Non-Windows file servers before 5.0.0 (#34)
@@ -58,8 +58,16 @@ source: agent assessment for the maintainer (Handoff 4), from #34 read on 2026-1
   was tested on Windows file servers. NetApp, EMC, and IBM ESS file servers
   weren't available for 5.0.0. If a command still fails there with error
   1307, tell us in #34. `icacls` is the fallback."
-- Open: the maintainer's choice between the options, and the date. Until
-  then the gate of Decision 21 for #34 is open.
+- Chosen (maintainer, 2026-10-19): option 3, with the decision date
+  2026-11-02, 14 days after the follow-up. He posted a follow-up on #34 on
+  2026-10-19 at 12:09 UTC, adapted from the draft below: it asks for the newest
+  prerelease (then rc7), links the checklist on `master`, and names no date. A
+  tester's result on rc7 counts for rc8 while no change of rc8 touches the
+  code that writes a section (Decision 21, "Closing the gate"). The gate of
+  Decision 21 for #34 stays open: no tester has reported, and no risk is
+  accepted. On 2026-11-02 the maintainer chooses between waiting longer
+  (option 1) and accepting the untested risk with the caveat below (option 2).
+  No answer keeps the gate open.
 - Tester checklist: `Tests/Lab/Non-Windows-File-Server-Test.md`. It uses a
   new folder that the tester controls and asks for sanitized evidence.
 - Draft comment for #34 (for the maintainer to post; the agent posts
