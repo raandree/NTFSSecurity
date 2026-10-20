@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-10
+last-verified: 2026-10-20
 owner: active-agent
 source: repository and executable evidence
 ---
@@ -42,9 +42,9 @@ source: repository and executable evidence
 
 ## Constraints
 
-- Manifest: ModuleVersion 5.0.0, prerelease rc7, published 2026-10-10 (tag at
-  `fa0701b`). Latest stable 4.2.6. The reuse test fails if `$publishedVersions`
-  holds the manifest's version: add rc7 in the change that sets the next one.
+- Manifest: ModuleVersion 5.0.0, prerelease rc8, published 2026-10-20 (tag at
+  `c719197`). Latest stable 4.2.6. `$publishedVersions` ends at rc7; the reuse
+  test fails if it holds the manifest's version, so the stable change adds rc8.
 - Changed-section writes preserve unchanged owner/group/DACL/SACL (19).
   Roots use root-folder APIs, not AlphaFS device security (#41).
 - CHANGELOG contains user-visible changes only (7); tests and CI-only fixes
@@ -67,11 +67,12 @@ source: repository and executable evidence
   `Start-DetachedPowerShell.ps1`; use unique TEMP logs/result paths and an
   explicit-PID watcher. No foreground sleep/poll loop. Long payloads use
   a script file: nested Base64 encoding can exceed Windows command limits.
-- Focused helper: TEMP `ntfs-focused\Start-FocusedRuns.ps1`; detach that
-  driver too because its internal wait loop must not block the agent shell.
-- TEMP `ntfs-docs-tools\Invoke-ChangeChecks.ps1 -File <relative paths>`
-  performs AST/analyzer/lint/help checks. Absolute input paths misroute
-  cmdlet pages. Check actual analyzer/lint output, not just helper exit.
+- Helpers live in the session folder `qg-unknowns\scripts`, not in TEMP (TEMP was
+  cleaned once): `Invoke-Build.ps1`, `Start-FocusedRuns.ps1` (four
+  configurations), `Run-FullSuite.ps1` (the CI test steps), `Check-Docs.ps1`.
+  Restore the pinned compiler (Microsoft.Net.Compilers 4.2.0 from NuGet) into
+  TEMP `ntfs-build` and platyPS 0.14.2 and MarkdownLinkCheck 0.2.0 (`Save-Module`
+  in Windows PowerShell) into TEMP `ntfs-docs-tools\modules`.
 - actionlint 1.7.12 checks the workflow. Script changes use AST parse and
   PSScriptAnalyzer; prose Markdown uses MD013 and changelog siblings-only
   repeated-heading allowance. Native error codes must be checked explicitly.

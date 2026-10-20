@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-19
+last-verified: 2026-10-20
 owner: active-agent
 source: current task evidence
 ---
@@ -9,41 +9,33 @@ source: current task evidence
 
 ## Current focus
 
-State at 2026-10-19 12:30 UTC: Handoff 5 is integrated. The maintainer merged
-pull request #125 (`ai/coverage-unknowns`, `17729d7`) and #124 (Dependabot: the
-pinned `upload-artifact` and `download-artifact` actions, `354ce04`) into
-`master`; CI is green on both. rc7 (`fa0701b`) is still the newest release and
-the manifest still says `rc7`, but `master` is ahead of it by seven product
-files (the culture comparisons of an identity and of `Get-ChildItem2 -Filter`,
-and the piped `AppliesTo`, Decision 26). The stable build is accepted through
-the last prerelease, so rc8 is mandatory. On 2026-10-19 the maintainer decided
-the path to stable (Decision 21, "Closing the gate"): rc8 carries the fix of
-the false "no access" of `Get-NTFSEffectiveAccess`; the hard-link names stay a
-known limit in the release notes; the plain test gaps are closed in a
-tests-only round until 2026-11-02; #34 waits for a tester until 2026-11-02;
-Decisions 22 and 24 are accepted (23: option 3). His #34 follow-up went up on
-2026-10-19 at 12:09 UTC; nobody has replied. Next: the fix and the test round.
+State at 2026-10-20 12:40 UTC: 5.0.0-rc8 is published and accepted. The
+maintainer merged #126 (the decisions of 2026-10-19) and #127 (`c719197`: the
+fix of the false "no access" of `Get-NTFSEffectiveAccess`, the known limit of
+the hard-link cmdlets in the pages and the CHANGELOG, and the label `rc8`) and
+tagged `5.0.0-rc8` at about 10:28Z. The CI run `39408140862` passed, and the
+Gallery has rc8 since 10:40:58Z, GitHub since 10:41:07Z. The identity check
+passed. The lab acceptance of the published bytes passed in one detached driver
+(68 minutes, 10:38 to 11:47Z): three cells 1,374/0/12, the suite in 24 runs on
+six machine classes, the first lab 245/0/1 per edition, every end state CLEAN
+(record `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`, #128). The boundary
+of the new error, a computer name of 32,718 characters, holds on Server 2019,
+2022, 2025, and Windows 11 26H1. Open before the stable pull request: the
+tests-only round for the plain gaps (until 2026-11-02), the maintainer's #34
+decision on that date (no reply to his follow-up of 2026-10-19), and his check
+of `PSGALLERY_API_KEY`. The stable build is new bytes that no lab has run; the
+procedure accepts the last prerelease, so the stable change touches only the
+label, the CHANGELOG, and `$publishedVersions`. Any other product change needs
+rc9 and the same acceptance, about 70 minutes with the chain script.
 
-State at 2026-10-10 15:45 UTC: the maintainer integrated the release-gate stack
-into `master` (`6dd799f`, CI green): #116 (rc7, `8a6be9f`), #120
-(`bdb9981`; it replaced #117, which GitHub closed unmerged when the branch
-deletion after #116 removed its base, see Decision 15), #118 (`03bef2c`,
-handoff 1, the paths), #119 (`fa0701b`, handoff 2, the operating-system
-matrix), and #121 (the Memory Bank). He tagged `fa0701b` as `5.0.0-rc7` at about
-12:20Z, and rc7 is published (Gallery 12:30:57Z, GitHub 12:31:09Z); 4.2.6 stays
-the stable Gallery version. rc7 contains the Phase 2 behavior changes, the path
-tests and fixes, and the three module fixes of the matrix (`962887a`,
-`fdd7a8b`). The published rc7 passed its lab acceptance (gate 3) on the same
-day, in the matrix and in the first lab, with the counts of the final local
-candidate (record `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`). Stable
-5.0.0 stays gated (Decision 21).
-
-The maintainer asked on 2026-10-09 at 21:21 UTC to continue with the
-release-gate handoffs and to decide and report later. The agent's decisions are
-D1 to D47 in `decisions-night-2026-10-09.md` of the session files. Decisions
-22 (Phase 2), 23 (the #34 dossier), and 24 (the matrix) are proposed: the agent
-confirmed Decision 22 under the delegation, and neither that nor any risk
-acceptance is the maintainer's.
+State at 2026-10-10: the maintainer integrated the release-gate stack into
+`master` (#116, #120, #118, #119, #121; `fa0701b`, CI green; GitHub closed #117
+unmerged when the branch deletion removed its base, Decision 15) and tagged rc7
+(Gallery 12:30:57Z). The published rc7 passed its lab acceptance the same day
+(record `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`). The agent's
+delegated decisions of 2026-10-09 and 10 are D1 to D47 in
+`decisions-night-2026-10-09.md` of the session files; the maintainer accepted
+Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
 
 ## Evidence
 
@@ -141,6 +133,15 @@ acceptance is the maintainer's.
   cells did nothing: a `powershell.exe` that PowerShell 7 starts inherits its
   `PSModulePath` (lab README). Server Core, ARM64, a localized system, and
   non-Windows servers are out of scope (Decision 25).
+- rc8, 2026-10-20: fix (b) test-first on `ai/fix-effective-access-init-errors`.
+  A `-ServerName` of 40,000 characters gave `Synchronize` and no error before
+  and gives an error now; two tests were red and are green in four
+  configurations, and the suite has 1,494 cases per configuration, 0 failed.
+  The independent review (`code-review`) found one Minor, the warning "based on
+  this computer" before the error (fixed, with tests), and three Nits. The
+  acceptance evidence is `rc8-published` in the session folder
+  `816cf47d-2f80-4eba-8ac9-41702c49560b\files\qg-unknowns` (430 files, with a
+  manifest); the published hashes are in the deployment notes.
 - Raw evidence is outside git: the session folder
   `4b12e2f4-d4c7-4a5d-883a-ddb7421c4848\files` (`qg-paths`, the matrix runs, the
   night log) and
@@ -148,19 +149,17 @@ acceptance is the maintainer's.
 
 ## Next step
 
-1. Gate 3 is done for the published rc7 (the record above). rc8 needs the same
-   acceptance (the matrix cells, the first lab, the suite on the file servers
-   and the client); the release procedure accepts the last prerelease for the
-   stable build (Decision 21, "Closing the gate").
-   Open: keep or replace the matrix VMs (about 60 GB) and the evaluation client
-   (it shuts down every hour; `OSWin11E` is off), and a domain cell for Windows
-   11 26H1, whose client loses the secure channel to the Server 2025 domain
-   controller. A kit script for the whole sequence would make the repetition
-   one command (the driver is `Run-Gate3.ps1` in the evidence; not in the kit).
-2. The rc8 pull request adds `5.0.0-rc7` to `$publishedVersions` (the list ends
-   at rc6; adding it earlier fails the reuse test, deployment notes), and the
-   stable pull request adds `5.0.0-rc8`. Every release step is the
-   maintainer's.
+1. Gate 3 is done for the published rc7 and rc8 (the records). The stable build
+   is accepted through rc8 (Decision 21, "Closing the gate"). Open: keep or
+   replace the matrix VMs (about 60 GB, saved between runs) and the evaluation
+   client (it shuts down every hour; `OSWin11E` is off), and a domain cell for
+   Windows 11 26H1, whose client loses the secure channel to the Server 2025
+   domain controller. `Chain-Published.ps1` in the session files runs the whole
+   sequence (not in the kit; deployment notes).
+2. The stable pull request: no `Prerelease`, `## [5.0.0] - <date>` with an empty
+   `[Unreleased]` and the links, and `5.0.0-rc8` in `$publishedVersions` (the
+   list ends at rc7 now). The maintainer checks the expiry of
+   `PSGALLERY_API_KEY` first, merges, and tags. Every release step is his.
 3. He decides the other open items of the paths report: `FileSecurity`
    conversions, `RemoveAll` account filters, lazy path overloads, abandoned
    `PrivilegeEnabler`, dot patterns of `Get-ChildItem2 -Filter`, the 17
@@ -172,20 +171,21 @@ acceptance is the maintainer's.
    chooses between waiting longer and accepting the untested risk with a
    release-note caveat. No agent can accept it.
 5. Of the two LOW findings of the security review (record, Limits), the
-   swallowed initialization errors of `GetEffectiveAccess` (a false "no
-   access" instead of an error on an OS that refuses at initialization) are
-   fixed in rc8 (decided 2026-10-19): record the exceptions in
-   `authzException`, with a regression test and a check of "the error stays" in
-   the help and CHANGELOG. He still decides the other: the ACL of the stage
+   swallowed initialization errors of `GetEffectiveAccess` are fixed in rc8
+   (`25fe775`, #127): an error instead of a false "no access", and the warning
+   only with a result. He still decides the other: the ACL of the stage
    folders under `C:\` in the lab kit (they inherit Authenticated Users:
    Modify; protecting them is a design change of the controller and needs a new
    acceptance). The help could also say that a local standard user who asks
    about a domain account still gets "Access is denied".
 6. Handoff 5 is done and merged (Evidence). Decided on 2026-10-19 (Decision
-   21): the hard-link names under another root (a defect with a reproduction)
-   stay a known limit that the release notes list; the plain test items (68
-   `budget` mentions in the 57 sets that are not closed) are closed in a
-   tests-only round until 2026-11-02. Still his: the silent default scope for a
-   piped `AppliesTo` that PowerShell cannot convert (a design change), the 8
-   getters of pipeline parameters, and the audit paths.
+   21): the hard-link names under another root stay a known limit; the pages
+   and the CHANGELOG say so since rc8. The plain test items (68 `budget`
+   mentions in the 57 sets that are not closed) are closed in a tests-only
+   round until 2026-11-02: four implementers, one per `ParameterSets.*` test
+   file, work in worktrees from `master`; their commits go into one branch
+   with the report and the ParameterSets table updated, and what is left is
+   listed. A defect that a test finds needs his decision and rc9. Still his: the
+   silent default scope for a piped `AppliesTo` that PowerShell cannot convert
+   (a design change), the 8 getters of pipeline parameters, and the audit paths.
 7. Do not release stable 5.0.0 or equate a percentage with gate closure.

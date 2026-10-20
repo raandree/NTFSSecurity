@@ -1,8 +1,8 @@
 ---
 status: current
-last-verified: 2026-10-10
+last-verified: 2026-10-20
 owner: software-engineer
-source: Handoff 5 (the coverage unknowns): probes, red and green runs, and the independent review
+source: Handoff 5 (the coverage unknowns) and the rc8 fix: probes, red and green runs, and the independent reviews
 ---
 
 # Debugging insights
@@ -90,3 +90,28 @@ fails without it (Decision 16).
   `AppliesTo` was optional; `4b1abc9` made it mandatory in the Simple sets, so
   the default no longer decided a named call. Build a model of the parameter
   sets before you change an attribute, and test the real cmdlet afterwards.
+
+## A swallowed initialization error (`catch { }`)
+
+- `Win32.GetEffectiveAccess` ran the start of the authorization manager inside
+  an outer `catch { }`. A refusal there gave no exception and no rights, so the
+  cmdlet wrote an entry with `Synchronize` only (.NET adds it to every allow
+  rule) and no error: a false "no access". The security review of the matrix
+  found it (LOW); rc8 fixed it (`25fe775`) with one `try`/`catch` that records
+  every exception in `authzException`.
+- A trigger without a test seam: `Get-NTFSEffectiveAccess -ServerName ('a' *
+  40000)`. `AuthzInitializeRemoteResourceManager` fails with error 14 for a name
+  of 32,718 characters or more, and with 1722 (RPC server unavailable, which
+  keeps the documented fallback and its warning) for a shorter one. Server
+  2019, 2022, 2025, and Windows 11 26H1 agree (a probe in the rc8 record). Bisect
+  the length of an input before you add a seam.
+- The test accepts both outcomes (an error, or the result of this computer) and
+  fails for no access without an error: the red run said `Expected FullControl,
+  but got Synchronize`. A system-dependent boundary must not fail the test where
+  a system answers like for a short name.
+- The review found a second flaw in the same output: the warning "the result is
+  based on this computer" came before an error that left no result. A warning
+  that qualifies a result belongs with the result (`!FromRemote &&
+  !OperationFailed`); the tests assert its absence next to the error.
+- A word in the CHANGELOG is a claim: "an overlong name" suggested 256
+  characters, where 1722 still falls back. The entry names the probed length.
