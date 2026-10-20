@@ -89,6 +89,14 @@ The format is based on
   `-ErrorAction Stop`
 - Name the computer in the warning of `Get-NTFSEffectiveAccess` when the
   computer of `-ServerName` can't be reached
+- Document that `Get-NTFSHardLink` and `New-NTFSHardLink -PassThru` fail for
+  a path whose root isn't the root of the volume that holds the file, such
+  as a path on a drive made with `subst`. `Get-NTFSHardLink` writes a
+  `FileNotFound` error for a file that exists, and
+  `New-NTFSHardLink -PassThru` creates the link and then stops with a
+  `FileNotFoundException`. A volume that is mounted into a folder, and a
+  junction or symbolic link to another volume, probably fail the same way.
+  Use a path that starts at the root of the volume
 
 ### Deprecated
 
@@ -207,6 +215,15 @@ The format is based on
   Operators. It now uses the local authorization manager of this computer when
   the remote one refuses the user, as it already did when the remote one can't
   be reached. For the name of another computer, the error stays
+- Fix `Get-NTFSEffectiveAccess`, which returned no access and no error when
+  Windows refused to start the authorization manager for the computer of
+  `-ServerName`, for example for a name of 32,718 characters or more: the
+  result looked like an account without any rights. The cmdlet now writes
+  a `GetEffectiveAccessError` with the error that Windows reported and
+  returns no result, as it does when a later step of the calculation fails.
+  The warning that the result is based on this computer now comes only when
+  the cmdlet calculated a result; it also came before an error when the
+  computer couldn't be reached
 - Fix `Get-NTFSOwner`, which wrote a "The pipeline has been stopped" error
   for every path when a command such as `Select-Object -First 1` stopped the
   pipeline, and which repeated a failed read instead of reporting the

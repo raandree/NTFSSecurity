@@ -188,6 +188,8 @@ Before 5.0.0-rc7, the warning about a computer that couldn't be reached didn't n
 
 Before 5.0.0-rc7, a user who wasn't an administrator got the error "Access is denied" and no result on a computer in a domain, also for a name of this computer, such as the default `localhost`.
 
+Before 5.0.0-rc8, the cmdlet returned no access and no error when Windows refused to start the authorization manager for the computer of `-ServerName`, for example for a name of 32,718 characters or more, so that the result looked like an account without any rights. The cmdlet now writes a non-terminating `GetEffectiveAccessError` with the error that Windows reported and returns no result for the item, as it does for every other failure of the calculation. It warns that the result is based on this computer only when it calculated a result; before 5.0.0-rc8, the warning also came before an error when the computer couldn't be reached.
+
 ## RELATED LINKS
 
 [Get-NTFSAccess](Get-NTFSAccess.md)

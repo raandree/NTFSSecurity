@@ -125,19 +125,15 @@ namespace Security2
             try
             {
                 GetEffectivePermissions_AuthzInitializeResourceManager(serverName, out remoteServerAvailable);
-
-                try
-                {
-                    GetEffectivePermissions_AuthzInitializeContextFromSid(identity);
-                    effectiveAccess = GetEffectivePermissions_AuthzAccessCheck(sd);
-                }
-                catch (Exception ex)
-                {
-                    authzException = ex;
-                }
+                GetEffectivePermissions_AuthzInitializeContextFromSid(identity);
+                effectiveAccess = GetEffectivePermissions_AuthzAccessCheck(sd);
             }
-            catch
-            { }
+            catch (Exception ex)
+            {
+                // Also what the initialization of the resource manager throws. Before 5.0.0-rc8, that was ignored, and
+                // the caller got no access without an error.
+                authzException = ex;
+            }
             finally
             {
                 GetEffectivePermissions_FreeResouces();
@@ -148,8 +144,8 @@ namespace Security2
 
         #region Win32 Wrapper
         // Whether a name of -ServerName names this computer: localhost in any case, ., the NetBIOS name, the DNS host
-        // name, or the fully qualified domain name. It must not throw, because GetEffectiveAccess hides every exception
-        // of the resource manager behind a result without access.
+        // name, or the fully qualified domain name. It answers false when it can't tell and doesn't throw, so that the
+        // fallback for a computer that can't be reached doesn't fail on this question.
         private static bool IsLocalComputer(string serverName)
         {
             if (string.IsNullOrEmpty(serverName))

@@ -169,6 +169,46 @@ Describe 'Get-NTFSEffectiveAccess' {
                 "because the computer '' can't be reached for a remote access check. " +
                 'For more accurate results, calculate effective access rights on that computer.')
         }
+
+        # The warning says that the result is the one of this computer, so it has no place before an error that leaves
+        # no result. Before 5.0.0-rc8, the cmdlet warned and then wrote the error for an account that Windows can't resolve.
+        It 'Should write the error and no warning about this computer for an identity that cannot be resolved' {
+            $identity = [Security2.IdentityReference2] 'S-1-5-21-1-2-3-1001'
+            $identity.AccountName | Should -BeNullOrEmpty
+
+            $result = @(Get-NTFSEffectiveAccess -Path $effectiveFile -Account $identity -ServerName 'ntfssecurity-test.invalid' -WarningVariable accessWarnings -WarningAction SilentlyContinue -ErrorVariable accessErrors -ErrorAction SilentlyContinue)
+
+            $result | Should -BeNullOrEmpty
+            $accessErrors | Should -HaveCount 1
+            $accessErrors[0].FullyQualifiedErrorId | Should -BeLike 'GetEffectiveAccessError,*'
+            @($accessWarnings.Message | Where-Object -FilterScript { $_ -like '*can''t be reached for a remote access check*' }) | Should -BeNullOrEmpty
+        }
+    }
+
+    # Before 5.0.0-rc8, the cmdlet ignored what the initialization of the authorization manager threw and returned no
+    # access without an error, which looks like an account without rights. On Windows Server 2025, a name of 32,718
+    # characters or more fails there with the error 14, "Not enough memory resources are available to complete this
+    # operation", while a shorter name gets RPC server unavailable, and the cmdlet falls back to this computer. Another
+    # version of Windows may answer the long name like the short one, so the test accepts both outcomes and fails for
+    # no access without an error.
+    Context 'When Windows rejects the name of -ServerName' {
+        It 'Should write an error or return the result of this computer, never no access' {
+            $expected = Get-NTFSEffectiveAccess -Path $effectiveFile -WarningAction SilentlyContinue -ErrorAction Stop
+            [long] $expected.AccessRights | Should -BeGreaterThan ([long] [Security2.FileSystemRights2]::Synchronize)
+
+            $result = @(Get-NTFSEffectiveAccess -Path $effectiveFile -ServerName ('a' * 40000) -WarningVariable accessWarnings -WarningAction SilentlyContinue -ErrorVariable accessErrors -ErrorAction SilentlyContinue)
+
+            if ($accessErrors) {
+                $result | Should -BeNullOrEmpty
+                $accessErrors | Should -HaveCount 1
+                $accessErrors[0].FullyQualifiedErrorId | Should -BeLike 'GetEffectiveAccessError,*'
+                @($accessWarnings.Message | Where-Object -FilterScript { $_ -like '*can''t be reached for a remote access check*' }) | Should -BeNullOrEmpty
+            }
+            else {
+                $result | Should -HaveCount 1
+                $result[0].AccessRights | Should -Be $expected.AccessRights
+            }
+        }
     }
 
     # Not every computer offers the remote interface of the authorization manager; the cmdlet then calculates the result

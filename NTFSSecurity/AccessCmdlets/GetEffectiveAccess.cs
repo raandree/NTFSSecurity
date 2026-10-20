@@ -157,7 +157,8 @@ namespace NTFSSecurity
 
         private void WriteEffectiveAccess(EffectiveAccessInfo result, object target)
         {
-            if (!result.FromRemote)
+            // The warning qualifies a result, which an error leaves out. Before 5.0.0-rc8, it came before the error, too.
+            if (!result.FromRemote && !result.OperationFailed)
             {
                 // Since 5.0.0-rc7, the warning names the computer, which a command with many items can't tell otherwise.
                 WriteWarning(string.Format("The effective rights can only be computed based on group membership on this computer, " +
