@@ -1053,10 +1053,10 @@ Describe 'Move-Item2 folder trees, in-place renames, and -Force' {
     }
 
     # Unlike Copy-Item2 -Force, which merges into an existing folder of the same name (ItemCmdlets.Tests.ps1:681),
-    # Move-Item2 -Force replaces it outright: run first with diagnostics instead of an assumed error (the
-    # destinationExists check of MoveItem2.cs is bypassed by -Force, since it is guarded by "!force"), the existing
-    # folder at the destination was gone afterwards, together with the file it held, and the moved folder took its
-    # place with no error, which this pins as observed.
+    # the cmdlet page documents that Move-Item2 -Force "overwrites an existing destination item" and runs with the
+    # ReplaceExisting option (Move-Item2.md, -Force and the Notes section); a non-empty folder at the destination
+    # confirms that this means a full replace, not a merge, which a probe showed first (the existing folder and the
+    # file it held were gone afterwards, and the moved folder took its place with no error).
     It 'Should replace an existing folder outright with -Force, not merge it, and write no error' {
         $sourceFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'MoveForceFolderSource' -Directory
         $destinationParent = New-TestSandboxItem -Sandbox $sandbox -Name 'MoveForceFolderDestinationParent' -Directory
