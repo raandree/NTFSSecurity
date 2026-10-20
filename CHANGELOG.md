@@ -221,9 +221,9 @@ The format is based on
   result looked like an account without any rights. The cmdlet now writes
   a `GetEffectiveAccessError` with the error that Windows reported and
   returns no result, as it does when a later step of the calculation fails.
-  The warning that the result is based on this computer now comes only with
-  a result; it also came before an error when the computer couldn't be
-  reached
+  The warning that the result is based on this computer now comes only when
+  the cmdlet calculated a result; it also came before an error when the
+  computer couldn't be reached
 - Fix `Get-NTFSOwner`, which wrote a "The pipeline has been stopped" error
   for every path when a command such as `Select-Object -First 1` stopped the
   pipeline, and which repeated a failed read instead of reporting the
