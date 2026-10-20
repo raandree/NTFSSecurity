@@ -1,9 +1,9 @@
 ---
-status: proposed
+status: accepted
 date: 2026-10-09
-last-verified: 2026-10-10
+last-verified: 2026-10-19
 owner: shared
-source: agent decisions under the maintainer's delegation of 2026-10-09 (Handoff 2); the scope follows Decision 21, phase 3
+source: agent decisions under the maintainer's delegation of 2026-10-09 (Handoff 2); the scope follows Decision 21, phase 3; confirmed by the maintainer on 2026-10-19
 ---
 
 # Decision 24: The operating-system matrix lab
@@ -141,12 +141,13 @@ source: agent decisions under the maintainer's delegation of 2026-10-09 (Handoff
   counts: the three cells (1,374 passed, 0 failed, 12 skipped), the suite in 24
   runs, and the first lab with case 9 (245 / 0 / 1 per edition); see
   [its record](../../Tests/Lab/Acceptance-2026-10-10-published-rc7.md).
-- Open: the maintainer confirms or changes the matrix and decides whether to
-  keep the VMs after 5.0.0. A stable 5.0.0 is a new build, so the release
-  procedure accepts the last prerelease; a changed binary needs the same cells
-  again. The newest Windows 11 build that can join a Server 2025 domain here is
-  22H2; a domain cell with 26H1 needs a newer domain controller build or a fix
-  of the mismatch. All three module fixes went into rc7 (#119; `962887a` holds
-  two, `fdd7a8b` one, and they don't revert separately). The maintainer also
-  decides whether the evaluation client stays (it needs a start shortly before
-  every run) or is replaced by a client with a license that doesn't expire.
+- Accepted: the maintainer confirmed the matrix as it is on 2026-10-19. Open:
+  whether to keep the VMs after 5.0.0. A stable 5.0.0 is a new build, so the
+  release procedure accepts the last prerelease; a changed binary needs the
+  same cells again. The newest Windows 11 build that can join a Server 2025
+  domain here is 22H2; a domain cell with 26H1 needs a newer domain controller
+  build or a fix of the mismatch. All three module fixes went into rc7 (#119;
+  `962887a` holds two, `fdd7a8b` one, and they don't revert separately). The
+  maintainer also decides whether the evaluation client stays (it needs a start
+  shortly before every run) or is replaced by a client with a license that
+  doesn't expire.

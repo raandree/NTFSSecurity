@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-11
+last-verified: 2026-10-19
 owner: active-agent
 source: current task evidence
 ---
@@ -9,22 +9,20 @@ source: current task evidence
 
 ## Current focus
 
-State at 2026-10-11 13:50 UTC: Handoff 5 (the coverage unknowns) is done
-locally on `ai/coverage-unknowns`, from `origin/master` `6696f68`; the
-maintainer pushed the branch at `2b97422`, and the later commits are local.
-The report is `Tests/Coverage/Quality-Gate-Unknowns-2026-10-10.md` with nine
-CSV tables. rc7 (`fa0701b`) was measured at 3,198/3,649 sequence points. Three
-defects are fixed test-first: two `tr-TR` comparisons (`419cfb3`; `0028ccd`,
-`fbe0289`, `8a625c8`) and the piped `AppliesTo` that a path dropped (`93ed2c7`,
-`9783d2a`: no default parameter set for Add and Remove of access and audit,
-Decision 26); one defect is open (hard-link names under a root that is not the
-volume root). 101 new `It` blocks; at `2112ee3` (product code built once at
-`9783d2a`): 1,492 cases per configuration, 3,266/3,668 points. The final
-package passed in the labs (first lab 245/0/1 per edition; the suite on the file
-servers and the client, 16 configurations; the three cells 229/0/2 per
-edition), every end state clean. Three independent reviews and two checks read
-the work, with no Blocker. The maintainer decides whether the fixes and the
-tests enter a new candidate.
+State at 2026-10-19 12:30 UTC: Handoff 5 is integrated. The maintainer merged
+pull request #125 (`ai/coverage-unknowns`, `17729d7`) and #124 (Dependabot: the
+pinned `upload-artifact` and `download-artifact` actions, `354ce04`) into
+`master`; CI is green on both. rc7 (`fa0701b`) is still the newest release and
+the manifest still says `rc7`, but `master` is ahead of it by seven product
+files (the culture comparisons of an identity and of `Get-ChildItem2 -Filter`,
+and the piped `AppliesTo`, Decision 26). The stable build is accepted through
+the last prerelease, so rc8 is mandatory. On 2026-10-19 the maintainer decided
+the path to stable (Decision 21, "Closing the gate"): rc8 carries the fix of
+the false "no access" of `Get-NTFSEffectiveAccess`; the hard-link names stay a
+known limit in the release notes; the plain test gaps are closed in a
+tests-only round until 2026-11-02; #34 waits for a tester until 2026-11-02;
+Decisions 22 and 24 are accepted (23: option 3). His #34 follow-up went up on
+2026-10-19 at 12:09 UTC; nobody has replied. Next: the fix and the test round.
 
 State at 2026-10-10 15:45 UTC: the maintainer integrated the release-gate stack
 into `master` (`6dd799f`, CI green): #116 (rc7, `8a6be9f`), #120
@@ -150,43 +148,44 @@ acceptance is the maintainer's.
 
 ## Next step
 
-1. Gate 3 is done for the published rc7 (the record above). A changed binary
-   (rc8, or the build of 5.0.0) needs the same cells again; the release
-   procedure accepts the last prerelease for the stable build (his decision).
+1. Gate 3 is done for the published rc7 (the record above). rc8 needs the same
+   acceptance (the matrix cells, the first lab, the suite on the file servers
+   and the client); the release procedure accepts the last prerelease for the
+   stable build (Decision 21, "Closing the gate").
    Open: keep or replace the matrix VMs (about 60 GB) and the evaluation client
    (it shuts down every hour; `OSWin11E` is off), and a domain cell for Windows
    11 26H1, whose client loses the secure channel to the Server 2025 domain
    controller. A kit script for the whole sequence would make the repetition
    one command (the driver is `Run-Gate3.ps1` in the evidence; not in the kit).
-2. The change that sets the next version (rc8 or 5.0.0) adds `5.0.0-rc7` to
-   `$publishedVersions`; adding it earlier fails the reuse test (deployment
-   notes). Every release step is the maintainer's.
-3. He decides the open items of the paths report: `FileSecurity` conversions,
-   `RemoveAll` account filters, lazy path overloads, abandoned
+2. The rc8 pull request adds `5.0.0-rc7` to `$publishedVersions` (the list ends
+   at rc6; adding it earlier fails the reuse test, deployment notes), and the
+   stable pull request adds `5.0.0-rc8`. Every release step is the
+   maintainer's.
+3. He decides the other open items of the paths report: `FileSecurity`
+   conversions, `RemoveAll` account filters, lazy path overloads, abandoned
    `PrivilegeEnabler`, dot patterns of `Get-ChildItem2 -Filter`, the 17
    owner-restore handlers without the later-command check, unused classes
-   (Decisions 21/22). He also confirms or changes the proposed Decisions 22 and
-   24.
-4. #34 stays open (Decision 23; no reply since 2026-10-06): the maintainer
-   chooses between waiting for a test of the published candidate on the
-   NetApp, EMC, and IBM ESS servers of the reporters (checklist:
-   `Tests/Lab/Non-Windows-File-Server-Test.md`) and accepting the untested
-   risk with a release-note caveat. No agent can accept it.
-5. He decides the two LOW findings of the security review (record, Limits):
-   the swallowed initialization errors of `GetEffectiveAccess` (a false "no
-   access" instead of an error on an OS that refuses at initialization; fix:
-   record the exceptions in `authzException`, with a regression test and a
-   check of "the error stays" in the help and CHANGELOG), and the ACL of the
-   stage folders under `C:\` in the lab kit (they inherit Authenticated Users:
+   (Decisions 21/22). Decisions 22 and 24 are accepted (2026-10-19).
+4. #34 waits for a tester until 2026-11-02 (Decision 23, option 3; the
+   follow-up went up on 2026-10-19, no reply yet; checklist:
+   `Tests/Lab/Non-Windows-File-Server-Test.md`). On that date the maintainer
+   chooses between waiting longer and accepting the untested risk with a
+   release-note caveat. No agent can accept it.
+5. Of the two LOW findings of the security review (record, Limits), the
+   swallowed initialization errors of `GetEffectiveAccess` (a false "no
+   access" instead of an error on an OS that refuses at initialization) are
+   fixed in rc8 (decided 2026-10-19): record the exceptions in
+   `authzException`, with a regression test and a check of "the error stays" in
+   the help and CHANGELOG. He still decides the other: the ACL of the stage
+   folders under `C:\` in the lab kit (they inherit Authenticated Users:
    Modify; protecting them is a design change of the controller and needs a new
    acceptance). The help could also say that a local standard user who asks
    about a domain account still gets "Access is denied".
-6. Handoff 5 is done (Evidence). The maintainer decides whether the fixes
-   (`419cfb3`, `0028ccd`, `fbe0289`, `8a625c8`, `93ed2c7`, `9783d2a`) and the
-   tests enter a new candidate (rc8), which needs the matrix cells and the
-   first lab on its own bytes, and he decides the open items of the report:
-   hard-link names under another root (a defect with a reproduction), the
-   silent default scope for a piped `AppliesTo` that PowerShell cannot convert
-   (a design change), 8 getters of pipeline parameters, the 51 partly closed
-   sets, and the audit paths.
+6. Handoff 5 is done and merged (Evidence). Decided on 2026-10-19 (Decision
+   21): the hard-link names under another root (a defect with a reproduction)
+   stay a known limit that the release notes list; the plain test items (68
+   `budget` mentions in the 57 sets that are not closed) are closed in a
+   tests-only round until 2026-11-02. Still his: the silent default scope for a
+   piped `AppliesTo` that PowerShell cannot convert (a design change), the 8
+   getters of pipeline parameters, and the audit paths.
 7. Do not release stable 5.0.0 or equate a percentage with gate closure.

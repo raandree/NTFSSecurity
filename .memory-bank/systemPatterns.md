@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-10
+last-verified: 2026-10-19
 owner: active-agent
 source: repository and regression evidence
 ---
@@ -46,9 +46,9 @@ Read only task-relevant records; the index controls routing.
 | 19 | [Cmdlets write only the sections that they change](decisions/0019-write-only-changed-sections.md) |
 | 20 | [Live tests in a lab live in Tests\Lab](decisions/0020-live-tests-in-tests-lab.md) |
 | 21 | [A quality gate before 5.0.0](decisions/0021-quality-gate-before-5.0.0.md) |
-| 22 | [The behavior changes of Phase 2 (proposed)](decisions/0022-phase-2-behavior-changes.md) |
-| 23 | [Non-Windows file servers before 5.0.0, #34 (proposed)](decisions/0023-non-windows-file-servers.md) |
-| 24 | [The operating-system matrix lab (proposed)](decisions/0024-os-matrix-lab.md) |
+| 22 | [The behavior changes of Phase 2](decisions/0022-phase-2-behavior-changes.md) |
+| 23 | [Non-Windows file servers before 5.0.0, #34 (option 3; gate open)](decisions/0023-non-windows-file-servers.md) |
+| 24 | [The operating-system matrix lab](decisions/0024-os-matrix-lab.md) |
 | 25 | [Four environments are out of scope for the tests](decisions/0025-out-of-scope-environments.md) |
 | 26 | [No default parameter set for Add and Remove (access, audit)](decisions/0026-no-default-parameter-set-add-remove.md) |
 

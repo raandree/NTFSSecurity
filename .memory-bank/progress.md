@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-11
+last-verified: 2026-10-19
 owner: active-agent
 source: repository and validation evidence
 ---
@@ -14,9 +14,11 @@ source: repository and validation evidence
 whole stack into `master` (CI green): #116 (rc7), #120 (it replaced
 #117, which GitHub closed unmerged when the branch deletion after #116 removed
 its base), #118 (the quality-gate paths), #119 (the operating-system matrix
-with three module fixes, Decision 24 proposed), and #121 (the Memory Bank). The
+with three module fixes, Decision 24), and #121 (the Memory Bank). The
 published rc7 passed its lab acceptance (gate 3) in the matrix and in the first
-lab. Stable Gallery version: 4.2.6.
+lab. On 2026-10-19 he merged #125 (Handoff 5) and #124 (Dependabot), and decided
+the path to stable (Decision 21, "Closing the gate"). Stable Gallery version:
+4.2.6.
 After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 
 ## Recent milestones
@@ -48,14 +50,11 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 - 2026-10-09: release attempt 2 succeeded; rc6 GitHub prerelease and zip
   appeared at 07:01:34 UTC. #116 passed CI on `d25647d`.
 - 2026-10-09: autonomous follow-up on `ai/quality-gate-coverage` (#117, then
-  #120), through `3442194`: 202 cases above rc7 (deletion/owner failures, all
-  13 scopes, inheritance transitions, enumeration, forced replacement,
-  descriptor failures, offline CI recovery); fixed rooted result paths and the
-  first-hidden-item omission; publication recovery verifies the exact SHA-512
-  identity, not merely the version. Suite: 914 per configuration, zero
+  #120), through `3442194`: 202 cases above rc7; fixed rooted result paths and
+  the first-hidden-item omission; publication recovery verifies the exact
+  SHA-512 identity, not merely the version. Suite: 914 per configuration, zero
   failures; 2,641/3,559 sequence points (74.21%), 974/1,933 branches (50.39%).
-  Live comparison, 09:20 to 09:51 UTC: candidate 330 passed, 0 failed, 2
-  expected skips; published rc6 only its four expected failures (`7594e0c`).
+  Live comparison: candidate 330 passed, 0 failed, 2 expected skips (`7594e0c`).
 - 2026-10-09: handoff 1 (#118): suite 914 to 1,310 per configuration, zero
   failures; 3,192/3,634 sequence points (87.84%), 1,273/1,978 branches; all 231
   unvisited methods classified (223 explained, 8 open). Eleven defects fixed,
@@ -75,11 +74,9 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   suite on every machine (24 runs), the live controller in three cells (1,374
   passed, 0 failed, 12 skipped), and the first lab with case 9 (245 passed, 0
   failed, 1 skipped per edition). The Server 2022 effective-access failures
-  were stale account state, not the module (a replay; the Windows mechanism is
-  unknown); the controller names the case-3 account anew (`1dec389`). Built-in
-  reviews: Minors corrected, one Major resolved by the replay, no Blocker; the
-  built-in security review found no exploitable vulnerability and two LOW items
-  left for the maintainer. Record:
+  were stale account state, not the module (the controller names the case-3
+  account anew, `1dec389`). The built-in security review found no exploitable
+  vulnerability and two LOW items left for the maintainer. Record:
   `Tests/Lab/Acceptance-2026-10-10-os-matrix.md`.
 - 2026-10-10: the maintainer integrated the stack. His branch deletion after the
   merge of #116 (`8a6be9f`, 09:10:12Z) removed the base branch of #117, and
@@ -99,9 +96,9 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   9 245 / 0 / 1 per edition; every end state CLEAN. The counts equal those of
   the final local candidate. Record:
   `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`.
-- 2026-10-10 to 2026-10-11: Handoff 5, the coverage unknowns (local,
-  `ai/coverage-unknowns`; the maintainer pushed `2b97422`, later commits are
-  local). rc7 measured at `fa0701b`: 3,198/3,649 sequence points; the live
+- 2026-10-10 to 2026-10-11: Handoff 5, the coverage unknowns (branch
+  `ai/coverage-unknowns`, merged as #125 on 2026-10-19). rc7 measured at
+  `fa0701b`: 3,198/3,649 sequence points; the live
   suite and the suite on a domain member add 9 sequence and 4 explicit branch
   points (`fdd7a8b`); two `tr-TR` defects fixed test-first (`419cfb3`;
   `0028ccd`, `fbe0289`, `8a625c8`); 101 `It` blocks added. The piped
@@ -115,6 +112,11 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   hard-link names under another root, the silent default scope of an
   unconvertible piped `AppliesTo`. Report:
   `Tests/Coverage/Quality-Gate-Unknowns-2026-10-10.md`.
+- 2026-10-19: #125 (Handoff 5) and #124 merged, CI on `master` green. The
+  maintainer decided the path to stable (Decision 21): Decisions 22 and 24
+  accepted, 23 option 3 with the decision date 2026-11-02 (the #34 follow-up
+  went up at 12:09 UTC), rc8 with the fix of `GetEffectiveAccess`, and a
+  tests-only round for the plain test gaps until 2026-11-02.
 
 ## Stable capabilities
 
@@ -128,8 +130,9 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 ## Open work
 
 1. Decision 21 gate: the published rc7 is accepted in the matrix and the first
-   lab (record); review Decision 22 and the open items below. Do not release
-   5.0.0 until the remaining-path and OS-matrix gates close. Release steps:
+   lab (record); rc8 needs the same acceptance, and stable follows it
+   (Decision 21, "Closing the gate"). Do not release 5.0.0 until the other
+   gates close. Release steps:
    `Docs/Contributing/05-Releasing.md`; remove the prerelease label, date
    `[5.0.0]`, add the last prerelease to `$publishedVersions` (never the
    version of the manifest), tag through CI.
@@ -143,7 +146,7 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
    library-only RemoveAll account filters; rc5 unchecked Authz errors and
    lab-controller hardening; rc6 failed privilege-disable retry (not
    reproduced); rc7 audit missing-path error IDs declined in Decision 22.
-4. Architecture/cmdlet design: Decision 22 remains proposed; two link
+4. Architecture/cmdlet design: Decision 22 is accepted (2026-10-19); two link
    changes are breaking. Keep unused classes/helper overloads until a
    maintainer decision; do not remove them to improve coverage percentages.
 5. ARM64 workstation: out of scope (maintainer, 2026-10-11, Decision 25).
@@ -155,9 +158,8 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
    (`Tests/Coverage`): 167 explained from source with evidence, 16 open (8:
    `FileSecurity` conversions, `RemoveAll` account filters; 8 getters of
    pipeline parameters that no test binds by property name). Other open
-   decisions: lazy path overloads, abandoned
-   `PrivilegeEnabler`, dot patterns of `Get-ChildItem2 -Filter`, 17
-   owner-restore handlers that do not pass on
+   decisions: lazy path overloads, abandoned `PrivilegeEnabler`, dot patterns
+   of `Get-ChildItem2 -Filter`, 17 owner-restore handlers that do not pass on
    what a later command raises (a rare combination), unused classes. No
    trigger for an audit write's ownership retry was found on a local volume or
    a Windows file server (probe of 48 calls) and no test reaches it. A
@@ -167,9 +169,9 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
    artifact SHA-512 verification; the original upload errors remain errors for
    missing, different, or unverifiable outcomes. The agent published nothing,
    so the recovery has never run against the Gallery.
-9. Operating-system matrix (Decision 24, proposed): the lab and the cells exist
-   and the published rc7 passes them (record); the maintainer approves the
-   matrix. #34 has no new reply since 2026-10-06.
+9. Operating-system matrix (Decision 24, accepted 2026-10-19): the lab and the
+   cells exist and the published rc7 passes them (record). #34: the follow-up
+   went up on 2026-10-19, no reply yet; the decision date is 2026-11-02.
 10. Lab rollback evidence: new checkpoints report Standard even after a
     successful temporary ProductionOnly probe; original VM policy restored, no
     checkpoint restored. Don't represent them as verified Production snapshots.

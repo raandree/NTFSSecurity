@@ -1,9 +1,9 @@
 ---
-status: proposed
+status: accepted
 date: 2026-10-08
-last-verified: 2026-10-09
+last-verified: 2026-10-19
 owner: shared
-source: agent choices in autopilot on 2026-10-08, for the maintainer's review; confirmed by the agent under his delegation on 2026-10-09
+source: agent choices in autopilot on 2026-10-08, for the maintainer's review; confirmed by the agent under his delegation on 2026-10-09; accepted by the maintainer on 2026-10-19
 ---
 
 # Decision 22: The behavior changes of Phase 2
@@ -51,8 +51,7 @@ source: agent choices in autopilot on 2026-10-08, for the maintainer's review; c
   (3); the conventions of .NET and PowerShell (4, 9); no implicit creation
   of folders (10; `Copy-Item` creates them for a folder, see the correction
   below).
-- Open: the maintainer accepts or reverts each choice; then this record
-  becomes `accepted`.
+- Accepted by the maintainer on 2026-10-19 (see the end of this record).
 
 ## Confirmed under delegation, 2026-10-09
 
@@ -104,4 +103,8 @@ source: agent choices in autopilot on 2026-10-08, for the maintainer's review; c
   the help from `Docs`, adjust the changelog and the cmdlet page, and run
   the four test configurations again; a later commit on the same page or
   test can conflict.
-- Open: the maintainer confirms (`accepted`) or reverts each item.
+- Accepted: on 2026-10-19 the maintainer answered "Confirm all ten" to the
+  question about these ten choices, which listed the ten and marked 7 and 8 as
+  breaking. The confirmation of 2026-10-09 under his delegation is superseded.
+  After 5.0.0 the changes are permanent, because the repository is archived
+  (Decision 18).
