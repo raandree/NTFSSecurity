@@ -1,9 +1,9 @@
 ---
 status: accepted
 date: 2026-10-08
-last-verified: 2026-10-19
+last-verified: 2026-10-20
 owner: shared
-source: maintainer decision of 2026-10-08; closing choices of 2026-10-19
+source: maintainer decision of 2026-10-08; closing choices of 2026-10-19; status of 2026-10-20
 ---
 
 # Decision 21: A quality gate before 5.0.0
@@ -69,3 +69,24 @@ maintainer answered five questions, each time with the recommended option:
   `$publishedVersions`), the tag. The maintainer checks the expiry of
   `PSGALLERY_API_KEY` before the stable tag. After 5.0.0 the repository is
   archived (Decision 18), so what ships stays.
+
+### Status on 2026-10-20
+
+rc8 is published (tag `c719197`, Gallery 10:40:58Z) and accepted: the identity
+check, three matrix cells 1,374/0/12, the suite in 24 runs, the first lab
+245/0/1 per edition, every end state CLEAN (record
+`Tests/Lab/Acceptance-2026-10-20-published-rc8.md`). The fix of the swallowed
+initialization errors went in with a review (one Minor, the warning before the
+error, fixed), and the hard-link known limit is in the pages and the
+CHANGELOG. The exit criterion "matrix on published bytes" is met for rc8. The
+tests-only round ran the same afternoon (report
+`Tests/Coverage/Quality-Gate-Test-Round-2026-10-20.md`): 89 `It` blocks, 121
+cases, the suite 1,494 to 1,615 per configuration with no failure, 38 of 64
+parameter sets closed, 26 with a leftover (16 Limit, 7 MaintainerDecision, 3
+would-pin), no defect. It is #129; on the runner the counts equal the local
+run in each test file. No plain gap is left. Open are the merge of #129, the
+10 rows that wait for his decision (7 MaintainerDecision, 3 would-pin), #34
+(2026-11-02), and the key check. The stable build is new bytes: the stable
+change may touch only the
+label, the CHANGELOG, and `$publishedVersions`; any other product change needs
+rc9 and the same acceptance.

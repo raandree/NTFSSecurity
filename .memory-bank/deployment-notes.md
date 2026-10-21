@@ -1,32 +1,36 @@
 ---
 status: current
-last-verified: 2026-10-10
+last-verified: 2026-10-20
 owner: software-engineer
 source: release gates of 5.0.0 (lab acceptance, OS matrix, publication plan), repository evidence
 ---
 
 # Deployment notes
 
-## Publish the next prerelease (rc7 is published)
+## Publish the next prerelease (rc8 is published)
 
-State on 2026-10-10 at 12:40 UTC: rc7 is published. The whole stack is merged
-into `master` (`fa0701b`, the tree of `2b8643f`): #116 (rc7, `8a6be9f`, 09:10Z),
-#120 (`bdb9981`, 10:50Z), #118 (`03bef2c`, 11:12Z), and #119 (`fa0701b`,
-11:28Z). #117 had been closed without a merge at 09:10:16Z, when the branch
-deletion after the merge of #116 removed its base branch (Decision 15,
-operating rule); #120, a new pull request from its head `f11ff41`, replaced
-it. The CI run on `master` at `fa0701b` passed at 11:40Z. The maintainer pushed
-the lightweight tag `5.0.0-rc7` at `fa0701b` at about 12:20Z. The CI run
-`38051611526` of the tag passed: Build and test, then Release at 12:31:34Z
-without an approval step, because the `powershell-gallery` environment has no
-required reviewer. The Gallery has rc7 since 12:30:57Z, GitHub since 12:31:09Z.
+State on 2026-10-20 at 12:40 UTC: rc8 is published. #127 (`c719197`, 10:27:39Z:
+the fix of `Get-NTFSEffectiveAccess`, the hard-link known limit, the label
+`rc8`) and #126 are merged. The maintainer pushed the lightweight tag
+`5.0.0-rc8` at `c719197` at about 10:28Z. The CI run `39408140862` of the tag
+passed: Build and test, then Release without an approval step, because the
+`powershell-gallery` environment has no required reviewer. The Gallery has rc8
+since 10:40:58Z, GitHub since 10:41:07Z, 13 minutes after the tag.
+`Test-PublishedRelease.ps1 -Version 5.0.0-rc8` verified the identity at 10:42Z:
+the tag commit is on `master`, the Gallery's SHA-512 matches the downloaded
+nupkg, the 11 module files are byte-identical in the nupkg and the GitHub zip,
+and the manifest says `5.0.0-rc8`. The published bytes of rc8:
 
-`Test-PublishedRelease.ps1 -Version 5.0.0-rc7` verified the published identity
-at 12:33Z: the tag commit is `fa0701b` on `master`, the Gallery's SHA-512
-matches the downloaded nupkg, the 11 module files are byte-identical in the
-nupkg and the GitHub zip, and the manifest says `5.0.0-rc7`. The evidence is
-outside git, in `published-rc7` of the session folder
-`4b12e2f4-d4c7-4a5d-883a-ddb7421c4848\files`. The published bytes:
+- `NTFSSecurity.dll` SHA-256
+  `D8CB4015BF25379C77A645F82EEECA54F86219F228A5029E32E4D52FBD016E79`
+- `NTFSSecurity.zip` SHA-256
+  `288152E20F8CFB1B029BAC055345339970C65BD57C8BA814C2616C32D9F812BC`
+- nupkg SHA-256
+  `EA90E16F2152016E97BFB3D2413D29F8944704E9D4FBD5101D0A263841BC0510`
+
+rc7 was published on 2026-10-10 (tag `fa0701b`, CI run `38051611526`, Gallery
+12:30:57Z, no approval step after the same stack of merges, see `progress.md`).
+Its bytes:
 
 - `NTFSSecurity.dll` SHA-256
   `D3B7CBE362C37D1016559669CB2EFF5034A6945CA1B03DDB49F1361363D203A7`
@@ -38,23 +42,16 @@ outside git, in `published-rc7` of the session folder
 The release notes of a prerelease are the `[Unreleased]` section of
 `CHANGELOG.md`.
 
-rc7 contains everything that is merged: the behavior changes of Phase 2
-(#116), the quality-gate paths (#120, #118), and the three module fixes of
-the matrix (#119, in two commits: `962887a` holds two, `fdd7a8b` one; they
-don't revert separately, because they conflict in `Security2/Win32/Lib.cs` and
-`CHANGELOG.md`), with the kit, the controller changes, and the record of the
-operating-system matrix (Decision 24).
-
-1. Accept the published package (next section): done for rc7 on 2026-10-10,
-   with the identity check, the three cells, the suite on six machine classes,
-   and the first lab (record
-   `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`).
-   A changed binary (rc8, or the build of 5.0.0) needs the same cells again.
-2. Add `5.0.0-rc7` to `$publishedVersions` in `Tests/Repository.Tests.ps1`
-   only in the change that sets the next version (rc8 or 5.0.0), as
+1. Accept the published package (next section): done for rc7 (2026-10-10) and
+   rc8 (2026-10-20); the records are `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`
+   and `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`. A changed binary (rc9,
+   or a build of 5.0.0 that differs by more than the label) needs the same
+   cells again.
+2. The stable change adds `5.0.0-rc8` to `$publishedVersions` in
+   `Tests/Repository.Tests.ps1` (the list ends at rc7), as
    `Docs/Contributing/05-Releasing.md` says. The test "Should not reuse a
    version that the PowerShell Gallery already has" fails when the list holds
-   the version of the manifest, which still says rc7.
+   the version of the manifest.
 
 ## Accept a published package
 
@@ -79,15 +76,22 @@ Local `-ModulePath` runs are validation; the gate needs the published bytes.
    the final local candidate through the same stages (readiness, controller,
    `Validate-LabResults.ps1`, snapshot, `-RemoveFixture`, `Test-MatrixCleanup.ps1`
    with the four domain controllers and both machines) in one detached driver.
-   The published rc7 ran in one detached driver in this order (61 minutes,
-   14:29 to 15:30Z, `OSWin11E` started 14:25:49Z): the cells, then
+   Published rc7 and rc8 ran in one detached driver each: the cells, then
    `Run-MatrixLocalSuite.ps1 -ModulePath <zip-<version>\NTFSSecurity of the
    identity check> -Mode Elevated,Basic` on the host and five machines (one
    every 75 seconds: AutomatedLab imports one lab at a time), then
    `Test-MatrixCleanup.ps1 -Mode Verify` (CLEAN at the first check, so the
    cells first and the suites after them leave nothing to repair), then the
-   first lab. The driver is `Run-Gate3.ps1` in the evidence folder `gate3-rc7`
-   of the session files; it only calls these scripts and isn't in the kit.
+   first lab. rc8 used `Chain-Published.ps1 -Version 5.0.0-rc8 -Tag rc8
+   -Evidence <folder>` (session files `qg-unknowns\scripts`, not in the kit;
+   68 minutes, 10:38 to 11:47Z). It restores the saved machines of both labs
+   (`Start-LabMachines.ps1`: domain controllers first, a minute for the
+   directory services), waits for the version on the Gallery, freezes the files
+   of the tag in a worktree, runs the identity check and the readiness checks,
+   starts `OSWin11E` right before the cells, and ends with the first lab
+   (`Run-LiveAcceptancePublished.ps1`, `-Version` per edition) and a read-only
+   check of both labs. Launch it after the tag, arm a heartbeat, and save the
+   machines again when it is done. rc7 ran the older `Run-Gate3.ps1`.
 3. Remove the fixture and check the end state independently with
    `Test-MatrixCleanup.ps1`, which takes the lab name and the machine names
    (`-LabName WindowsAccessControlLab -DomainController F1ADC1, F1BDC1, F2DC1,
@@ -181,3 +185,8 @@ Local `-ModulePath` runs are validation; the gate needs the published bytes.
 - Restart the evaluation client (`OSWin11E`) right before a sequence or a suite,
   not before several: it shuts down an hour after each start. The restart takes
   about two and a half minutes and may need the repair of the secure channel.
+- The lab VMs stay saved (`Save-VM`) between runs. After nine days, a restore in
+  two waves (the domain controllers, a minute for the directory services, then
+  the other machines) passed the readiness checks of both labs at the first
+  attempt, about five minutes after the start. `Start-LabMachines.ps1` restores
+  them, and `Save-VM` puts them back after the run.

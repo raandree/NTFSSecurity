@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-19
+last-verified: 2026-10-20
 owner: active-agent
 source: repository and validation evidence
 ---
@@ -9,16 +9,15 @@ source: repository and validation evidence
 
 ## Current status
 
-5.0.0-rc7 is published on the Gallery and GitHub (2026-10-10, tag at
-`fa0701b`); rc6 is the one before it. On 2026-10-10 the maintainer merged the
-whole stack into `master` (CI green): #116 (rc7), #120 (it replaced
-#117, which GitHub closed unmerged when the branch deletion after #116 removed
-its base), #118 (the quality-gate paths), #119 (the operating-system matrix
-with three module fixes, Decision 24), and #121 (the Memory Bank). The
-published rc7 passed its lab acceptance (gate 3) in the matrix and in the first
-lab. On 2026-10-19 he merged #125 (Handoff 5) and #124 (Dependabot), and decided
-the path to stable (Decision 21, "Closing the gate"). Stable Gallery version:
-4.2.6.
+5.0.0-rc8 is published on the Gallery and GitHub (2026-10-20, tag at
+`c719197`); rc7 (2026-10-10, tag at `fa0701b`) is the one before it. On
+2026-10-10 the maintainer merged the stack of #116, #120, #118, #119, and #121
+into `master` (CI green; the milestones have the details). On 2026-10-19 he
+merged #125 (Handoff 5) and #124 (Dependabot) and decided the path to stable
+(Decision 21, "Closing the gate"); on 2026-10-20 he merged #126 (the decisions)
+and #127 (the rc8 fix and label) and tagged rc8; on 2026-10-21 he merged #128
+(the rc8 record). The published rc7 and rc8 passed their lab acceptance in the
+matrix and in the first lab. Stable Gallery version: 4.2.6.
 After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 
 ## Recent milestones
@@ -117,6 +116,26 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   accepted, 23 option 3 with the decision date 2026-11-02 (the #34 follow-up
   went up at 12:09 UTC), rc8 with the fix of `GetEffectiveAccess`, and a
   tests-only round for the plain test gaps until 2026-11-02.
+- 2026-10-20: rc8. The maintainer merged #126 and #127 (`c719197`: the fix of
+  the swallowed initialization errors of `GetEffectiveAccess`, the known limit
+  of the hard-link cmdlets in the pages and the CHANGELOG, label `rc8`) and
+  tagged `5.0.0-rc8` at about 10:28Z; Gallery 10:40:58Z, GitHub 10:41:07Z, no
+  approval step. The identity check passed (10:42Z). The lab acceptance of the
+  published bytes ran in one detached chain (68 minutes, 10:38 to 11:47Z, the
+  saved machines restored first): three cells 1,374 passed, 0 failed, 12
+  skipped; the suite in 24 runs without a failure (1,191 cases per
+  configuration); the first lab 245/0/1 per edition; every end state CLEAN. A
+  probe on four operating systems showed the boundary of the new error (a name
+  of 32,718 characters). Record
+  `Tests/Lab/Acceptance-2026-10-20-published-rc8.md` (#128).
+- 2026-10-20: tests-only round (Decision 21). Four implementers, one
+  `ParameterSets.*` test file each; integrated on `ai/tests-round-1` (#129):
+  89 `It` blocks, 121 cases, the suite 1,494 to 1,615 per configuration, 0
+  failed in four configurations; 38 of 64 sets closed (7 before), 26 with a
+  leftover (16 Limit, 7 MaintainerDecision, 3 would-pin); no defect. Report:
+  `Tests/Coverage/Quality-Gate-Test-Round-2026-10-20.md`. On 2026-10-21 the
+  CI of #129 and #130 passed; the runner's counts equal the local run in each
+  test file (run `39551726767`).
 
 ## Stable capabilities
 
@@ -129,12 +148,13 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 
 ## Open work
 
-1. Decision 21 gate: the published rc7 is accepted in the matrix and the first
-   lab (record); rc8 needs the same acceptance, and stable follows it
-   (Decision 21, "Closing the gate"). Do not release 5.0.0 until the other
-   gates close. Release steps:
+1. Decision 21 gate: the published rc7 and rc8 are accepted in the matrix and
+   the first lab (records); stable follows rc8 (Decision 21, "Closing the
+   gate"). Do not release 5.0.0 until the other gates close: the merge of #129
+   and #130 (no plain gap is left), #34 on 2026-11-02, and the key check.
+   Release steps:
    `Docs/Contributing/05-Releasing.md`; remove the prerelease label, date
-   `[5.0.0]`, add the last prerelease to `$publishedVersions` (never the
+   `[5.0.0]`, add the last prerelease (rc8) to `$publishedVersions` (never the
    version of the manifest), tag through CI.
 2. Issues: #110's seven items were addressed by rc6, but #115 deliberately
    used no closing keyword. #34 stays open for non-Windows owner feedback
@@ -170,8 +190,9 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
    missing, different, or unverifiable outcomes. The agent published nothing,
    so the recovery has never run against the Gallery.
 9. Operating-system matrix (Decision 24, accepted 2026-10-19): the lab and the
-   cells exist and the published rc7 passes them (record). #34: the follow-up
-   went up on 2026-10-19, no reply yet; the decision date is 2026-11-02.
+   cells exist and the published rc7 and rc8 pass them (records). #34: the
+   follow-up went up on 2026-10-19, no reply yet; the decision date is
+   2026-11-02.
 10. Lab rollback evidence: new checkpoints report Standard even after a
     successful temporary ProductionOnly probe; original VM policy restored, no
     checkpoint restored. Don't represent them as verified Production snapshots.
