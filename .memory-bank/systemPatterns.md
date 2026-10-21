@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-19
+last-verified: 2026-10-21
 owner: active-agent
 source: repository and regression evidence
 ---
@@ -15,13 +15,10 @@ source: repository and regression evidence
 | `NTFSSecurity.Init.ps1` | Loads Security2/privilege assemblies and prepends formatting |
 | `NTFSSecurity.dll` | 36 PowerShell cmdlets; BaseCmdlet path/privilege behavior |
 | `Security2.dll` | DACL/SACL objects, owners, inheritance, effective access, Win32 |
-| AlphaFS | Long-path files/directories/links |
-| PrivilegeControl / ProcessPrivileges | Token privilege operations |
+| AlphaFS, PrivilegeControl, ProcessPrivileges | Long-path files/directories/links; token privilege operations |
 | `en-US/NTFSSecurity.dll-Help.xml` | Committed help generated from cmdlet Markdown |
 
-## Decisions
-
-Read only task-relevant records; the index controls routing.
+## Decisions (read only the task-relevant records; the index routes)
 
 | # | Decision |
 | --- | --- |
@@ -51,6 +48,7 @@ Read only task-relevant records; the index controls routing.
 | 24 | [The operating-system matrix lab](decisions/0024-os-matrix-lab.md) |
 | 25 | [Four environments are out of scope for the tests](decisions/0025-out-of-scope-environments.md) |
 | 26 | [No default parameter set for Add and Remove (access, audit)](decisions/0026-no-default-parameter-set-add-remove.md) |
+| 27 | [The open items before 5.0.0 and the piped optional parameters (rc9)](decisions/0027-open-items-before-5.0.0.md) |
 
 ## Patterns
 
@@ -67,36 +65,38 @@ Read only task-relevant records; the index controls routing.
   attempts all cleanup, and preserves explicit enables. Dispose has no stream.
 - Pipeline getters never throw; per-item errors name input and allow continuation.
 - Folder moves never use CopyAllowed; preserve cross-volume source folders.
-- Apply implied Hidden/Force before deciding to emit, including the first item.
+  Apply implied Hidden/Force before deciding to emit, including the first item.
 - A catch-all for one item's failures passes on what a later command raises
-  through a Write call (`IsFromLaterCommand`, `PipelineControl`; see
-  `BaseCmdlets.cs`); add a row to `Tests/PipelineControl.Tests.ps1` for a new
-  cmdlet. Record an enabled privilege before the next write.
-- `Get-ChildItem2 -Filter` matches culture invariant; `*.*` means `*`.
+  through a Write call (`IsFromLaterCommand`, `BaseCmdlets.cs`); add a row to
+  `Tests/PipelineControl.Tests.ps1` for a new cmdlet. Record an enabled
+  privilege before the next write.
+- `Get-ChildItem2 -Filter`: one matcher, 5.1 DOS wildcard rules (Decision 27).
+- Optional by-name pipeline parameters are `object` + `ParameterConversion` (Decision 27).
 
 ### Tests and documentation
 
 - Tests import Release in isolated processes, both editions and privilege
   modes, with guarded sandboxes; a skip needs an eligible counterpart.
-- Assert persisted state, errors/targets, continuation, and no failed
-  PassThru output. Prove new characterization guards with bounded mutations
-  (one round together only if no guard can fail because of another); restore
-  source exactly and rebuild before green validation or packaging. A retry
-  test asserts its precondition (the plain write is denied).
+- Assert persisted state, errors/targets, continuation, and no failed PassThru
+  output. Prove characterization guards with bounded mutations (together only
+  if no guard can fail because of another); restore source and rebuild before
+  green runs or packaging. A retry test asserts its precondition (the plain
+  write is denied).
 - CI scripts and focused runs set `Stop`: a test that needs a non-terminating
   error names `-ErrorAction Continue`. Don't name a test variable like an
   automatic variable (`$foreach`): Pester runs the block inside a foreach.
 - Fixture DACLs use .NET SetAccessControl, not Set-Acl's unintended SACL writes.
 - Scope/descendant expectations are independent of the production converter.
 - Desktop platyPS: generate help, rebuild, round-trip unchanged, check links;
-  platyPS 0.14.2 turns paired asterisks into emphasis, even in backticks.
+  0.14.2 turns paired asterisks into emphasis, even in backticks, and
+  `Update-MarkdownHelp` reads `Position` from the committed help file.
 - Live tests use only approved lab targets, SMB then independent server state;
   Get/SetFileSecurity preserves stored DACLs; rights oracles use S4U tokens.
 - A suite that is green on the host and CI misses defects that need a domain
   member or another token (the matrix found three): also run a domain member,
   other builds, and a basic user; a failure that follows cell order points to
-  stale account state (Decision 24). Oracles differ there too: `Get-Acl -Audit`
-  reads an item without audit entries as SACL-protected; read the SACL alone.
+  stale account state (Decision 24). `Get-Acl -Audit` reads an item without
+  audit entries as SACL-protected; read the SACL alone.
 
 ### CI, publication, and integration
 

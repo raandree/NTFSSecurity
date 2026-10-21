@@ -164,6 +164,30 @@ decided; the rest is to be chosen. Recommended defaults are the agent's.
   folder). The findings became follow-up commits, and the branch `ai/rc9` was
   rebuilt with `git cherry-pick` in the order of each chain, so every fix sits
   in the commit of its item and any item can still be dropped.
+- Round 2 (brief `rc9\REVIEW-BRIEF-2.md`): two reviewers read the final tree
+  (scope A the four add and remove cmdlets, scope B everything else), then
+  checked the fixes of their own findings. No Blocker and no Major; nine Minor
+  findings: five wrong or incomplete statements in the pages and the CHANGELOG
+  (a script block "was silently ignored" when it was evaluated per object;
+  `-AppliesTo $null` keeps the binder's error; the carry-over of the scope
+  affected only objects with one flags property; the descriptor sets that go
+  on after a failing descriptor are a breaking change; the PowerShell 7 list of
+  patterns was too narrow), the trailing blank and `..` of the filter
+  (documented, not changed), a stale header of two test files, the completers
+  without `CultureInvariant` (fixed), and a list for `-AccessType` and
+  `-AppliesTo` whose numbers PowerShell combines bit by bit (the maintainer
+  chose on 2026-10-21 to reject it in rc9; older than rc9, the same in
+  4.2.6). Two more checks of the fixes found that the rejection could be
+  bypassed through other kinds of collection (a hash set, a queue, the keys of
+  a dictionary, a LINQ result, a one-element collection that holds a comma
+  string), that a collection that holds itself never returned (the binder of
+  rc8 ends the host with a stack overflow on it), and that the message named
+  the type, not the typo: fixed in `e39aeed` and `da41a8e`, each with tests
+  that were red first (32 and 28 rows). Final suite on `de67883`: 2,116 cases
+  per configuration, 0 failed in four configurations (rc8: 1,615); the pages
+  and the help file are a fixpoint; PSScriptAnalyzer finds nothing in the 11
+  changed scripts; the public surface equals the validated candidate; a matrix
+  of valid shapes differs from the published rc8 in exactly 9 list rows.
 
 What the review found:
 

@@ -36,6 +36,11 @@ fails without it (Decision 16).
   both: two mutations proved it), and is proved red on the previous build and
   green on the new one in all four configurations
   (`Tests/ItemCmdlets.Tests.ps1`, `Tests/ObjectApis.Tests.ps1`).
+- The argument completers of rc9 had the same flaw (`WildcardPattern` with
+  `IgnoreCase` only: `THISFOLDERO<Tab>` found nothing under `tr-TR`); the
+  second review found it, not the scan. A Turkish test word must put a capital
+  `I` against a lowercase `i` of the name: `NOPROPAGATEINH` faces the capital
+  `I` of `Inherit` and passes without the fix, so prove every row red first.
 
 ## A test oracle that is wrong on a domain member
 
@@ -148,6 +153,17 @@ fails without it (Decision 16).
   completion of the names has to be rebuilt (quotes, wildcards, declaration
   order); help shows `Object`. Probe every form of a value before you write a
   claim, and ask a reviewer for the negative space.
+- PowerShell accepts a comma list or an array for an enumeration that is not
+  `[Flags]` and combines the numbers bit by bit (a logical or):
+  `-AppliesTo 'ThisFolderOnly,FilesOnly'` made a `FilesOnly` entry and
+  `-AccessType 'Allow,Deny'` a `Deny` entry (4.2.6 and rc8 alike). The
+  conversion rejects a list for such an enumeration, in whatever kind of
+  collection it comes; a single name and a one-element collection stay valid.
+  A matrix of valid shapes, run on the published build and on the new one,
+  showed that exactly the 9 list rows changed. Code that opens a one-element
+  collection needs a depth limit: an array that holds itself hung the first
+  version (the binder of rc8 ends the host with a stack overflow on it), so
+  the conversion opens at most 32 levels and reads at most two elements.
 - PowerShell calls the getter of a by-property-name parameter once per
   command, when a piped object first binds it (`p-getter-calls.ps1`). A test
   that must visit it pipes an object that has the property. A property getter
