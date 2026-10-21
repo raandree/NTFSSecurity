@@ -911,6 +911,37 @@ Describe 'Get-NTFSAccess' {
             @($piped | Where-Object -FilterScript { $_.FullName -eq $file2 }) | Should -HaveCount $expectedSecond
         }
     }
+
+    Context 'Path parameter set, unreadable folder' {
+        BeforeAll {
+            # Forcing EnablePrivileges off reproduces the same denial as a basic user for an elevated session, as
+            # PathErrors.Tests.ps1 does for the same scenario, and as the Get-NTFSOrphanedAccess test below does.
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        # Get-NTFSAccess, Get-NTFSAudit, Get-NTFSEffectiveAccess, Get-NTFSInheritance, and Get-NTFSSecurityDescriptor
+        # all report a failed ownership retry as ReadSecurityError categorized as WriteError (GetAccess.cs); this is
+        # the module's convention. A characterization test: the behavior is already correct, only not yet pinned for
+        # this cmdlet (6a). Unlike Get-NTFSOrphanedAccess, whose own category for the same failure is ReadError.
+        It 'Should write a ReadSecurityError categorized as WriteError after a failed ownership retry, and still return the next path''s entries' {
+            $blocked = New-TestSandboxItem -Sandbox $sandbox -Name 'GetAccessUnreadable'
+            Block-TestReadPermission -Sandbox $sandbox -Path $blocked
+            $next = New-TestSandboxItem -Sandbox $sandbox -Name 'GetAccessUnreadableNext'
+            Add-NTFSAccess -Path $next -Account 'S-1-1-0' -AccessRights ReadData -ErrorAction Stop
+
+            $result = @(Get-NTFSAccess -Path $blocked, $next -ErrorVariable accessErrors -ErrorAction SilentlyContinue)
+
+            $accessErrors | Should -HaveCount 1
+            $accessErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadSecurityError,*'
+            $accessErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+            $accessErrors[0].TargetObject | Should -Be $blocked
+            @($result | Where-Object -FilterScript { $_.FullName -eq $next -and $_.Account.Sid -eq 'S-1-1-0' -and -not $_.IsInherited }) | Should -HaveCount 1
+        }
+    }
 }
 
 Describe 'Get-NTFSOrphanedAccess' {
