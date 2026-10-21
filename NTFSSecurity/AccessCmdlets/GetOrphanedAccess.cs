@@ -55,6 +55,12 @@ namespace NTFSSecurity
                     }
                     catch (Exception ex2)
                     {
+                        // Not what a later command raises, for example when it takes the RestoreOwnerError record.
+                        if (IsFromLaterCommand(ex2))
+                        {
+                            throw;
+                        }
+
                         // A read error; before 5.0.0-rc6, it was reported as an AddAceError.
                         this.WriteError(new ErrorRecord(ex2, "ReadSecurityError", ErrorCategory.ReadError, path));
                         continue;
