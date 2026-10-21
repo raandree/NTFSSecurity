@@ -890,6 +890,171 @@ Describe 'The FileSystemSecurity2 conversions from FileSecurity and DirectorySec
     }
 }
 
+# Before 5.0.0, the account list of both methods was built but its filter result was never assigned anywhere, so a
+# non-null list removed every explicit entry regardless of what it named; only a .NET caller that passes a list is
+# affected, since the cmdlets never do.
+Describe 'RemoveFileSystemAccessRuleAll and RemoveFileSystemAuditRuleAll honor the account list' {
+    BeforeAll {
+        $allow = [System.Security.AccessControl.AccessControlType]::Allow
+        $success = [System.Security.AccessControl.AuditFlags]::Success
+        $accountOne = $identity
+        $accountTwo = [Security2.IdentityReference2] 'S-1-5-32-545'
+        $accountThree = [Security2.IdentityReference2] 'S-1-5-32-544'
+        $accountsByLabel = @{ One = $accountOne; Two = $accountTwo; Three = $accountThree }
+
+        function New-AccessSecurityFor {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an in-memory descriptor only.'
+            )]
+            param ([Security2.IdentityReference2[]] $Accounts)
+
+            $raw = New-Object -TypeName 'System.Security.AccessControl.FileSecurity'
+            foreach ($account in $Accounts) {
+                $raw.AddAccessRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
+                            [System.Security.Principal.SecurityIdentifier] $account,
+                            [System.Security.AccessControl.FileSystemRights]::ReadData, $allow
+                        )))
+            }
+            $raw
+        }
+
+        function New-AuditSecurityFor {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an in-memory descriptor only.'
+            )]
+            param ([Security2.IdentityReference2[]] $Accounts)
+
+            $raw = New-Object -TypeName 'System.Security.AccessControl.FileSecurity'
+            foreach ($account in $Accounts) {
+                $raw.AddAuditRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList (
+                            [System.Security.Principal.SecurityIdentifier] $account,
+                            [System.Security.AccessControl.FileSystemRights]::ReadData, $success
+                        )))
+            }
+            $raw
+        }
+
+        function New-IdentityList {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only creates a list.'
+            )]
+            param ([Security2.IdentityReference2[]] $Accounts)
+
+            $list = New-Object -TypeName 'System.Collections.Generic.List[Security2.IdentityReference2]'
+            foreach ($account in $Accounts) {
+                $list.Add($account)
+            }
+            , $list
+        }
+
+        function Get-AccessSddl {
+            param ([System.Security.AccessControl.FileSecurity] $Raw)
+
+            $Raw.GetSecurityDescriptorSddlForm([System.Security.AccessControl.AccessControlSections]::Access)
+        }
+
+        function Get-AuditSddl {
+            param ([System.Security.AccessControl.FileSecurity] $Raw)
+
+            $Raw.GetSecurityDescriptorSddlForm([System.Security.AccessControl.AccessControlSections]::Audit)
+        }
+
+        # Builds the expected result by removing the given accounts with the .NET method directly, instead of with
+        # a freshly built descriptor that only holds the remaining accounts: once an entry was added and removed
+        # again, the SACL stays present but empty, while a SACL that never held an entry is absent, and the two give
+        # a different SDDL for the same set of remaining entries.
+        function Get-ExpectedAccessSddl {
+            param ([Security2.IdentityReference2[]] $AccountsToRemove)
+
+            $raw = New-AccessSecurityFor -Accounts $accountOne, $accountTwo, $accountThree
+            foreach ($account in $AccountsToRemove) {
+                $raw.RemoveAccessRuleSpecific((New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
+                            [System.Security.Principal.SecurityIdentifier] $account,
+                            [System.Security.AccessControl.FileSystemRights]::ReadData, $allow
+                        )))
+            }
+            Get-AccessSddl $raw
+        }
+
+        function Get-ExpectedAuditSddl {
+            param ([Security2.IdentityReference2[]] $AccountsToRemove)
+
+            $raw = New-AuditSecurityFor -Accounts $accountOne, $accountTwo, $accountThree
+            foreach ($account in $AccountsToRemove) {
+                $raw.RemoveAuditRuleSpecific((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList (
+                            [System.Security.Principal.SecurityIdentifier] $account,
+                            [System.Security.AccessControl.FileSystemRights]::ReadData, $success
+                        )))
+            }
+            Get-AuditSddl $raw
+        }
+    }
+
+    It 'Should honor the account list when it removes access entries from a descriptor with three accounts, in memory, for <Scenario>' -ForEach @(
+        @{ Scenario = 'a list with one account'; AccountsToRemove = @('One') }
+        @{ Scenario = 'a list with two accounts'; AccountsToRemove = @('One', 'Two') }
+        @{ Scenario = 'a null list'; AccountsToRemove = $null }
+        @{ Scenario = 'an empty list'; AccountsToRemove = @() }
+    ) {
+        $raw = New-AccessSecurityFor -Accounts $accountOne, $accountTwo, $accountThree
+        $toRemove = if ($null -eq $AccountsToRemove) { $accountOne, $accountTwo, $accountThree } else { $AccountsToRemove.ForEach({ $accountsByLabel[$_] }) }
+        $expected = Get-ExpectedAccessSddl -AccountsToRemove $toRemove
+        $accounts = if ($null -eq $AccountsToRemove) { $null } else { New-IdentityList -Accounts $AccountsToRemove.ForEach({ $accountsByLabel[$_] }) }
+
+        [Security2.FileSystemAccessRule2]::RemoveFileSystemAccessRuleAll(([Security2.FileSystemSecurity2] $raw), $accounts)
+
+        Get-AccessSddl $raw | Should -BeExactly $expected
+    }
+
+    It 'Should honor the account list when it removes audit entries from a descriptor with three accounts, in memory, for <Scenario>' -ForEach @(
+        @{ Scenario = 'a list with one account'; AccountsToRemove = @('One') }
+        @{ Scenario = 'a list with two accounts'; AccountsToRemove = @('One', 'Two') }
+        @{ Scenario = 'a null list'; AccountsToRemove = $null }
+        @{ Scenario = 'an empty list'; AccountsToRemove = @() }
+    ) {
+        $raw = New-AuditSecurityFor -Accounts $accountOne, $accountTwo, $accountThree
+        $toRemove = if ($null -eq $AccountsToRemove) { $accountOne, $accountTwo, $accountThree } else { $AccountsToRemove.ForEach({ $accountsByLabel[$_] }) }
+        $expected = Get-ExpectedAuditSddl -AccountsToRemove $toRemove
+        $accounts = if ($null -eq $AccountsToRemove) { $null } else { New-IdentityList -Accounts $AccountsToRemove.ForEach({ $accountsByLabel[$_] }) }
+
+        [Security2.FileSystemAuditRule2]::RemoveFileSystemAuditRuleAll(([Security2.FileSystemSecurity2] $raw), $accounts)
+
+        Get-AuditSddl $raw | Should -BeExactly $expected
+    }
+
+    It 'Should remove only the listed account''s explicit access entries of a sandbox item, read back with .NET' {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveAllAccessByItem'
+        $item = New-Object -TypeName 'Alphaleonis.Win32.Filesystem.FileInfo' -ArgumentList $path
+        foreach ($account in $accountOne, $accountTwo, $accountThree) {
+            [void] [Security2.FileSystemAccessRule2]::AddFileSystemAccessRule(
+                $item, $account, [Security2.FileSystemRights2]::ReadData, $allow,
+                [System.Security.AccessControl.InheritanceFlags]::None, [System.Security.AccessControl.PropagationFlags]::None
+            )
+        }
+
+        [Security2.FileSystemAccessRule2]::RemoveFileSystemAccessRuleAll($item, (New-IdentityList -Accounts $accountOne))
+
+        $remaining = @((Get-Acl -LiteralPath $path).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]))
+        @($remaining.IdentityReference.Value | Sort-Object) | Should -Be @(($accountTwo.Sid, $accountThree.Sid) | Sort-Object)
+    }
+
+    It 'Should remove only the listed account''s explicit audit entries of a sandbox item, read back with .NET' -Skip:(-not $holdsSecurityPrivilege) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveAllAuditByItem'
+        $item = New-Object -TypeName 'Alphaleonis.Win32.Filesystem.FileInfo' -ArgumentList $path
+        foreach ($account in $accountOne, $accountTwo, $accountThree) {
+            [void] [Security2.FileSystemAuditRule2]::AddFileSystemAuditRule(
+                $item, $account, [Security2.FileSystemRights2]::ReadData, $success,
+                [System.Security.AccessControl.InheritanceFlags]::None, [System.Security.AccessControl.PropagationFlags]::None
+            )
+        }
+
+        [Security2.FileSystemAuditRule2]::RemoveFileSystemAuditRuleAll($item, (New-IdentityList -Accounts $accountOne))
+
+        $remaining = @((Get-Acl -LiteralPath $path -Audit).GetAuditRules($true, $false, [System.Security.Principal.SecurityIdentifier]))
+        @($remaining.IdentityReference.Value | Sort-Object) | Should -Be @(($accountTwo.Sid, $accountThree.Sid) | Sort-Object)
+    }
+}
+
 Describe 'Generic access rights and identity errors' {
     It 'Should map the generic mask <Mask> to the file system rights <Expected>' -ForEach @(
         @{ Mask = '80000000'; Expected = '00120089' }
