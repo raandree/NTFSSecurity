@@ -350,9 +350,9 @@ Describe 'Get-ChildItem2' {
         # last dot before the dot token and the question mark account for the final segment. The 8.3-compliant
         # names of the truth table above have at most one dot, where the first dot and the last dot are the same
         # position, so they cannot tell the two rules apart; this fixture uses names with two or three dots
-        # instead, including the realistic ones from the WI. Expected values are pinned with the real name of each
-        # item, confirmed with `fsutil file setshortname` so that a short name the volume might otherwise assign
-        # cannot also produce a match.
+        # instead, including realistic ones such as archive.tar.gz and jquery.min.js. Expected values are pinned
+        # with the real name of each item, confirmed with `fsutil file setshortname` so that a short name the volume
+        # might otherwise assign cannot also produce a match.
         It 'Should match -Filter "<Filter>" on a name with two or more dots the way Windows PowerShell 5.1 does' -ForEach @(
             @{ Filter = '*.?'; Expected = @('a.b.c', 'v1.2.3', 'x.y.z.w') }
             @{ Filter = '*.??'; Expected = @('a.b.c', 'a.b.cd', 'archive.tar.gz', 'index.d.ts', 'jquery.min.js', 'my.file.tx', 'v1.2.3', 'x.y.z.w') }

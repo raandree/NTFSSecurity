@@ -637,33 +637,28 @@ namespace NtfsSecurityTests { public class StandInForBreak : System.Management.A
     }
 }
 
-# InvokeAsOwner (and Set-NTFSSecurityDescriptor's WriteChangesAsOwner) take ownership, run the action, and in a
+# InvokeAsOwner (and WriteChangesAsOwner of Set-NTFSSecurityDescriptor) take ownership, run the action, and in a
 # finally restore the previous owner, writing a RestoreOwnerError through WriteError when that restore fails.
 # WriteError runs the later commands of the pipeline and notes what they raise (IsFromLaterCommand, above); the catch
-# around the InvokeAsOwner/WriteChangesAsOwner call must pass that on instead of reporting it as the item's own error
-# and going on, or the caller never sees it. Each row denies the current user the right its own action needs (a
-# change denial for the writers, a read denial on Everyone for Get-FileHash2, which needs file data, not
-# permissions) and gives the item an owner that only the Restore privilege can set back, which the tests turn off;
-# InvokeAsOwner/WriteChangesAsOwner then takes ownership, runs the action, and fails to restore the owner. Eight of
-# the seventeen handlers of item 7 can be pinned this way. The scenario and the "without a later command" assertion
-# already exist for six of them: ParameterSets.Inheritance.Tests.ps1 (Disable/Enable-NTFSAccessInheritance,
-# Set-NTFSInheritance), PathErrors.Tests.ps1 (Clear-NTFSAccess -DisableInheritance), SecurityDescriptor.Tests.ps1
-# (Set-NTFSSecurityDescriptor), FileHash.Tests.ps1 (Get-FileHash2); Add-NTFSAccess and Remove-NTFSAccess use the same
-# scenario as the inheritance cmdlets. So this table only adds the later-command assertion, not a duplicate of the
-# existing one.
+# around the call must pass that on instead of reporting it as the item's own error and going on, or the caller never
+# sees it. Each row denies the current user the right its own action needs (a change denial for the writers, a read
+# denial on Everyone for Get-FileHash2, which needs file data, not permissions) and gives the item an owner that only
+# the Restore privilege can set back, which the tests turn off; the cmdlet then takes ownership, runs the action, and
+# fails to restore the owner. Eight of the seventeen handlers can be pinned this way. The scenario and the "without a
+# later command" assertion already exist for most of them in the test files of their cmdlets
+# (ParameterSets.Inheritance.Tests.ps1, PathErrors.Tests.ps1, SecurityDescriptor.Tests.ps1, FileHash.Tests.ps1), and
+# Add-NTFSAccess and Remove-NTFSAccess use the scenario of the inheritance cmdlets, so this table only adds the
+# later-command assertion.
 #
-# NOT DONE for the other nine (the reason is the same Windows rule in both groups: taking ownership only bypasses a
-# denial of ReadPermissions/ChangePermissions, never of a different right): Get-NTFSAccess, Get-NTFSOrphanedAccess,
-# Get-NTFSEffectiveAccess, and Get-NTFSInheritance read the security descriptor; InvokeAsOwner's own first statement,
-# FileSystemOwner.GetOwner, reads it too and needs the same ReadPermissions right the cmdlet's read needs, so a
-# denial that fails one fails the other and InvokeAsOwner never reaches the owner-restore step (verified: denying
-# ReadPermissions directly to the user reports ReadSecurityError with the plain UnauthorizedAccessException, not
-# RestoreOwnerError, and the owner is never taken; probes-wi2\p-restoreowner-read-vs-write.ps1,
-# p-read-cmdlets-2.ps1). Clear-NTFSAudit, Disable-NTFSAuditInheritance, Enable-NTFSAuditInheritance, Add-NTFSAudit, and
-# Remove-NTFSAudit write the SACL, which Windows grants to this elevated session regardless of a DACL deny and
-# regardless of the module's EnablePrivileges setting, so the action does not fail to begin with (verified with both
-# a ChangePermissions deny and EnablePrivileges off: no error, the SACL is written, and the owner is left unchanged;
-# probes-wi2\p-audit-restoreowner.ps1, p-audit-restoreowner-2.ps1). The handlers of all seventeen carry the check.
+# The other nine have no row, for one Windows rule: taking ownership only bypasses a denial of
+# ReadPermissions/ChangePermissions, never of a different right. Get-NTFSAccess, Get-NTFSOrphanedAccess,
+# Get-NTFSEffectiveAccess, and Get-NTFSInheritance read the security descriptor, and so does the first statement of
+# InvokeAsOwner (FileSystemOwner.GetOwner), which needs the same ReadPermissions right: a denial that fails one fails
+# the other, so the owner-restore step is never reached (denying ReadPermissions reports a ReadSecurityError with the
+# plain UnauthorizedAccessException, and the owner is never taken). Clear-NTFSAudit, Disable-NTFSAuditInheritance,
+# Enable-NTFSAuditInheritance, Add-NTFSAudit, and Remove-NTFSAudit write the SACL, which Windows grants to this
+# elevated session whatever the DACL says and whatever the EnablePrivileges setting is, so the action does not fail
+# to begin with (the SACL is written and the owner is left unchanged). The handlers of all seventeen carry the check.
 Describe 'A later command that throws at the RestoreOwnerError record' {
     BeforeDiscovery {
         $holdsRestorePrivilege = Test-PrivilegeHeld -Name 'SeRestorePrivilege'

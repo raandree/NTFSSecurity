@@ -1026,9 +1026,10 @@ Describe 'The FileSystemSecurity2 conversions from FileSecurity and DirectorySec
     }
 }
 
-# Review finding: PowerShell's binder uses the fixed conversion of 3.1 for every -SecurityDescriptor parameter, so a
-# descriptor that Get-Acl returns, never meant for these cmdlets, now binds where it used to be a binding error. These
-# pin the four cmdlets the review named; the one-line probes of the others are in the final report, not here.
+# PowerShell's binder uses the conversion from FileSecurity and DirectorySecurity for every -SecurityDescriptor
+# parameter, so a descriptor that Get-Acl returns, never meant for these cmdlets, binds where it used to be a binding
+# error. The descriptor has no item and no audit section unless Get-Acl read one. These pin a reader of the access
+# entries, a reader of the audit entries, the inheritance reader, and the writer.
 Describe 'Cmdlets with a security descriptor that Get-Acl returns' {
     BeforeAll {
         $plainFile = New-TestSandboxItem -Sandbox $sandbox -Name 'GetAclPlain'
@@ -1082,6 +1083,7 @@ Describe 'Cmdlets with a security descriptor that Get-Acl returns' {
         (Get-Acl -LiteralPath $plainFile).Sddl | Should -BeExactly $before
     }
 }
+
 Describe 'RemoveFileSystemAccessRuleAll and RemoveFileSystemAuditRuleAll honor the account list' {
     BeforeAll {
         $allow = [System.Security.AccessControl.AccessControlType]::Allow

@@ -1384,7 +1384,7 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = 'Typoo' }
         }
 
-        # R1-2: a named $null (a literal $null, a variable, an alias, splatting, or $PSDefaultParameterValues) must
+        # A named $null (a literal $null, a variable, an alias, splatting, or $PSDefaultParameterValues) must
         # stay a terminating error, the same as a bad named value; only a $null that a piped object's property
         # carries keeps the parameter's own default.
         $accessNamedNullCases = foreach ($cmdlet in 'Add-NTFSAccess', 'Remove-NTFSAccess') {
@@ -1421,10 +1421,10 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; EnumTypeName = 'Security2.ApplyTo' }
         }
 
-        # R1-4: a quoted or a wildcard word completed in rc8 (a typed parameter of an enumeration); the first
-        # EnumArgumentCompleters.cs returned nothing for either shape. Each ExpectedName has no sibling name that
-        # also starts with it (ThisFolderOnly has no ThisFolderOnlyOneLevel), so the unquoted and quoted forms match
-        # it alone; the wildcard only needs to contain it among the matches.
+        # A quoted or a wildcard word completed while these parameters were typed as enumerations, so the completers
+        # must offer the names for either shape too. Each ExpectedName has no sibling name that also starts with it
+        # (ThisFolderOnly has no ThisFolderOnlyOneLevel), so the unquoted and quoted forms match it alone; the
+        # wildcard only needs to contain it among the matches.
         $accessCompletionFormCases = @(
             @{ Parameter = 'AccessType'; Word = 'D'; ExpectedName = 'Deny' }
             @{ Parameter = 'InheritanceFlags'; Word = 'Container'; ExpectedName = 'ContainerInherit' }
@@ -1432,15 +1432,13 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Parameter = 'AppliesTo'; Word = 'ThisFolderO'; ExpectedName = 'ThisFolderOnly' }
         )
 
-        # R1-1: because the five parameters are object, PowerShell counts a $null, an empty string, or DBNull value
-        # of a property as present when it chooses the parameter set, the same as a real value, so AppliesTo (the
-        # Simple group) together with a $null/''/DBNull InheritanceFlags or PropagationFlags (the Complex group)
-        # offers both groups and is AmbiguousParameterSet -- not InvalidParameterValue, which is what the docs
-        # wrongly claimed for every shape. The reverse (AppliesTo blank, a Complex property valid) is
-        # AmbiguousParameterSet too, except that AppliesTo is Mandatory, so a literal $null of it (unlike '' or
-        # DBNull) is rejected earlier by the binder's own Mandatory check, unrelated to and unchanged by this
-        # finding. Covers the four cmdlets' Path and SD sets; the Audit half of the four cmdlets is pinned in
-        # ParameterSets.Audit.Tests.ps1.
+        # Because the five parameters are object, PowerShell counts a $null, an empty string, or DBNull value of a
+        # property as present when it chooses the parameter set, the same as a real value, so AppliesTo (the Simple
+        # group) together with a $null/''/DBNull InheritanceFlags or PropagationFlags (the Complex group) offers
+        # both groups and is AmbiguousParameterSet, not InvalidParameterValue. The reverse (AppliesTo blank, a
+        # Complex property valid) is AmbiguousParameterSet too, except that AppliesTo is Mandatory, so a literal
+        # $null of it (unlike '' or DBNull) is rejected earlier by the binder's own Mandatory check. Covers the
+        # Path and SD sets of the access cmdlets; the audit cmdlets are pinned in ParameterSets.Audit.Tests.ps1.
         $accessAmbiguousOtherGroupCases = foreach ($cmdlet in 'Add-NTFSAccess', 'Remove-NTFSAccess') {
             foreach ($targetKind in 'Path', 'SD') {
                 foreach ($shape in 'a $null', 'an empty string', 'DBNull') {
@@ -1459,10 +1457,9 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             }
         }
 
-        # R1-3: with the object type, a script block is a plain value (rc8's delay-bind evaluation, once per piped
-        # object, no longer applies), so it fails the same way any other value of the wrong shape does: a
-        # terminating InvalidParameterValue from ValidateNamedValue in BeginProcessing, before any piped object is
-        # processed.
+        # With the object type, a script block is a plain value (a typed parameter evaluates it once per piped
+        # object), so it fails the same way any other value of the wrong shape does: a terminating
+        # InvalidParameterValue from ValidateNamedValue in BeginProcessing, before any piped object is processed.
         $accessScriptBlockCases = foreach ($cmdlet in 'Add-NTFSAccess', 'Remove-NTFSAccess') {
             @{ Cmdlet = $cmdlet; Parameter = 'AccessType' }
             @{ Cmdlet = $cmdlet; Parameter = 'InheritanceFlags' }
@@ -1671,9 +1668,9 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
         }
     }
 
-    # R1-2: rc8 ended a named $null (for example a variable that misspells a property, such as -AccessType
-    # $rule.AccessTpye) with a terminating ParameterBindingFailed; the object-typed parameter accepted it and
-    # silently kept the default instead. A named $null is now reported the same way as a bad named value.
+    # A typed parameter ends a named $null (for example a variable that misspells a property, such as -AccessType
+    # $rule.AccessTpye) with a terminating ParameterBindingFailed; the object-typed parameter accepts it, so the
+    # cmdlet must not keep the default silently. A named $null is reported the same way as a bad named value.
     Context 'A named $null is a terminating error' {
         It 'Should throw a terminating error for a named $null of <Cmdlet> -<Parameter>, and change nothing' -ForEach $accessNamedNullCases {
             $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'NamedNull' -Directory
@@ -1789,10 +1786,10 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
         }
     }
 
-    # R1-1: rc8 created the entry for every shape below; the object-typed parameters make a $null, an empty
-    # string, or DBNull value of a property of the other group count as present too, so PowerShell cannot resolve
-    # the parameter set and nothing is changed.
-    Context 'A blank value of the other groups property' {
+    # A typed parameter skips a $null, an empty string, or DBNull value of a property, and the entry was created for
+    # every shape below; the object-typed parameters count such a value of a property of the other group as present
+    # too, so PowerShell cannot resolve the parameter set and nothing is changed.
+    Context 'A blank value of a property of the other group' {
         It 'Should reject <Cmdlet> (<TargetKind>) for <Direction> (<Shape>) with the error the binder gives, change nothing, and still process the next object' -ForEach $accessAmbiguousOtherGroupCases {
             $bad = New-TestSandboxItem -Sandbox $sandbox -Name 'AmbiguousOtherGroupBad' -Directory
             $next = New-TestSandboxItem -Sandbox $sandbox -Name 'AmbiguousOtherGroupNext' -Directory
@@ -1826,9 +1823,9 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
         }
     }
 
-    # R1-3: with the object type, a script block is a plain value (rc8's delay-bind evaluation, once per piped
-    # object, no longer applies), so ValidateNamedValue in BeginProcessing rejects it the same as any other bad
-    # value, before any piped object is processed.
+    # With the object type, a script block is a plain value (a typed parameter evaluates it once per piped object),
+    # so ValidateNamedValue in BeginProcessing rejects it the same as any other bad value, before any piped object
+    # is processed.
     Context 'A named script block is a terminating error' {
         It 'Should throw a terminating InvalidParameterValue error for a named script block value of <Cmdlet> -<Parameter>, and change nothing' -ForEach $accessScriptBlockCases {
             $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'NamedScriptBlock' -Directory

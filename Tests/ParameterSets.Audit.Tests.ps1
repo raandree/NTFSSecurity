@@ -1054,7 +1054,7 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = 'Typoo' }
         }
 
-        # R1-2: a named $null (a literal $null, a variable, splatting, or $PSDefaultParameterValues) must stay a
+        # A named $null (a literal $null, a variable, splatting, or $PSDefaultParameterValues) must stay a
         # terminating error, the same as a bad named value; only a $null that a piped object's property carries
         # keeps the parameter's own default.
         $auditNamedNullCases = foreach ($cmdlet in 'Add-NTFSAudit', 'Remove-NTFSAudit') {
@@ -1093,22 +1093,20 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; EnumTypeName = 'Security2.ApplyTo' }
         }
 
-        # R1-4: AuditFlags is the one completer that ParameterSets.Access.Tests.ps1 does not already cover with the
+        # AuditFlags is the one completer that ParameterSets.Access.Tests.ps1 does not already cover with the
         # quoted and wildcard forms (it shares the same completer code for InheritanceFlags, PropagationFlags, and
         # AppliesTo, so those are pinned there).
         $auditCompletionFormCases = @(
             @{ Parameter = 'AuditFlags'; Word = 'F'; ExpectedName = 'Failure' }
         )
 
-        # R1-1: because the five parameters are object, PowerShell counts a $null, an empty string, or DBNull value
-        # of a property as present when it chooses the parameter set, the same as a real value, so AppliesTo (the
-        # Simple group) together with a $null/''/DBNull InheritanceFlags or PropagationFlags (the Complex group)
-        # offers both groups and is AmbiguousParameterSet -- not InvalidParameterValue, which is what the docs
-        # wrongly claimed for every shape. The reverse (AppliesTo blank, a Complex property valid) is
-        # AmbiguousParameterSet too, except that AppliesTo is Mandatory, so a literal $null of it (unlike '' or
-        # DBNull) is rejected earlier by the binder's own Mandatory check, unrelated to and unchanged by this
-        # finding. Covers the four cmdlets' Path and SD sets; the Access half is pinned in
-        # ParameterSets.Access.Tests.ps1.
+        # Because the five parameters are object, PowerShell counts a $null, an empty string, or DBNull value of a
+        # property as present when it chooses the parameter set, the same as a real value, so AppliesTo (the Simple
+        # group) together with a $null/''/DBNull InheritanceFlags or PropagationFlags (the Complex group) offers
+        # both groups and is AmbiguousParameterSet, not InvalidParameterValue. The reverse (AppliesTo blank, a
+        # Complex property valid) is AmbiguousParameterSet too, except that AppliesTo is Mandatory, so a literal
+        # $null of it (unlike '' or DBNull) is rejected earlier by the binder's own Mandatory check. Covers the
+        # Path and SD sets of the audit cmdlets; the access cmdlets are pinned in ParameterSets.Access.Tests.ps1.
         $auditAmbiguousOtherGroupCases = foreach ($cmdlet in 'Add-NTFSAudit', 'Remove-NTFSAudit') {
             foreach ($targetKind in 'Path', 'SD') {
                 foreach ($shape in 'a $null', 'an empty string', 'DBNull') {
@@ -1127,10 +1125,9 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             }
         }
 
-        # R1-3: with the object type, a script block is a plain value (rc8's delay-bind evaluation, once per piped
-        # object, no longer applies), so it fails the same way any other value of the wrong shape does: a
-        # terminating InvalidParameterValue from ValidateNamedValue in BeginProcessing, before any piped object is
-        # processed.
+        # With the object type, a script block is a plain value (a typed parameter evaluates it once per piped
+        # object), so it fails the same way any other value of the wrong shape does: a terminating
+        # InvalidParameterValue from ValidateNamedValue in BeginProcessing, before any piped object is processed.
         $auditScriptBlockCases = foreach ($cmdlet in 'Add-NTFSAudit', 'Remove-NTFSAudit') {
             @{ Cmdlet = $cmdlet; Parameter = 'AuditFlags' }
             @{ Cmdlet = $cmdlet; Parameter = 'InheritanceFlags' }
@@ -1349,8 +1346,9 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
         }
     }
 
-    # R1-2: rc8 ended a named $null with a terminating ParameterBindingFailed; the object-typed parameter accepted
-    # it and silently kept the default instead. A named $null is now reported the same way as a bad named value.
+    # A typed parameter ends a named $null with a terminating ParameterBindingFailed; the object-typed parameter
+    # accepts it, so the cmdlet must not keep the default silently. A named $null is reported the same way as a bad
+    # named value.
     Context 'A named $null is a terminating error' {
         It 'Should throw a terminating error for a named $null of <Cmdlet> -<Parameter>, and change nothing' -ForEach $auditNamedNullCases {
             $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'NamedNull' -Directory
@@ -1445,13 +1443,13 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
         }
     }
 
-    # R1-1: rc8 created the entry for every shape below; the object-typed parameters make a $null, an empty
-    # string, or DBNull value of a property of the other group count as present too, so PowerShell cannot resolve
-    # the parameter set and nothing is changed. The conversion/parameter-set failure happens before the cmdlet
-    # ever touches the SACL, so the core assertion (the error id, and that the bad object's audit entries are
-    # unchanged) runs in every configuration; only the "good next object succeeded" part needs the Security
-    # privilege, the same way the rest of this file does.
-    Context 'A blank value of the other groups property' {
+    # A typed parameter skips a $null, an empty string, or DBNull value of a property, and the entry was created for
+    # every shape below; the object-typed parameters count such a value of a property of the other group as present
+    # too, so PowerShell cannot resolve the parameter set and nothing is changed. The conversion/parameter-set
+    # failure happens before the cmdlet ever touches the SACL, so the core assertion (the error id, and that the bad
+    # object's audit entries are unchanged) runs in every configuration; only the "good next object succeeded" part
+    # needs the Security privilege, the same way the rest of this file does.
+    Context 'A blank value of a property of the other group' {
         It 'Should reject <Cmdlet> (<TargetKind>) for <Direction> (<Shape>) with the error the binder gives, change nothing, and still process the next object' -ForEach $auditAmbiguousOtherGroupCases {
             $bad = New-TestSandboxItem -Sandbox $sandbox -Name 'AmbiguousOtherGroupBad' -Directory
             $next = New-TestSandboxItem -Sandbox $sandbox -Name 'AmbiguousOtherGroupNext' -Directory
@@ -1492,11 +1490,10 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
         }
     }
 
-    # R1-3: with the object type, a script block is a plain value (rc8's delay-bind evaluation, once per piped
-    # object, no longer applies), so ValidateNamedValue in BeginProcessing rejects it the same as any other bad
-    # value, before any piped object is processed and before the cmdlet ever touches the SACL. The terminating
-    # error itself needs no Security privilege; reading the SACL back to confirm nothing changed does, the same
-    # way the rest of this file does.
+    # With the object type, a script block is a plain value (a typed parameter evaluates it once per piped object),
+    # so ValidateNamedValue in BeginProcessing rejects it the same as any other bad value, before any piped object
+    # is processed and before the cmdlet ever touches the SACL. The terminating error itself needs no Security
+    # privilege; reading the SACL back to confirm nothing changed does, the same way the rest of this file does.
     Context 'A named script block is a terminating error' {
         It 'Should throw a terminating InvalidParameterValue error for a named script block value of <Cmdlet> -<Parameter>, and change nothing' -ForEach $auditScriptBlockCases {
             $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'NamedScriptBlock' -Directory
