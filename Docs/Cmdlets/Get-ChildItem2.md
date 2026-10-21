@@ -148,7 +148,9 @@ For example, `Report.*` also returns the item `Report`, which has no dot.
 
 A pattern of an asterisk, a dot, and an asterisk returns every item, also an item without a dot in its name, as `Get-ChildItem` does for this pattern.
 
-In PowerShell 7, `Get-ChildItem2` deliberately differs from the built-in `Get-ChildItem` for two pattern shapes: the built-in `-Filter` returns nothing for a pattern that ends in a dot, unless the character right before the dot is an asterisk, and it returns every item for a pattern of an asterisk, a dot, and one or two question marks. `Get-ChildItem2` follows the Windows PowerShell 5.1 rules in both editions instead.
+`Get-ChildItem2` follows the Windows PowerShell 5.1 rules in both editions, so the result does not depend on the edition. The built-in `Get-ChildItem -Filter` of PowerShell 7 differs for some patterns, for example for a pattern that ends in a dot, for which it returns nothing unless an asterisk comes right before the dot, and for a pattern in which an asterisk is followed by a dot and question marks, for which it ignores the dot and the question marks.
+
+Two cases are not like Windows PowerShell 5.1: a blank at the end of the pattern is part of it, where Windows PowerShell 5.1 drops it, and a pattern that ends in two dots is accepted, where Windows PowerShell 5.1 stops with an error.
 
 The default value is `*`, which returns every item, and an empty value also returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.
 
@@ -331,7 +333,7 @@ The cmdlet enumerates broadly and matches each name once, with the Win32 "DOS" w
 
 For example, `Report.*` also returns the item `Report`, which has no dot. A star in front of a dot token may cross every dot in the name but the last one, so a pattern such as a star followed by a dot also reaches the final segment of a name with two or more dots, for example `archive.tar.gz`.
 
-PowerShell 7 itself differs from Windows PowerShell 5.1 here: its own `Get-ChildItem -Filter` returns nothing for a pattern that ends in a dot, unless the character right before the dot is an asterisk, and it returns every item for a pattern of an asterisk, a dot, and one or two question marks. `Get-ChildItem2` follows the Windows PowerShell 5.1 rules in both editions instead of the edition it runs in, so this is a deliberate difference from the built-in `Get-ChildItem` in PowerShell 7 for these pattern shapes.
+PowerShell 7 itself differs from Windows PowerShell 5.1 here: its own `Get-ChildItem -Filter` returns nothing for a pattern that ends in a dot, unless the character right before the dot is an asterisk, and it ignores the dot and the question marks of a pattern in which an asterisk is followed by a dot and question marks. `Get-ChildItem2` follows the Windows PowerShell 5.1 rules in both editions instead of the edition it runs in, so this is a deliberate difference from the built-in `Get-ChildItem` in PowerShell 7 for these and some similar patterns.
 
 Before 5.0.0, a `break`, a `continue`, or a `throw` in a later command of the pipeline did not end the cmdlet for an item below the first folder, also when the later command took the error of a folder that the cmdlet cannot read, for example with `2>&1`.
 

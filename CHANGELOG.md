@@ -105,10 +105,14 @@ The format is based on
   `*.*.*` returns every item; and a question mark also matches nothing at
   the end of a name and before a dot, so `a?` also returns `a`. An empty
   `-Filter` returns every item, like `*`, instead of nothing, and a pattern
-  of more than 32,767 characters is a parameter error. In PowerShell 7,
-  `Get-ChildItem2` deliberately differs from its own `Get-ChildItem -Filter`
-  for a pattern that ends in a dot, unless an asterisk comes right before the
-  dot, and for a pattern of an asterisk, a dot, and one or two question marks
+  of more than 32,767 characters is a parameter error. Two edge cases are not
+  like Windows PowerShell 5.1: a blank at the end of a pattern is part of it,
+  where Windows PowerShell 5.1 drops it, and a pattern that ends in two dots
+  is accepted, where Windows PowerShell 5.1 stops with an error. In
+  PowerShell 7, `Get-ChildItem2` deliberately differs from
+  `Get-ChildItem -Filter` for some patterns, for example for a pattern that
+  ends in a dot, unless an asterisk comes right before the dot, and for a
+  pattern in which an asterisk is followed by a dot and question marks
 - **Breaking:** write a non-terminating error in `Get-NTFSOrphanedAccess` for
   an item that it can't read for a reason other than a denied access, and
   continue with the next item: `ReadSecurityError` with the category
@@ -303,11 +307,12 @@ The format is based on
   `-PropagationFlags`; `-AppliesTo` is now mandatory in the `Simple`
   parameter sets, so such a command uses the flag parameters and their
   defaults, as for a path
-- Fix `Add-NTFSAccess`, `Remove-NTFSAccess`, `Add-NTFSAudit`, and
+- **Breaking:** fix `Add-NTFSAccess`, `Remove-NTFSAccess`, `Add-NTFSAudit`, and
   `Remove-NTFSAudit`, which ignored the `AppliesTo` property of an object
   piped to them with a path and used the default scope, and which gave a
-  piped security descriptor object without a scope the scope of the object
-  before it; the property now sets the scope of its own object only. A piped
+  piped security descriptor object that had only `InheritanceFlags` or
+  `PropagationFlags` the scope of the object before it; the property now sets
+  the scope of its own object only. A piped
   object that has `AppliesTo` and `InheritanceFlags` or `PropagationFlags`
   now fails with `AmbiguousParameterSet`, like the same parameters on the
   command line, and so does an object that has both `Path` and
@@ -335,16 +340,22 @@ The format is based on
   have the type `Object`, because the cmdlets convert the values themselves.
   A bad value that you name on the command line, and a named `$null`, still
   stop the command, but with the error id `InvalidParameterValue`, not the id
-  of a parameter binding error. A script block, such as
-  `-AccessType { 'Deny' }`, is no longer evaluated for every piped object and
-  is a bad value. `Get-Help` shows the type `Object`, and tab completion
-  still offers the valid names
-- Fix `Add-NTFSAccess`, `Remove-NTFSAccess`, `Add-NTFSAudit`, and
+  of a parameter binding error; `-AppliesTo $null` keeps the error of the
+  binder, because the parameter is mandatory. `-AccessType` and `-AppliesTo`
+  take one value: a comma list or an array of several values is an
+  `InvalidParameterValue` error, where PowerShell added up the numbers of the
+  values, so that `-AppliesTo 'ThisFolderOnly,FilesOnly'` created a
+  `FilesOnly` entry and `-AccessType 'Allow,Deny'` a `Deny` entry. A script
+  block, such as `-AccessType { 'Deny' }`, is no longer evaluated for every
+  piped object and is a bad value. `Get-Help` shows the type `Object`, and
+  tab completion still offers the valid names
+- **Breaking:** fix `Add-NTFSAccess`, `Remove-NTFSAccess`, `Add-NTFSAudit`, and
   `Remove-NTFSAudit` with `-SecurityDescriptor`, which ended the whole
   command with a terminating error when the change of one descriptor failed,
   such as for a deny entry without rights; they write the non-terminating
   error `AddAceError` or `RemoveAceError` for that descriptor and go on with
-  the next one, as they do for a path
+  the next one, as they do for a path. A script that relies on the stop needs
+  `-ErrorAction Stop`
 - Fix `Get-NTFSEffectiveAccess`: `-ExcludeNoneAccessEntries` now leaves out
   items without access, the cmdlet uses the current location when `-Path`
   is omitted, and `-SecurityDescriptor` returns the effective access of the
