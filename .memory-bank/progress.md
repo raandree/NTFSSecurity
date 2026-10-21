@@ -136,7 +136,9 @@ Gallery version: 4.2.6. After 5.0.0, archive in favor of WindowsAccessControl
   merged #129 (08:24Z) and #130 (08:47Z); the new tests passed in three CI
   runs and in 24 lab runs on six machine classes (0 failed). A probe then
   found that piped optional parameters ignore a bad value (a typo for Deny
-  creates an Allow entry); Decision 27 sets the scope of rc9.
+  creates an Allow entry); Decision 27 sets the scope of rc9, the designs were
+  chosen on 2026-10-21, and four work items started (branch
+  `ai/rc9-before-stable`).
 
 ## Stable capabilities
 
@@ -177,10 +179,9 @@ Gallery version: 4.2.6. After 5.0.0, archive in favor of WindowsAccessControl
    (`2112ee3`): 402 unvisited sequence points in 183 methods, all classified
    (`Tests/Coverage`): 167 explained from source with evidence, 16 open (8:
    `FileSecurity` conversions, `RemoveAll` account filters; 8 getters of
-   pipeline parameters that no test binds by property name). Other open
-   decisions: lazy path overloads, abandoned `PrivilegeEnabler`, dot patterns
-   of `Get-ChildItem2 -Filter`, 17 owner-restore handlers that do not pass on
-   what a later command raises (a rare combination), unused classes. No
+   pipeline parameters that no test binds by property name). Decision 27: rc9
+   fixes the conversions, `RemoveAll`, the lazy overloads, the dot patterns,
+   and the 17 handlers; `PrivilegeEnabler` and unused classes stay. No
    trigger for an audit write's ownership retry was found on a local volume or
    a Windows file server (probe of 48 calls) and no test reaches it. A
    conditional ACE display remains a .NET representation limit, not evidence

@@ -25,12 +25,14 @@ of the new error, a computer name of 32,718 characters, holds on Server 2019,
 and this Memory Bank (#130, 08:47Z); `master` is `d0cb57c`. The new tests gave
 the same counts on the runner (three CI runs) and on six machine classes of the
 labs (24 runs, 0 failed). A probe found that a typo in a piped `AccessType`
-silently creates an Allow entry. He decided (Decision 27): rc9 fixes that
-family and the items 3 to 7 of its sheet, with a review. Open before the
-stable pull request: rc9 (designs, tests, review, acceptance of about 70
-minutes), his decision on #34 on 2026-11-02, and his check of
-`PSGALLERY_API_KEY`. The stable change then touches only the label, the
-CHANGELOG, and `$publishedVersions`.
+silently creates an Allow entry. He decided (Decision 27) that rc9 fixes that
+family and the items 3 to 7 of its sheet, with a review, and chose the
+designs. Four work items run in worktrees under `C:\Temp\ntfs-rc9` (branch
+`ai/rc9-before-stable`; specs in the session folder `files\rc9\specs`). Open
+before the stable pull request: rc9 (integration, validation, review,
+acceptance of about 70 minutes), his decision on #34 on 2026-11-02, and his
+check of `PSGALLERY_API_KEY`. The stable change then touches only the label,
+the CHANGELOG, and `$publishedVersions`.
 
 State at 2026-10-10: the maintainer integrated the release-gate stack into
 `master` (#116, #120, #118, #119, #121; `fa0701b`, CI green; GitHub closed #117
@@ -166,8 +168,8 @@ Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
    `PSGALLERY_API_KEY` first, merges, and tags. Every release step is his.
 3. Decision 27 (2026-10-21): rc9 changes the library-only items, the dot
    patterns of `Get-ChildItem2 -Filter`, the 17 owner-restore handlers, the
-   errors of the descriptor sets, and three inconsistencies; designs are being
-   researched. Decisions 22 and 24 are accepted (2026-10-19).
+   errors of the descriptor sets, and three inconsistencies; the designs are
+   chosen, four work items are in progress. Decisions 22 and 24 are accepted.
 4. #34 waits for a tester until 2026-11-02 (Decision 23, option 3; the
    follow-up went up on 2026-10-19, no reply yet; checklist:
    `Tests/Lab/Non-Windows-File-Server-Test.md`). On that date the maintainer
