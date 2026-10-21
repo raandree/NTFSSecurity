@@ -1099,6 +1099,44 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
         $auditCompletionFormCases = @(
             @{ Parameter = 'AuditFlags'; Word = 'F'; ExpectedName = 'Failure' }
         )
+
+        # R1-1: because the five parameters are object, PowerShell counts a $null, an empty string, or DBNull value
+        # of a property as present when it chooses the parameter set, the same as a real value, so AppliesTo (the
+        # Simple group) together with a $null/''/DBNull InheritanceFlags or PropagationFlags (the Complex group)
+        # offers both groups and is AmbiguousParameterSet -- not InvalidParameterValue, which is what the docs
+        # wrongly claimed for every shape. The reverse (AppliesTo blank, a Complex property valid) is
+        # AmbiguousParameterSet too, except that AppliesTo is Mandatory, so a literal $null of it (unlike '' or
+        # DBNull) is rejected earlier by the binder's own Mandatory check, unrelated to and unchanged by this
+        # finding. Covers the four cmdlets' Path and SD sets; the Access half is pinned in
+        # ParameterSets.Access.Tests.ps1.
+        $auditAmbiguousOtherGroupCases = foreach ($cmdlet in 'Add-NTFSAudit', 'Remove-NTFSAudit') {
+            foreach ($targetKind in 'Path', 'SD') {
+                foreach ($shape in 'a $null', 'an empty string', 'DBNull') {
+                    $blankValue = switch ($shape) { 'a $null' { $null }; 'an empty string' { '' }; 'DBNull' { [System.DBNull]::Value } }
+                    @{
+                        Cmdlet = $cmdlet; TargetKind = $targetKind; Shape = $shape; BlankValue = $blankValue
+                        Direction = 'AppliesTo valid, InheritanceFlags blank'; AppliesToIsBlank = $false
+                        ExpectedErrorId = 'AmbiguousParameterSet'
+                    }
+                    @{
+                        Cmdlet = $cmdlet; TargetKind = $targetKind; Shape = $shape; BlankValue = $blankValue
+                        Direction = 'AppliesTo blank, PropagationFlags valid'; AppliesToIsBlank = $true
+                        ExpectedErrorId = $(if ($shape -eq 'a $null') { 'ParameterArgumentValidationErrorNullNotAllowed' } else { 'AmbiguousParameterSet' })
+                    }
+                }
+            }
+        }
+
+        # R1-3: with the object type, a script block is a plain value (rc8's delay-bind evaluation, once per piped
+        # object, no longer applies), so it fails the same way any other value of the wrong shape does: a
+        # terminating InvalidParameterValue from ValidateNamedValue in BeginProcessing, before any piped object is
+        # processed.
+        $auditScriptBlockCases = foreach ($cmdlet in 'Add-NTFSAudit', 'Remove-NTFSAudit') {
+            @{ Cmdlet = $cmdlet; Parameter = 'AuditFlags' }
+            @{ Cmdlet = $cmdlet; Parameter = 'InheritanceFlags' }
+            @{ Cmdlet = $cmdlet; Parameter = 'PropagationFlags' }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo' }
+        }
     }
 
     Context 'A bad value bound from the pipeline' {
@@ -1404,6 +1442,80 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
 
             { Add-NTFSAudit -Path $folder -Account 'S-1-1-0' -AccessRights ReadData -AppliesTo $appliesToValue -PropagationFlags $flagValue -ErrorAction Stop } |
                 Should -Throw -ErrorId 'AmbiguousParameterSet*'
+        }
+    }
+
+    # R1-1: rc8 created the entry for every shape below; the object-typed parameters make a $null, an empty
+    # string, or DBNull value of a property of the other group count as present too, so PowerShell cannot resolve
+    # the parameter set and nothing is changed. The conversion/parameter-set failure happens before the cmdlet
+    # ever touches the SACL, so the core assertion (the error id, and that the bad object's audit entries are
+    # unchanged) runs in every configuration; only the "good next object succeeded" part needs the Security
+    # privilege, the same way the rest of this file does.
+    Context 'A blank value of the other groups property' {
+        It 'Should reject <Cmdlet> (<TargetKind>) for <Direction> (<Shape>) with the error the binder gives, change nothing, and still process the next object' -ForEach $auditAmbiguousOtherGroupCases {
+            $bad = New-TestSandboxItem -Sandbox $sandbox -Name 'AmbiguousOtherGroupBad' -Directory
+            $next = New-TestSandboxItem -Sandbox $sandbox -Name 'AmbiguousOtherGroupNext' -Directory
+            $before = if ($canReadAudit) { Get-TestAuditSddl -Path $bad }
+
+            $badTarget = if ($TargetKind -eq 'Path') { @{ FullName = $bad } } else { @{ SecurityDescriptor = (Get-NTFSSecurityDescriptor -Path $bad -ErrorAction Stop) } }
+            $nextTarget = if ($TargetKind -eq 'Path') { @{ FullName = $next } } else { @{ SecurityDescriptor = (Get-NTFSSecurityDescriptor -Path $next -ErrorAction Stop) } }
+
+            $badExtra = @{ Account = 'S-1-1-0'; AccessRights = 'ReadData' }
+            if ($AppliesToIsBlank) {
+                $badExtra['AppliesTo'] = $BlankValue
+                $badExtra['PropagationFlags'] = 'None'
+            }
+            else {
+                $badExtra['AppliesTo'] = 'ThisFolderOnly'
+                $badExtra['InheritanceFlags'] = $BlankValue
+            }
+
+            $rows = @(
+                [pscustomobject] ($badTarget + $badExtra)
+                [pscustomobject] ($nextTarget + @{ Account = 'S-1-1-0'; AccessRights = 'ReadData' })
+            )
+
+            $result = @($rows | & $Cmdlet -PassThru -ErrorVariable pipelineErrors -ErrorAction SilentlyContinue)
+
+            $badErrors = @($pipelineErrors | Where-Object -FilterScript {
+                    ($TargetKind -eq 'Path' -and $_.TargetObject.FullName -eq $bad) -or
+                    ($TargetKind -eq 'SD' -and $_.TargetObject.SecurityDescriptor -eq $badTarget['SecurityDescriptor'])
+                })
+            $badErrors | Should -HaveCount 1
+            $badErrors[0].FullyQualifiedErrorId | Should -BeLike "$ExpectedErrorId,*"
+            if ($canReadAudit) {
+                Get-TestAuditSddl -Path $bad | Should -BeExactly $before
+                $pipelineErrors | Should -HaveCount 1
+                $result | Should -Not -BeNullOrEmpty
+                $result | ForEach-Object -Process { $_.FullName | Should -Be $next }
+            }
+        }
+    }
+
+    # R1-3: with the object type, a script block is a plain value (rc8's delay-bind evaluation, once per piped
+    # object, no longer applies), so ValidateNamedValue in BeginProcessing rejects it the same as any other bad
+    # value, before any piped object is processed and before the cmdlet ever touches the SACL. The terminating
+    # error itself needs no Security privilege; reading the SACL back to confirm nothing changed does, the same
+    # way the rest of this file does.
+    Context 'A named script block is a terminating error' {
+        It 'Should throw a terminating InvalidParameterValue error for a named script block value of <Cmdlet> -<Parameter>, and change nothing' -ForEach $auditScriptBlockCases {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'NamedScriptBlock' -Directory
+            $before = if ($canReadAudit) { Get-TestAuditSddl -Path $folder }
+            $namedArguments = @{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData' }
+            $namedArguments[$Parameter] = { 'Deny' }
+
+            $caughtId = $null
+            try {
+                & $Cmdlet @namedArguments -ErrorAction Stop
+            }
+            catch {
+                $caughtId = $_.FullyQualifiedErrorId
+            }
+
+            $caughtId | Should -BeLike 'InvalidParameterValue,*'
+            if ($canReadAudit) {
+                Get-TestAuditSddl -Path $folder | Should -BeExactly $before
+            }
         }
     }
 
