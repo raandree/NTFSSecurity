@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Management.Automation;
 
 namespace NTFSSecurity
@@ -16,7 +17,9 @@ namespace NTFSSecurity
         /// <summary>
         /// Converts the raw value of a parameter to T, the way the PowerShell binder converts an argument for a
         /// parameter of that type: names in any case, a comma-separated list for a flags enumeration, a number, or
-        /// an enumeration instance.
+        /// an enumeration instance. An enumeration that is not a flags enumeration takes one value: PowerShell would
+        /// add up the numbers of a list for it, which selects a value that the caller did not name, so a list is
+        /// rejected for it.
         /// </summary>
         /// <param name="value">
         /// The raw value of the parameter. Not null: the caller keeps the default of the parameter for null instead
@@ -25,9 +28,10 @@ namespace NTFSSecurity
         /// <param name="parameterName">The name of the parameter, without the leading dash, for the message.</param>
         /// <returns>The converted value.</returns>
         /// <exception cref="ArgumentException">
-        /// The value is blank (an empty or a white-space-only string, the usual blank CSV cell) or the conversion
-        /// failed. The message names the value, unless it is blank, the parameter, and the valid names of T; the
-        /// inner exception of a failed conversion is the error that LanguagePrimitives.ConvertTo raised.
+        /// The value is blank (an empty or a white-space-only string, the usual blank CSV cell), is a list for an
+        /// enumeration that is not a flags enumeration, or the conversion failed. The message names the value, unless
+        /// it is blank, the parameter, and the valid names of T; the inner exception of a failed conversion is the
+        /// error that LanguagePrimitives.ConvertTo raised.
         /// </exception>
         internal static T Convert<T>(object value, string parameterName)
         {
@@ -36,6 +40,17 @@ namespace NTFSSecurity
             {
                 throw new ArgumentException(string.Format(
                     "The value for parameter -{0} is blank. {1}", parameterName, DescribeValidValues(typeof(T))));
+            }
+
+            if (!typeof(T).IsDefined(typeof(FlagsAttribute), false))
+            {
+                var list = DescribeList(value);
+                if (list != null)
+                {
+                    throw new ArgumentException(string.Format(
+                        "The value '{0}' for parameter -{1} is not valid: the parameter takes one value, not a list. {2}",
+                        list, parameterName, DescribeValidValues(typeof(T))));
+                }
             }
 
             try
@@ -61,6 +76,34 @@ namespace NTFSSecurity
         internal static string DescribeNull<T>(string parameterName)
         {
             return string.Format("The value for parameter -{0} is null. {1}", parameterName, DescribeValidValues(typeof(T)));
+        }
+
+        // The text of a list that the conversion would add up, for the message: a string that holds a comma, or a
+        // collection of more than one element (a wrapped PSObject counts as what it wraps). Null for any other value,
+        // such as a single name or a collection of one element, which convert to that one value.
+        private static string DescribeList(object value)
+        {
+            var unwrapped = value is PSObject ? ((PSObject)value).BaseObject : value;
+
+            var text = unwrapped as string;
+            if (text != null)
+            {
+                return text.IndexOf(',') >= 0 ? text : null;
+            }
+
+            var list = unwrapped as IList;
+            if (list == null || list.Count < 2)
+            {
+                return null;
+            }
+
+            var items = new string[list.Count];
+            for (var i = 0; i < items.Length; i++)
+            {
+                items[i] = string.Format("{0}", list[i]);
+            }
+
+            return string.Join(", ", items);
         }
 
         // The valid names of the enumeration, in declaration order, with a note for a flags enumeration that a

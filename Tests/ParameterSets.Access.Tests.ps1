@@ -4,8 +4,7 @@
     found untested, with the module built in NTFSSecurity\bin\Release on files in a sandbox folder. Each test closes a
     gap the matrix recorded for the row it names (state, error, pipeline, continuation, or output); it does not repeat
     what Access.Tests.ps1, PathErrors.Tests.ps1, PermissionScopes.Tests.ps1, SecurityDescriptorSets.Tests.ps1, or
-    PipelineControl.Tests.ps1 already assert. The -SecurityDescriptor sets of Add-NTFSAccess and Remove-NTFSAccess have
-    no per-item error handler (an open item for the maintainer); no test here makes one of those two sets fail.
+    PipelineControl.Tests.ps1 already assert.
 #>
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
     'PSUseDeclaredVarsMoreThanAssignments', '', Justification = 'Pester shares variables between blocks.'
@@ -1351,9 +1350,18 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Shape = 'a white-space string'; Value = '  '; ValueText = $null }
             @{ Shape = 'an undefined number'; Value = 99; ValueText = '99' }
             @{ Shape = 'a hashtable'; Value = @{ Unrelated = 1 }; ValueText = $null }
+            @{ Shape = 'a comma list of two names'; Value = 'Allow,Deny'; ValueText = 'Allow,Deny' }
+            @{ Shape = 'an array of two names'; Value = @('Allow', 'Deny'); ValueText = 'Allow, Deny' }
         )
 
-        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (5 + 3 * 5) = 40 rows.
+        # AccessType and AppliesTo name one value each, not a combination: PowerShell would add the numbers of a list, and
+        # an entry for a scope that the caller did not name would follow.
+        $accessAppliesToListShapes = @(
+            @{ Shape = 'a comma list of two names'; Value = 'ThisFolderAndSubfolders,ThisFolderAndFiles'; ValueText = 'ThisFolderAndSubfolders,ThisFolderAndFiles' }
+            @{ Shape = 'an array of two names'; Value = @('ThisFolderAndSubfolders', 'ThisFolderAndFiles'); ValueText = 'ThisFolderAndSubfolders, ThisFolderAndFiles' }
+        )
+
+        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (7 + 3 * 5 + 2) = 48 rows.
         $accessInvalidParameterCases = foreach ($cmdlet in 'Add-NTFSAccess', 'Remove-NTFSAccess') {
             foreach ($shapeCase in $accessTypeBadShapes) {
                 @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Shape = $shapeCase.Shape; Value = $shapeCase.Value; ValueText = $shapeCase.ValueText }
@@ -1362,6 +1370,9 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
                 foreach ($shapeCase in $accessBadShapes) {
                     @{ Cmdlet = $cmdlet; Parameter = $parameterName; Shape = $shapeCase.Shape; Value = $shapeCase.Value; ValueText = $shapeCase.ValueText }
                 }
+            }
+            foreach ($shapeCase in $accessAppliesToListShapes) {
+                @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Shape = $shapeCase.Shape; Value = $shapeCase.Value; ValueText = $shapeCase.ValueText }
             }
         }
 
@@ -1382,6 +1393,10 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Cmdlet = $cmdlet; Parameter = 'InheritanceFlags'; Value = 'Typoo' }
             @{ Cmdlet = $cmdlet; Parameter = 'PropagationFlags'; Value = 'Typoo' }
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = 'Typoo' }
+            @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Value = 'Allow,Deny' }
+            @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Value = @('Allow', 'Deny') }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = 'ThisFolderAndSubfolders,ThisFolderAndFiles' }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = @('ThisFolderAndSubfolders', 'ThisFolderAndFiles') }
         }
 
         # A named $null (a literal $null, a variable, an alias, splatting, or $PSDefaultParameterValues) must
@@ -1399,6 +1414,7 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Description = 'a different case'; Value = 'deny' }
             @{ Description = 'the enum value'; Value = [System.Security.AccessControl.AccessControlType]::Deny }
             @{ Description = 'an integer'; Value = 1 }
+            @{ Description = 'an array of one name'; Value = @('Deny') }
         )
 
         $accessValidFlagsShapeCases = @(
@@ -1430,6 +1446,14 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Parameter = 'InheritanceFlags'; Word = 'Container'; ExpectedName = 'ContainerInherit' }
             @{ Parameter = 'PropagationFlags'; Word = 'Inh'; ExpectedName = 'InheritOnly' }
             @{ Parameter = 'AppliesTo'; Word = 'ThisFolderO'; ExpectedName = 'ThisFolderOnly' }
+        )
+
+        # In Turkish, a case-insensitive comparison of the culture of the thread treats I and i as different letters, so
+        # a word typed in capitals completes only when the completers compare culture invariant.
+        $accessTurkishCompletionCases = @(
+            @{ Parameter = 'AppliesTo'; Word = 'THISFOLDERO'; ExpectedName = 'ThisFolderOnly' }
+            @{ Parameter = 'InheritanceFlags'; Word = 'CONTAINERINH'; ExpectedName = 'ContainerInherit' }
+            @{ Parameter = 'PropagationFlags'; Word = 'NOPROPAGATEINHERI'; ExpectedName = 'NoPropagateInherit' }
         )
 
         # Because the five parameters are object, PowerShell counts a $null, an empty string, or DBNull value of a
@@ -1878,6 +1902,23 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             $wildcard = $base + '*' + $ExpectedName.Substring($ExpectedName.Length - 3)
             $r4 = [System.Management.Automation.CommandCompletion]::CompleteInput($wildcard, $wildcard.Length, $null)
             @($r4.CompletionMatches.CompletionText) | Should -Contain $ExpectedName
+        }
+
+        It 'Should complete Add-NTFSAccess -<Parameter> for the word <Word> while the culture of the thread is Turkish' -ForEach $accessTurkishCompletionCases {
+            $inputScript = 'Add-NTFSAccess -Path C:\x -Account a -AccessRights Read -{0} {1}' -f $Parameter, $Word
+            $original = [System.Threading.Thread]::CurrentThread.CurrentCulture
+            try {
+                [System.Threading.Thread]::CurrentThread.CurrentCulture = [System.Globalization.CultureInfo]::GetCultureInfo('tr-TR')
+                'I'.ToLower() | Should -Be ([string][char]0x131) -Because 'the culture of the thread has to be Turkish for the test to mean anything'
+
+                $completion = [System.Management.Automation.CommandCompletion]::CompleteInput($inputScript, $inputScript.Length, $null)
+                $names = @($completion.CompletionMatches | ForEach-Object -Process { $_.CompletionText })
+            }
+            finally {
+                [System.Threading.Thread]::CurrentThread.CurrentCulture = $original
+            }
+
+            $names | Should -Contain $ExpectedName
         }
     }
 }

@@ -38,7 +38,7 @@ namespace NTFSSecurity
                 }
             }
 
-            var pattern = new WildcardPattern(word + "*", WildcardOptions.IgnoreCase);
+            var pattern = new WildcardPattern(word + "*", WildcardOptions.IgnoreCase | WildcardOptions.CultureInvariant);
             var results = new List<CompletionResult>();
 
             foreach (var name in Enum.GetNames(enumType))

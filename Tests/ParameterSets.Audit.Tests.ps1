@@ -3,11 +3,7 @@
     the audit cmdlets: pipeline binding by value and by property name, continuation past a failing path or
     descriptor, and state or output assertions beyond -PassThru, with the module built in NTFSSecurity\bin\Release
     on files in a sandbox folder. Reading and changing audit entries needs the Security privilege; tests that need
-    it skip without it and run in CI, whose runners are elevated, like Audit.Tests.ps1. The -SecurityDescriptor sets
-    of Add-NTFSAudit and Remove-NTFSAudit have no per-item handler around the change itself (an open maintainer
-    item), so no test here pins what happens when that change throws for one of several descriptors; the only
-    failure the -SecurityDescriptor scenarios below exercise is the already-handled one of a descriptor that was
-    read without its audit section.
+    it skip without it and run in CI, whose runners are elevated, like Audit.Tests.ps1.
 #>
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
     'PSUseDeclaredVarsMoreThanAssignments', '', Justification = 'Pester shares variables between blocks.'
@@ -1023,7 +1019,14 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             @{ Shape = 'a hashtable'; Value = @{ Unrelated = 1 }; ValueText = $null }
         )
 
-        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (5 + 3 * 5) = 40 rows.
+        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (5 + 3 * 5 + 2) = 42 rows.
+        # AppliesTo names one value, not a combination: PowerShell would add the numbers of a list, and an entry for a
+        # scope that the caller did not name would follow. AuditFlags and the two flags parameters take a list.
+        $auditAppliesToListShapes = @(
+            @{ Shape = 'a comma list of two names'; Value = 'ThisFolderAndSubfolders,ThisFolderAndFiles'; ValueText = 'ThisFolderAndSubfolders,ThisFolderAndFiles' }
+            @{ Shape = 'an array of two names'; Value = @('ThisFolderAndSubfolders', 'ThisFolderAndFiles'); ValueText = 'ThisFolderAndSubfolders, ThisFolderAndFiles' }
+        )
+
         $auditInvalidParameterCases = foreach ($cmdlet in 'Add-NTFSAudit', 'Remove-NTFSAudit') {
             foreach ($shapeCase in $auditFlagsBadShapes) {
                 @{ Cmdlet = $cmdlet; Parameter = 'AuditFlags'; Shape = $shapeCase.Shape; Value = $shapeCase.Value; ValueText = $shapeCase.ValueText }
@@ -1032,6 +1035,9 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
                 foreach ($shapeCase in $auditBadShapes) {
                     @{ Cmdlet = $cmdlet; Parameter = $parameterName; Shape = $shapeCase.Shape; Value = $shapeCase.Value; ValueText = $shapeCase.ValueText }
                 }
+            }
+            foreach ($shapeCase in $auditAppliesToListShapes) {
+                @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Shape = $shapeCase.Shape; Value = $shapeCase.Value; ValueText = $shapeCase.ValueText }
             }
         }
 
@@ -1052,6 +1058,8 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             @{ Cmdlet = $cmdlet; Parameter = 'InheritanceFlags'; Value = 'Typoo' }
             @{ Cmdlet = $cmdlet; Parameter = 'PropagationFlags'; Value = 'Typoo' }
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = 'Typoo' }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = 'ThisFolderAndSubfolders,ThisFolderAndFiles' }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = @('ThisFolderAndSubfolders', 'ThisFolderAndFiles') }
         }
 
         # A named $null (a literal $null, a variable, splatting, or $PSDefaultParameterValues) must stay a
@@ -1098,6 +1106,12 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
         # AppliesTo, so those are pinned there).
         $auditCompletionFormCases = @(
             @{ Parameter = 'AuditFlags'; Word = 'F'; ExpectedName = 'Failure' }
+        )
+
+        # In Turkish, a case-insensitive comparison of the culture of the thread treats I and i as different letters, so
+        # a word typed in capitals completes only when the completers compare culture invariant.
+        $auditTurkishCompletionCases = @(
+            @{ Parameter = 'AuditFlags'; Word = 'FAIL'; ExpectedName = 'Failure' }
         )
 
         # Because the five parameters are object, PowerShell counts a $null, an empty string, or DBNull value of a
@@ -1548,6 +1562,23 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             $wildcard = $base + '*' + $ExpectedName.Substring($ExpectedName.Length - 3)
             $r4 = [System.Management.Automation.CommandCompletion]::CompleteInput($wildcard, $wildcard.Length, $null)
             @($r4.CompletionMatches.CompletionText) | Should -Contain $ExpectedName
+        }
+
+        It 'Should complete Add-NTFSAudit -<Parameter> for the word <Word> while the culture of the thread is Turkish' -ForEach $auditTurkishCompletionCases {
+            $inputScript = 'Add-NTFSAudit -Path C:\x -Account a -AccessRights Read -{0} {1}' -f $Parameter, $Word
+            $original = [System.Threading.Thread]::CurrentThread.CurrentCulture
+            try {
+                [System.Threading.Thread]::CurrentThread.CurrentCulture = [System.Globalization.CultureInfo]::GetCultureInfo('tr-TR')
+                'I'.ToLower() | Should -Be ([string][char]0x131) -Because 'the culture of the thread has to be Turkish for the test to mean anything'
+
+                $completion = [System.Management.Automation.CommandCompletion]::CompleteInput($inputScript, $inputScript.Length, $null)
+                $names = @($completion.CompletionMatches | ForEach-Object -Process { $_.CompletionText })
+            }
+            finally {
+                [System.Threading.Thread]::CurrentThread.CurrentCulture = $original
+            }
+
+            $names | Should -Contain $ExpectedName
         }
     }
 }
