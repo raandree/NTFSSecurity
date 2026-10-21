@@ -1775,6 +1775,98 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
         }
     }
 
+    # A list is rejected when the conversion has read its second element. The loop that reads it then releases the
+    # enumerator, and an enumerator that fails there must not turn the list into a value that PowerShell converts.
+    Context 'A sequence whose enumerator fails when it is released' {
+        BeforeAll {
+            if (-not ('NtfsSecurityTests.SequenceWhoseEnumeratorFailsOnDispose' -as [type])) {
+                Add-Type -TypeDefinition @'
+namespace NtfsSecurityTests
+{
+    public sealed class SequenceWhoseEnumeratorFailsOnDispose : System.Collections.IEnumerable
+    {
+        private readonly object[] items;
+
+        public SequenceWhoseEnumeratorFailsOnDispose(params object[] items)
+        {
+            this.items = items;
+        }
+
+        public System.Collections.IEnumerator GetEnumerator()
+        {
+            return new Enumerator(this.items);
+        }
+
+        private sealed class Enumerator : System.Collections.IEnumerator, System.IDisposable
+        {
+            private readonly object[] items;
+            private int index = -1;
+
+            public Enumerator(object[] items)
+            {
+                this.items = items;
+            }
+
+            public object Current
+            {
+                get { return this.items[this.index]; }
+            }
+
+            public bool MoveNext()
+            {
+                this.index++;
+                return this.index < this.items.Length;
+            }
+
+            public void Reset()
+            {
+                this.index = -1;
+            }
+
+            public void Dispose()
+            {
+                throw new System.InvalidOperationException("The enumerator fails when it is released.");
+            }
+        }
+    }
+}
+'@
+            }
+        }
+
+        It 'Should reject a list of two values for <Parameter> given as <Mode>, and change nothing' -ForEach @(
+            @{ Parameter = 'AccessType'; Mode = 'named'; Values = @('Allow', 'Deny') }
+            @{ Parameter = 'AccessType'; Mode = 'piped'; Values = @('Allow', 'Deny') }
+            @{ Parameter = 'AppliesTo'; Mode = 'named'; Values = @('SubfoldersOnly', 'FilesOnly') }
+            @{ Parameter = 'AppliesTo'; Mode = 'piped'; Values = @('SubfoldersOnly', 'FilesOnly') }
+        ) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ReleaseFails' -Directory
+            $before = (Get-Acl -LiteralPath $folder).Sddl
+            $sequence = [NtfsSecurityTests.SequenceWhoseEnumeratorFailsOnDispose]::new([object[]] $Values)
+
+            $caughtId = $null
+            if ($Mode -eq 'named') {
+                $namedArguments = @{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData' }
+                $namedArguments[$Parameter] = $sequence
+                try {
+                    Add-NTFSAccess @namedArguments -ErrorAction Stop
+                }
+                catch {
+                    $caughtId = $_.FullyQualifiedErrorId
+                }
+            }
+            else {
+                $properties = @{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData' }
+                $properties[$Parameter] = $sequence
+                [pscustomobject] $properties | Add-NTFSAccess -ErrorVariable pipelineErrors -ErrorAction SilentlyContinue
+                $caughtId = @($pipelineErrors)[0].FullyQualifiedErrorId
+            }
+
+            $caughtId | Should -BeLike 'InvalidParameterValue,*'
+            (Get-Acl -LiteralPath $folder).Sddl | Should -BeExactly $before
+        }
+    }
+
     # A typed parameter ends a named $null (for example a variable that misspells a property, such as -AccessType
     # $rule.AccessTpye) with a terminating ParameterBindingFailed; the object-typed parameter accepts it, so the
     # cmdlet must not keep the default silently. A named $null is reported the same way as a bad named value.
