@@ -395,9 +395,11 @@ Describe 'Access rule helpers that take a path' {
         $entries[0].FileSystemRights | Should -Be ([System.Security.AccessControl.FileSystemRights] 'ReadData, Synchronize')
     }
 
-    # The overload that takes a path returns an iterator, so the caller must enumerate the result to write the entries.
-    # The overloads that take an item write them at once; this test doesn't pin the difference.
-    It 'Should add the entries of several accounts to a <Kind> by its path when the result is enumerated' -ForEach @(
+    # Before 5.0.0, the overload that takes a path was an iterator (yield return) that changed nothing until the
+    # caller enumerated the result, so a call as a statement, or an assignment that the caller never reads, wrote
+    # nothing; the overloads that take an item or a FileSystemSecurity2 were never lazy. It now writes at once, like
+    # its siblings, so the entries exist before $pending is ever touched.
+    It 'Should add the entries of several accounts to a <Kind> by its path at once, before the result is ever enumerated' -ForEach @(
         @{ Kind = 'file'; Directory = $false }
         @{ Kind = 'folder'; Directory = $true }
     ) {
@@ -408,9 +410,13 @@ Describe 'Access rule helpers that take a path' {
             $path, $accounts, [Security2.FileSystemRights2]::ReadData, $allow, $noInheritance, $noPropagation
         )
 
-        @($pending) | Should -HaveCount 2
         @(Get-ExplicitEntries -Path $path) | Should -HaveCount 1
         @(Get-ExplicitEntries -Path $path -Account 'S-1-5-32-545') | Should -HaveCount 1
+
+        $added = @($pending)
+        $added | Should -HaveCount 2
+        $added[0].Account.Sid | Should -BeExactly $identity.Sid
+        $added[1].Account.Sid | Should -BeExactly $users.Sid
     }
 
     It 'Should add the deny entries of several accounts without Synchronize when the result is enumerated' {
@@ -589,7 +595,10 @@ Describe 'Audit rule helpers that take a path' -Skip:(-not $holdsSecurityPrivile
         $found[0].FullName | Should -BeExactly $path
     }
 
-    It 'Should add the entries of several accounts to a <Kind> by its path when the result is enumerated, and remove them again' -ForEach @(
+    # Before 5.0.0, the overload that takes a path was an iterator (yield return) that changed nothing until the
+    # caller enumerated the result; it now writes at once, like its siblings, so the entries exist before $pending is
+    # ever touched. This overload needs the Security privilege like its neighbors, so the whole Describe skips without it.
+    It 'Should add the entries of several accounts to a <Kind> by its path at once, before the result is ever enumerated, and remove them again' -ForEach @(
         @{ Kind = 'file'; Directory = $false }
         @{ Kind = 'folder'; Directory = $true }
     ) {
@@ -602,9 +611,13 @@ Describe 'Audit rule helpers that take a path' -Skip:(-not $holdsSecurityPrivile
             $path, $accounts, [Security2.FileSystemRights2]::Delete, $success, $noInheritance, $noPropagation
         )
 
-        @($pending) | Should -HaveCount 2
         @(Get-AuditEntries -Path $path) | Should -HaveCount 1
         @(Get-AuditEntries -Path $path -Account 'S-1-5-32-545') | Should -HaveCount 1
+        $added = @($pending)
+        $added | Should -HaveCount 2
+        $added[0].Account.Sid | Should -BeExactly $identity.Sid
+        $added[1].Account.Sid | Should -BeExactly $users.Sid
+
         [Security2.FileSystemAuditRule2]::RemoveFileSystemAuditRule(
             $path, $identity, [Security2.FileSystemRights2]::Delete, $success, $noInheritance, $noPropagation, $true
         )
