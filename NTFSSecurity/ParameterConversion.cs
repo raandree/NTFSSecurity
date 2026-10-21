@@ -50,6 +50,19 @@ namespace NTFSSecurity
             }
         }
 
+        /// <summary>
+        /// Builds the message for a parameter whose value is explicitly null although it was bound on the command
+        /// line (a literal $null, a variable that holds $null, or a null entry of $PSDefaultParameterValues): "The
+        /// value for parameter -AccessType is null. Valid values: Allow, Deny." A piped property that is null is
+        /// not an error there: it means the property was not specified and the parameter's own default applies;
+        /// only the cmdlet knows, from MyInvocation.BoundParameters, whether a null came from such a named value.
+        /// </summary>
+        /// <param name="parameterName">The name of the parameter, without the leading dash, for the message.</param>
+        internal static string DescribeNull<T>(string parameterName)
+        {
+            return string.Format("The value for parameter -{0} is null. {1}", parameterName, DescribeValidValues(typeof(T)));
+        }
+
         // The valid names of the enumeration, in declaration order, with a note for a flags enumeration that a
         // combination of them is written separated with commas.
         private static string DescribeValidValues(Type enumType)

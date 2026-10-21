@@ -1054,6 +1054,16 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = 'Typoo' }
         }
 
+        # R1-2: a named $null (a literal $null, a variable, splatting, or $PSDefaultParameterValues) must stay a
+        # terminating error, the same as a bad named value; only a $null that a piped object's property carries
+        # keeps the parameter's own default.
+        $auditNamedNullCases = foreach ($cmdlet in 'Add-NTFSAudit', 'Remove-NTFSAudit') {
+            @{ Cmdlet = $cmdlet; Parameter = 'AuditFlags' }
+            @{ Cmdlet = $cmdlet; Parameter = 'InheritanceFlags' }
+            @{ Cmdlet = $cmdlet; Parameter = 'PropagationFlags' }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo' }
+        }
+
         $auditValidAuditFlagsShapeCases = @(
             @{ Description = 'the exact name'; Value = 'Failure' }
             @{ Description = 'a different case'; Value = 'failure' }
@@ -1290,6 +1300,82 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             if ($canReadAudit) {
                 Get-TestAuditSddl -Path $first | Should -BeExactly $before[0]
                 Get-TestAuditSddl -Path $second | Should -BeExactly $before[1]
+            }
+        }
+    }
+
+    # R1-2: rc8 ended a named $null with a terminating ParameterBindingFailed; the object-typed parameter accepted
+    # it and silently kept the default instead. A named $null is now reported the same way as a bad named value.
+    Context 'A named $null is a terminating error' {
+        It 'Should throw a terminating error for a named $null of <Cmdlet> -<Parameter>, and change nothing' -ForEach $auditNamedNullCases {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'NamedNull' -Directory
+            $before = if ($canReadAudit) { Get-TestAuditSddl -Path $folder }
+            $namedArguments = @{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData' }
+            $namedArguments[$Parameter] = $null
+
+            $caughtId = $null
+            $caughtMessage = $null
+            try {
+                & $Cmdlet @namedArguments -ErrorAction Stop
+            }
+            catch {
+                $caughtId = $_.FullyQualifiedErrorId
+                $caughtMessage = $_.Exception.Message
+            }
+
+            if ($Parameter -eq 'AppliesTo') {
+                # AppliesTo is Mandatory: PowerShell's own binder already rejects a named $null before the cmdlet
+                # runs, with its own error id, unrelated to this fix; characterized here so that the row is not
+                # silently missing from the table.
+                $caughtId | Should -BeLike 'ParameterArgumentValidationErrorNullNotAllowed,*'
+            }
+            else {
+                $caughtId | Should -BeLike 'InvalidParameterValue,*'
+                $caughtMessage | Should -Match ([regex]::Escape($Parameter))
+                $caughtMessage | Should -Match 'is null'
+            }
+            if ($canReadAudit) {
+                Get-TestAuditSddl -Path $folder | Should -BeExactly $before
+            }
+        }
+
+        It 'Should throw a terminating InvalidParameterValue error for a $null of -AuditFlags from $PSDefaultParameterValues, and change nothing' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'NamedNullDefault' -Directory
+            $before = if ($canReadAudit) { Get-TestAuditSddl -Path $folder }
+            $PSDefaultParameterValues['Add-NTFSAudit:AuditFlags'] = $null
+
+            $caughtId = $null
+            try {
+                Add-NTFSAudit -Path $folder -Account 'S-1-1-0' -AccessRights ReadData -ErrorAction Stop
+            }
+            catch {
+                $caughtId = $_.FullyQualifiedErrorId
+            }
+            finally {
+                $PSDefaultParameterValues.Remove('Add-NTFSAudit:AuditFlags')
+            }
+
+            $caughtId | Should -BeLike 'InvalidParameterValue,*'
+            if ($canReadAudit) {
+                Get-TestAuditSddl -Path $folder | Should -BeExactly $before
+            }
+        }
+
+        It 'Should still give <Cmdlet> -<Parameter> its own default for a piped $null, unaffected by the named $null fix' -ForEach $auditNamedNullCases -Skip:(-not $canReadAudit) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'PipedNullUnaffected' -Directory
+            $extra = @{ }
+            $extra[$Parameter] = $null
+
+            [pscustomobject] (@{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData' } + $extra) |
+                & $Cmdlet -ErrorVariable pipedErrors -ErrorAction SilentlyContinue
+
+            if ($Parameter -eq 'AppliesTo') {
+                # AppliesTo is Mandatory: a piped $null is the pre-existing binder validation error, unrelated to this fix.
+                $pipedErrors | Should -HaveCount 1
+                $pipedErrors[0].FullyQualifiedErrorId | Should -BeLike 'ParameterArgumentValidationErrorNullNotAllowed,*'
+            }
+            else {
+                $pipedErrors | Should -BeNullOrEmpty
             }
         }
     }

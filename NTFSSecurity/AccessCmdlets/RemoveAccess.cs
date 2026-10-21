@@ -245,11 +245,22 @@ namespace NTFSSecurity
         }
 
         // A bad value named on the command line is already bound when BeginProcessing runs, so it is reported there
-        // as a terminating error, the way the binder itself would have reported it for a typed parameter.
+        // as a terminating error, the way the binder itself would have reported it for a typed parameter. A named
+        // $null is bound too, whether it came from a literal $null, a variable, the alias -AccessControlType,
+        // splatting, or $PSDefaultParameterValues (MyInvocation.BoundParameters always has the canonical name), and
+        // is an error the same way; a $null that a piped object's property carries is not bound yet at this point,
+        // so it keeps the parameter's own default instead, as before.
         private void ValidateNamedValue<T>(object value, string parameterName)
         {
             if (value == null)
             {
+                if (!MyInvocation.BoundParameters.ContainsKey(parameterName))
+                {
+                    return;
+                }
+
+                var nullException = new ArgumentException(ParameterConversion.DescribeNull<T>(parameterName));
+                ThrowTerminatingError(new ErrorRecord(nullException, "InvalidParameterValue", ErrorCategory.InvalidArgument, value));
                 return;
             }
 
