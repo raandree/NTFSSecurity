@@ -1011,6 +1011,10 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             $auditDeepScope = , $auditDeepScope
         }
 
+        # The message of the error names the value, and building it must not fail when the text of an element does.
+        $auditThrowingElement = [pscustomobject]@{ Unrelated = 1 }
+        $auditThrowingElement | Add-Member -MemberType ScriptMethod -Name ToString -Value { throw 'ToString throws' } -Force
+
         $auditBadShapes = @(
             @{ Shape = 'a misspelled name'; Value = 'Typoo'; ValueText = 'Typoo' }
             @{ Shape = 'a blank string'; Value = ''; ValueText = $null }
@@ -1018,6 +1022,7 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             @{ Shape = 'an undefined number'; Value = 99; ValueText = '99' }
             @{ Shape = 'a hashtable'; Value = @{ Unrelated = 1 }; ValueText = $null }
             @{ Shape = 'an array of one misspelled name'; Value = @('Typoo'); ValueText = 'Typoo' }
+            @{ Shape = 'an array of one object whose ToString throws'; Value = @($auditThrowingElement); ValueText = $null }
         )
         $auditFlagsBadShapes = @(
             @{ Shape = 'a misspelled name'; Value = 'Failurre'; ValueText = 'Failurre' }
@@ -1026,9 +1031,10 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             @{ Shape = 'an undefined number'; Value = 99; ValueText = '99' }
             @{ Shape = 'a hashtable'; Value = @{ Unrelated = 1 }; ValueText = $null }
             @{ Shape = 'an array of one misspelled name'; Value = @('Failurre'); ValueText = 'Failurre' }
+            @{ Shape = 'an array of one object whose ToString throws'; Value = @($auditThrowingElement); ValueText = $null }
         )
 
-        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (6 + 3 * 6 + 6) = 60 rows.
+        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (7 + 3 * 7 + 6) = 68 rows.
         # AppliesTo names one value, not a combination: PowerShell combines the numbers of a list bit by bit, so that one
         # of the values wins silently or a scope that the caller did not name is chosen. AuditFlags and the two flags
         # parameters take a list. Every kind of collection counts, also a collection of one element that holds a list.
@@ -1077,6 +1083,8 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = @('ThisFolderAndSubfolders,ThisFolderAndFiles') }
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = [System.Collections.Generic.HashSet[string]]::new([string[]]@('ThisFolderAndSubfolders', 'ThisFolderAndFiles')) }
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = $auditDeepScope }
+            @{ Cmdlet = $cmdlet; Parameter = 'AuditFlags'; Value = @($auditThrowingElement) }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = @($auditThrowingElement) }
         }
 
         # A named $null (a literal $null, a variable, splatting, or $PSDefaultParameterValues) must stay a

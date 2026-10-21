@@ -82,8 +82,9 @@ namespace NTFSSecurity
             return string.Format("The value for parameter -{0} is null. {1}", parameterName, DescribeValidValues(typeof(T)));
         }
 
-        // How many collections that hold one collection each are opened before the argument counts as a list: enough
-        // for any real argument, and a stop for a collection that holds itself.
+        // The most levels of nested collections that the conversion looks into, counting the argument itself: a value
+        // that is wrapped in more of them counts as a list. Enough for any real argument, and a stop for a collection
+        // that holds itself.
         private const int MaxNesting = 32;
 
         // The one value that the conversion takes from the argument of an enumeration that is not a flags enumeration:
@@ -151,8 +152,23 @@ namespace NTFSSecurity
         }
 
         // The value as a message names it: a collection of one element by that element (also when it is a collection
-        // itself), a collection of several elements by its first ten, anything else by its text.
+        // itself), a collection of several elements by its first ten, anything else by its text. The message is built
+        // inside a catch block, so this method must not fail whatever the text or the enumeration of a value does; a
+        // value that cannot be formatted is named by its type.
         private static string Describe(object value)
+        {
+            try
+            {
+                return DescribeValue(value);
+            }
+            catch (Exception)
+            {
+                var unwrapped = value is PSObject ? ((PSObject)value).BaseObject : value;
+                return unwrapped == null ? string.Empty : unwrapped.GetType().FullName;
+            }
+        }
+
+        private static string DescribeValue(object value)
         {
             var current = value;
 
@@ -168,36 +184,29 @@ namespace NTFSSecurity
 
                 var shown = new System.Collections.Generic.List<object>();
                 var more = false;
-                try
+                foreach (var item in collection)
                 {
-                    foreach (var item in collection)
+                    if (shown.Count == 10)
                     {
-                        if (shown.Count == 10)
-                        {
-                            more = true;
-                            break;
-                        }
-
-                        shown.Add(item);
+                        more = true;
+                        break;
                     }
 
-                    if (shown.Count == 1 && !more)
-                    {
-                        current = shown[0];
-                        continue;
-                    }
-
-                    if (shown.Count == 0)
-                    {
-                        return string.Format("{0}", current);
-                    }
-
-                    return string.Join(", ", shown.ConvertAll(item => string.Format("{0}", item))) + (more ? ", ..." : string.Empty);
+                    shown.Add(item);
                 }
-                catch (Exception)
+
+                if (shown.Count == 1 && !more)
                 {
-                    return string.Format("{0}", value);
+                    current = shown[0];
+                    continue;
                 }
+
+                if (shown.Count == 0)
+                {
+                    return string.Format("{0}", current);
+                }
+
+                return string.Join(", ", shown.ConvertAll(item => string.Format("{0}", item))) + (more ? ", ..." : string.Empty);
             }
 
             return string.Format("{0}", value);

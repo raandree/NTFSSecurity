@@ -1346,6 +1346,10 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             $accessDeepScope = , $accessDeepScope
         }
 
+        # The message of the error names the value, and building it must not fail when the text of an element does.
+        $accessThrowingElement = [pscustomobject]@{ Unrelated = 1 }
+        $accessThrowingElement | Add-Member -MemberType ScriptMethod -Name ToString -Value { throw 'ToString throws' } -Force
+
         $accessBadShapes = @(
             @{ Shape = 'a misspelled name'; Value = 'Typoo'; ValueText = 'Typoo' }
             @{ Shape = 'a blank string'; Value = ''; ValueText = $null }
@@ -1353,6 +1357,7 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Shape = 'an undefined number'; Value = 99; ValueText = '99' }
             @{ Shape = 'a hashtable'; Value = @{ Unrelated = 1 }; ValueText = $null }
             @{ Shape = 'an array of one misspelled name'; Value = @('Typoo'); ValueText = 'Typoo' }
+            @{ Shape = 'an array of one object whose ToString throws'; Value = @($accessThrowingElement); ValueText = $null }
         )
         $accessTypeBadShapes = @(
             @{ Shape = 'a misspelled name'; Value = 'Denyy'; ValueText = 'Denyy' }
@@ -1361,6 +1366,7 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Shape = 'an undefined number'; Value = 99; ValueText = '99' }
             @{ Shape = 'a hashtable'; Value = @{ Unrelated = 1 }; ValueText = $null }
             @{ Shape = 'an array of one misspelled name'; Value = @('Denyy'); ValueText = 'Denyy' }
+            @{ Shape = 'an array of one object whose ToString throws'; Value = @($accessThrowingElement); ValueText = $null }
             @{ Shape = 'a comma list of two names'; Value = 'Allow,Deny'; ValueText = 'Allow,Deny' }
             @{ Shape = 'an array of two names'; Value = @('Allow', 'Deny'); ValueText = 'Allow, Deny' }
             @{ Shape = 'an array of one comma list'; Value = @('Allow,Deny'); ValueText = 'Allow,Deny' }
@@ -1382,7 +1388,7 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Shape = 'an array nested 40 levels deep'; Value = $accessDeepScope; ValueText = $null }
         )
 
-        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (13 + 3 * 6 + 6) = 74 rows.
+        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (14 + 3 * 7 + 6) = 82 rows.
         $accessInvalidParameterCases = foreach ($cmdlet in 'Add-NTFSAccess', 'Remove-NTFSAccess') {
             foreach ($shapeCase in $accessTypeBadShapes) {
                 @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Shape = $shapeCase.Shape; Value = $shapeCase.Value; ValueText = $shapeCase.ValueText }
@@ -1396,6 +1402,15 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
                 @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Shape = $shapeCase.Shape; Value = $shapeCase.Value; ValueText = $shapeCase.ValueText }
             }
         }
+
+        # The message names a list by its first ten elements: ten are named in full, eleven end with an ellipsis. The
+        # elements of a flags parameter are converted one by one, so these numbers fail there too (4 is not a flag).
+        $accessInvalidParameterCases += @(
+            @{ Cmdlet = 'Add-NTFSAccess'; Parameter = 'AccessType'; Shape = 'ten numbers'; Value = 1..10; ValueText = '1, 2, 3, 4, 5, 6, 7, 8, 9, 10' }
+            @{ Cmdlet = 'Add-NTFSAccess'; Parameter = 'AccessType'; Shape = 'eleven numbers'; Value = 1..11; ValueText = '1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ...' }
+            @{ Cmdlet = 'Add-NTFSAccess'; Parameter = 'InheritanceFlags'; Shape = 'ten numbers'; Value = 1..10; ValueText = '1, 2, 3, 4, 5, 6, 7, 8, 9, 10' }
+            @{ Cmdlet = 'Add-NTFSAccess'; Parameter = 'InheritanceFlags'; Shape = 'eleven numbers'; Value = 1..11; ValueText = '1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ...' }
+        )
 
         $accessSdInvalidParameterCases = foreach ($cmdlet in 'Add-NTFSAccess', 'Remove-NTFSAccess') {
             @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Value = 'Denyy'; ValueText = 'Denyy' }
@@ -1424,6 +1439,8 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = [System.Collections.Generic.HashSet[string]]::new([string[]]@('ThisFolderAndSubfolders', 'ThisFolderAndFiles')) }
             @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Value = $accessDeepAccessType }
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = $accessDeepScope }
+            @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Value = @($accessThrowingElement) }
+            @{ Cmdlet = $cmdlet; Parameter = 'InheritanceFlags'; Value = @($accessThrowingElement) }
         }
 
         # A named $null (a literal $null, a variable, an alias, splatting, or $PSDefaultParameterValues) must
@@ -1719,6 +1736,39 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             $caughtId | Should -BeLike 'InvalidParameterValue,*'
             (Get-Acl -LiteralPath $first).Sddl | Should -BeExactly $before[0]
             (Get-Acl -LiteralPath $second).Sddl | Should -BeExactly $before[1]
+        }
+    }
+
+    # The conversion reads at most two elements of a sequence to know that it is a list, and the message names ten, so a
+    # sequence that is long (or has no end) is not read to its end.
+    Context 'A long sequence of values' {
+        It 'Should read only the first elements of a long sequence given as <Mode> -AccessType, and name its first ten in the error' -ForEach @(
+            @{ Mode = 'named' }
+            @{ Mode = 'piped' }
+        ) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'LongSequence' -Directory
+            $before = (Get-Acl -LiteralPath $folder).Sddl
+            $counter = @{ Reads = 0 }
+            $count = { $counter.Reads++; 'Allow' }.GetNewClosure()
+            $sequence = [System.Linq.Enumerable]::Select([int[]] (1..100000), [Func[int, string]] $count)
+
+            $message = $null
+            if ($Mode -eq 'named') {
+                try {
+                    Add-NTFSAccess -Path $folder -Account 'S-1-1-0' -AccessRights ReadData -AccessType $sequence -ErrorAction Stop
+                }
+                catch {
+                    $message = $_.Exception.Message
+                }
+            }
+            else {
+                [pscustomobject]@{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AccessType = $sequence } | Add-NTFSAccess -ErrorVariable pipelineErrors -ErrorAction SilentlyContinue
+                $message = @($pipelineErrors)[0].Exception.Message
+            }
+
+            $message | Should -Match ('The value ''' + ('Allow, ' * 10) + '\.\.\.''')
+            $counter.Reads | Should -BeLessThan 50
+            (Get-Acl -LiteralPath $folder).Sddl | Should -BeExactly $before
         }
     }
 
