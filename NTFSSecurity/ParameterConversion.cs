@@ -154,7 +154,7 @@ namespace NTFSSecurity
         // The value as a message names it: a collection of one element by that element (also when it is a collection
         // itself), a collection of several elements by its first ten, anything else by its text. The message is built
         // inside a catch block, so this method must not fail whatever the text or the enumeration of a value does; a
-        // value that cannot be formatted is named by its type.
+        // value that cannot be formatted is named by its type, in the short form of Type.ToString.
         private static string Describe(object value)
         {
             try
@@ -164,7 +164,7 @@ namespace NTFSSecurity
             catch (Exception)
             {
                 var unwrapped = value is PSObject ? ((PSObject)value).BaseObject : value;
-                return unwrapped == null ? string.Empty : unwrapped.GetType().FullName;
+                return unwrapped == null ? string.Empty : unwrapped.GetType().ToString();
             }
         }
 

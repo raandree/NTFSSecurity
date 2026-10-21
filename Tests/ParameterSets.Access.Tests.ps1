@@ -1404,12 +1404,15 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
         }
 
         # The message names a list by its first ten elements: ten are named in full, eleven end with an ellipsis. The
-        # elements of a flags parameter are converted one by one, so these numbers fail there too (4 is not a flag).
+        # elements of a flags parameter are converted one by one, so these numbers fail there too (4 is not a flag). A
+        # value whose text cannot be built is named by its type, in the short form that Type.ToString gives.
         $accessInvalidParameterCases += @(
             @{ Cmdlet = 'Add-NTFSAccess'; Parameter = 'AccessType'; Shape = 'ten numbers'; Value = 1..10; ValueText = '1, 2, 3, 4, 5, 6, 7, 8, 9, 10' }
             @{ Cmdlet = 'Add-NTFSAccess'; Parameter = 'AccessType'; Shape = 'eleven numbers'; Value = 1..11; ValueText = '1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ...' }
             @{ Cmdlet = 'Add-NTFSAccess'; Parameter = 'InheritanceFlags'; Shape = 'ten numbers'; Value = 1..10; ValueText = '1, 2, 3, 4, 5, 6, 7, 8, 9, 10' }
             @{ Cmdlet = 'Add-NTFSAccess'; Parameter = 'InheritanceFlags'; Shape = 'eleven numbers'; Value = 1..11; ValueText = '1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ...' }
+            @{ Cmdlet = 'Add-NTFSAccess'; Parameter = 'AccessType'; Shape = 'a generic list of one object whose ToString throws'; Value = [System.Collections.Generic.List[object]]::new([object[]] @($accessThrowingElement)); ValueText = 'System.Collections.Generic.List`1[System.Object]' }
+            @{ Cmdlet = 'Add-NTFSAccess'; Parameter = 'InheritanceFlags'; Shape = 'a generic list of one object whose ToString throws'; Value = [System.Collections.Generic.List[object]]::new([object[]] @($accessThrowingElement)); ValueText = 'System.Collections.Generic.List`1[System.Object]' }
         )
 
         $accessSdInvalidParameterCases = foreach ($cmdlet in 'Add-NTFSAccess', 'Remove-NTFSAccess') {
