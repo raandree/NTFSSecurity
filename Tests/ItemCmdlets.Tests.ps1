@@ -426,6 +426,28 @@ Describe 'Get-ChildItem2' {
                 Should -Throw -ErrorId 'ParameterArgumentValidationError,NTFSSecurity.GetChildItem2' -ExpectedMessage "*'Filter'*"
         }
 
+        It 'Should reject a -Filter of more than 32,767 characters' {
+            $tooLong = '?' * 32768
+            { Get-ChildItem2 -Path $tree -Filter $tooLong -ErrorAction Stop } |
+                Should -Throw -ErrorId 'ParameterArgumentValidationError,NTFSSecurity.GetChildItem2' -ExpectedMessage "*'Filter'*"
+        }
+
+        # A pattern this long is not useful, but the cmdlet must not crash the host: before this test was added, a
+        # pattern of this length (or a long run of asterisks) recursed deep enough in the matcher to raise an
+        # uncatchable StackOverflowException and terminate the process.
+        It 'Should accept a -Filter of exactly 32,767 characters and return the right result' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterMaxLength' -Directory
+            $file = Join-Path -Path $folder -ChildPath 'a'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+            Set-Content -LiteralPath $file -Value 'a'
+            $longest = '?' * 32767
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter $longest -ErrorAction Stop)
+
+            $result | Should -HaveCount 1
+            $result[0].Name | Should -Be 'a'
+        }
+
         It 'Should stop a recursive pipeline without recording an enumeration error' {
             $result = @(Get-ChildItem2 -Path $tree -Recurse -ErrorVariable childErrors -ErrorAction SilentlyContinue | Select-Object -First 1)
 

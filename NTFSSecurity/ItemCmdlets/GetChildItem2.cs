@@ -44,6 +44,7 @@ namespace NTFSSecurity
 
         [Parameter(Position = 2)]
         [ValidateNotNull]
+        [ValidateLength(0, 32767)]
         public string Filter
         {
             get { return filter; }
