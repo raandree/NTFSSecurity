@@ -830,6 +830,18 @@ Describe 'The FileSystemSecurity2 conversions from FileSecurity and DirectorySec
             $raw.AddAccessRule($rule)
             $raw
         }
+
+        # PowerShell silently turns an exception that a property getter throws into $null, without even recording a
+        # non-terminating error, so a plain "$object.Property" cannot tell a getter that throws from one that
+        # legitimately returns null. The getter is invoked through reflection instead, so that it throws normally.
+        function Invoke-PropertyGetter {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only reads a property through reflection.'
+            )]
+            param ([object] $InputObject, [string] $PropertyName)
+
+            $InputObject.GetType().GetProperty($PropertyName).GetGetMethod().Invoke($InputObject, $null)
+        }
     }
 
     It 'Should wrap the <Kind> descriptor that was passed, report IsFile as <IsFile>, and round-trip the same instance' -ForEach @(
@@ -900,6 +912,109 @@ Describe 'The FileSystemSecurity2 conversions from FileSecurity and DirectorySec
 
         @((Get-Acl -LiteralPath $path).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
                 Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) | Should -HaveCount 1
+    }
+
+    # 3.1 makes a FileSystemSecurity2 without an item reachable from a .NET caller; the readers below must not meet a
+    # NullReferenceException from it. Built in memory, so no privilege is needed to add the audit rule.
+    It 'Should return the <RuleType> entries of a <Kind> without an item, with a null FullName' -ForEach @(
+        @{ Kind = 'FileSecurity'; RuleType = 'access' }
+        @{ Kind = 'DirectorySecurity'; RuleType = 'access' }
+        @{ Kind = 'FileSecurity'; RuleType = 'audit' }
+        @{ Kind = 'DirectorySecurity'; RuleType = 'audit' }
+    ) {
+        if ($RuleType -eq 'access') {
+            $sd = [Security2.FileSystemSecurity2] (New-RawFileSystemSecurity -Kind $Kind)
+            $found = @([Security2.FileSystemAccessRule2]::GetFileSystemAccessRules($sd, $true, $true, $false))
+        }
+        else {
+            $raw = New-RawFileSystemSecurity -Kind $Kind
+            $raw.AddAuditRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList (
+                        $sid, [System.Security.AccessControl.FileSystemRights]::ReadData,
+                        [System.Security.AccessControl.AuditFlags]::Success
+                    )))
+            $sd = [Security2.FileSystemSecurity2] $raw
+            $found = @([Security2.FileSystemAuditRule2]::GetFileSystemAuditRules($sd, $true, $true, $false))
+        }
+
+        $found | Should -HaveCount 1
+        $found[0].FullName | Should -Be $null
+        $found[0].Account.Sid | Should -BeExactly 'S-1-1-0'
+    }
+
+    It 'Should throw an InvalidOperationException, not a NullReferenceException, for the source of an inherited <RuleType> entry of a descriptor without an item' -ForEach @(
+        @{ RuleType = 'access' }
+        @{ RuleType = 'audit' }
+    ) {
+        if ($RuleType -eq 'access') {
+            $sd = [Security2.FileSystemSecurity2] (New-RawFileSystemSecurity -Kind 'FileSecurity')
+            $failure = { [Security2.FileSystemAccessRule2]::GetFileSystemAccessRules($sd, $true, $true, $true) } |
+                Should -Throw -PassThru
+        }
+        else {
+            $raw = New-RawFileSystemSecurity -Kind 'FileSecurity'
+            $raw.AddAuditRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList (
+                        $sid, [System.Security.AccessControl.FileSystemRights]::ReadData,
+                        [System.Security.AccessControl.AuditFlags]::Success
+                    )))
+            $sd = [Security2.FileSystemSecurity2] $raw
+            $failure = { [Security2.FileSystemAuditRule2]::GetFileSystemAuditRules($sd, $true, $true, $true) } |
+                Should -Throw -PassThru
+        }
+
+        $failure.Exception.GetBaseException() | Should -BeOfType [System.InvalidOperationException]
+        $failure.Exception.GetBaseException().Message | Should -BeLike '*item*'
+    }
+
+    It 'Should return an owner object with a null FullName and an empty ToString for a <Kind> without an item' -ForEach @(
+        @{ Kind = 'FileSecurity' }
+        @{ Kind = 'DirectorySecurity' }
+    ) {
+        $raw = New-RawFileSystemSecurity -Kind $Kind
+        $raw.SetOwner($sid)
+        $sd = [Security2.FileSystemSecurity2] $raw
+
+        $owner = [Security2.FileSystemOwner]::GetOwner($sd)
+
+        $owner.Owner.Sid | Should -BeExactly 'S-1-1-0'
+        { Invoke-PropertyGetter -InputObject $owner -PropertyName 'FullName' } | Should -Not -Throw
+        (Invoke-PropertyGetter -InputObject $owner -PropertyName 'FullName') | Should -Be $null
+        $owner.ToString() | Should -BeExactly ''
+    }
+
+    It 'Should return inheritance info with a null FullName and Name for a <Kind> without an item' -ForEach @(
+        @{ Kind = 'FileSecurity' }
+        @{ Kind = 'DirectorySecurity' }
+    ) {
+        $sd = [Security2.FileSystemSecurity2] (New-RawFileSystemSecurity -Kind $Kind)
+
+        $info = [Security2.FileSystemInheritanceInfo]::GetFileSystemInheritanceInfo($sd)
+
+        { Invoke-PropertyGetter -InputObject $info -PropertyName 'FullName' } | Should -Not -Throw
+        { Invoke-PropertyGetter -InputObject $info -PropertyName 'Name' } | Should -Not -Throw
+        (Invoke-PropertyGetter -InputObject $info -PropertyName 'FullName') | Should -Be $null
+        (Invoke-PropertyGetter -InputObject $info -PropertyName 'Name') | Should -Be $null
+        $info.AccessInheritanceEnabled | Should -BeTrue
+    }
+
+    # The Authz access check needs a descriptor with an owner and a group, like any real file has; the minimal
+    # descriptor of the other tests has neither, and the call fails with "The parameter is incorrect" for either.
+    It 'Should return the effective access of a <Kind> without an item, with a null FullName on the result' -ForEach @(
+        @{ Kind = 'FileSecurity' }
+        @{ Kind = 'DirectorySecurity' }
+    ) {
+        $raw = New-RawFileSystemSecurity -Kind $Kind
+        $raw.SetOwner($sid)
+        $raw.SetGroup($sid)
+        $sd = [Security2.FileSystemSecurity2] $raw
+
+        $result = [Security2.EffectiveAccess]::GetEffectiveAccess($sd, $identity, $null)
+
+        if ($result.OperationFailed) {
+            Set-ItResult -Skipped -Because "the Authz call could not run in this configuration: $($result.AuthzException.Message)"
+            return
+        }
+
+        $result.Ace.FullName | Should -Be $null
     }
 }
 

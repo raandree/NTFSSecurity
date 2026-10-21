@@ -35,9 +35,11 @@ namespace Security2
             set { auditInheritanceEnabled = value; }
         }
 
-        public string FullName { get { return Item.FullName; } }
+        // Null without an item, such as for a descriptor that a conversion from FileSecurity built directly, instead
+        // of a NullReferenceException.
+        public string FullName { get { return item != null ? item.FullName : null; } }
 
-        public string Name { get { return Path.GetFileName(item.FullName); } }
+        public string Name { get { return item != null ? Path.GetFileName(item.FullName) : null; } }
 
         private FileSystemInheritanceInfo(FileSystemInfo item, bool? accessInheritanceEnabled, bool? auditInheritanceEnabled)
         {

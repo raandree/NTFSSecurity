@@ -1,4 +1,5 @@
 ﻿using Alphaleonis.Win32.Filesystem;
+using System;
 using System.Collections.Generic;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -21,6 +22,15 @@ namespace Security2
 
             if (getInheritedFrom)
             {
+                // The source of an inherited entry is found from the path of the item that the descriptor was read
+                // from; a descriptor that a caller built directly, such as the conversion from FileSecurity, has none.
+                if (sd.Item == null)
+                {
+                    throw new InvalidOperationException(
+                        "Cannot find the source of an inherited entry: this security descriptor has no item, so there " +
+                        "is no path to search from. Pass getInheritedFrom as false, or read the entries from an item.");
+                }
+
                 inheritedFrom = Win32.GetInheritedFrom(sd.Item, sd.SecurityDescriptor, true);
             }
 
@@ -40,7 +50,8 @@ namespace Security2
                     continue;
                 }
 
-                var ace2 = new FileSystemAuditRule2(ace) { FullName = sd.Item.FullName, InheritanceEnabled = !sd.SecurityDescriptor.AreAuditRulesProtected };
+                // sd.FullName, not sd.Item.FullName: null without an item instead of a NullReferenceException.
+                var ace2 = new FileSystemAuditRule2(ace) { FullName = sd.FullName, InheritanceEnabled = !sd.SecurityDescriptor.AreAuditRulesProtected };
                 if (getInheritedFrom && inheritedFrom.Count > 0)
                 {
                     // Windows names a folder with a trailing backslash; the text for an unknown parent has none.
