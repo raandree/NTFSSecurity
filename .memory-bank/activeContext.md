@@ -17,7 +17,7 @@ passed; lab acceptance of the published bytes 10:38 to 11:47Z, record
 #129 (08:24Z), and the Memory Bank #130 (08:47Z).
 
 The last prerelease before the stable 5.0.0 is rc9 (Decision 27). The branch
-`ai/rc9` (base `d0cb57c`, 32 commits, head `de67883`) is complete and
+`ai/rc9` (base `d0cb57c`, 36 commits, head `696ac38`) is complete and
 validated; it is local until the maintainer pushes it, opens the pull request
 (body: `C:\Temp\ntfs-rc9\final-msgs\pr-rc9-body.md`, temporary), merges it, and
 tags `5.0.0-rc9`. It contains: the five piped parameters of `Add-` and
@@ -31,7 +31,7 @@ the Windows PowerShell 5.1 rules; the library fixes 3.1 to 3.3 and 3.10;
 `Set-NTFSSecurityDescriptor` at position 1; tests that bind four parameters by
 property name; label `rc9`.
 
-Validation of `de67883`: the full suite in the four CI configurations, 2,116
+Validation of `696ac38`: the full suite in the four CI configurations, 2,162
 cases each, 0 failed (rc8: 1,615; skipped 27, 359, 58, and 390, so every new
 case runs where it can); the pages and the help file are a fixpoint (0 drift, 0
 broken links; the help file is identical after a second generation);
@@ -42,13 +42,16 @@ matrix of valid shapes of the five parameters, run on the published rc8 and on
 this build in both editions, differs in exactly the 9 list rows of
 `Add-NTFSAccess`. Two review rounds (Decision 27, "Built in rc9"): round 1 on the
 first integration found a Blocker (the last-dot rule of the filter) and two
-Major findings; round 2 on the final tree and three checks of its fixes found
-only Minor findings (wrong statements in the pages, completers that were not
-culture invariant, the list for `-AccessType` and `-AppliesTo`, ways around
-that rejection, a collection that holds itself); all are fixed with a test
-that is red without the fix, or decided. A blank, `$null`, or `DBNull` value of
-the other parameter group is `AmbiguousParameterSet` (documented, not
-restructured).
+Major findings; round 2 on the final tree and five checks of its fixes found
+only Minor findings and Nits (wrong statements in the pages, completers that
+were not culture invariant, the list for `-AccessType` and `-AppliesTo`, ways
+around that rejection, a collection that holds itself, a message formatter that
+threw, an enumerator that fails in `Dispose`); all are fixed with a test that
+is red without the fix, or decided, and both reviewers closed their last
+findings with "no finding" on `696ac38`. A collection that holds itself still
+ends the host through the three flags parameters, as in rc8 (known limit). A
+blank, `$null`, or `DBNull` value of the other parameter group is
+`AmbiguousParameterSet` (documented, not restructured).
 
 Open before the stable pull request: the pull request, merge, and tag of rc9
 (maintainer); the lab acceptance of the published rc9 (agent, about 70
@@ -71,7 +74,8 @@ Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
 - Evidence of rc9 is outside git, in the session folder
   `816cf47d-2f80-4eba-8ac9-41702c49560b\files\rc9`: the specs and review briefs,
   `suite-full1` (first integration), `suite-final`, `suite-final2`,
-  `suite-final3`, and `suite-final4` (the head `de67883`), the probes (`p-*.ps1`,
+  `suite-final3`, `suite-final4`, `suite-final5`, `suite-final6-b436423`, and
+  `suite-final7-696ac38` (the head), the probes (`p-*.ps1`,
   `fixb-probe`, `shapes-r2`, `Run-Oracle.ps1`, `Run-Pathological.ps1`), the
   published rc8 (`rc8-published`), and the analyzer and surface results. The
   review probes of the reviewers are in `C:\Temp\ntfs-rc9\review*-probes-*`

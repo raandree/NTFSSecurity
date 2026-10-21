@@ -119,19 +119,20 @@ archive in favor of WindowsAccessControl (Decision 18).
   creates an Allow entry); Decision 27 sets the scope of rc9, the designs were
   chosen on 2026-10-21, and four work items started (branch
   `ai/rc9-before-stable`).
-- 2026-10-21: rc9 built and reviewed (Decision 27; branch `ai/rc9`, 32 commits
-  over `d0cb57c`, head `de67883`, local until he pushes). Four implementers
+- 2026-10-21: rc9 built and reviewed (Decision 27; branch `ai/rc9`, 36 commits
+  over `d0cb57c`, head `696ac38`, local until he pushes). Four implementers
   worked test-first in worktrees (the five piped parameters, the 17 handlers
   and three inconsistencies, the library items, the filter); the chains were
   cherry-picked in order, so every fix sits in the commit of its item. Round 1
   (three read-only reviewers) found a Blocker (the last-dot rule of the
   filter) and two Major findings (a named `$null`; a blank value of the other
-  parameter group, documented); round 2 (two reviewers, three checks) found
-  only Minor findings, among them completers that were not culture invariant
-  (`tr-TR`) and a list for `-AccessType` or `-AppliesTo`, which PowerShell
-  combines bit by bit; he chose to reject it. Final suite on `de67883`: 2,116
-  cases per configuration, 0 failed in four configurations (rc8: 1,615); docs
-  fixpoint; analyzer clean; valid shapes differ from rc8 in 9 list rows only.
+  parameter group, documented); round 2 (two reviewers, five checks) found
+  only Minor findings and Nits, among them completers that were not culture
+  invariant (`tr-TR`) and a list for `-AccessType` or `-AppliesTo`, which
+  PowerShell combines bit by bit; he chose to reject it. Final suite on
+  `696ac38`: 2,162 cases per configuration, 0 failed in four configurations
+  (rc8: 1,615); docs fixpoint; analyzer clean; valid shapes differ from rc8 in
+  9 list rows only; both reviewers: no finding.
 
 ## Stable capabilities
 

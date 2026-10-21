@@ -163,7 +163,31 @@ fails without it (Decision 16).
   showed that exactly the 9 list rows changed. Code that opens a one-element
   collection needs a depth limit: an array that holds itself hung the first
   version (the binder of rc8 ends the host with a stack overflow on it), so
-  the conversion opens at most 32 levels and reads at most two elements.
+  the conversion opens at most 32 levels and reads at most two elements. The
+  three flags parameters still hand such a collection to PowerShell's own
+  conversion, which ends the host with a stack overflow, as in rc8; not fixed
+  (no real input builds one, and a test would end the Pester process too).
+- The message of a bad value is built inside a catch block, and a formatter
+  there must not throw: `Describe` called `ToString` of the one element outside
+  a guard, so an element whose `ToString` throws (a script method) ended a
+  piped command with an `ExtendedTypeSystemException` instead of one error for
+  that item (found by the last delta check of the second review; the version
+  before named a collection by its type and never formatted an element). Wrap
+  the whole formatter and fall back to the type name, in the short form
+  (`Type.ToString`; `FullName` spells out the assembly of every generic
+  argument). A test that pins a limit (ten elements named, two elements read)
+  is green on the code that it guards: prove it with a mutant of the limit (no
+  limit: 4 rows red; a limit of nine: 6 rows red).
+- A loop that stops early runs `Dispose` of the enumerator, and `Dispose` can
+  fail: the catch of `TakeOneValue` returned the collection to PowerShell's
+  conversion, which combines a list bit by bit, so a sequence whose enumerator
+  throws in `Dispose` let a list through. The first patch (`isList = count >
+  1` in the catch) fixed the reported shape (two elements) and left its
+  sibling (one element that holds a comma list); the closing check found it.
+  Fix the root: read with an explicit enumerator and release it in its own
+  guard, so that a failing release never changes what was read. The test needs
+  a compiled stand-in (`Add-Type`, as `PipelineControl.Tests.ps1` does); no
+  built-in enumerator fails in `Dispose`.
 - PowerShell calls the getter of a by-property-name parameter once per
   command, when a piped object first binds it (`p-getter-calls.ps1`). A test
   that must visit it pipes an object that has the property. A property getter

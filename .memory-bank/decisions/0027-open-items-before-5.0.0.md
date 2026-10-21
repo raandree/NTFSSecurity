@@ -183,11 +183,23 @@ decided; the rest is to be chosen. Recommended defaults are the agent's.
   string), that a collection that holds itself never returned (the binder of
   rc8 ends the host with a stack overflow on it), and that the message named
   the type, not the typo: fixed in `e39aeed` and `da41a8e`, each with tests
-  that were red first (32 and 28 rows). Final suite on `de67883`: 2,116 cases
-  per configuration, 0 failed in four configurations (rc8: 1,615); the pages
-  and the help file are a fixpoint; PSScriptAnalyzer finds nothing in the 11
-  changed scripts; the public surface equals the validated candidate; a matrix
-  of valid shapes differs from the published rc8 in exactly 9 list rows.
+  that were red first (32 and 28 rows). The last two checks found four Nits in
+  code that those fixes added or kept: the formatter of the message threw when
+  the text of an element throws (a terminating error that stopped a piped
+  command), its fallback named a generic type with the assembly of every type
+  argument, and an enumerator that throws in `Dispose` turned a list into a
+  value that PowerShell converts (first for two elements, then for one element
+  that holds a list): fixed in `ec58a18`, `ce34395`, `b436423`, and `696ac38`,
+  with 24, 2, 4, and 8 rows that were red first, and the pins of the limits
+  proved with two mutants. The last commit fixes the root,
+  not the shape: the collection is read with an explicit enumerator that is
+  released in its own guard, so a failing release changes nothing of what was
+  read. Final suite on `696ac38`: 2,162 cases per configuration, 0 failed in
+  four configurations (rc8: 1,615); the pages and the help file are a
+  fixpoint; PSScriptAnalyzer finds nothing in the 11 changed scripts; the
+  public surface equals the validated candidate; a matrix of valid shapes
+  differs from the published rc8 in exactly 9 list rows; both reviewers closed
+  their findings with "no finding".
 
 What the review found:
 
@@ -219,3 +231,12 @@ Known limits, kept and to be stated to the maintainer:
   stays undisposed, a known limit of the .NET API.
 - In PowerShell 7, the case folding of `-Filter` differs from NTFS for a few
   exotic letters (finding F7 of the review; not fixed).
+- A collection that holds itself, given to `-InheritanceFlags`,
+  `-PropagationFlags`, or `-AuditFlags`, ends the host with a stack overflow
+  inside PowerShell's own conversion, exactly as in rc8 (both reviewers
+  reproduced it in both editions, without the module too: any typed parameter
+  or cast does it). `-AccessType` and `-AppliesTo` reject it. Not fixed: no
+  real input builds such an object, a guard for the flags parameters would
+  need a visited-set walk of every argument, and a regression test would end
+  the Pester process before the fix. Named in the pull request text, not in
+  the CHANGELOG (user-visible changes only).
