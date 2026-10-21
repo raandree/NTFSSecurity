@@ -26,8 +26,6 @@ namespace NTFSSecurity
         private bool identifyHardLinks = false;
         private int? depth;
 
-        WildcardPattern wildcard = null;
-
         System.Reflection.MethodInfo modeMethodInfo = null;
 
         [Parameter(Position = 1, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
@@ -146,15 +144,9 @@ namespace NTFSSecurity
                 paths = new List<string>() { GetCurrentLocation() };
             }
 
-            // Only * and ? are wildcards, like in the pattern that the enumeration matches; a bracket or a backtick stands
-            // for itself. Before 5.0.0, [1] was read as a character class, so a file with brackets in its name was not
-            // returned for its name. The enumeration returns every item for *.* as Windows does, so the comparison does
-            // too; with the dot as an ordinary character, it would drop the items without a dot, most folders.
-            // CultureInvariant: like the enumeration (see MoveNextInvariant), the comparison would otherwise treat I and i as
-            // different letters with tr-TR and drop items that the enumeration returned.
-            var pattern = filter == "*.*" ? "*" : filter;
-            wildcard = new WildcardPattern(pattern.Replace("`", "``").Replace("[", "`[").Replace("]", "`]"), WildcardOptions.Compiled | WildcardOptions.IgnoreCase | WildcardOptions.CultureInvariant);
-
+            // The names are matched by DosWildcard, not by the enumeration (see WriteFileSystem, which always asks
+            // AlphaFS for "*"), so there is nothing to pre-compile here: DosWildcard reads the raw value of -Filter
+            // at the time each name is compared.
             modeMethodInfo = typeof(FileSystemCodeMembers).GetMethod("Mode");
 
             getFileSystemModeProperty = (bool)((Hashtable)MyInvocation.MyCommand.Module.PrivateData)["GetFileSystemModeProperty"];
@@ -211,7 +203,10 @@ namespace NTFSSecurity
                         IEnumerator files;
                         using (new InvariantCultureScope())
                         {
-                            files = di.EnumerateDirectories(filter, global::System.IO.SearchOption.TopDirectoryOnly).GetEnumerator();
+                            // The enumeration applies no pattern of its own; DosWildcard decides in
+                            // WriteFileSystemInfoCollection, on the real name, with the dot rules of Windows
+                            // PowerShell 5.1.
+                            files = di.EnumerateDirectories("*", global::System.IO.SearchOption.TopDirectoryOnly).GetEnumerator();
                         }
 
                         WriteFileSystemInfoCollection(files);
@@ -221,7 +216,7 @@ namespace NTFSSecurity
                         IEnumerator files;
                         using (new InvariantCultureScope())
                         {
-                            files = di.EnumerateFiles(filter, global::System.IO.SearchOption.TopDirectoryOnly).GetEnumerator();
+                            files = di.EnumerateFiles("*", global::System.IO.SearchOption.TopDirectoryOnly).GetEnumerator();
                         }
 
                         WriteFileSystemInfoCollection(files);
@@ -231,7 +226,7 @@ namespace NTFSSecurity
                         IEnumerator files;
                         using (new InvariantCultureScope())
                         {
-                            files = di.EnumerateFileSystemInfos(filter, global::System.IO.SearchOption.TopDirectoryOnly).GetEnumerator();
+                            files = di.EnumerateFileSystemInfos("*", global::System.IO.SearchOption.TopDirectoryOnly).GetEnumerator();
                         }
 
                         WriteFileSystemInfoCollection(files);
@@ -304,7 +299,7 @@ namespace NTFSSecurity
             while (MoveNextInvariant(fileSystemInfos))
             {
                 FileSystemInfo current = (FileSystemInfo)fileSystemInfos.Current;
-                if (!wildcard.IsMatch(current.Name))
+                if (!DosWildcard.IsMatch(current.Name, filter))
                 {
                     continue;
                 }
@@ -399,6 +394,194 @@ namespace NTFSSecurity
             public void Dispose()
             {
                 global::System.Threading.Thread.CurrentThread.CurrentCulture = previous;
+            }
+        }
+
+        // Matches a -Filter pattern against the real name of an item with the Win32 "DOS" wildcard rules that
+        // Windows PowerShell 5.1 applies to Get-ChildItem -Filter, in both editions, so that the two editions and
+        // the short-name based matching that a past fix removed do not disagree. The rules come from
+        // FsRtlIsNameInExpression with the Win32 translation of a DOS pattern (DOS_STAR, DOS_QM, DOS_DOT): an
+        // asterisk matches a run of characters (but not past a dot that a following dot token still has to
+        // account for); a question mark matches one character that is not a dot, or nothing where the name has
+        // no more characters left or the next one is a dot; and a dot matches a literal dot in the name, or
+        // nothing where the name has no more characters left, which is why "Report.*" also returns "Report" and
+        // "Report." returns only the names without a dot. Comparisons are case-insensitive with the invariant
+        // culture, never the thread culture, matching the enumeration (see InvariantCultureScope). Every
+        // character other than an asterisk or a question mark is ordinary, including a bracket and a backtick.
+        private static class DosWildcard
+        {
+            private enum TokenKind
+            {
+                Literal,
+                Star,
+                QuestionMark,
+                Dot
+            }
+
+            private struct Token
+            {
+                public TokenKind Kind;
+                public char Char;
+            }
+
+            public static bool IsMatch(string name, string pattern)
+            {
+                // An empty value matches every item, like a plain asterisk; Get-ChildItem2 keeps its own default
+                // of "*" for -Filter, but once a caller passes an explicit empty string this is the policy.
+                if (pattern.Length == 0)
+                {
+                    return true;
+                }
+
+                // A single dot is not a meaningful base/extension split, so Get-ChildItem treats it the same as
+                // no filter at all, in both editions.
+                if (pattern == ".")
+                {
+                    return true;
+                }
+
+                var tokens = Tokenize(pattern);
+                var matched = new Dictionary<long, bool>();
+                return Match(name, 0, tokens, 0, matched);
+            }
+
+            private static List<Token> Tokenize(string pattern)
+            {
+                var tokens = new List<Token>();
+
+                // A run of one or more dots that reaches the end of the pattern collapses into a single DOS_DOT:
+                // "Report..." and "Report." both ask for "Report" with nothing left of the name to account for.
+                // A dot elsewhere becomes a DOS_DOT only when the single next character is an asterisk or a
+                // question mark; otherwise it is an ordinary character that requires a literal dot in the name.
+                var trailingDotsFrom = pattern.Length;
+                while (trailingDotsFrom > 0 && pattern[trailingDotsFrom - 1] == '.')
+                {
+                    trailingDotsFrom--;
+                }
+                var hasTrailingDotRun = trailingDotsFrom < pattern.Length;
+
+                for (var i = 0; i < pattern.Length; i++)
+                {
+                    if (hasTrailingDotRun && i == trailingDotsFrom)
+                    {
+                        tokens.Add(new Token { Kind = TokenKind.Dot, Char = '.' });
+                        break;
+                    }
+
+                    var c = pattern[i];
+                    if (c == '*')
+                    {
+                        tokens.Add(new Token { Kind = TokenKind.Star });
+                    }
+                    else if (c == '?')
+                    {
+                        tokens.Add(new Token { Kind = TokenKind.QuestionMark });
+                    }
+                    else if (c == '.')
+                    {
+                        var next = (i + 1 < pattern.Length) ? pattern[i + 1] : '\0';
+                        var qualifies = (i + 1 >= pattern.Length) || next == '*' || next == '?';
+                        tokens.Add(new Token { Kind = qualifies ? TokenKind.Dot : TokenKind.Literal, Char = '.' });
+                    }
+                    else
+                    {
+                        tokens.Add(new Token { Kind = TokenKind.Literal, Char = c });
+                    }
+                }
+                return tokens;
+            }
+
+            // Matches the name, starting at name position ni, against the tokens from token position ti. The
+            // dictionary memoizes (ti, ni) pairs, because a star token tries every name position from ni onward
+            // and the same (ti, ni) pair can otherwise be re-examined many times over for a pattern with several
+            // stars.
+            private static bool Match(string name, int ni, List<Token> tokens, int ti, Dictionary<long, bool> matched)
+            {
+                var key = ((long)ti << 32) | (uint)ni;
+                bool cached;
+                if (matched.TryGetValue(key, out cached))
+                {
+                    return cached;
+                }
+
+                var result = MatchCore(name, ni, tokens, ti, matched);
+                matched[key] = result;
+                return result;
+            }
+
+            private static bool MatchCore(string name, int ni, List<Token> tokens, int ti, Dictionary<long, bool> matched)
+            {
+                if (ti == tokens.Count)
+                {
+                    return ni == name.Length;
+                }
+
+                var tok = tokens[ti];
+
+                if (tok.Kind == TokenKind.Star)
+                {
+                    // A star that is directly followed by a dot (a DOS_DOT or an ordinary dot) must leave that dot
+                    // for the dot token to account for: it cannot run past the next dot in the name, which is why
+                    // "Rep*." does not return "Report.txt" although a plain "*" could reach the end of the name by
+                    // crossing the dot. A star with anything else after it, including another star, is free to
+                    // cross dots, which is why "**." returns every item and "R*t" returns "Report.txt".
+                    var max = name.Length;
+                    if (ti + 1 < tokens.Count && tokens[ti + 1].Kind == TokenKind.Dot)
+                    {
+                        var nextDot = name.IndexOf('.', ni);
+                        if (nextDot >= 0)
+                        {
+                            max = nextDot;
+                        }
+                    }
+
+                    for (var k = ni; k <= max; k++)
+                    {
+                        if (Match(name, k, tokens, ti + 1, matched))
+                        {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+
+                if (ni == name.Length)
+                {
+                    // A question mark or a dot can match nothing at the end of the name; anything else needs a
+                    // character that is not there.
+                    if (tok.Kind == TokenKind.QuestionMark || tok.Kind == TokenKind.Dot)
+                    {
+                        return Match(name, ni, tokens, ti + 1, matched);
+                    }
+                    return false;
+                }
+
+                if (tok.Kind == TokenKind.QuestionMark)
+                {
+                    // A question mark does not match a dot; it matches nothing there instead, leaving the dot for
+                    // a later token.
+                    if (name[ni] == '.')
+                    {
+                        return Match(name, ni, tokens, ti + 1, matched);
+                    }
+                    return Match(name, ni + 1, tokens, ti + 1, matched);
+                }
+
+                if (tok.Kind == TokenKind.Dot)
+                {
+                    if (name[ni] == '.')
+                    {
+                        return Match(name, ni + 1, tokens, ti + 1, matched);
+                    }
+                    return false;
+                }
+
+                if (char.ToUpperInvariant(tok.Char) == char.ToUpperInvariant(name[ni]))
+                {
+                    return Match(name, ni + 1, tokens, ti + 1, matched);
+                }
+
+                return false;
             }
         }
     }

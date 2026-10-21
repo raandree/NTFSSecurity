@@ -122,6 +122,23 @@ Describe 'Get-ChildItem2' {
             Assert-TestSandboxPath -Sandbox $sandbox -Path (@($grandchild) + @($paths))
             New-Item -ItemType Directory -Path $grandchild -Force | Out-Null
             foreach ($path in $paths) { Set-Content -LiteralPath $path -Value 'Tree' }
+
+            # The fixture for the -Filter truth table: 18 files and 4 folders, all 8.3-compliant (at most one dot,
+            # up to 8 characters of base name and 3 of extension, no spaces), so each real name is also its own
+            # short name and AlphaFS enumerates the same identity that the matcher compares.
+            $filterTruthTableFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterTruthTable' -Directory
+            $truthTableFiles = 'a', 'ab', 'abc', 'a.b', 'ab.c', 'abc.de', 'a.bcd', 'abcdefgh', 'abcdefgh.ijk', 'x.y', 'a1.b2', 'bca', 'cab.cd', 'ccc', 'c.c', 'bcabcabc', 'a2.b1', '1cb'
+            $truthTableDirs = 'bdir', 'bdir.cd', 'fold', 'fo.ld'
+            foreach ($name in $truthTableFiles) {
+                $path = Join-Path -Path $filterTruthTableFolder -ChildPath $name
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $path
+                Set-Content -LiteralPath $path -Value $name
+            }
+            foreach ($name in $truthTableDirs) {
+                $path = Join-Path -Path $filterTruthTableFolder -ChildPath $name
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $path
+                New-Item -ItemType Directory -Path $path | Out-Null
+            }
         }
 
         It 'Should return the exact tree for <Case>' -ForEach @(
@@ -146,6 +163,9 @@ Describe 'Get-ChildItem2' {
             @{ Filter = '*.htm'; Expected = @('Page.htm') }
             @{ Filter = 'Page?.html'; Expected = @('Page2.html') }
             @{ Filter = 'PAGE*'; Expected = @('Page.htm', 'Page2.html') }
+            @{ Filter = 'Page.ht?'; Expected = @('Page.htm') }
+            @{ Filter = 'Page2.h*'; Expected = @('Page2.html') }
+            @{ Filter = 'Page2.'; Expected = @() }
         ) {
             $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterNames' -Directory
             foreach ($name in 'Page.htm', 'Page2.html') {
@@ -229,9 +249,12 @@ Describe 'Get-ChildItem2' {
             ($result.Name | Sort-Object) -join ',' | Should -BeExactly 'NoExtension,NoExtensionFolder,Page.htm'
         }
 
-        # The enumeration returns every item for *.*.*, as Get-ChildItem does. The cmdlet compares each name with the whole
-        # pattern again, so that the dots of the pattern are characters of the name, as the help says.
-        It 'Should return only the items that match the whole pattern for -Filter *.*.*' {
+        # The cmdlet now has one matcher, not two (Decision 27, item 4): every dot in -Filter whose single next
+        # character is an asterisk or a question mark, or that has nothing after it, is a DOS_DOT, and *.*.* has
+        # two such dots, so it returns every item, the same as *.* and a plain *. Before this change, the cmdlet
+        # compared the name with the pattern a second time with the dots read as ordinary characters, so only a
+        # name with two literal dots matched.
+        It 'Should return every item for -Filter *.*.*, also the ones with one dot or none' {
             $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterDots' -Directory
             foreach ($name in 'Page.htm', 'NoExtension', 'Two.dots.txt') {
                 $file = Join-Path -Path $folder -ChildPath $name
@@ -241,20 +264,20 @@ Describe 'Get-ChildItem2' {
 
             $result = @(Get-ChildItem2 -Path $folder -Filter '*.*.*' -ErrorAction Stop)
 
-            ($result.Name -join ',') | Should -BeExactly 'Two.dots.txt'
+            ($result.Name | Sort-Object) -join ',' | Should -BeExactly 'NoExtension,Page.htm,Two.dots.txt'
         }
 
-        # The names are matched twice, by the enumeration and by the cmdlet, and the rules for a dot differ from those of
-        # Get-ChildItem, where Report.* also returns Report. The documentation lists this as a limitation; these cases pin
-        # it, so that a change of the rules is a decision. Report* is the control: without a dot in the pattern, the names
-        # without a dot are returned.
+        # The names are matched once, by the cmdlet, with the Win32 "DOS" wildcard rules that Windows PowerShell 5.1
+        # applies to Get-ChildItem -Filter, in both editions (Decision 27, item 4): Report.* also returns Report,
+        # which has no dot, and a trailing dot asks for the names without a dot. Report* is the control: without a
+        # dot in the pattern, the names with and without a dot are both returned, as before.
         It 'Should return <Outcome> for -Filter "<Filter>"' -ForEach @(
-            @{ Filter = 'Report.*'; Expected = 'Report.txt'; Outcome = 'only the names with a dot' }
+            @{ Filter = 'Report.*'; Expected = 'Report,Report.txt'; Outcome = 'the names with and without a dot' }
             @{ Filter = 'Report*'; Expected = 'Report,Report.txt'; Outcome = 'the names with and without a dot' }
-            @{ Filter = 'Report.'; Expected = ''; Outcome = 'nothing' }
-            @{ Filter = 'Rep*.'; Expected = ''; Outcome = 'nothing' }
-            @{ Filter = '*.'; Expected = ''; Outcome = 'nothing' }
-            @{ Filter = ''; Expected = ''; Outcome = 'nothing' }
+            @{ Filter = 'Report.'; Expected = 'Report'; Outcome = 'only the name without a dot' }
+            @{ Filter = 'Rep*.'; Expected = 'Report'; Outcome = 'only the name without a dot' }
+            @{ Filter = '*.'; Expected = 'Other,Report'; Outcome = 'the names without a dot' }
+            @{ Filter = ''; Expected = 'Other,Report,Report.txt'; Outcome = 'every item, like no filter at all' }
         ) {
             $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterDotRules' -Directory
             foreach ($name in 'Report', 'Report.txt', 'Other') {
@@ -266,6 +289,104 @@ Describe 'Get-ChildItem2' {
             $result = @(Get-ChildItem2 -Path $folder -Filter $Filter -ErrorAction Stop)
 
             ($result.Name | Sort-Object) -join ',' | Should -BeExactly $Expected
+        }
+
+        # A fixed truth table, pinned with the literal result of Windows PowerShell 5.1's Get-ChildItem on 8.3-compliant
+        # names (at most one dot, up to 8 characters of base name and 3 of extension, no spaces), whose short name is
+        # its own real name, so AlphaFS and the cmdlet agree on which name they compare. The expected values are data,
+        # not the output of a run of Get-ChildItem: this test is its own oracle.
+        It 'Should match -Filter "<Filter>" the way Windows PowerShell 5.1 does' -ForEach @(
+            @{ Filter = '*'; Expected = @('1cb', 'a', 'a.b', 'a.bcd', 'a1.b2', 'a2.b1', 'ab', 'ab.c', 'abc', 'abc.de', 'abcdefgh', 'abcdefgh.ijk', 'bca', 'bcabcabc', 'bdir', 'bdir.cd', 'c.c', 'cab.cd', 'ccc', 'fo.ld', 'fold', 'x.y') }
+            @{ Filter = '*.*'; Expected = @('1cb', 'a', 'a.b', 'a.bcd', 'a1.b2', 'a2.b1', 'ab', 'ab.c', 'abc', 'abc.de', 'abcdefgh', 'abcdefgh.ijk', 'bca', 'bcabcabc', 'bdir', 'bdir.cd', 'c.c', 'cab.cd', 'ccc', 'fo.ld', 'fold', 'x.y') }
+            @{ Filter = '*.'; Expected = @('1cb', 'a', 'ab', 'abc', 'abcdefgh', 'bca', 'bcabcabc', 'bdir', 'ccc', 'fold') }
+            @{ Filter = 'a.*'; Expected = @('a', 'a.b', 'a.bcd') }
+            @{ Filter = 'ab.*'; Expected = @('ab', 'ab.c') }
+            @{ Filter = 'a.'; Expected = @('a') }
+            @{ Filter = 'ab.'; Expected = @('ab') }
+            @{ Filter = 'a*.'; Expected = @('a', 'ab', 'abc', 'abcdefgh') }
+            @{ Filter = 'ab*.'; Expected = @('ab', 'abc', 'abcdefgh') }
+            @{ Filter = 'c*.'; Expected = @('ccc') }
+            @{ Filter = '*.b'; Expected = @('a.b') }
+            @{ Filter = '*.c?'; Expected = @('ab.c', 'bdir.cd', 'c.c', 'cab.cd') }
+            @{ Filter = '*.b?'; Expected = @('a.b', 'a1.b2', 'a2.b1') }
+            @{ Filter = '*.?'; Expected = @('1cb', 'a', 'a.b', 'ab', 'ab.c', 'abc', 'abcdefgh', 'bca', 'bcabcabc', 'bdir', 'c.c', 'ccc', 'fold', 'x.y') }
+            @{ Filter = '*.??'; Expected = @('1cb', 'a', 'a.b', 'a1.b2', 'a2.b1', 'ab', 'ab.c', 'abc', 'abc.de', 'abcdefgh', 'bca', 'bcabcabc', 'bdir', 'bdir.cd', 'c.c', 'cab.cd', 'ccc', 'fo.ld', 'fold', 'x.y') }
+            @{ Filter = '?'; Expected = @('a') }
+            @{ Filter = '??'; Expected = @('a', 'ab') }
+            @{ Filter = 'a?'; Expected = @('a', 'ab') }
+            @{ Filter = 'b?'; Expected = @() }
+            @{ Filter = 'ab?'; Expected = @('ab', 'abc') }
+            @{ Filter = 'a?.'; Expected = @('a', 'ab') }
+            @{ Filter = 'bc?'; Expected = @('bca') }
+            @{ Filter = '?.?'; Expected = @('a', 'a.b', 'c.c', 'x.y') }
+            @{ Filter = 'c.?'; Expected = @('c.c') }
+            @{ Filter = '*a*'; Expected = @('a', 'a.b', 'a.bcd', 'a1.b2', 'a2.b1', 'ab', 'ab.c', 'abc', 'abc.de', 'abcdefgh', 'abcdefgh.ijk', 'bca', 'bcabcabc', 'cab.cd') }
+            @{ Filter = '*c*'; Expected = @('1cb', 'a.bcd', 'ab.c', 'abc', 'abc.de', 'abcdefgh', 'abcdefgh.ijk', 'bca', 'bcabcabc', 'bdir.cd', 'c.c', 'cab.cd', 'ccc') }
+            @{ Filter = 'a*.*'; Expected = @('a', 'a.b', 'a.bcd', 'a1.b2', 'a2.b1', 'ab', 'ab.c', 'abc', 'abc.de', 'abcdefgh', 'abcdefgh.ijk') }
+            @{ Filter = 'bca*.'; Expected = @('bca', 'bcabcabc') }
+            @{ Filter = '*.*.*'; Expected = @('1cb', 'a', 'a.b', 'a.bcd', 'a1.b2', 'a2.b1', 'ab', 'ab.c', 'abc', 'abc.de', 'abcdefgh', 'abcdefgh.ijk', 'bca', 'bcabcabc', 'bdir', 'bdir.cd', 'c.c', 'cab.cd', 'ccc', 'fo.ld', 'fold', 'x.y') }
+            @{ Filter = '.*'; Expected = @() }
+            @{ Filter = '*..*'; Expected = @() }
+            @{ Filter = 'abc'; Expected = @('abc') }
+            @{ Filter = 'cba'; Expected = @() }
+            @{ Filter = 'a.b.'; Expected = @('a.b') }
+            @{ Filter = 'ab.c.'; Expected = @('ab.c') }
+            @{ Filter = '*b.'; Expected = @('1cb', 'a.b', 'ab') }
+            @{ Filter = 'cab*'; Expected = @('cab.cd') }
+            @{ Filter = 'a??'; Expected = @('a', 'ab', 'abc') }
+            @{ Filter = 'c.c'; Expected = @('c.c') }
+            @{ Filter = 'ca?'; Expected = @() }
+        ) {
+            $folder = $filterTruthTableFolder
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter $Filter -Force -ErrorAction Stop)
+
+            ($result.Name | Sort-Object) -join ',' | Should -BeExactly (($Expected | Sort-Object) -join ',')
+        }
+
+        It 'Should apply a -Filter at every level of a recursive listing, directories included' {
+            $recurseFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterRecurse' -Directory
+            $paths = @(
+                'A.txt', 'B.log',
+                'Sub\C.txt', 'Sub\D.log',
+                'Sub\Sub2\E.txt', 'Sub\Sub2\F.log'
+            ) | ForEach-Object -Process { Join-Path -Path $recurseFolder -ChildPath $_ }
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $paths
+            New-Item -ItemType Directory -Path (Join-Path -Path $recurseFolder -ChildPath 'Sub\Sub2') -Force | Out-Null
+            foreach ($path in $paths) { Set-Content -LiteralPath $path -Value 'Content' }
+
+            $result = @(Get-ChildItem2 -Path $recurseFolder -Recurse -Filter '*.txt' -ErrorAction Stop)
+
+            ($result.Name | Sort-Object) -join ',' | Should -BeExactly 'A.txt,C.txt,E.txt'
+        }
+
+        It 'Should apply a dot -Filter together with -File and with -Directory' {
+            $folder = $filterTruthTableFolder
+
+            $files = @(Get-ChildItem2 -Path $folder -File -Filter '*.' -Force -ErrorAction Stop)
+            $directories = @(Get-ChildItem2 -Path $folder -Directory -Filter '*.' -Force -ErrorAction Stop)
+
+            ($files.Name | Sort-Object) -join ',' | Should -BeExactly '1cb,a,ab,abc,abcdefgh,bca,bcabcabc,ccc'
+            ($directories.Name | Sort-Object) -join ',' | Should -BeExactly 'bdir,fold'
+        }
+
+        It 'Should return every item for an empty -Filter, like no filter at all' {
+            $folder = $filterTruthTableFolder
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter '' -Force -ErrorAction Stop)
+
+            $result | Should -HaveCount 22
+        }
+
+        It 'Should apply -Filter to a -Path that is a file' {
+            $file = Join-Path -Path $tree -ChildPath 'Root.txt'
+
+            $matching = @(Get-ChildItem2 -Path $file -Filter '*.txt' -ErrorAction Stop)
+            $other = @(Get-ChildItem2 -Path $file -Filter '*.log' -ErrorAction Stop)
+
+            $matching | Should -HaveCount 1
+            $matching[0].FullName | Should -Be $file
+            $other | Should -BeNullOrEmpty
         }
 
         It 'Should reject a null -Filter' {
