@@ -157,6 +157,24 @@ Describe 'Add-NTFSAudit' {
         }
     }
 
+    Context 'Binding -Account and -AuditFlags from the pipeline by property name' {
+        # judged-audit.csv (Add-NTFSAudit PathComplex): no existing call binds -AuditFlags by property name, and
+        # none adds for several accounts in one call; this piped object binds both at once.
+        It 'Should add one audit entry for each account that the piped object names, with the AuditFlags it also names' -Skip:(-not $canReadAudit) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'AddPipedAuditSeveralAccounts' -Directory
+
+            [pscustomobject]@{ FullName = $folder; Account = @($probe, $keeper); AccessRights = 'ReadData'; AuditFlags = 'Failure'; InheritanceFlags = 'None'; PropagationFlags = 'None' } | Add-NTFSAudit -ErrorAction Stop
+
+            $acl = Get-Acl -LiteralPath $folder -Audit
+            foreach ($account in $probe, $keeper) {
+                $rule = Get-TestAccountAuditRule -Acl $acl -Account $account
+                $rule | Should -HaveCount 1
+                $rule[0].AuditFlags | Should -Be ([System.Security.AccessControl.AuditFlags]::Failure)
+                $rule[0].FileSystemRights.HasFlag([System.Security.AccessControl.FileSystemRights]::ReadData) | Should -BeTrue
+            }
+        }
+    }
+
     Context 'Binding -SecurityDescriptor from the pipeline by property name' {
         It 'Should add the audit entry for the piped <Set> object that has an audit section, write a ReadSecurityError for the one that does not, and leave the item on disk unchanged until Set-NTFSSecurityDescriptor writes it' -ForEach @(
             @{ Set = 'SDSimple'; ExtraProperties = @{ AppliesTo = 'ThisFolderOnly' } }
@@ -478,6 +496,44 @@ Describe 'Remove-NTFSAudit' {
         }
     }
 
+    Context 'Removing for several accounts in one call' {
+        # judged-audit.csv (Remove-NTFSAudit PathComplex): no existing call removes for several accounts in one call.
+        It 'Should remove the audit entry of each account that -Account names in one call, and leave another account alone' -Skip:(-not $canReadAudit) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSeveralAccounts'
+            $bystander = 'S-1-5-11'
+            foreach ($account in $probe, $keeper, $bystander) {
+                Add-NTFSAudit -Path $file -Account $account -AccessRights ReadData -InheritanceFlags None -PropagationFlags None -ErrorAction Stop
+            }
+            $daclBefore = Get-TestDaclSddl -Path $file
+
+            $result = @(Remove-NTFSAudit -Path $file -Account $probe, $keeper -AccessRights ReadData -InheritanceFlags None -PropagationFlags None -PassThru -ErrorAction Stop)
+
+            $acl = Get-Acl -LiteralPath $file -Audit
+            (Get-TestAccountAuditRule -Acl $acl -Account $probe) | Should -BeNullOrEmpty
+            (Get-TestAccountAuditRule -Acl $acl -Account $keeper) | Should -BeNullOrEmpty
+            (Get-TestAccountAuditRule -Acl $acl -Account $bystander) | Should -HaveCount 1
+            $result | Should -HaveCount 1
+            $result[0].Account.Sid | Should -Be $bystander
+            Get-TestDaclSddl -Path $file | Should -BeExactly $daclBefore
+        }
+    }
+
+    Context 'When the item has no SACL' {
+        # judged-audit.csv (Remove-NTFSAudit PathComplex): Audit.Tests.ps1:406 asserts no error only; this adds the
+        # empty Audit SDDL and the unchanged DACL after the call.
+        It 'Should leave the empty Audit SDDL and the DACL unchanged' -Skip:(-not $canReadAudit) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveNoSaclComplex'
+            Get-TestAuditSddl -Path $file | Should -BeNullOrEmpty
+            $daclBefore = Get-TestDaclSddl -Path $file
+
+            Remove-NTFSAudit -Path $file -Account $probe -AccessRights ReadData -InheritanceFlags None -PropagationFlags None -ErrorVariable removeErrors -ErrorAction SilentlyContinue
+
+            $removeErrors | Should -BeNullOrEmpty
+            Get-TestAuditSddl -Path $file | Should -BeNullOrEmpty
+            Get-TestDaclSddl -Path $file | Should -BeExactly $daclBefore
+        }
+    }
+
     Context 'Direct call of -Path with -AppliesTo' {
         # Remove-NTFSAudit PathSimple (judged-audit.csv): every existing call binds it only through a splat
         # (PermissionScopes.Tests.ps1); this one names the set's parameters directly.
@@ -512,6 +568,38 @@ Describe 'Remove-NTFSAudit' {
             (Get-TestAccountAuditRule -Acl $sd.SecurityDescriptor -Account $keeper) | Should -HaveCount 1
         }
     }
+
+    Context 'Leaving the item on disk untouched until Set-NTFSSecurityDescriptor writes the change' {
+        # judged-audit.csv (Remove-NTFSAudit SDSimple and SDComplex): the pipeline test above (binding
+        # -SecurityDescriptor by property name) proves only that the in-memory descriptor lost the account's rule;
+        # this proves the item on disk keeps its audit section until Set-NTFSSecurityDescriptor writes it, and that
+        # -PassThru returns audit rule objects for the SDComplex set too.
+        It 'Should remove the entry from the <Set> descriptor only in memory, until Set-NTFSSecurityDescriptor writes it, and return audit rule objects with -PassThru' -ForEach @(
+            @{ Set = 'SDSimple'; ExtraProperties = @{ AppliesTo = 'ThisFolderOnly' } }
+            @{ Set = 'SDComplex'; ExtraProperties = @{ InheritanceFlags = 'None'; PropagationFlags = 'None' } }
+        ) -Skip:(-not $canReadAudit) {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name "RemoveSDUntouched$Set"
+            Add-NTFSAudit -Path $file @entry @ExtraProperties -ErrorAction Stop
+            Add-NTFSAudit -Path $file -Account $keeper -AccessRights Delete @ExtraProperties -ErrorAction Stop
+            $auditBefore = Get-TestAuditSddl -Path $file
+            $daclBefore = Get-TestDaclSddl -Path $file
+            $sd = Get-NTFSSecurityDescriptor -Path $file -ErrorAction Stop
+
+            $result = @(Remove-NTFSAudit -SecurityDescriptor $sd @entry @ExtraProperties -PassThru -ErrorAction Stop)
+
+            $result | Should -Not -BeNullOrEmpty
+            $result | ForEach-Object -Process { $_ | Should -BeOfType [Security2.FileSystemAuditRule2] }
+            (Get-TestAccountAuditRule -Acl $sd.SecurityDescriptor -Account $probe) | Should -BeNullOrEmpty
+            Get-TestAuditSddl -Path $file | Should -BeExactly $auditBefore
+
+            Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorAction Stop
+
+            (Get-TestAccountAuditRule -Acl (Get-TestAuditAcl -Path $file) -Account $probe) | Should -BeNullOrEmpty
+            (Get-TestAccountAuditRule -Acl (Get-TestAuditAcl -Path $file) -Account $keeper) | Should -HaveCount 1
+            Get-TestAuditSddl -Path $file | Should -Not -BeExactly $auditBefore
+            Get-TestDaclSddl -Path $file | Should -BeExactly $daclBefore
+        }
+    }
 }
 
 Describe 'Clear-NTFSAudit' {
@@ -531,6 +619,25 @@ Describe 'Clear-NTFSAudit' {
             @(Get-NTFSAudit -Path $second -ExcludeInherited) | Should -BeNullOrEmpty
             Get-TestDaclSddl -Path $first | Should -BeExactly $daclBefore[0]
             Get-TestDaclSddl -Path $second | Should -BeExactly $daclBefore[1]
+        }
+
+        # judged-audit.csv (Clear-NTFSAudit Path): no existing test pipes a failing path and asserts the result of
+        # the succeeding path that follows it.
+        It 'Should clear the audit entries of the path that follows a missing one, and write only a ReadFileError for the missing one' -Skip:(-not $canReadAudit) {
+            $missing = Join-Path -Path $sandbox -ChildPath ('ClearPipeMissing-{0}' -f [guid]::NewGuid().ToString('N'))
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $missing
+            $good = New-TestSandboxItem -Sandbox $sandbox -Name 'ClearPipeGoodAfterMissing'
+            Add-NTFSAudit -Path $good @entry -InheritanceFlags None -PropagationFlags None -ErrorAction Stop
+            $daclBefore = Get-TestDaclSddl -Path $good
+
+            $missing, $good | Clear-NTFSAudit -ErrorVariable clearErrors -ErrorAction SilentlyContinue
+
+            $clearErrors | Should -HaveCount 1
+            $clearErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadFileError,*'
+            $clearErrors[0].CategoryInfo.Category | Should -Be 'OpenError'
+            $clearErrors[0].TargetObject | Should -Be $missing
+            @(Get-NTFSAudit -Path $good -ExcludeInherited) | Should -BeNullOrEmpty
+            Get-TestDaclSddl -Path $good | Should -BeExactly $daclBefore
         }
     }
 
@@ -663,6 +770,27 @@ Describe 'Get-NTFSAudit' {
             ($result | ForEach-Object -Process { '{0}|{1}|{2}' -f $_.Account.Sid, $_.AccessRights, $_.AuditFlags }) -join ';' | Should -Be ($expected -join ';')
         }
     }
+
+    Context 'Output of a security descriptor, independent of the Path set' {
+        # judged-audit.csv (Get-NTFSAudit SD): the pipeline test above compares the SD set's output with the Path
+        # set's output; this asserts concrete values instead.
+        It 'Should return the entries of a security descriptor with the expected type, account, rights, flags, and inherited state' -Skip:(-not $canReadAudit) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'GetAuditSDValues' -Directory
+            Add-NTFSAudit -Path $folder -Account $probe -AccessRights ReadData -AuditFlags Failure -InheritanceFlags None -PropagationFlags None -ErrorAction Stop
+            $sd = Get-NTFSSecurityDescriptor -Path $folder -ErrorAction Stop
+
+            $result = @(Get-NTFSAudit -SecurityDescriptor $sd -ErrorAction Stop)
+
+            $result | Should -HaveCount 1
+            $result[0] | Should -BeOfType [Security2.FileSystemAuditRule2]
+            $result[0].FullName | Should -Be $folder
+            $result[0].Account.Sid | Should -Be $probe
+            $result[0].AccessRights.HasFlag([Security2.FileSystemRights2]::ReadData) | Should -BeTrue
+            $result[0].AuditFlags | Should -Be ([System.Security.AccessControl.AuditFlags]::Failure)
+            $result[0].IsInherited | Should -BeFalse
+            $result[0].InheritanceEnabled | Should -BeTrue
+        }
+    }
 }
 
 Describe 'Get-NTFSOrphanedAudit' {
@@ -684,6 +812,43 @@ Describe 'Get-NTFSOrphanedAudit' {
             $result | Should -HaveCount 1
             $result[0].FullName | Should -Be $orphaned
             $result[0].Account.Sid | Should -Be 'S-1-5-21-1-2-3-9001'
+        }
+    }
+
+    Context 'Without the Security privilege' {
+        # judged-audit.csv (Get-NTFSOrphanedAudit Path): Audit.Tests.ps1:304 asserts the ErrorId only; this adds
+        # the category. Without the privilege, .NET throws PrivilegeNotHeldException, not UnauthorizedAccessException,
+        # so the category is OpenError, like Get-NTFSAudit (Audit.Tests.ps1:48); PermissionDenied is a Limit (needs a
+        # lab or a remote server).
+        It 'Should write a ReadSecurityError with category OpenError and the path as target' -Skip:$canReadAudit {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'OrphanedNoPrivilege'
+
+            $result = @(Get-NTFSOrphanedAudit -Path $file -ErrorVariable orphanedErrors -ErrorAction SilentlyContinue)
+
+            $result | Should -BeNullOrEmpty
+            $orphanedErrors | Should -HaveCount 1
+            $orphanedErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadSecurityError,*'
+            $orphanedErrors[0].CategoryInfo.Category | Should -Be 'OpenError'
+            $orphanedErrors[0].TargetObject | Should -Be $file
+        }
+    }
+
+    Context 'Filtering a path with -ExcludeExplicit' {
+        It 'Should return only the inherited orphaned entry with -ExcludeExplicit' -Skip:(-not $canReadAudit) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'OrphanedExcludeExplicitFolder' -Directory
+            Add-NTFSAudit -Path $folder -Account 'S-1-5-21-1-2-3-9101' -AccessRights ReadData -AppliesTo ThisFolderAndFiles -ErrorAction Stop
+            $child = Join-Path -Path $folder -ChildPath 'Child.txt'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $child
+            Set-Content -LiteralPath $child -Value 'Child'
+            Add-NTFSAudit -Path $child -Account 'S-1-5-21-1-2-3-9102' -AccessRights Delete -InheritanceFlags None -PropagationFlags None -ErrorAction Stop
+
+            $all = @(Get-NTFSOrphanedAudit -Path $child -ErrorAction Stop)
+            $result = @(Get-NTFSOrphanedAudit -Path $child -ExcludeExplicit -ErrorAction Stop)
+
+            $all | Should -HaveCount 2
+            $result | Should -HaveCount 1
+            $result[0].Account.Sid | Should -Be 'S-1-5-21-1-2-3-9101'
+            $result[0].IsInherited | Should -BeTrue
         }
     }
 
@@ -721,6 +886,31 @@ Describe 'Get-NTFSOrphanedAudit' {
             $result[0] | Should -BeOfType [Security2.FileSystemAuditRule2]
             $result[0].Account.Sid | Should -Be 'S-1-5-21-1-2-3-9003'
             $result[0].FullName | Should -Be $file
+        }
+    }
+
+    Context '-Account and -Exclude filters with a descriptor' {
+        # judged-audit.csv (Get-NTFSOrphanedAudit SD): no existing test passes -Account or -ExcludeInherited/
+        # -ExcludeExplicit together with a descriptor.
+        It 'Should filter the orphaned entries of a piped descriptor by -Account, -ExcludeExplicit, and -ExcludeInherited' -Skip:(-not $canReadAudit) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'OrphanedSDFilterFolder' -Directory
+            Add-NTFSAudit -Path $folder -Account 'S-1-5-21-1-2-3-9201' -AccessRights ReadData -AppliesTo ThisFolderAndFiles -ErrorAction Stop
+            $child = Join-Path -Path $folder -ChildPath 'Child.txt'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $child
+            Set-Content -LiteralPath $child -Value 'Child'
+            Add-NTFSAudit -Path $child -Account 'S-1-5-21-1-2-3-9202' -AccessRights Delete -InheritanceFlags None -PropagationFlags None -ErrorAction Stop
+            $sd = Get-NTFSSecurityDescriptor -Path $child -ErrorAction Stop
+
+            $inheritedOnly = @(Get-NTFSOrphanedAudit -SecurityDescriptor $sd -ExcludeExplicit -ErrorAction Stop)
+            $explicitOnly = @(Get-NTFSOrphanedAudit -SecurityDescriptor $sd -ExcludeInherited -ErrorAction Stop)
+            $byAccount = @(Get-NTFSOrphanedAudit -SecurityDescriptor $sd -Account 'S-1-5-21-1-2-3-9202' -ErrorAction Stop)
+
+            $inheritedOnly | Should -HaveCount 1
+            $inheritedOnly[0].Account.Sid | Should -Be 'S-1-5-21-1-2-3-9201'
+            $explicitOnly | Should -HaveCount 1
+            $explicitOnly[0].Account.Sid | Should -Be 'S-1-5-21-1-2-3-9202'
+            $byAccount | Should -HaveCount 1
+            $byAccount[0].Account.Sid | Should -Be 'S-1-5-21-1-2-3-9202'
         }
     }
 }

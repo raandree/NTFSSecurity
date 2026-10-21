@@ -25,6 +25,24 @@ BeforeDiscovery {
         @{ Name = 'Get-NTFSEffectiveAccess'; Types = @('Security2.FileSystemAccessRule2') }
         @{ Name = 'Get-NTFSSimpleAccess'; Types = @('Security2.SimpleFileSystemAccessRule') }
     )
+
+    # The 13 named -AppliesTo scopes, each as the ACE flags that PermissionScopes.Tests.ps1 also uses, so that an
+    # entry a security descriptor set added can be read back with .NET independently of the cmdlet.
+    $sdScopeCases = @(
+        @{ Name = 'ThisFolderOnly'; Inheritance = 'None'; Propagation = 'None' }
+        @{ Name = 'ThisFolderSubfoldersAndFiles'; Inheritance = 'ContainerInherit, ObjectInherit'; Propagation = 'None' }
+        @{ Name = 'ThisFolderAndSubfolders'; Inheritance = 'ContainerInherit'; Propagation = 'None' }
+        @{ Name = 'ThisFolderAndFiles'; Inheritance = 'ObjectInherit'; Propagation = 'None' }
+        @{ Name = 'SubfoldersAndFilesOnly'; Inheritance = 'ContainerInherit, ObjectInherit'; Propagation = 'InheritOnly' }
+        @{ Name = 'SubfoldersOnly'; Inheritance = 'ContainerInherit'; Propagation = 'InheritOnly' }
+        @{ Name = 'FilesOnly'; Inheritance = 'ObjectInherit'; Propagation = 'InheritOnly' }
+        @{ Name = 'ThisFolderSubfoldersAndFilesOneLevel'; Inheritance = 'ContainerInherit, ObjectInherit'; Propagation = 'NoPropagateInherit' }
+        @{ Name = 'ThisFolderAndSubfoldersOneLevel'; Inheritance = 'ContainerInherit'; Propagation = 'NoPropagateInherit' }
+        @{ Name = 'ThisFolderAndFilesOneLevel'; Inheritance = 'ObjectInherit'; Propagation = 'NoPropagateInherit' }
+        @{ Name = 'SubfoldersAndFilesOnlyOneLevel'; Inheritance = 'ContainerInherit, ObjectInherit'; Propagation = 'InheritOnly, NoPropagateInherit' }
+        @{ Name = 'SubfoldersOnlyOneLevel'; Inheritance = 'ContainerInherit'; Propagation = 'InheritOnly, NoPropagateInherit' }
+        @{ Name = 'FilesOnlyOneLevel'; Inheritance = 'ObjectInherit'; Propagation = 'InheritOnly, NoPropagateInherit' }
+    )
 }
 
 BeforeAll {
@@ -265,6 +283,135 @@ Describe 'Add-NTFSAccess' {
             $guestsRule[0].FileSystemRights.HasFlag([System.Security.AccessControl.FileSystemRights]::ReadData) | Should -BeTrue
         }
     }
+
+    Context 'PathComplex parameter set, additional state assertions' {
+        It 'Should add an explicit allow entry for each of several accounts bound positionally, with the default scope' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'AddPositionalSeveral' -Directory
+
+            Add-NTFSAccess $folder @('S-1-1-0', 'S-1-5-32-546') 'ReadData' -ErrorAction Stop
+
+            foreach ($account in 'S-1-1-0', 'S-1-5-32-546') {
+                $rule = @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, $sidType) |
+                        Where-Object -FilterScript { $_.IdentityReference.Value -eq $account })
+                $rule | Should -HaveCount 1
+                $rule[0].AccessControlType | Should -Be ([System.Security.AccessControl.AccessControlType]::Allow)
+                $rule[0].FileSystemRights.HasFlag([System.Security.AccessControl.FileSystemRights]::ReadData) | Should -BeTrue
+                $rule[0].InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags] 'ContainerInherit, ObjectInherit')
+                $rule[0].PropagationFlags | Should -Be ([System.Security.AccessControl.PropagationFlags]::None)
+            }
+        }
+
+        # Only an Allow entry gets Synchronize added (the page); a Deny entry written through -Path must carry
+        # exactly the requested rights.
+        It 'Should write a Deny entry through -Path with exactly the requested rights and no Synchronize' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'AddDenySynchronize'
+
+            Add-NTFSAccess -Path $file -Account 'S-1-1-0' -AccessRights ReadData -AccessType Deny -ErrorAction Stop
+
+            $rule = @((Get-Acl -LiteralPath $file).GetAccessRules($true, $false, $sidType) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
+            $rule | Should -HaveCount 1
+            $rule[0].AccessControlType | Should -Be ([System.Security.AccessControl.AccessControlType]::Deny)
+            $rule[0].FileSystemRights | Should -Be ([System.Security.AccessControl.FileSystemRights]::ReadData)
+        }
+    }
+
+    Context 'PathSimple parameter set, Deny entries and a denied write' {
+        BeforeAll {
+            # So that an elevated session meets the same denial as a basic user (see PathErrors.Tests.ps1).
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        It 'Should report AddAceError by category and target for a denied write scoped by -AppliesTo, and leave the item unchanged' {
+            $blocked = New-TestSandboxItem -Sandbox $sandbox -Name 'AddSimpleBlocked'
+            Block-TestWritePermission -Sandbox $sandbox -Path $blocked
+            $before = (Get-Acl -LiteralPath $blocked).Sddl
+
+            Add-NTFSAccess -Path $blocked -Account 'S-1-1-0' -AccessRights ReadData -AppliesTo ThisFolderOnly -ErrorVariable addErrors -ErrorAction SilentlyContinue
+
+            $addErrors | Should -HaveCount 1
+            $addErrors[0].FullyQualifiedErrorId | Should -BeLike 'AddAceError,*'
+            $addErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+            $addErrors[0].TargetObject | Should -Be $blocked
+            (Get-Acl -LiteralPath $blocked).Sddl | Should -BeExactly $before
+        }
+
+        # .NET refuses to build a deny entry without rights for this parameter set too; the write-denial code path
+        # above is shared with PathComplex (Access.Tests.ps1:740), so only the categorization needs its own case here.
+        It 'Should write an AddAceError for a Deny entry without rights through the PathSimple set, and change nothing' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'AddSimpleDenyNone'
+            $before = (Get-Acl -LiteralPath $file).Sddl
+
+            $result = @(Add-NTFSAccess -Path $file -Account 'S-1-1-0' -AccessRights None -AccessType Deny -AppliesTo ThisFolderOnly -PassThru -ErrorVariable addErrors -ErrorAction SilentlyContinue)
+
+            $result | Should -BeNullOrEmpty
+            $addErrors | Should -HaveCount 1
+            $addErrors[0].FullyQualifiedErrorId | Should -BeLike 'AddAceError,*'
+            $addErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+            (Get-Acl -LiteralPath $file).Sddl | Should -BeExactly $before
+        }
+
+        It 'Should write a Deny entry scoped by -AppliesTo with exactly the requested rights and no Synchronize' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'AddSimpleDenyScoped' -Directory
+
+            Add-NTFSAccess -Path $folder -Account 'S-1-1-0' -AccessRights ReadData -AccessType Deny -AppliesTo ThisFolderAndSubfolders -ErrorAction Stop
+
+            $rule = @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, $sidType) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
+            $rule | Should -HaveCount 1
+            $rule[0].AccessControlType | Should -Be ([System.Security.AccessControl.AccessControlType]::Deny)
+            $rule[0].FileSystemRights | Should -Be ([System.Security.AccessControl.FileSystemRights]::ReadData)
+            $rule[0].InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags]::ContainerInherit)
+            $rule[0].PropagationFlags | Should -Be ([System.Security.AccessControl.PropagationFlags]::None)
+        }
+    }
+
+    Context 'SDSimple parameter set' {
+        It 'Should add an entry with the scope <Name> to each of several descriptors bound through the pipeline, read back with .NET, and leave the items unchanged on disk' -ForEach $sdScopeCases {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'AddSdScopeFirst' -Directory
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'AddSdScopeSecond' -Directory
+            $before = foreach ($folder in $first, $second) { (Get-Acl -LiteralPath $folder).GetSecurityDescriptorSddlForm('Access') }
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $first, $second -ErrorAction Stop)
+
+            $descriptors | Add-NTFSAccess -Account 'S-1-5-32-546' -AccessRights ReadData -AppliesTo $Name -ErrorAction Stop
+
+            for ($index = 0; $index -lt 2; $index++) {
+                $rule = @($descriptors[$index].SecurityDescriptor.GetAccessRules($true, $false, $sidType) |
+                        Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-32-546' })
+                $rule | Should -HaveCount 1
+                $rule[0].AccessControlType | Should -Be ([System.Security.AccessControl.AccessControlType]::Allow)
+                $rule[0].InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags] $Inheritance)
+                $rule[0].PropagationFlags | Should -Be ([System.Security.AccessControl.PropagationFlags] $Propagation)
+            }
+            (Get-Acl -LiteralPath $first).GetSecurityDescriptorSddlForm('Access') | Should -BeExactly $before[0]
+            (Get-Acl -LiteralPath $second).GetSecurityDescriptorSddlForm('Access') | Should -BeExactly $before[1]
+        }
+    }
+
+    Context 'SDComplex parameter set with several descriptors' {
+        It 'Should add the entry to each of several descriptors bound through the pipeline, read back with .NET, and leave the items unchanged on disk' {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'AddSdComplexPipeFirst'
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'AddSdComplexPipeSecond'
+            $before = foreach ($file in $first, $second) { (Get-Acl -LiteralPath $file).Sddl }
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $first, $second -ErrorAction Stop)
+
+            $descriptors | Add-NTFSAccess -Account 'S-1-5-21-1-2-3-9501' -AccessRights ReadData, WriteData -InheritanceFlags None -PropagationFlags None -ErrorAction Stop
+
+            for ($index = 0; $index -lt 2; $index++) {
+                $rule = @($descriptors[$index].SecurityDescriptor.GetAccessRules($true, $false, $sidType) |
+                        Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-21-1-2-3-9501' })
+                $rule | Should -HaveCount 1
+                $rule[0].FileSystemRights.HasFlag([System.Security.AccessControl.FileSystemRights]::ReadData) | Should -BeTrue
+                $rule[0].FileSystemRights.HasFlag([System.Security.AccessControl.FileSystemRights]::WriteData) | Should -BeTrue
+            }
+            (Get-Acl -LiteralPath $first).Sddl | Should -BeExactly $before[0]
+            (Get-Acl -LiteralPath $second).Sddl | Should -BeExactly $before[1]
+        }
+    }
 }
 
 Describe 'Remove-NTFSAccess' {
@@ -385,6 +532,202 @@ Describe 'Remove-NTFSAccess' {
             $guestsRule = @($rules | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-32-546' })
             $guestsRule | Should -HaveCount 1
             $guestsRule[0].FileSystemRights.HasFlag([System.Security.AccessControl.FileSystemRights]::Delete) | Should -BeTrue
+        }
+    }
+
+    Context 'PathComplex parameter set, additional state assertions' {
+        It 'Should return exactly the surviving entries with -PassThru for each of several paths bound through the pipeline in one call' {
+            $keeper = 'S-1-1-0'
+            $target = 'S-1-5-32-546'
+            $folders = @(
+                New-TestSandboxItem -Sandbox $sandbox -Name 'RemovePassThruCountFirst' -Directory
+                New-TestSandboxItem -Sandbox $sandbox -Name 'RemovePassThruCountSecond' -Directory
+            )
+            foreach ($folder in $folders) {
+                Add-NTFSAccess -Path $folder -Account $keeper -AccessRights ReadData -ErrorAction Stop
+                Add-NTFSAccess -Path $folder -Account $target -AccessRights ReadData -ErrorAction Stop
+            }
+            # The independent oracle: every rule of the item that isn't the one being removed.
+            $expected = foreach ($folder in $folders) {
+                @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $true, $sidType) |
+                        Where-Object -FilterScript { $_.IdentityReference.Value -ne $target }).Count
+            }
+
+            $result = @(Get-Item2 -Path $folders | Remove-NTFSAccess -Account $target -AccessRights ReadData -PassThru -ErrorAction Stop)
+
+            for ($index = 0; $index -lt $folders.Count; $index++) {
+                $folderResult = @($result | Where-Object -FilterScript { $_.FullName -eq $folders[$index] })
+                $folderResult | Should -HaveCount $expected[$index]
+                $folderResult | ForEach-Object -Process { $_ | Should -BeOfType ([Security2.FileSystemAccessRule2]) }
+                @($folderResult | Where-Object -FilterScript { $_.Account.Sid -eq $target }) | Should -BeNullOrEmpty
+                @($folderResult | Where-Object -FilterScript { $_.Account.Sid -eq $keeper }) | Should -HaveCount 1
+            }
+        }
+
+        It 'Should remove the entries of several accounts bound positionally, leaving another account untouched' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'RemovePositionalSeveral' -Directory
+            Add-NTFSAccess -Path $folder -Account 'S-1-1-0' -AccessRights ReadData -ErrorAction Stop
+            Add-NTFSAccess -Path $folder -Account 'S-1-5-32-546' -AccessRights ReadData -ErrorAction Stop
+            Add-NTFSAccess -Path $folder -Account 'S-1-5-21-1-2-3-9701' -AccessRights ReadData -ErrorAction Stop
+
+            Remove-NTFSAccess $folder @('S-1-1-0', 'S-1-5-32-546') 'ReadData' -ErrorAction Stop
+
+            $rules = (Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, $sidType)
+            @($rules | Where-Object -FilterScript { $_.IdentityReference.Value -in 'S-1-1-0', 'S-1-5-32-546' }) | Should -BeNullOrEmpty
+            @($rules | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-21-1-2-3-9701' }) | Should -HaveCount 1
+        }
+    }
+
+    Context 'PathSimple parameter set, a Deny entry and pipeline errors' {
+        BeforeAll {
+            # So that an elevated session meets the same denial as a basic user (see PathErrors.Tests.ps1). Harmless
+            # for the Deny-reduction test below, which never hits a permission denial.
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        It 'Should take only the requested rights from a Deny entry scoped by -AppliesTo without -RemoveSpecific, and keep its flags' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSimpleDenyReduce' -Directory
+            Add-NTFSAccess -Path $folder -Account 'S-1-5-21-1-2-3-9702' -AccessRights Modify -AccessType Deny -AppliesTo ThisFolderAndSubfolders -ErrorAction Stop
+
+            Remove-NTFSAccess -Path $folder -Account 'S-1-5-21-1-2-3-9702' -AccessRights ReadData -AccessType Deny -AppliesTo ThisFolderAndSubfolders -ErrorAction Stop
+
+            $rule = @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, $sidType) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-21-1-2-3-9702' })
+            $rule | Should -HaveCount 1
+            $rule[0].AccessControlType | Should -Be ([System.Security.AccessControl.AccessControlType]::Deny)
+            $rule[0].FileSystemRights.HasFlag([System.Security.AccessControl.FileSystemRights]::ReadData) | Should -BeFalse
+            $rule[0].FileSystemRights.HasFlag([System.Security.AccessControl.FileSystemRights]::WriteData) | Should -BeTrue
+            $rule[0].InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags]::ContainerInherit)
+            $rule[0].PropagationFlags | Should -Be ([System.Security.AccessControl.PropagationFlags]::None)
+        }
+
+        It 'Should report a missing path''s and a denied path''s errors by category and target, and still scope the surviving paths'' entries, all bound through the pipeline' {
+            $missing = Join-Path -Path $sandbox -ChildPath ('RemoveSimpleMissing-{0}' -f [guid]::NewGuid().ToString('N').Substring(0, 8))
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $missing
+            $blocked = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSimpleBlocked' -Directory
+            $survivor1 = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSimpleSurvivor1' -Directory
+            $survivor2 = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSimpleSurvivor2' -Directory
+            foreach ($folder in $blocked, $survivor1, $survivor2) {
+                Add-NTFSAccess -Path $folder -Account 'S-1-1-0' -AccessRights ReadData -AppliesTo ThisFolderOnly -ErrorAction Stop
+            }
+            Block-TestWritePermission -Sandbox $sandbox -Path $blocked
+            $before = (Get-Acl -LiteralPath $blocked).Sddl
+            # Property-name binding of -Path, like the piped objects of the Add-NTFSAccess pipeline tests; -Account,
+            # -AccessRights and -AppliesTo come from the call itself and apply to every piped object alike.
+            $paths = foreach ($value in $missing, $blocked, $survivor1, $survivor2) { [pscustomobject]@{ Path = $value } }
+
+            $result = @($paths | Remove-NTFSAccess -Account 'S-1-1-0' -AccessRights ReadData -AppliesTo ThisFolderOnly -PassThru -ErrorVariable removeErrors -ErrorAction SilentlyContinue)
+
+            $removeErrors | Should -HaveCount 2
+            $missingError = @($removeErrors | Where-Object -FilterScript { $_.TargetObject -eq $missing })
+            $missingError | Should -HaveCount 1
+            $missingError[0].FullyQualifiedErrorId | Should -BeLike 'ReadFileError,*'
+            $missingError[0].CategoryInfo.Category | Should -Be 'OpenError'
+            $blockedError = @($removeErrors | Where-Object -FilterScript { $_.TargetObject -eq $blocked })
+            $blockedError | Should -HaveCount 1
+            $blockedError[0].FullyQualifiedErrorId | Should -BeLike 'RemoveAceError,*'
+            $blockedError[0].CategoryInfo.Category | Should -Be 'WriteError'
+            (Get-Acl -LiteralPath $blocked).Sddl | Should -BeExactly $before
+            foreach ($survivor in $survivor1, $survivor2) {
+                @((Get-Acl -LiteralPath $survivor).GetAccessRules($true, $false, $sidType) |
+                        Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) | Should -BeNullOrEmpty
+                @($result | Where-Object -FilterScript { $_.FullName -eq $survivor }) | Should -Not -BeNullOrEmpty
+            }
+        }
+    }
+
+    Context 'SDSimple parameter set' {
+        It 'Should take only the requested rights from an entry scoped by -AppliesTo on a descriptor without -RemoveSpecific, keep its flags, and leave the item on disk unchanged until Set-NTFSSecurityDescriptor' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSdSimpleReduce' -Directory
+            Add-NTFSAccess -Path $folder -Account 'S-1-5-21-1-2-3-9602' -AccessRights Modify -AppliesTo ThisFolderAndSubfolders -ErrorAction Stop
+            $before = (Get-Acl -LiteralPath $folder).Sddl
+            $sd = Get-NTFSSecurityDescriptor -Path $folder -ErrorAction Stop
+
+            Remove-NTFSAccess -SecurityDescriptor $sd -Account 'S-1-5-21-1-2-3-9602' -AccessRights ReadData -AppliesTo ThisFolderAndSubfolders -ErrorAction Stop
+
+            $rule = @($sd.SecurityDescriptor.GetAccessRules($true, $false, $sidType) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-21-1-2-3-9602' })
+            $rule | Should -HaveCount 1
+            $rule[0].FileSystemRights.HasFlag([System.Security.AccessControl.FileSystemRights]::ReadData) | Should -BeFalse
+            $rule[0].FileSystemRights.HasFlag([System.Security.AccessControl.FileSystemRights]::WriteData) | Should -BeTrue
+            $rule[0].InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags]::ContainerInherit)
+            $rule[0].PropagationFlags | Should -Be ([System.Security.AccessControl.PropagationFlags]::None)
+            (Get-Acl -LiteralPath $folder).Sddl | Should -BeExactly $before
+
+            Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorAction Stop
+
+            $onDisk = @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, $sidType) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-21-1-2-3-9602' })
+            $onDisk | Should -HaveCount 1
+            $onDisk[0].FileSystemRights.HasFlag([System.Security.AccessControl.FileSystemRights]::ReadData) | Should -BeFalse
+        }
+
+        It 'Should remove the matching entry from each of several descriptors bound through the pipeline for the Simple parameter set, leaving the items unchanged on disk' {
+            $folders = @(
+                New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSdSimplePipeFirst' -Directory
+                New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSdSimplePipeSecond' -Directory
+            )
+            foreach ($folder in $folders) {
+                Add-NTFSAccess -Path $folder -Account 'S-1-5-21-1-2-3-9603' -AccessRights ReadData -AppliesTo ThisFolderOnly -ErrorAction Stop
+            }
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $folders -ErrorAction Stop)
+
+            $descriptors | Remove-NTFSAccess -Account 'S-1-5-21-1-2-3-9603' -AccessRights ReadData -AppliesTo ThisFolderOnly -RemoveSpecific -ErrorAction Stop
+
+            foreach ($sd in $descriptors) {
+                @($sd.SecurityDescriptor.GetAccessRules($true, $false, $sidType) |
+                        Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-21-1-2-3-9603' }) | Should -BeNullOrEmpty
+            }
+            foreach ($folder in $folders) {
+                @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, $sidType) |
+                        Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-21-1-2-3-9603' }) | Should -HaveCount 1
+            }
+        }
+    }
+
+    Context 'SDComplex parameter set' {
+        It 'Should remove an on-disk entry from a descriptor in memory only, and write the change through only when Set-NTFSSecurityDescriptor runs' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSdWriteThrough'
+            Add-NTFSAccess -Path $file -Account 'S-1-5-21-1-2-3-9601' -AccessRights ReadData -ErrorAction Stop
+            $sd = Get-NTFSSecurityDescriptor -Path $file -ErrorAction Stop
+
+            Remove-NTFSAccess -SecurityDescriptor $sd -Account 'S-1-5-21-1-2-3-9601' -AccessRights ReadData -ErrorAction Stop
+
+            @($sd.SecurityDescriptor.GetAccessRules($true, $false, $sidType) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-21-1-2-3-9601' }) | Should -BeNullOrEmpty
+            @((Get-Acl -LiteralPath $file).GetAccessRules($true, $false, $sidType) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-21-1-2-3-9601' }) | Should -HaveCount 1
+
+            Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorAction Stop
+
+            @((Get-Acl -LiteralPath $file).GetAccessRules($true, $false, $sidType) |
+                    Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-21-1-2-3-9601' }) | Should -BeNullOrEmpty
+        }
+
+        It 'Should remove the matching entry from each of several descriptors bound through the pipeline for the Complex parameter set, leaving the items unchanged on disk' {
+            $files = @(
+                New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSdComplexPipeFirst'
+                New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveSdComplexPipeSecond'
+            )
+            foreach ($file in $files) {
+                Add-NTFSAccess -Path $file -Account 'S-1-5-21-1-2-3-9604' -AccessRights ReadData -ErrorAction Stop
+            }
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $files -ErrorAction Stop)
+
+            $descriptors | Remove-NTFSAccess -Account 'S-1-5-21-1-2-3-9604' -AccessRights ReadData -ErrorAction Stop
+
+            foreach ($sd in $descriptors) {
+                @($sd.SecurityDescriptor.GetAccessRules($true, $false, $sidType) |
+                        Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-21-1-2-3-9604' }) | Should -BeNullOrEmpty
+            }
+            foreach ($file in $files) {
+                @((Get-Acl -LiteralPath $file).GetAccessRules($true, $false, $sidType) |
+                        Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-21-1-2-3-9604' }) | Should -HaveCount 1
+            }
         }
     }
 }
@@ -518,6 +861,29 @@ Describe 'Get-NTFSAccess' {
         }
     }
 
+    Context 'Path parameter set without -Path' {
+        It 'Should return the entries of the current location as actual Security2.FileSystemAccessRule2 objects when -Path is omitted' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'GetAccessNoPath' -Directory
+            Add-NTFSAccess -Path $folder -Account 'S-1-1-0' -AccessRights ReadData -ErrorAction Stop
+            $expected = @(Get-NTFSAccess -Path $folder -ErrorAction Stop)
+
+            Push-Location -LiteralPath $folder
+            try {
+                $result = @(Get-NTFSAccess -ErrorAction Stop)
+            }
+            finally {
+                Pop-Location
+            }
+
+            $result | Should -HaveCount $expected.Count
+            $result | ForEach-Object -Process {
+                $_ | Should -BeOfType ([Security2.FileSystemAccessRule2])
+                $_.FullName | Should -Be $folder
+            }
+            @($result | Where-Object -FilterScript { $_.Account.Sid -eq 'S-1-1-0' -and -not $_.IsInherited }) | Should -HaveCount 1
+        }
+    }
+
     Context 'SD parameter set' {
         It 'Should filter an entry added to a descriptor in memory by -Account, partition it with -ExcludeInherited and -ExcludeExplicit, and read two descriptors bound through the pipeline' {
             $file = New-TestSandboxItem -Sandbox $sandbox -Name 'GetAccessSdFilter'
@@ -595,6 +961,36 @@ Describe 'Get-NTFSOrphanedAccess' {
         }
     }
 
+    Context 'Path parameter set, unreadable folder' {
+        BeforeAll {
+            # Forcing EnablePrivileges off reproduces the same denial as a basic user for an elevated session, as
+            # PathErrors.Tests.ps1 does for the same scenario.
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        # Unlike Get-NTFSAccess, ReadSecurityError of this cmdlet has one consistent category after a failed
+        # ownership retry: ReadError (GetOrphanedAccess.cs), so it is safe to pin.
+        It 'Should write a ReadSecurityError categorized as ReadError after a failed ownership retry, and still return the next path''s orphaned entry' {
+            $blocked = New-TestSandboxItem -Sandbox $sandbox -Name 'OrphanedUnreadable'
+            Block-TestReadPermission -Sandbox $sandbox -Path $blocked
+            $next = New-TestSandboxItem -Sandbox $sandbox -Name 'OrphanedUnreadableNext'
+            Add-NTFSAccess -Path $next -Account 'S-1-5-21-1-2-3-9301' -AccessRights ReadData -ErrorAction Stop
+
+            $result = @(Get-NTFSOrphanedAccess -Path $blocked, $next -ErrorVariable orphanErrors -ErrorAction SilentlyContinue)
+
+            $orphanErrors | Should -HaveCount 1
+            $orphanErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadSecurityError,*'
+            $orphanErrors[0].CategoryInfo.Category | Should -Be 'ReadError'
+            $orphanErrors[0].TargetObject | Should -Be $blocked
+            $result | Should -HaveCount 1
+            "$($result[0].Account.Sid)" | Should -Be 'S-1-5-21-1-2-3-9301'
+        }
+    }
+
     Context 'SD parameter set' {
         It 'Should filter a descriptor''s orphaned entries by -Account, report both orphaned Sids by default, exclude them all with -ExcludeExplicit, and read two descriptors bound through the pipeline' {
             $file = New-TestSandboxItem -Sandbox $sandbox -Name 'OrphanedSdFile'
@@ -618,6 +1014,28 @@ Describe 'Get-NTFSOrphanedAccess' {
 
             @($piped | Where-Object -FilterScript { $_.FullName -eq $file }) | Should -HaveCount 2
             @($piped | Where-Object -FilterScript { $_.FullName -eq $file2 }) | Should -HaveCount 1
+        }
+    }
+
+    Context 'SD parameter set, -ExcludeInherited and an in-memory change' {
+        It 'Should return the explicit entry with -ExcludeInherited and still report an entry added to the descriptor only in memory' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'OrphanedSdMemory'
+            Add-NTFSAccess -Path $file -Account 'S-1-5-21-1-2-3-9401' -AccessRights ReadData -ErrorAction Stop
+            $sd = Get-NTFSSecurityDescriptor -Path $file -ErrorAction Stop
+
+            $explicitOnly = @(Get-NTFSOrphanedAccess -SecurityDescriptor $sd -ExcludeInherited -ErrorAction Stop)
+
+            $explicitOnly | Should -HaveCount 1
+            "$($explicitOnly[0].Account.Sid)" | Should -Be 'S-1-5-21-1-2-3-9401'
+
+            Add-NTFSAccess -SecurityDescriptor $sd -Account 'S-1-5-21-1-2-3-9402' -AccessRights ReadData -ErrorAction Stop
+
+            $afterMemoryChange = @(Get-NTFSOrphanedAccess -SecurityDescriptor $sd -ErrorAction Stop)
+
+            ($afterMemoryChange | ForEach-Object -Process { "$($_.Account.Sid)" } | Sort-Object) -join ',' |
+                Should -Be (('S-1-5-21-1-2-3-9401', 'S-1-5-21-1-2-3-9402' | Sort-Object) -join ',')
+            # The disk copy stays as it was: only the descriptor in memory saw the second account.
+            @(Get-NTFSOrphanedAccess -Path $file -ErrorAction Stop) | Should -HaveCount 1
         }
     }
 }
@@ -649,6 +1067,25 @@ Describe 'Get-NTFSSimpleAccess' {
             $simpleErrors[0].CategoryInfo.Category | Should -Be 'OpenError'
             $simpleErrors[0].TargetObject | Should -Be $blocked
             @($result | Where-Object -FilterScript { $_.FullName -eq $blocked }) | Should -BeNullOrEmpty
+            @($result | Where-Object -FilterScript { $_.FullName -eq $next }) | Should -Not -BeNullOrEmpty
+        }
+    }
+
+    Context 'Path parameter set, missing path' {
+        # Unlike the unreadable-folder case above, a missing path needs no retry and no privilege change: this cmdlet
+        # does not retry as the owner, so the ReadError of a missing path was pinned by ErrorId only until now.
+        It 'Should report a missing path''s error by category and target and still report the next folder''s entries' {
+            $missing = Join-Path -Path $sandbox -ChildPath ('SimpleMissing-{0}' -f [guid]::NewGuid().ToString('N').Substring(0, 8))
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $missing
+            $next = New-TestSandboxItem -Sandbox $sandbox -Name 'SimpleMissingNext' -Directory
+            Add-NTFSAccess -Path $next -Account 'S-1-1-0' -AccessRights ReadData -ErrorAction Stop
+
+            $result = @(Get-NTFSSimpleAccess -Path $missing, $next -IncludeRootFolder:$false -ErrorVariable simpleErrors -ErrorAction SilentlyContinue)
+
+            $simpleErrors | Should -HaveCount 1
+            $simpleErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadError,*'
+            $simpleErrors[0].CategoryInfo.Category | Should -Be 'OpenError'
+            $simpleErrors[0].TargetObject | Should -Be $missing
             @($result | Where-Object -FilterScript { $_.FullName -eq $next }) | Should -Not -BeNullOrEmpty
         }
     }
@@ -707,6 +1144,21 @@ Describe 'Get-NTFSEffectiveAccess' {
             $result | Should -HaveCount 2
             $result[0].FullName | Should -Be $first
             $result[1].FullName | Should -Be $second
+        }
+
+        It 'Should write nothing for a missing path and only the succeeding path''s result in the same call' {
+            $missing = Join-Path -Path $sandbox -ChildPath ('EffectiveMissing-{0}' -f [guid]::NewGuid().ToString('N').Substring(0, 8))
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $missing
+            $next = New-TestSandboxItem -Sandbox $sandbox -Name 'EffectiveMissingNext'
+
+            $result = @(Get-NTFSEffectiveAccess -Path $missing, $next -Account 'S-1-1-0' -WarningAction SilentlyContinue -ErrorVariable accessErrors -ErrorAction SilentlyContinue)
+
+            $accessErrors | Should -HaveCount 1
+            $accessErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadFileError,*'
+            $accessErrors[0].CategoryInfo.Category | Should -Be 'OpenError'
+            $accessErrors[0].TargetObject | Should -Be $missing
+            $result | Should -HaveCount 1
+            $result[0].FullName | Should -Be $next
         }
     }
 

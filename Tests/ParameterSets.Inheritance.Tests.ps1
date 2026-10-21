@@ -90,6 +90,38 @@ BeforeDiscovery {
         @{ Command = 'Disable-NTFSAuditInheritance'; Scope = 'audit'; PreDisable = $false; Expected = $false }
         @{ Command = 'Enable-NTFSAuditInheritance'; Scope = 'audit'; PreDisable = $true; Expected = $true }
     )
+
+    # No -Path: the four cmdlets that the docs say do nothing at all when no path arrives, directly or piped.
+    $noPathInheritanceCases = @(
+        @{ Command = 'Disable-NTFSAccessInheritance'; Parameters = @{}; Scope = 'access' }
+        @{ Command = 'Enable-NTFSAccessInheritance'; Parameters = @{}; Scope = 'access' }
+        @{ Command = 'Disable-NTFSAuditInheritance'; Parameters = @{}; Scope = 'audit' }
+        @{ Command = 'Enable-NTFSAuditInheritance'; Parameters = @{}; Scope = 'audit' }
+        @{ Command = 'Set-NTFSInheritance'; Parameters = @{ AccessInheritanceEnabled = $false }; Scope = 'access' }
+    )
+
+    # Error: a missing path, asserting the OpenError category, for the three Path-set cmdlets that $missingPathOpenErrorCases
+    # above does not cover.
+    $missingPathOpenErrorPathSetCases = @(
+        @{ Command = 'Disable-NTFSAccessInheritance'; Parameters = @{} }
+        @{ Command = 'Enable-NTFSAccessInheritance'; Parameters = @{} }
+        @{ Command = 'Set-NTFSInheritance'; Parameters = @{ AccessInheritanceEnabled = $false } }
+    )
+
+    # State: the -RemoveInheritedAuditRules/-RemoveExplicitAuditRules switches with a -SecurityDescriptor, mirroring
+    # $sdAccessSwitchCases above but read back with the independent .NET audit oracle, not Get-NTFSAudit.
+    $sdAuditSwitchCases = @(
+        @{ Command = 'Disable-NTFSAuditInheritance'; SwitchName = 'RemoveInheritedAuditRules'; Remove = $true }
+        @{ Command = 'Enable-NTFSAuditInheritance'; SwitchName = 'RemoveExplicitAuditRules'; Remove = $false }
+        @{ Command = 'Enable-NTFSAuditInheritance'; SwitchName = 'RemoveExplicitAuditRules'; Remove = $true }
+    )
+
+    # State: Set-NTFSInheritance -AuditInheritanceEnabled, read with the independent .NET audit oracle, not
+    # Get-NTFSInheritance/Get-NTFSAudit.
+    $setInheritanceAuditOracleCases = @(
+        @{ Enable = $false }
+        @{ Enable = $true }
+    )
 }
 
 BeforeAll {
@@ -142,6 +174,22 @@ BeforeAll {
         }
         else {
             [System.IO.FileSystemAclExtensions]::GetAccessControl($info, $sections)
+        }
+    }
+
+    function Protect-TestDaclWithoutModule {
+        # Protects the DACL of an item directly through .NET, keeping its inherited entries as explicit copies, so a
+        # test can read back a protected state that no NTFSSecurity cmdlet created. Not Set-Acl: see Remove-TestSandbox.
+        param ([string] $Path)
+
+        $acl = Get-Acl -LiteralPath $Path
+        $acl.SetAccessRuleProtection($true, $true)
+        $item = Get-Item -LiteralPath $Path
+        if ($PSVersionTable.PSEdition -eq 'Core') {
+            [System.IO.FileSystemAclExtensions]::SetAccessControl($item, $acl)
+        }
+        else {
+            $item.SetAccessControl($acl)
         }
     }
 }
@@ -747,5 +795,303 @@ Describe 'Pipeline: binding into the -Path and -SecurityDescriptor sets that no 
         $byProperty | Should -HaveCount 1
         $byProperty[0].FullName | Should -Be $file
         $byProperty[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Access') | Should -Be $expectedSddl
+    }
+}
+
+Describe 'No -Path: the documented behavior of each cmdlet without a path or a security descriptor' {
+    # Push-Location moves the session into its own, empty sandbox folder first, so that even a cmdlet that wrongly
+    # fell back to the current location could only ever reach this folder, never one of another test.
+    It '<Command> should do nothing without -Path, not even to the current location' -ForEach $noPathInheritanceCases {
+        if ($Scope -eq 'audit' -and -not $canChangeAudit) {
+            Set-ItResult -Skipped -Because 'reading the SACL back needs the Security privilege'
+            return
+        }
+        $here = New-TestSandboxItem -Sandbox $sandbox -Name 'NoPathLocation' -Directory
+        Push-Location -LiteralPath $here
+        try {
+            $before = (Get-Acl -LiteralPath $here).Sddl
+            $auditBefore = if ($Scope -eq 'audit') { (Get-TestAuditAcl -Path $here).GetSecurityDescriptorSddlForm('Audit') }
+
+            $result = @(& $Command @Parameters -PassThru -ErrorVariable cmdErrors -ErrorAction SilentlyContinue)
+
+            $cmdErrors | Should -BeNullOrEmpty
+            $result | Should -BeNullOrEmpty
+            (Get-Acl -LiteralPath $here).Sddl | Should -BeExactly $before
+            if ($Scope -eq 'audit') {
+                (Get-TestAuditAcl -Path $here).GetSecurityDescriptorSddlForm('Audit') | Should -BeExactly $auditBefore
+            }
+        }
+        finally {
+            Pop-Location
+        }
+    }
+
+    It 'Set-NTFSOwner should do nothing without -Path, not even to the current location' {
+        $here = New-TestSandboxItem -Sandbox $sandbox -Name 'NoPathOwnerLocation' -Directory
+        Push-Location -LiteralPath $here
+        try {
+            $before = (Get-Acl -LiteralPath $here).Sddl
+
+            $result = @(Set-NTFSOwner -Account $currentUser -PassThru -ErrorVariable cmdErrors -ErrorAction SilentlyContinue)
+
+            $cmdErrors | Should -BeNullOrEmpty
+            $result | Should -BeNullOrEmpty
+            (Get-Acl -LiteralPath $here).Sddl | Should -BeExactly $before
+        }
+        finally {
+            Pop-Location
+        }
+    }
+
+    It 'Get-NTFSOwner should return nothing without -Path, not even for the current location' {
+        $here = New-TestSandboxItem -Sandbox $sandbox -Name 'NoPathGetOwnerLocation' -Directory
+        Push-Location -LiteralPath $here
+        try {
+            $result = @(Get-NTFSOwner -ErrorVariable ownerErrors -ErrorAction SilentlyContinue)
+
+            $ownerErrors | Should -BeNullOrEmpty
+            $result | Should -BeNullOrEmpty
+        }
+        finally {
+            Pop-Location
+        }
+    }
+
+    It '<Command> should report the current location when no -Path is given, not an empty result' -ForEach @(
+        @{ Command = 'Get-NTFSInheritance' }
+        @{ Command = 'Get-NTFSSecurityDescriptor' }
+    ) {
+        $here = New-TestSandboxItem -Sandbox $sandbox -Name 'CurrentLocationFallback' -Directory
+        Push-Location -LiteralPath $here
+        try {
+            $result = @(& $Command -ErrorVariable cmdErrors -ErrorAction SilentlyContinue)
+
+            $cmdErrors | Should -BeNullOrEmpty
+            $result | Should -HaveCount 1
+            $result[0].FullName | Should -Be $here
+        }
+        finally {
+            Pop-Location
+        }
+    }
+}
+
+Describe 'Errors: OpenError category for a missing path, for the cmdlets not yet pinned by the existing OpenError test' {
+    It '<Command> should report ReadFileError with category OpenError for a path that does not exist, and continue with the next path' -ForEach $missingPathOpenErrorPathSetCases {
+        $missing = Join-Path -Path $sandbox -ChildPath ('Missing-{0}' -f [guid]::NewGuid().ToString('N').Substring(0, 8))
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $missing
+        $next = New-TestSandboxItem -Sandbox $sandbox -Name 'NextAfterMissingPathSet'
+
+        $output = @(& $Command -Path $missing, $next @Parameters -PassThru -ErrorVariable pathErrors -ErrorAction SilentlyContinue)
+
+        $pathErrors | Should -HaveCount 1
+        $pathErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadFileError,*'
+        $pathErrors[0].CategoryInfo.Category | Should -Be 'OpenError'
+        $pathErrors[0].TargetObject | Should -Be $missing
+        $output | Should -HaveCount 1
+        $output[0].FullName | Should -Be $next
+    }
+}
+
+Describe 'State: additional independent-oracle and unchanged-section coverage' {
+    It 'Disable-NTFSAccessInheritance -SecurityDescriptor should leave the owner unchanged once Set-NTFSSecurityDescriptor writes the protected DACL' {
+        $parent = New-TestSandboxItem -Sandbox $sandbox -Name 'DisableAccessOwnerParent' -Directory
+        $file = Join-Path -Path $parent -ChildPath 'Child'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+        Add-NTFSAccess -Path $parent -Account 'S-1-5-21-1-2-3-4951' -AccessRights ReadData -ErrorAction Stop
+        Set-Content -LiteralPath $file -Value 'Child'
+        $ownerBefore = (Get-Acl -LiteralPath $file).GetOwner($sidType).Value
+        $sd = Get-NTFSSecurityDescriptor -Path $file
+
+        Disable-NTFSAccessInheritance -SecurityDescriptor $sd -RemoveInheritedAccessRules -ErrorAction Stop
+        Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorAction Stop
+
+        $acl = Get-Acl -LiteralPath $file
+        $acl.AreAccessRulesProtected | Should -BeTrue
+        $acl.GetOwner($sidType).Value | Should -Be $ownerBefore
+    }
+
+    It 'Set-NTFSInheritance should set the SACL protected flag and audit-rule counts for enabled=<Enable>, read independently with Get-Acl -Audit' -Skip:(-not $canChangeAudit) -ForEach $setInheritanceAuditOracleCases {
+        $parent = New-TestSandboxItem -Sandbox $sandbox -Name 'SetInheritanceAuditOracleParent' -Directory
+        $path = Join-Path -Path $parent -ChildPath 'Child'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $path
+        $parentAccount = 'S-1-5-21-1-2-3-4954'
+        Add-NTFSAudit -Path $parent -Account $parentAccount -AccessRights ReadData -AuditFlags Success -ErrorAction Stop
+        New-Item -ItemType Directory -Path $path | Out-Null
+        $inheritedBefore = @((Get-Acl -LiteralPath $path -Audit).GetAuditRules($false, $true, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq $parentAccount })
+        $inheritedBefore | Should -HaveCount 1
+        if ($Enable) {
+            # -RemoveInheritedAuditRules, so re-enabling below restores exactly one entry, not a second one next to a
+            # leftover explicit copy (Enable alone keeps explicit entries, as Inheritance.Tests.ps1:422 pins).
+            Disable-NTFSAuditInheritance -Path $path -RemoveInheritedAuditRules -ErrorAction Stop
+        }
+
+        $result = @(Set-NTFSInheritance -Path $path -AuditInheritanceEnabled $Enable -PassThru -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+        $result[0].AuditInheritanceEnabled | Should -Be $Enable
+        $acl = Get-Acl -LiteralPath $path -Audit
+        $acl.AreAuditRulesProtected | Should -Be (-not $Enable)
+        $parentRules = @($acl.GetAuditRules($true, $true, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq $parentAccount })
+        $parentRules | Should -HaveCount 1
+        $parentRules[0].IsInherited | Should -Be $Enable
+    }
+
+    It '<Command> -SecurityDescriptor should change the in-memory audit entries per -<SwitchName>:<Remove>, applied to the item only after Set-NTFSSecurityDescriptor writes it, leaving the owner and DACL unchanged' -Skip:(-not $canChangeAudit) -ForEach $sdAuditSwitchCases {
+        $parent = New-TestSandboxItem -Sandbox $sandbox -Name 'SdAuditSwitchParent' -Directory
+        $file = Join-Path -Path $parent -ChildPath 'Child'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+        Add-NTFSAudit -Path $parent -Account 'S-1-5-21-1-2-3-4952' -AccessRights ReadData -AuditFlags Success -ErrorAction Stop
+        Set-Content -LiteralPath $file -Value 'Child'
+        if ($Command -eq 'Enable-NTFSAuditInheritance') {
+            Add-NTFSAudit -Path $file -Account 'S-1-5-21-1-2-3-4953' -AccessRights Delete -AuditFlags Failure -AppliesTo ThisFolderOnly -ErrorAction Stop
+            Disable-NTFSAuditInheritance -Path $file -RemoveInheritedAuditRules -ErrorAction Stop
+        }
+        $before = (Get-Acl -LiteralPath $file).Sddl
+        $sd = Get-NTFSSecurityDescriptor -Path $file
+        $switchParameters = @{ $SwitchName = $Remove }
+
+        & $Command -SecurityDescriptor $sd @switchParameters -ErrorAction Stop
+
+        $sd.SecurityDescriptor.AreAuditRulesProtected | Should -Be ($Command -eq 'Disable-NTFSAuditInheritance')
+        (Get-Acl -LiteralPath $file).Sddl | Should -BeExactly $before
+
+        Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorAction Stop
+
+        $acl = Get-TestAuditAcl -Path $file
+        if ($Command -eq 'Disable-NTFSAuditInheritance') {
+            $acl.AreAuditRulesProtected | Should -BeTrue
+            $inherited = @($acl.GetAuditRules($false, $true, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-21-1-2-3-4952' })
+            $explicitCopy = @($acl.GetAuditRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-21-1-2-3-4952' })
+            if ($Remove) {
+                $inherited | Should -BeNullOrEmpty
+                $explicitCopy | Should -BeNullOrEmpty
+            }
+            else {
+                $explicitCopy | Should -HaveCount 1
+            }
+        }
+        else {
+            $acl.AreAuditRulesProtected | Should -BeFalse
+            $explicitChild = @($acl.GetAuditRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-21-1-2-3-4953' })
+            if ($Remove) { $explicitChild | Should -BeNullOrEmpty } else { $explicitChild | Should -HaveCount 1 }
+        }
+        (Get-Acl -LiteralPath $file).Sddl | Should -BeExactly $before
+    }
+
+    It 'Get-NTFSInheritance should name the item in the Name property and report a DACL protected without the module' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'InheritanceNameAndExternalProtect'
+        Protect-TestDaclWithoutModule -Path $file
+        (Get-Acl -LiteralPath $file).AreAccessRulesProtected | Should -BeTrue
+
+        $result = Get-NTFSInheritance -Path $file -ErrorAction Stop
+
+        $result.Name | Should -Be ([IO.Path]::GetFileName($file))
+        $result.AccessInheritanceEnabled | Should -BeFalse
+    }
+
+    It 'Get-NTFSInheritance -SecurityDescriptor should return a typed object for a descriptor protected without the module' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'SdInheritanceExternalProtect'
+        Protect-TestDaclWithoutModule -Path $file
+        $sd = Get-NTFSSecurityDescriptor -Path $file
+
+        $result = Get-NTFSInheritance -SecurityDescriptor $sd -ErrorAction Stop
+
+        $result | Should -BeOfType ([Security2.FileSystemInheritanceInfo])
+        $result.AccessInheritanceEnabled | Should -BeFalse
+    }
+
+    It 'Get-NTFSOwner -SecurityDescriptor should return the real owner of a descriptor that was read without its Owner section' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'OwnerSectionless'
+        $expected = (Get-Acl -LiteralPath $file).GetOwner($sidType).Value
+        $sd = New-Object -TypeName 'Security2.FileSystemSecurity2' -ArgumentList (
+            (Get-Item2 -Path $file), [System.Security.AccessControl.AccessControlSections]::Access
+        )
+
+        $result = @(Get-NTFSOwner -SecurityDescriptor $sd -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+        $result[0] | Should -BeOfType ([Security2.FileSystemOwner])
+        $result[0].Owner.Sid | Should -Be $expected
+        $result[0].FullName | Should -Be $file
+    }
+
+    It 'Set-NTFSOwner should leave the SACL unchanged after it changes the owner' -Skip:(-not $canChangeAudit) {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'OwnerSaclUnchanged'
+        Add-NTFSAudit -Path $file -Account 'S-1-1-0' -AccessRights Delete -AuditFlags Success -InheritanceFlags None -PropagationFlags None -ErrorAction Stop
+        $before = Get-Acl -LiteralPath $file
+        if ($before.GetOwner($sidType).Value -eq $currentUser) {
+            Set-ItResult -Skipped -Because 'the user already owns new items, so Set-NTFSOwner would not change the owner'
+            return
+        }
+        $auditBefore = (Get-TestAuditAcl -Path $file).GetSecurityDescriptorSddlForm('Audit')
+
+        Set-NTFSOwner -Path $file -Account $currentUser -ErrorAction Stop
+
+        (Get-Acl -LiteralPath $file).GetOwner($sidType).Value | Should -Be $currentUser
+        (Get-TestAuditAcl -Path $file).GetSecurityDescriptorSddlForm('Audit') | Should -BeExactly $auditBefore
+    }
+
+    It 'Set-NTFSOwner -SecurityDescriptor should change only the owner on disk once Set-NTFSSecurityDescriptor writes it, leaving the DACL unchanged, and -PassThru should return a FileSystemOwner object' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'SdOwnerWriteDacl'
+        Add-NTFSAccess -Path $file -Account 'S-1-1-0' -AccessRights ReadData -ErrorAction Stop
+        $ownerBefore = (Get-Acl -LiteralPath $file).GetOwner($sidType).Value
+        if ($ownerBefore -eq $currentUser) {
+            Set-ItResult -Skipped -Because 'the user already owns new items, so Set-NTFSOwner would not change the owner'
+            return
+        }
+        $daclBefore = (Get-Acl -LiteralPath $file).GetSecurityDescriptorSddlForm('Access')
+        $sd = Get-NTFSSecurityDescriptor -Path $file
+
+        $result = @(Set-NTFSOwner -SecurityDescriptor $sd -Account $currentUser -PassThru -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+        $result[0] | Should -BeOfType ([Security2.FileSystemOwner])
+        (Get-Acl -LiteralPath $file).GetSecurityDescriptorSddlForm('Access') | Should -BeExactly $daclBefore
+
+        Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorAction Stop
+
+        $acl = Get-Acl -LiteralPath $file
+        $acl.GetOwner($sidType).Value | Should -Be $currentUser
+        $acl.GetSecurityDescriptorSddlForm('Access') | Should -BeExactly $daclBefore
+    }
+}
+
+Describe 'Set-NTFSSecurityDescriptor: the by-property-name pipeline and a denied PassThru re-read' {
+    It 'Should take a descriptor by property name through the pipeline, not only by value' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'SdSetByPropertyName'
+        $sd = Get-NTFSSecurityDescriptor -Path $file
+        Add-NTFSAccess -SecurityDescriptor $sd -Account 'S-1-5-21-1-2-3-4955' -AccessRights Delete -ErrorAction Stop
+
+        $result = @([pscustomobject]@{ SecurityDescriptor = $sd } | Set-NTFSSecurityDescriptor -PassThru -ErrorAction Stop)
+
+        $result | Should -HaveCount 1
+        $result[0].FullName | Should -Be $file
+        @(Get-NTFSAccess -Path $file -Account 'S-1-5-21-1-2-3-4955' -ExcludeInherited) | Should -HaveCount 1
+    }
+
+    Context 'When the written descriptor denies reading it again' {
+        BeforeAll {
+            $privateData['EnablePrivileges'] = $false
+        }
+
+        AfterAll {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        It 'Should report the PassThru ReadSecurityError with category ReadError and the item as target' {
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'PassThruReadDeniedCategory'
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+            # A deny entry for OWNER RIGHTS replaces the right of the owner to read the security descriptor.
+            Add-NTFSAccess -SecurityDescriptor $sd -Account 'S-1-3-4' -AccessRights ReadPermissions -AccessType Deny -AppliesTo ThisFolderOnly -ErrorAction Stop
+
+            $result = @(Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -PassThru -ErrorVariable setErrors -ErrorAction SilentlyContinue)
+
+            $result | Should -BeNullOrEmpty
+            $setErrors | Should -HaveCount 1
+            $setErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadSecurityError,*'
+            $setErrors[0].CategoryInfo.Category | Should -Be 'ReadError'
+            $setErrors[0].TargetObject.FullName | Should -Be $file
+        }
     }
 }
