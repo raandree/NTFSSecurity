@@ -1004,12 +1004,20 @@ Describe 'Get-NTFSOrphanedAudit' {
 # privilege, unlike most of the tests above.
 Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationFlags, and AppliesTo' {
     BeforeDiscovery {
+        # A collection nested 40 levels deep is a list too: the conversion opens at most 32 levels, which also ends a
+        # collection that holds itself.
+        $auditDeepScope = 'FilesOnly'
+        foreach ($level in 1..40) {
+            $auditDeepScope = , $auditDeepScope
+        }
+
         $auditBadShapes = @(
             @{ Shape = 'a misspelled name'; Value = 'Typoo'; ValueText = 'Typoo' }
             @{ Shape = 'a blank string'; Value = ''; ValueText = $null }
             @{ Shape = 'a white-space string'; Value = '  '; ValueText = $null }
             @{ Shape = 'an undefined number'; Value = 99; ValueText = '99' }
             @{ Shape = 'a hashtable'; Value = @{ Unrelated = 1 }; ValueText = $null }
+            @{ Shape = 'an array of one misspelled name'; Value = @('Typoo'); ValueText = 'Typoo' }
         )
         $auditFlagsBadShapes = @(
             @{ Shape = 'a misspelled name'; Value = 'Failurre'; ValueText = 'Failurre' }
@@ -1017,18 +1025,20 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             @{ Shape = 'a white-space string'; Value = '  '; ValueText = $null }
             @{ Shape = 'an undefined number'; Value = 99; ValueText = '99' }
             @{ Shape = 'a hashtable'; Value = @{ Unrelated = 1 }; ValueText = $null }
+            @{ Shape = 'an array of one misspelled name'; Value = @('Failurre'); ValueText = 'Failurre' }
         )
 
-        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (5 + 3 * 5 + 5) = 50 rows.
-        # AppliesTo names one value, not a combination: PowerShell would add the numbers of a list, so that one of the
-        # values wins silently or a scope that the caller did not name is chosen. AuditFlags and the two flags parameters
-        # take a list. Every kind of collection counts, also a collection of one element that holds a list.
+        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (6 + 3 * 6 + 6) = 60 rows.
+        # AppliesTo names one value, not a combination: PowerShell combines the numbers of a list bit by bit, so that one
+        # of the values wins silently or a scope that the caller did not name is chosen. AuditFlags and the two flags
+        # parameters take a list. Every kind of collection counts, also a collection of one element that holds a list.
         $auditAppliesToListShapes = @(
             @{ Shape = 'a comma list of two names'; Value = 'ThisFolderAndSubfolders,ThisFolderAndFiles'; ValueText = 'ThisFolderAndSubfolders,ThisFolderAndFiles' }
             @{ Shape = 'an array of two names'; Value = @('ThisFolderAndSubfolders', 'ThisFolderAndFiles'); ValueText = 'ThisFolderAndSubfolders, ThisFolderAndFiles' }
             @{ Shape = 'an array of one comma list'; Value = @('ThisFolderAndSubfolders,ThisFolderAndFiles'); ValueText = 'ThisFolderAndSubfolders,ThisFolderAndFiles' }
             @{ Shape = 'a hash set of two names'; Value = [System.Collections.Generic.HashSet[string]]::new([string[]]@('ThisFolderAndSubfolders', 'ThisFolderAndFiles')); ValueText = $null }
             @{ Shape = 'the keys of a hashtable'; Value = (@{ ThisFolderAndSubfolders = 1; ThisFolderAndFiles = 2 }).Keys; ValueText = $null }
+            @{ Shape = 'an array nested 40 levels deep'; Value = $auditDeepScope; ValueText = $null }
         )
 
         $auditInvalidParameterCases = foreach ($cmdlet in 'Add-NTFSAudit', 'Remove-NTFSAudit') {
@@ -1066,6 +1076,7 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = @('ThisFolderAndSubfolders', 'ThisFolderAndFiles') }
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = @('ThisFolderAndSubfolders,ThisFolderAndFiles') }
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = [System.Collections.Generic.HashSet[string]]::new([string[]]@('ThisFolderAndSubfolders', 'ThisFolderAndFiles')) }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = $auditDeepScope }
         }
 
         # A named $null (a literal $null, a variable, splatting, or $PSDefaultParameterValues) must stay a
@@ -1181,7 +1192,7 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             $invalidValueErrors[0].CategoryInfo.Category | Should -Be 'InvalidArgument'
             $invalidValueErrors[0].Exception.Message | Should -Match ([regex]::Escape($Parameter))
             if ($ValueText) {
-                $invalidValueErrors[0].Exception.Message | Should -Match ([regex]::Escape($ValueText))
+                $invalidValueErrors[0].Exception.Message | Should -Match ("The value '" + [regex]::Escape($ValueText) + "'")
             }
             if ($canReadAudit) {
                 Get-TestAuditSddl -Path $path | Should -BeExactly $before

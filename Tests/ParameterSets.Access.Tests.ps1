@@ -1337,12 +1337,22 @@ Describe 'Get-NTFSEffectiveAccess' {
 # piped value the binder cannot convert to the enumeration is an error instead of a silently kept default.
 Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationFlags, and AppliesTo' {
     BeforeDiscovery {
+        # A collection nested 40 levels deep is a list too: the conversion opens at most 32 levels, which also ends a
+        # collection that holds itself (a test with such a collection would not end if the limit were lost).
+        $accessDeepAccessType = 'Deny'
+        $accessDeepScope = 'FilesOnly'
+        foreach ($level in 1..40) {
+            $accessDeepAccessType = , $accessDeepAccessType
+            $accessDeepScope = , $accessDeepScope
+        }
+
         $accessBadShapes = @(
             @{ Shape = 'a misspelled name'; Value = 'Typoo'; ValueText = 'Typoo' }
             @{ Shape = 'a blank string'; Value = ''; ValueText = $null }
             @{ Shape = 'a white-space string'; Value = '  '; ValueText = $null }
             @{ Shape = 'an undefined number'; Value = 99; ValueText = '99' }
             @{ Shape = 'a hashtable'; Value = @{ Unrelated = 1 }; ValueText = $null }
+            @{ Shape = 'an array of one misspelled name'; Value = @('Typoo'); ValueText = 'Typoo' }
         )
         $accessTypeBadShapes = @(
             @{ Shape = 'a misspelled name'; Value = 'Denyy'; ValueText = 'Denyy' }
@@ -1350,26 +1360,29 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Shape = 'a white-space string'; Value = '  '; ValueText = $null }
             @{ Shape = 'an undefined number'; Value = 99; ValueText = '99' }
             @{ Shape = 'a hashtable'; Value = @{ Unrelated = 1 }; ValueText = $null }
+            @{ Shape = 'an array of one misspelled name'; Value = @('Denyy'); ValueText = 'Denyy' }
             @{ Shape = 'a comma list of two names'; Value = 'Allow,Deny'; ValueText = 'Allow,Deny' }
             @{ Shape = 'an array of two names'; Value = @('Allow', 'Deny'); ValueText = 'Allow, Deny' }
             @{ Shape = 'an array of one comma list'; Value = @('Allow,Deny'); ValueText = 'Allow,Deny' }
             @{ Shape = 'an array that holds an array of two names'; Value = , @('Allow', 'Deny'); ValueText = 'Allow, Deny' }
             @{ Shape = 'a hash set of two names'; Value = [System.Collections.Generic.HashSet[string]]::new([string[]]@('Allow', 'Deny')); ValueText = $null }
             @{ Shape = 'the keys of a hashtable'; Value = (@{ Allow = 1; Deny = 2 }).Keys; ValueText = $null }
+            @{ Shape = 'an array nested 40 levels deep'; Value = $accessDeepAccessType; ValueText = $null }
         )
 
-        # AccessType and AppliesTo name one value each, not a combination: PowerShell would add the numbers of a list, so that
-        # one of the values wins silently or, for AppliesTo, a scope that the caller did not name is chosen. Every kind of
-        # collection counts, also a collection of one element that holds a list.
+        # AccessType and AppliesTo name one value each, not a combination: PowerShell combines the numbers of a list bit by
+        # bit, so that one of the values wins silently or, for AppliesTo, a scope that the caller did not name is chosen.
+        # Every kind of collection counts, also a collection of one element that holds a list.
         $accessAppliesToListShapes = @(
             @{ Shape = 'a comma list of two names'; Value = 'ThisFolderAndSubfolders,ThisFolderAndFiles'; ValueText = 'ThisFolderAndSubfolders,ThisFolderAndFiles' }
             @{ Shape = 'an array of two names'; Value = @('ThisFolderAndSubfolders', 'ThisFolderAndFiles'); ValueText = 'ThisFolderAndSubfolders, ThisFolderAndFiles' }
             @{ Shape = 'an array of one comma list'; Value = @('ThisFolderAndSubfolders,ThisFolderAndFiles'); ValueText = 'ThisFolderAndSubfolders,ThisFolderAndFiles' }
             @{ Shape = 'a hash set of two names'; Value = [System.Collections.Generic.HashSet[string]]::new([string[]]@('ThisFolderAndSubfolders', 'ThisFolderAndFiles')); ValueText = $null }
             @{ Shape = 'the keys of a hashtable'; Value = (@{ ThisFolderAndSubfolders = 1; ThisFolderAndFiles = 2 }).Keys; ValueText = $null }
+            @{ Shape = 'an array nested 40 levels deep'; Value = $accessDeepScope; ValueText = $null }
         )
 
-        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (11 + 3 * 5 + 5) = 62 rows.
+        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (13 + 3 * 6 + 6) = 74 rows.
         $accessInvalidParameterCases = foreach ($cmdlet in 'Add-NTFSAccess', 'Remove-NTFSAccess') {
             foreach ($shapeCase in $accessTypeBadShapes) {
                 @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Shape = $shapeCase.Shape; Value = $shapeCase.Value; ValueText = $shapeCase.ValueText }
@@ -1409,6 +1422,8 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = @('ThisFolderAndSubfolders', 'ThisFolderAndFiles') }
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = @('ThisFolderAndSubfolders,ThisFolderAndFiles') }
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = [System.Collections.Generic.HashSet[string]]::new([string[]]@('ThisFolderAndSubfolders', 'ThisFolderAndFiles')) }
+            @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Value = $accessDeepAccessType }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = $accessDeepScope }
         }
 
         # A named $null (a literal $null, a variable, an alias, splatting, or $PSDefaultParameterValues) must
@@ -1429,6 +1444,7 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Description = 'an array of one name'; Value = @('Deny') }
             @{ Description = 'a list of one name'; Value = [System.Collections.Generic.List[string]]::new([string[]]@('Deny')) }
             @{ Description = 'a hash set of one name'; Value = [System.Collections.Generic.HashSet[string]]::new([string[]]@('Deny')) }
+            @{ Description = 'an array that holds an array of one name'; Value = , @('Deny') }
         )
 
         $accessValidFlagsShapeCases = @(
@@ -1527,7 +1543,7 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             $pipelineErrors[0].TargetObject | Should -Be $path
             $pipelineErrors[0].Exception.Message | Should -Match ([regex]::Escape($Parameter))
             if ($ValueText) {
-                $pipelineErrors[0].Exception.Message | Should -Match ([regex]::Escape($ValueText))
+                $pipelineErrors[0].Exception.Message | Should -Match ("The value '" + [regex]::Escape($ValueText) + "'")
             }
             (Get-Acl -LiteralPath $path).Sddl | Should -BeExactly $before
             $result | Should -Not -BeNullOrEmpty

@@ -17,10 +17,10 @@ namespace NTFSSecurity
         /// <summary>
         /// Converts the raw value of a parameter to T, the way the PowerShell binder converts an argument for a
         /// parameter of that type: names in any case, a comma-separated list for a flags enumeration, a number, or
-        /// an enumeration instance. An enumeration that is not a flags enumeration takes one value: PowerShell would
-        /// add up the numbers of a list for it, so that one of the values wins silently or a value that the caller
-        /// did not name is chosen, so a list is rejected for it, in whatever kind of collection it comes. A
-        /// collection of one element converts as that element.
+        /// an enumeration instance. An enumeration that is not a flags enumeration takes one value: PowerShell
+        /// combines the numbers of a list for it bit by bit, so that one of the values wins silently or a value that
+        /// the caller did not name is chosen, so a list is rejected for it, in whatever kind of collection it comes.
+        /// A collection of one element converts as that element.
         /// </summary>
         /// <param name="value">
         /// The raw value of the parameter. Not null: the caller keeps the default of the parameter for null instead
@@ -40,13 +40,13 @@ namespace NTFSSecurity
 
             if (!typeof(T).IsDefined(typeof(FlagsAttribute), false))
             {
-                string list;
-                convertible = TakeOneValue(value, out list);
-                if (list != null)
+                bool isList;
+                convertible = TakeOneValue(value, out isList);
+                if (isList)
                 {
                     throw new ArgumentException(string.Format(
                         "The value '{0}' for parameter -{1} is not valid: the parameter takes one value, not a list. {2}",
-                        list, parameterName, DescribeValidValues(typeof(T))));
+                        Describe(value), parameterName, DescribeValidValues(typeof(T))));
                 }
             }
 
@@ -64,7 +64,7 @@ namespace NTFSSecurity
             catch (Exception ex)
             {
                 throw new ArgumentException(
-                    string.Format("The value '{0}' for parameter -{1} is not valid. {2}", value, parameterName, DescribeValidValues(typeof(T))),
+                    string.Format("The value '{0}' for parameter -{1} is not valid. {2}", Describe(value), parameterName, DescribeValidValues(typeof(T))),
                     ex);
             }
         }
@@ -82,30 +82,31 @@ namespace NTFSSecurity
             return string.Format("The value for parameter -{0} is null. {1}", parameterName, DescribeValidValues(typeof(T)));
         }
 
+        // How many collections that hold one collection each are opened before the argument counts as a list: enough
+        // for any real argument, and a stop for a collection that holds itself.
+        private const int MaxNesting = 32;
+
         // The one value that the conversion takes from the argument of an enumeration that is not a flags enumeration:
         // the argument itself, or the only element of a collection of any kind (a wrapped PSObject counts as what it
-        // wraps, and a collection that holds a collection is opened too). When the argument holds more than one
-        // value, list is its text for the message: a string that holds a comma, a collection of several elements, or
-        // a collection of one element that holds such a list; the returned value is then not used. A dictionary, an
-        // empty collection, or a collection that cannot be enumerated is returned as it is, for the conversion to
-        // reject or convert with its own error.
-        private static object TakeOneValue(object value, out string list)
+        // wraps, and a collection that holds a collection is opened too). isList is true when the argument holds more
+        // than one value: a string that holds a comma, a collection of several elements (two are enough to know, so
+        // a long or endless sequence is not read to its end), a collection of one element that holds such a list, or
+        // collections nested deeper than MaxNesting; the returned value is then not used. A dictionary, an empty
+        // collection, or a collection that cannot be enumerated is returned as it is, for the conversion to reject or
+        // convert with its own error.
+        private static object TakeOneValue(object value, out bool isList)
         {
-            list = null;
+            isList = false;
             var current = value;
 
-            while (true)
+            for (var depth = 0; depth < MaxNesting; depth++)
             {
                 var unwrapped = current is PSObject ? ((PSObject)current).BaseObject : current;
 
                 var text = unwrapped as string;
                 if (text != null)
                 {
-                    if (text.IndexOf(',') >= 0)
-                    {
-                        list = text;
-                    }
-
+                    isList = text.IndexOf(',') >= 0;
                     return unwrapped;
                 }
 
@@ -115,12 +116,19 @@ namespace NTFSSecurity
                     return unwrapped;
                 }
 
-                var items = new System.Collections.Generic.List<object>();
+                var count = 0;
+                object only = null;
                 try
                 {
                     foreach (var item in collection)
                     {
-                        items.Add(item);
+                        count++;
+                        if (count > 1)
+                        {
+                            break;
+                        }
+
+                        only = item;
                     }
                 }
                 catch (Exception)
@@ -128,19 +136,71 @@ namespace NTFSSecurity
                     return value;
                 }
 
-                if (items.Count == 1)
+                if (count == 1)
                 {
-                    current = items[0];
+                    current = only;
                     continue;
                 }
 
-                if (items.Count > 1)
-                {
-                    list = string.Join(", ", items.ConvertAll(item => string.Format("{0}", item)));
-                }
-
+                isList = count > 1;
                 return value;
             }
+
+            isList = true;
+            return value;
+        }
+
+        // The value as a message names it: a collection of one element by that element (also when it is a collection
+        // itself), a collection of several elements by its first ten, anything else by its text.
+        private static string Describe(object value)
+        {
+            var current = value;
+
+            for (var depth = 0; depth < MaxNesting; depth++)
+            {
+                var unwrapped = current is PSObject ? ((PSObject)current).BaseObject : current;
+                var collection = unwrapped as IEnumerable;
+
+                if (unwrapped is string || collection == null || unwrapped is IDictionary)
+                {
+                    return string.Format("{0}", current);
+                }
+
+                var shown = new System.Collections.Generic.List<object>();
+                var more = false;
+                try
+                {
+                    foreach (var item in collection)
+                    {
+                        if (shown.Count == 10)
+                        {
+                            more = true;
+                            break;
+                        }
+
+                        shown.Add(item);
+                    }
+
+                    if (shown.Count == 1 && !more)
+                    {
+                        current = shown[0];
+                        continue;
+                    }
+
+                    if (shown.Count == 0)
+                    {
+                        return string.Format("{0}", current);
+                    }
+
+                    return string.Join(", ", shown.ConvertAll(item => string.Format("{0}", item))) + (more ? ", ..." : string.Empty);
+                }
+                catch (Exception)
+                {
+                    return string.Format("{0}", value);
+                }
+            }
+
+            return string.Format("{0}", value);
         }
 
         // The valid names of the enumeration, in declaration order, with a note for a flags enumeration that a
