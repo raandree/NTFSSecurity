@@ -18,8 +18,9 @@ namespace NTFSSecurity
         /// Converts the raw value of a parameter to T, the way the PowerShell binder converts an argument for a
         /// parameter of that type: names in any case, a comma-separated list for a flags enumeration, a number, or
         /// an enumeration instance. An enumeration that is not a flags enumeration takes one value: PowerShell would
-        /// add up the numbers of a list for it, which selects a value that the caller did not name, so a list is
-        /// rejected for it.
+        /// add up the numbers of a list for it, so that one of the values wins silently or a value that the caller
+        /// did not name is chosen, so a list is rejected for it, in whatever kind of collection it comes. A
+        /// collection of one element converts as that element.
         /// </summary>
         /// <param name="value">
         /// The raw value of the parameter. Not null: the caller keeps the default of the parameter for null instead
@@ -35,16 +36,12 @@ namespace NTFSSecurity
         /// </exception>
         internal static T Convert<T>(object value, string parameterName)
         {
-            var text = value as string;
-            if (text != null && string.IsNullOrWhiteSpace(text))
-            {
-                throw new ArgumentException(string.Format(
-                    "The value for parameter -{0} is blank. {1}", parameterName, DescribeValidValues(typeof(T))));
-            }
+            var convertible = value;
 
             if (!typeof(T).IsDefined(typeof(FlagsAttribute), false))
             {
-                var list = DescribeList(value);
+                string list;
+                convertible = TakeOneValue(value, out list);
                 if (list != null)
                 {
                     throw new ArgumentException(string.Format(
@@ -53,9 +50,16 @@ namespace NTFSSecurity
                 }
             }
 
+            var text = convertible as string;
+            if (text != null && string.IsNullOrWhiteSpace(text))
+            {
+                throw new ArgumentException(string.Format(
+                    "The value for parameter -{0} is blank. {1}", parameterName, DescribeValidValues(typeof(T))));
+            }
+
             try
             {
-                return (T)LanguagePrimitives.ConvertTo(value, typeof(T));
+                return (T)LanguagePrimitives.ConvertTo(convertible, typeof(T));
             }
             catch (Exception ex)
             {
@@ -78,32 +82,65 @@ namespace NTFSSecurity
             return string.Format("The value for parameter -{0} is null. {1}", parameterName, DescribeValidValues(typeof(T)));
         }
 
-        // The text of a list that the conversion would add up, for the message: a string that holds a comma, or a
-        // collection of more than one element (a wrapped PSObject counts as what it wraps). Null for any other value,
-        // such as a single name or a collection of one element, which convert to that one value.
-        private static string DescribeList(object value)
+        // The one value that the conversion takes from the argument of an enumeration that is not a flags enumeration:
+        // the argument itself, or the only element of a collection of any kind (a wrapped PSObject counts as what it
+        // wraps, and a collection that holds a collection is opened too). When the argument holds more than one
+        // value, list is its text for the message: a string that holds a comma, a collection of several elements, or
+        // a collection of one element that holds such a list; the returned value is then not used. A dictionary, an
+        // empty collection, or a collection that cannot be enumerated is returned as it is, for the conversion to
+        // reject or convert with its own error.
+        private static object TakeOneValue(object value, out string list)
         {
-            var unwrapped = value is PSObject ? ((PSObject)value).BaseObject : value;
+            list = null;
+            var current = value;
 
-            var text = unwrapped as string;
-            if (text != null)
+            while (true)
             {
-                return text.IndexOf(',') >= 0 ? text : null;
-            }
+                var unwrapped = current is PSObject ? ((PSObject)current).BaseObject : current;
 
-            var list = unwrapped as IList;
-            if (list == null || list.Count < 2)
-            {
-                return null;
-            }
+                var text = unwrapped as string;
+                if (text != null)
+                {
+                    if (text.IndexOf(',') >= 0)
+                    {
+                        list = text;
+                    }
 
-            var items = new string[list.Count];
-            for (var i = 0; i < items.Length; i++)
-            {
-                items[i] = string.Format("{0}", list[i]);
-            }
+                    return unwrapped;
+                }
 
-            return string.Join(", ", items);
+                var collection = unwrapped as IEnumerable;
+                if (collection == null || unwrapped is IDictionary)
+                {
+                    return unwrapped;
+                }
+
+                var items = new System.Collections.Generic.List<object>();
+                try
+                {
+                    foreach (var item in collection)
+                    {
+                        items.Add(item);
+                    }
+                }
+                catch (Exception)
+                {
+                    return value;
+                }
+
+                if (items.Count == 1)
+                {
+                    current = items[0];
+                    continue;
+                }
+
+                if (items.Count > 1)
+                {
+                    list = string.Join(", ", items.ConvertAll(item => string.Format("{0}", item)));
+                }
+
+                return value;
+            }
         }
 
         // The valid names of the enumeration, in declaration order, with a note for a flags enumeration that a

@@ -1352,16 +1352,24 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Shape = 'a hashtable'; Value = @{ Unrelated = 1 }; ValueText = $null }
             @{ Shape = 'a comma list of two names'; Value = 'Allow,Deny'; ValueText = 'Allow,Deny' }
             @{ Shape = 'an array of two names'; Value = @('Allow', 'Deny'); ValueText = 'Allow, Deny' }
+            @{ Shape = 'an array of one comma list'; Value = @('Allow,Deny'); ValueText = 'Allow,Deny' }
+            @{ Shape = 'an array that holds an array of two names'; Value = , @('Allow', 'Deny'); ValueText = 'Allow, Deny' }
+            @{ Shape = 'a hash set of two names'; Value = [System.Collections.Generic.HashSet[string]]::new([string[]]@('Allow', 'Deny')); ValueText = $null }
+            @{ Shape = 'the keys of a hashtable'; Value = (@{ Allow = 1; Deny = 2 }).Keys; ValueText = $null }
         )
 
-        # AccessType and AppliesTo name one value each, not a combination: PowerShell would add the numbers of a list, and
-        # an entry for a scope that the caller did not name would follow.
+        # AccessType and AppliesTo name one value each, not a combination: PowerShell would add the numbers of a list, so that
+        # one of the values wins silently or, for AppliesTo, a scope that the caller did not name is chosen. Every kind of
+        # collection counts, also a collection of one element that holds a list.
         $accessAppliesToListShapes = @(
             @{ Shape = 'a comma list of two names'; Value = 'ThisFolderAndSubfolders,ThisFolderAndFiles'; ValueText = 'ThisFolderAndSubfolders,ThisFolderAndFiles' }
             @{ Shape = 'an array of two names'; Value = @('ThisFolderAndSubfolders', 'ThisFolderAndFiles'); ValueText = 'ThisFolderAndSubfolders, ThisFolderAndFiles' }
+            @{ Shape = 'an array of one comma list'; Value = @('ThisFolderAndSubfolders,ThisFolderAndFiles'); ValueText = 'ThisFolderAndSubfolders,ThisFolderAndFiles' }
+            @{ Shape = 'a hash set of two names'; Value = [System.Collections.Generic.HashSet[string]]::new([string[]]@('ThisFolderAndSubfolders', 'ThisFolderAndFiles')); ValueText = $null }
+            @{ Shape = 'the keys of a hashtable'; Value = (@{ ThisFolderAndSubfolders = 1; ThisFolderAndFiles = 2 }).Keys; ValueText = $null }
         )
 
-        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (7 + 3 * 5 + 2) = 48 rows.
+        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (11 + 3 * 5 + 5) = 62 rows.
         $accessInvalidParameterCases = foreach ($cmdlet in 'Add-NTFSAccess', 'Remove-NTFSAccess') {
             foreach ($shapeCase in $accessTypeBadShapes) {
                 @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Shape = $shapeCase.Shape; Value = $shapeCase.Value; ValueText = $shapeCase.ValueText }
@@ -1395,8 +1403,12 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = 'Typoo' }
             @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Value = 'Allow,Deny' }
             @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Value = @('Allow', 'Deny') }
+            @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Value = @('Allow,Deny') }
+            @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Value = [System.Collections.Generic.HashSet[string]]::new([string[]]@('Allow', 'Deny')) }
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = 'ThisFolderAndSubfolders,ThisFolderAndFiles' }
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = @('ThisFolderAndSubfolders', 'ThisFolderAndFiles') }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = @('ThisFolderAndSubfolders,ThisFolderAndFiles') }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = [System.Collections.Generic.HashSet[string]]::new([string[]]@('ThisFolderAndSubfolders', 'ThisFolderAndFiles')) }
         }
 
         # A named $null (a literal $null, a variable, an alias, splatting, or $PSDefaultParameterValues) must
@@ -1415,6 +1427,8 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Description = 'the enum value'; Value = [System.Security.AccessControl.AccessControlType]::Deny }
             @{ Description = 'an integer'; Value = 1 }
             @{ Description = 'an array of one name'; Value = @('Deny') }
+            @{ Description = 'a list of one name'; Value = [System.Collections.Generic.List[string]]::new([string[]]@('Deny')) }
+            @{ Description = 'a hash set of one name'; Value = [System.Collections.Generic.HashSet[string]]::new([string[]]@('Deny')) }
         )
 
         $accessValidFlagsShapeCases = @(

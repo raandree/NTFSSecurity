@@ -1019,12 +1019,16 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             @{ Shape = 'a hashtable'; Value = @{ Unrelated = 1 }; ValueText = $null }
         )
 
-        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (5 + 3 * 5 + 2) = 42 rows.
-        # AppliesTo names one value, not a combination: PowerShell would add the numbers of a list, and an entry for a
-        # scope that the caller did not name would follow. AuditFlags and the two flags parameters take a list.
+        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (5 + 3 * 5 + 5) = 50 rows.
+        # AppliesTo names one value, not a combination: PowerShell would add the numbers of a list, so that one of the
+        # values wins silently or a scope that the caller did not name is chosen. AuditFlags and the two flags parameters
+        # take a list. Every kind of collection counts, also a collection of one element that holds a list.
         $auditAppliesToListShapes = @(
             @{ Shape = 'a comma list of two names'; Value = 'ThisFolderAndSubfolders,ThisFolderAndFiles'; ValueText = 'ThisFolderAndSubfolders,ThisFolderAndFiles' }
             @{ Shape = 'an array of two names'; Value = @('ThisFolderAndSubfolders', 'ThisFolderAndFiles'); ValueText = 'ThisFolderAndSubfolders, ThisFolderAndFiles' }
+            @{ Shape = 'an array of one comma list'; Value = @('ThisFolderAndSubfolders,ThisFolderAndFiles'); ValueText = 'ThisFolderAndSubfolders,ThisFolderAndFiles' }
+            @{ Shape = 'a hash set of two names'; Value = [System.Collections.Generic.HashSet[string]]::new([string[]]@('ThisFolderAndSubfolders', 'ThisFolderAndFiles')); ValueText = $null }
+            @{ Shape = 'the keys of a hashtable'; Value = (@{ ThisFolderAndSubfolders = 1; ThisFolderAndFiles = 2 }).Keys; ValueText = $null }
         )
 
         $auditInvalidParameterCases = foreach ($cmdlet in 'Add-NTFSAudit', 'Remove-NTFSAudit') {
@@ -1060,6 +1064,8 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = 'Typoo' }
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = 'ThisFolderAndSubfolders,ThisFolderAndFiles' }
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = @('ThisFolderAndSubfolders', 'ThisFolderAndFiles') }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = @('ThisFolderAndSubfolders,ThisFolderAndFiles') }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = [System.Collections.Generic.HashSet[string]]::new([string[]]@('ThisFolderAndSubfolders', 'ThisFolderAndFiles')) }
         }
 
         # A named $null (a literal $null, a variable, splatting, or $PSDefaultParameterValues) must stay a
