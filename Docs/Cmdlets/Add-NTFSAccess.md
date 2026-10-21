@@ -16,28 +16,28 @@ Adds an access control entry (ACE) to a file, a folder, or a security descriptor
 ### PathSimple
 ```
 Add-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
- [-AccessType <AccessControlType>] -AppliesTo <ApplyTo> [-PassThru] [<CommonParameters>]
+ [-AccessType <Object>] -AppliesTo <Object> [-PassThru] [<CommonParameters>]
 ```
 
 ### PathComplex
 ```
 Add-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
- [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
- [-PropagationFlags <PropagationFlags>] [-PassThru] [<CommonParameters>]
+ [-AccessType <Object>] [-InheritanceFlags <Object>]
+ [-PropagationFlags <Object>] [-PassThru] [<CommonParameters>]
 ```
 
 ### SDSimple
 ```
 Add-NTFSAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
- [-AccessRights] <FileSystemRights2> [-AccessType <AccessControlType>] -AppliesTo <ApplyTo> [-PassThru]
+ [-AccessRights] <FileSystemRights2> [-AccessType <Object>] -AppliesTo <Object> [-PassThru]
  [<CommonParameters>]
 ```
 
 ### SDComplex
 ```
 Add-NTFSAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
- [-AccessRights] <FileSystemRights2> [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
- [-PropagationFlags <PropagationFlags>] [-PassThru] [<CommonParameters>]
+ [-AccessRights] <FileSystemRights2> [-AccessType <Object>] [-InheritanceFlags <Object>]
+ [-PropagationFlags <Object>] [-PassThru] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -46,7 +46,7 @@ Adds an access control entry (ACE) to the discretionary access control list (DAC
 
 `-AccessRights` accepts the basic rights such as `Read`, `Modify`, and `FullControl` as well as the granular rights such as `CreateFiles` or `WriteAttributes`, and several values can be combined, for example `-AccessRights ReadData, WriteData, Delete`. For the mapping between the values of this module, the rights that Windows displays, and the entries of the advanced security dialog, see [Concepts](../Concepts.md).
 
-The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`; both describe the same ACE flags. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor, and a command that has `-AppliesTo` together with `-InheritanceFlags` or `-PropagationFlags` fails, because PowerShell can't choose between the sets. The same holds for an object that you pipe in: its property `AppliesTo` selects a `Simple` set, its properties `InheritanceFlags` and `PropagationFlags` select a `Complex` set, and an object that has both kinds, an object that has both `Path` and `SecurityDescriptor`, or one whose `AppliesTo` is `$null`, fails. `Import-Csv` gives `$null` for a column that a row lacks because it has fewer fields than the header. An `AppliesTo` that PowerShell can't convert to a scope, such as the blank cell of a CSV file or a misspelled name, is ignored, and the object is handled as one without `AppliesTo`: it uses its own `InheritanceFlags` and `PropagationFlags`, or the default scope if it has none. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.
+The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`; both describe the same ACE flags. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor, and a command that has `-AppliesTo` together with `-InheritanceFlags` or `-PropagationFlags` fails, because PowerShell can't choose between the sets. The same holds for an object that you pipe in: its property `AppliesTo` selects a `Simple` set, its properties `InheritanceFlags` and `PropagationFlags` select a `Complex` set, and an object that has both kinds, an object that has both `Path` and `SecurityDescriptor`, or one whose `AppliesTo` is `$null`, fails. `Import-Csv` gives `$null` for a column that a row lacks because it has fewer fields than the header. An `AppliesTo`, `AccessType`, `InheritanceFlags`, or `PropagationFlags` that PowerShell can't convert to its type, such as the blank cell of a CSV file or a misspelled name, is an `InvalidParameterValue` error for that object: the object is left unchanged, and the next one in the pipeline is still processed; the same bad value named on the command line fails the whole command instead. Before 5.0.0, such a value was silently ignored, and the object was handled as one without it. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.
 
 When `-AccessType`, `-AppliesTo`, `-InheritanceFlags`, and `-PropagationFlags` are omitted, the cmdlet adds an `Allow` ACE that applies to this folder, subfolders, and files, which corresponds to the inheritance flags `ContainerInherit, ObjectInherit` and no propagation flags. An `Allow` ACE always receives the `Synchronize` right in addition to the requested rights, inheritance and propagation flags are ignored on files, and rights for an account that already has an ACE with the same access type and the same flags are merged into that ACE. The cmdlet writes no output unless `-PassThru` is used, and a failure on one item is reported as a non-terminating error while the remaining items are processed.
 
@@ -107,10 +107,10 @@ Accept wildcard characters: False
 
 ### -AccessType
 
-Specifies whether the ACE allows or denies the rights in `-AccessRights`. The default is `Allow`. A `Deny` ACE takes precedence over `Allow` ACEs that grant the same rights.
+Specifies whether the ACE allows or denies the rights in `-AccessRights`. The default is `Allow`. A `Deny` ACE takes precedence over `Allow` ACEs that grant the same rights. A value that cannot be converted to `Allow` or `Deny`, including a blank one, is an `InvalidParameterValue` error: terminating when `-AccessType` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.
 
 ```yaml
-Type: AccessControlType
+Type: Object
 Parameter Sets: (All)
 Aliases: AccessControlType
 Accepted values: Allow, Deny
@@ -140,10 +140,10 @@ Accept wildcard characters: False
 
 ### -AppliesTo
 
-Specifies the scope of the ACE in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same ACE. The values ending in `OneLevel` limit inheritance to the direct children of the folder.
+Specifies the scope of the ACE in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same ACE. The values ending in `OneLevel` limit inheritance to the direct children of the folder. A value that cannot be converted to one of these scopes, including a blank one, is an `InvalidParameterValue` error: terminating when `-AppliesTo` is named on the command line, and reported for just that path or descriptor, unchanged, when it comes from the pipeline.
 
 ```yaml
-Type: ApplyTo
+Type: Object
 Parameter Sets: PathSimple, SDSimple
 Aliases:
 Accepted values: ThisFolderOnly, ThisFolderSubfoldersAndFiles, ThisFolderAndSubfolders, ThisFolderAndFiles, SubfoldersAndFilesOnly, SubfoldersOnly, FilesOnly, ThisFolderSubfoldersAndFilesOneLevel, ThisFolderAndSubfoldersOneLevel, ThisFolderAndFilesOneLevel, SubfoldersAndFilesOnlyOneLevel, SubfoldersOnlyOneLevel, FilesOnlyOneLevel
@@ -157,12 +157,12 @@ Accept wildcard characters: False
 
 ### -InheritanceFlags
 
-Specifies which kind of child objects inherit the ACE. `ContainerInherit` passes the ACE on to child folders, `ObjectInherit` passes it on to child files, and `None` keeps the ACE on the item itself. The default is `ContainerInherit, ObjectInherit`. Inheritance flags have no effect on files, where the ACE is always created with `None`.
+Specifies which kind of child objects inherit the ACE. `ContainerInherit` passes the ACE on to child folders, `ObjectInherit` passes it on to child files, and `None` keeps the ACE on the item itself. The default is `ContainerInherit, ObjectInherit`. Inheritance flags have no effect on files, where the ACE is always created with `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-InheritanceFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.
 
 For details about the flags, see the .NET documentation of the [InheritanceFlags Enum](https://learn.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.inheritanceflags).
 
 ```yaml
-Type: InheritanceFlags
+Type: Object
 Parameter Sets: PathComplex, SDComplex
 Aliases:
 Accepted values: None, ContainerInherit, ObjectInherit
@@ -208,10 +208,10 @@ Accept wildcard characters: False
 
 ### -PropagationFlags
 
-Specifies how the ACE is propagated to child objects. `None` propagates the ACE to all levels that the inheritance flags allow, `InheritOnly` keeps the ACE from applying to the item it is defined on, and `NoPropagateInherit` limits inheritance to the direct children of the folder. The default is `None`, and propagation flags only have an effect in combination with `-InheritanceFlags`.
+Specifies how the ACE is propagated to child objects. `None` propagates the ACE to all levels that the inheritance flags allow, `InheritOnly` keeps the ACE from applying to the item it is defined on, and `NoPropagateInherit` limits inheritance to the direct children of the folder. The default is `None`, and propagation flags only have an effect in combination with `-InheritanceFlags`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-PropagationFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.
 
 ```yaml
-Type: PropagationFlags
+Type: Object
 Parameter Sets: PathComplex, SDComplex
 Aliases:
 Accepted values: None, NoPropagateInherit, InheritOnly

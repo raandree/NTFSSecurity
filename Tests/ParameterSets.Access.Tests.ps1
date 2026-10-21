@@ -201,9 +201,10 @@ Describe 'Add-NTFSAccess' {
             $scopes -join '|' | Should -BeExactly 'None/None|ContainerInherit/None|ContainerInherit, ObjectInherit/InheritOnly'
         }
 
-        # A blank cell that Import-Csv reads is an empty string: not $null, and not a scope name. The binder cannot convert it, so
-        # PathSimple does not bind, and the row gets the default scope, as an object without the property does.
-        It 'Should give the row of a CSV file whose AppliesTo cell is blank the default scope, and the other rows their own' {
+        # A blank cell that Import-Csv reads is an empty string: not $null, and not a scope name. Since -AppliesTo is
+        # now an object parameter (Decision 27, fix B), the blank string still binds it, which selects PathSimple,
+        # so the row gets an InvalidParameterValue error instead of the default scope; the other rows are unaffected.
+        It 'Should write an InvalidParameterValue error for the row of a CSV file whose AppliesTo cell is blank, leave its folder alone, and still give the other rows their own scope' {
             $folders = @('AddCsvBlankFirst', 'AddCsvBlankCell', 'AddCsvBlankLast' |
                     ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory })
             $csv = Join-Path -Path $sandbox -ChildPath 'AddCsvBlank.csv'
@@ -215,10 +216,15 @@ Describe 'Add-NTFSAccess' {
                 ('"{0}",S-1-5-32-546,ReadData,SubfoldersAndFilesOnly' -f $folders[2])
             )
 
-            Import-Csv -LiteralPath $csv | Add-NTFSAccess -ErrorAction Stop
+            Import-Csv -LiteralPath $csv | Add-NTFSAccess -ErrorVariable addErrors -ErrorAction SilentlyContinue
 
+            $addErrors | Should -HaveCount 1
+            $addErrors[0].FullyQualifiedErrorId | Should -BeLike 'InvalidParameterValue,*'
+            $addErrors[0].CategoryInfo.Category | Should -Be 'InvalidArgument'
+            $addErrors[0].TargetObject | Should -Be $folders[1]
+            $addErrors[0].Exception.Message | Should -Match 'AppliesTo'
             $scopes = $folders | ForEach-Object -Process { Get-TestAccountScope -Acl (Get-Acl -LiteralPath $_) -Account 'S-1-5-32-546' }
-            $scopes -join '|' | Should -BeExactly 'None/None|ContainerInherit, ObjectInherit/None|ContainerInherit, ObjectInherit/InheritOnly'
+            $scopes -join '|' | Should -BeExactly 'None/None||ContainerInherit, ObjectInherit/InheritOnly'
         }
 
         # $null cannot be bound at all (ConvertFrom-Csv makes it of a trailing blank cell): the object fails, loudly, and the cmdlet goes
@@ -1219,6 +1225,327 @@ Describe 'Get-NTFSEffectiveAccess' {
             $piped = @(Get-NTFSSecurityDescriptor -Path $file, $file2 -ErrorAction Stop | Get-NTFSEffectiveAccess -WarningAction SilentlyContinue -ErrorAction Stop)
 
             $piped | Should -HaveCount 2
+        }
+    }
+}
+
+# Decision 27 (fix B): AccessType, InheritanceFlags, PropagationFlags, and AppliesTo of Add-NTFSAccess and
+# Remove-NTFSAccess are object parameters, converted in the cmdlet with LanguagePrimitives.ConvertTo, so that a
+# piped value the binder cannot convert to the enumeration is an error instead of a silently kept default.
+Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationFlags, and AppliesTo' {
+    BeforeDiscovery {
+        $accessBadShapes = @(
+            @{ Shape = 'a misspelled name'; Value = 'Typoo'; ValueText = 'Typoo' }
+            @{ Shape = 'a blank string'; Value = ''; ValueText = $null }
+            @{ Shape = 'a white-space string'; Value = '  '; ValueText = $null }
+            @{ Shape = 'an undefined number'; Value = 99; ValueText = '99' }
+            @{ Shape = 'a hashtable'; Value = @{ Unrelated = 1 }; ValueText = $null }
+        )
+        $accessTypeBadShapes = @(
+            @{ Shape = 'a misspelled name'; Value = 'Denyy'; ValueText = 'Denyy' }
+            @{ Shape = 'a blank string'; Value = ''; ValueText = $null }
+            @{ Shape = 'a white-space string'; Value = '  '; ValueText = $null }
+            @{ Shape = 'an undefined number'; Value = 99; ValueText = '99' }
+            @{ Shape = 'a hashtable'; Value = @{ Unrelated = 1 }; ValueText = $null }
+        )
+
+        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (5 + 3 * 5) = 40 rows.
+        $accessInvalidParameterCases = foreach ($cmdlet in 'Add-NTFSAccess', 'Remove-NTFSAccess') {
+            foreach ($shapeCase in $accessTypeBadShapes) {
+                @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Shape = $shapeCase.Shape; Value = $shapeCase.Value; ValueText = $shapeCase.ValueText }
+            }
+            foreach ($parameterName in 'InheritanceFlags', 'PropagationFlags', 'AppliesTo') {
+                foreach ($shapeCase in $accessBadShapes) {
+                    @{ Cmdlet = $cmdlet; Parameter = $parameterName; Shape = $shapeCase.Shape; Value = $shapeCase.Value; ValueText = $shapeCase.ValueText }
+                }
+            }
+        }
+
+        $accessSdInvalidParameterCases = foreach ($cmdlet in 'Add-NTFSAccess', 'Remove-NTFSAccess') {
+            @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Value = 'Denyy'; ValueText = 'Denyy' }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = 'Typoo'; ValueText = 'Typoo' }
+        }
+
+        $accessNoCarryOverCases = @(
+            @{ Cmdlet = 'Add-NTFSAccess'; Parameter = 'AccessType'; Value = 'Denyy' }
+            @{ Cmdlet = 'Add-NTFSAccess'; Parameter = 'InheritanceFlags'; Value = 'Typoo' }
+            @{ Cmdlet = 'Add-NTFSAccess'; Parameter = 'PropagationFlags'; Value = 'Typoo' }
+            @{ Cmdlet = 'Add-NTFSAccess'; Parameter = 'AppliesTo'; Value = 'Typoo' }
+        )
+
+        $accessNamedInvalidParameterCases = foreach ($cmdlet in 'Add-NTFSAccess', 'Remove-NTFSAccess') {
+            @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Value = 'Denyy' }
+            @{ Cmdlet = $cmdlet; Parameter = 'InheritanceFlags'; Value = 'Typoo' }
+            @{ Cmdlet = $cmdlet; Parameter = 'PropagationFlags'; Value = 'Typoo' }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = 'Typoo' }
+        }
+
+        $accessValidAccessTypeShapeCases = @(
+            @{ Description = 'the exact name'; Value = 'Deny' }
+            @{ Description = 'a different case'; Value = 'deny' }
+            @{ Description = 'the enum value'; Value = [System.Security.AccessControl.AccessControlType]::Deny }
+            @{ Description = 'an integer'; Value = 1 }
+        )
+
+        $accessValidFlagsShapeCases = @(
+            @{ Description = 'a comma list without spaces'; Value = 'ContainerInherit,ObjectInherit' }
+            @{ Description = 'a comma list with spaces'; Value = 'ContainerInherit, ObjectInherit' }
+            @{ Description = 'the enum value'; Value = [System.Security.AccessControl.InheritanceFlags] 'ContainerInherit, ObjectInherit' }
+        )
+
+        $accessAmbiguousValueCases = @(
+            @{ AppliesToShape = 'a string'; AppliesToIsEnum = $false; FlagShape = 'a string'; FlagIsEnum = $false }
+            @{ AppliesToShape = 'an enum value'; AppliesToIsEnum = $true; FlagShape = 'a string'; FlagIsEnum = $false }
+            @{ AppliesToShape = 'a string'; AppliesToIsEnum = $false; FlagShape = 'an enum value'; FlagIsEnum = $true }
+            @{ AppliesToShape = 'an enum value'; AppliesToIsEnum = $true; FlagShape = 'an enum value'; FlagIsEnum = $true }
+        )
+
+        $accessCompleterCases = foreach ($cmdlet in 'Add-NTFSAccess', 'Remove-NTFSAccess') {
+            @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; EnumTypeName = 'System.Security.AccessControl.AccessControlType' }
+            @{ Cmdlet = $cmdlet; Parameter = 'InheritanceFlags'; EnumTypeName = 'System.Security.AccessControl.InheritanceFlags' }
+            @{ Cmdlet = $cmdlet; Parameter = 'PropagationFlags'; EnumTypeName = 'System.Security.AccessControl.PropagationFlags' }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; EnumTypeName = 'Security2.ApplyTo' }
+        }
+    }
+
+    Context 'A bad value bound from the pipeline' {
+        It 'Should write one InvalidParameterValue error for <Cmdlet> -<Parameter> (<Shape>), change nothing, and still process the next object' -ForEach $accessInvalidParameterCases {
+            $path = New-TestSandboxItem -Sandbox $sandbox -Name 'InvalidValue' -Directory
+            $next = New-TestSandboxItem -Sandbox $sandbox -Name 'InvalidValueNext' -Directory
+            $before = (Get-Acl -LiteralPath $path).Sddl
+            $extra = @{ }
+            $extra[$Parameter] = $Value
+
+            $rows = @(
+                [pscustomobject] (@{ Path = $path; Account = 'S-1-1-0'; AccessRights = 'ReadData' } + $extra)
+                [pscustomobject]@{ Path = $next; Account = 'S-1-1-0'; AccessRights = 'ReadData' }
+            )
+
+            $result = @($rows | & $Cmdlet -PassThru -ErrorVariable pipelineErrors -ErrorAction SilentlyContinue)
+
+            $pipelineErrors | Should -HaveCount 1
+            $pipelineErrors[0].FullyQualifiedErrorId | Should -BeLike 'InvalidParameterValue,*'
+            $pipelineErrors[0].CategoryInfo.Category | Should -Be 'InvalidArgument'
+            $pipelineErrors[0].TargetObject | Should -Be $path
+            $pipelineErrors[0].Exception.Message | Should -Match ([regex]::Escape($Parameter))
+            if ($ValueText) {
+                $pipelineErrors[0].Exception.Message | Should -Match ([regex]::Escape($ValueText))
+            }
+            (Get-Acl -LiteralPath $path).Sddl | Should -BeExactly $before
+            $result | Should -Not -BeNullOrEmpty
+            $result | ForEach-Object -Process { $_.FullName | Should -Be $next }
+        }
+
+        It 'Should write one InvalidParameterValue error per descriptor for <Cmdlet> -<Parameter> bound to a piped descriptor, and leave the descriptors unchanged' -ForEach $accessSdInvalidParameterCases {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'InvalidSdFirst' -Directory
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'InvalidSdSecond' -Directory
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $first, $second -ErrorAction Stop)
+            $before = $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Access')
+            $extra = @{ }
+            $extra[$Parameter] = $Value
+
+            $rows = @(
+                [pscustomobject] (@{ SecurityDescriptor = $descriptors[0]; Account = 'S-1-1-0'; AccessRights = 'ReadData' } + $extra)
+                [pscustomobject]@{ SecurityDescriptor = $descriptors[1]; Account = 'S-1-1-0'; AccessRights = 'ReadData' }
+            )
+
+            $result = @($rows | & $Cmdlet -PassThru -ErrorVariable pipelineErrors -ErrorAction SilentlyContinue)
+
+            $pipelineErrors | Should -HaveCount 1
+            $pipelineErrors[0].FullyQualifiedErrorId | Should -BeLike 'InvalidParameterValue,*'
+            $pipelineErrors[0].CategoryInfo.Category | Should -Be 'InvalidArgument'
+            $pipelineErrors[0].TargetObject | Should -Be $descriptors[0]
+            $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Access') | Should -BeExactly $before
+            $result | Should -Not -BeNullOrEmpty
+            $result | ForEach-Object -Process { $_.FullName | Should -Be $second }
+        }
+    }
+
+    Context 'Continuation and no carry-over across piped objects' {
+        It 'Should apply both good objects when a bad AccessType value is between them, in the order of the rows' {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'ContinueFirst' -Directory
+            $middle = New-TestSandboxItem -Sandbox $sandbox -Name 'ContinueMiddle' -Directory
+            $last = New-TestSandboxItem -Sandbox $sandbox -Name 'ContinueLast' -Directory
+
+            $rows = @(
+                [pscustomobject]@{ Path = $first; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AccessType = 'Deny' }
+                [pscustomobject]@{ Path = $middle; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AccessType = 'Denyy' }
+                [pscustomobject]@{ Path = $last; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AccessType = 'Deny' }
+            )
+
+            $result = @($rows | Add-NTFSAccess -PassThru -ErrorVariable pipelineErrors -ErrorAction SilentlyContinue)
+
+            $pipelineErrors | Should -HaveCount 1
+            $pipelineErrors[0].TargetObject | Should -Be $middle
+            $firstRule = @((Get-Acl -LiteralPath $first).GetAccessRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
+            $firstRule | Should -HaveCount 1
+            $firstRule[0].AccessControlType | Should -Be ([System.Security.AccessControl.AccessControlType]::Deny)
+            $middleRule = @((Get-Acl -LiteralPath $middle).GetAccessRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
+            $middleRule | Should -BeNullOrEmpty
+            $lastRule = @((Get-Acl -LiteralPath $last).GetAccessRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
+            $lastRule | Should -HaveCount 1
+            $lastRule[0].AccessControlType | Should -Be ([System.Security.AccessControl.AccessControlType]::Deny)
+            # The rows are applied in order: both surviving entries show up, $middle's does not, and nothing reports twice.
+            @($result | Where-Object -FilterScript { $_.FullName -eq $first -and $_.Account.Sid -eq 'S-1-1-0' }) | Should -HaveCount 1
+            @($result | Where-Object -FilterScript { $_.FullName -eq $last -and $_.Account.Sid -eq 'S-1-1-0' }) | Should -HaveCount 1
+            @($result | Where-Object -FilterScript { $_.FullName -eq $middle -and $_.Account.Sid -eq 'S-1-1-0' }) | Should -BeNullOrEmpty
+        }
+
+        It 'Should give the row without AccessType the default Allow after a preceding Deny row, with no carry-over' {
+            $denyFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'NoCarryOverDeny' -Directory
+            $defaultFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'NoCarryOverDefault' -Directory
+
+            @(
+                [pscustomobject]@{ Path = $denyFolder; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AccessType = 'Deny' }
+                [pscustomobject]@{ Path = $defaultFolder; Account = 'S-1-1-0'; AccessRights = 'ReadData' }
+            ) | Add-NTFSAccess -ErrorAction Stop
+
+            $denyRule = @((Get-Acl -LiteralPath $denyFolder).GetAccessRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
+            $denyRule | Should -HaveCount 1
+            $denyRule[0].AccessControlType | Should -Be ([System.Security.AccessControl.AccessControlType]::Deny)
+            $defaultRule = @((Get-Acl -LiteralPath $defaultFolder).GetAccessRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
+            $defaultRule | Should -HaveCount 1
+            $defaultRule[0].AccessControlType | Should -Be ([System.Security.AccessControl.AccessControlType]::Allow)
+        }
+
+        It 'Should give the row without <Parameter> its own default after a preceding row with an invalid value, with no carry-over' -ForEach $accessNoCarryOverCases {
+            $badFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'NoCarryOverBad' -Directory
+            $defaultFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'NoCarryOverAfterBad' -Directory
+            $extra = @{ }
+            $extra[$Parameter] = $Value
+
+            @(
+                [pscustomobject] (@{ Path = $badFolder; Account = 'S-1-1-0'; AccessRights = 'ReadData' } + $extra)
+                [pscustomobject]@{ Path = $defaultFolder; Account = 'S-1-1-0'; AccessRights = 'ReadData' }
+            ) | & $Cmdlet -ErrorAction SilentlyContinue
+
+            $defaultRule = @((Get-Acl -LiteralPath $defaultFolder).GetAccessRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
+            $defaultRule | Should -HaveCount 1
+            $defaultRule[0].AccessControlType | Should -Be ([System.Security.AccessControl.AccessControlType]::Allow)
+            $defaultRule[0].InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags] 'ContainerInherit, ObjectInherit')
+            $defaultRule[0].PropagationFlags | Should -Be ([System.Security.AccessControl.PropagationFlags]::None)
+        }
+    }
+
+    Context 'Valid values are unchanged for every shape' {
+        It 'Should add a Deny entry for AccessType given as <Description>' -ForEach $accessValidAccessTypeShapeCases {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ValidAccessType' -Directory
+
+            [pscustomobject]@{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AccessType = $Value } | Add-NTFSAccess -ErrorAction Stop
+
+            $rule = @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
+            $rule | Should -HaveCount 1
+            $rule[0].AccessControlType | Should -Be ([System.Security.AccessControl.AccessControlType]::Deny)
+        }
+
+        It 'Should keep the default AccessType Allow for a $null value' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ValidAccessTypeNull' -Directory
+
+            [pscustomobject]@{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AccessType = $null } | Add-NTFSAccess -ErrorAction Stop
+
+            $rule = @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
+            $rule | Should -HaveCount 1
+            $rule[0].AccessControlType | Should -Be ([System.Security.AccessControl.AccessControlType]::Allow)
+        }
+
+        It 'Should scope the entry with InheritanceFlags given as <Description>' -ForEach $accessValidFlagsShapeCases {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ValidInheritanceFlags' -Directory
+
+            [pscustomobject]@{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData'; InheritanceFlags = $Value; PropagationFlags = 'None' } | Add-NTFSAccess -ErrorAction Stop
+
+            $rule = @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
+            $rule | Should -HaveCount 1
+            $rule[0].InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags] 'ContainerInherit, ObjectInherit')
+        }
+
+        It 'Should keep the default flags for $null InheritanceFlags and PropagationFlags' {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ValidFlagsNull' -Directory
+
+            [pscustomobject]@{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData'; InheritanceFlags = $null; PropagationFlags = $null } | Add-NTFSAccess -ErrorAction Stop
+
+            $rule = @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
+            $rule | Should -HaveCount 1
+            $rule[0].InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags] 'ContainerInherit, ObjectInherit')
+            $rule[0].PropagationFlags | Should -Be ([System.Security.AccessControl.PropagationFlags]::None)
+        }
+    }
+
+    Context 'A bad value named on the command line' {
+        It 'Should throw a terminating InvalidParameterValue error for <Cmdlet> -<Parameter>, catchable with try/catch, and change nothing' -ForEach $accessNamedInvalidParameterCases {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'NamedInvalid' -Directory
+            $before = (Get-Acl -LiteralPath $folder).Sddl
+            $namedArguments = @{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData' }
+            $namedArguments[$Parameter] = $Value
+
+            $caughtId = $null
+            try {
+                & $Cmdlet @namedArguments -ErrorAction Stop
+            }
+            catch {
+                $caughtId = $_.FullyQualifiedErrorId
+            }
+
+            $caughtId | Should -BeLike 'InvalidParameterValue,*'
+            (Get-Acl -LiteralPath $folder).Sddl | Should -BeExactly $before
+        }
+
+        It 'Should stop before the first piped path when -AccessType is named and bad' {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'NamedBadFirst' -Directory
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'NamedBadSecond' -Directory
+            $before = @((Get-Acl -LiteralPath $first).Sddl, (Get-Acl -LiteralPath $second).Sddl)
+
+            $caughtId = $null
+            try {
+                $first, $second | Add-NTFSAccess -Account 'S-1-1-0' -AccessRights ReadData -AccessType Denyy -ErrorAction Stop
+            }
+            catch {
+                $caughtId = $_.FullyQualifiedErrorId
+            }
+
+            $caughtId | Should -BeLike 'InvalidParameterValue,*'
+            (Get-Acl -LiteralPath $first).Sddl | Should -BeExactly $before[0]
+            (Get-Acl -LiteralPath $second).Sddl | Should -BeExactly $before[1]
+        }
+    }
+
+    Context 'Choosing the parameter set with a mix of string and enum values' {
+        It 'Should reject a piped object whose AppliesTo is <AppliesToShape> combined with InheritanceFlags as <FlagShape> with an AmbiguousParameterSet error' -ForEach $accessAmbiguousValueCases {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'AmbiguousPipedMix' -Directory
+            $before = (Get-Acl -LiteralPath $folder).Sddl
+            $appliesToValue = if ($AppliesToIsEnum) { [Security2.ApplyTo]::ThisFolderOnly } else { 'ThisFolderOnly' }
+            $flagValue = if ($FlagIsEnum) { [System.Security.AccessControl.InheritanceFlags]::None } else { 'None' }
+            $object = [pscustomobject]@{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AppliesTo = $appliesToValue; InheritanceFlags = $flagValue }
+
+            { $object | Add-NTFSAccess -ErrorAction Stop } | Should -Throw -ErrorId 'AmbiguousParameterSet*'
+
+            (Get-Acl -LiteralPath $folder).Sddl | Should -BeExactly $before
+        }
+
+        It 'Should reject a named call whose -AppliesTo is <AppliesToShape> combined with -PropagationFlags as <FlagShape> with an AmbiguousParameterSet error' -ForEach $accessAmbiguousValueCases {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'AmbiguousNamedMix' -Directory
+            $before = (Get-Acl -LiteralPath $folder).Sddl
+            $appliesToValue = if ($AppliesToIsEnum) { [Security2.ApplyTo]::ThisFolderOnly } else { 'ThisFolderOnly' }
+            $flagValue = if ($FlagIsEnum) { [System.Security.AccessControl.InheritanceFlags]::None } else { 'None' }
+
+            { Add-NTFSAccess -Path $folder -Account 'S-1-1-0' -AccessRights ReadData -AppliesTo $appliesToValue -PropagationFlags $flagValue -ErrorAction Stop } |
+                Should -Throw -ErrorId 'AmbiguousParameterSet*'
+
+            (Get-Acl -LiteralPath $folder).Sddl | Should -BeExactly $before
+        }
+    }
+
+    Context 'Tab completion and the parameter type' {
+        It '<Cmdlet> -<Parameter> should complete exactly the names of its enumeration' -ForEach $accessCompleterCases {
+            $inputScript = '{0} -{1} ' -f $Cmdlet, $Parameter
+            $enumType = [type] $EnumTypeName
+
+            $completion = [System.Management.Automation.CommandCompletion]::CompleteInput($inputScript, $inputScript.Length, $null)
+
+            @($completion.CompletionMatches | ForEach-Object -Process { $_.CompletionText }) | Should -BeExactly ([Enum]::GetNames($enumType))
+        }
+
+        It '<Cmdlet> should declare -<Parameter> as [object]' -ForEach $accessCompleterCases {
+            (Get-Command -Name $Cmdlet).Parameters[$Parameter].ParameterType | Should -Be ([object])
         }
     }
 }

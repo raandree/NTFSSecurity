@@ -276,9 +276,10 @@ Describe 'Add-NTFSAudit' {
             $scopes -join '|' | Should -BeExactly 'None/None|ContainerInherit/None|ContainerInherit, ObjectInherit/InheritOnly'
         }
 
-        # A blank cell that Import-Csv reads is an empty string, not $null: the row gets the default scope (ParameterSets.Access.Tests.ps1
-        # has the same rows and says why).
-        It 'Should give the row of a CSV file whose AppliesTo cell is blank the default scope, and the other rows their own' -Skip:(-not $canReadAudit) {
+        # A blank cell that Import-Csv reads is an empty string, not $null. Since -AppliesTo is now an object
+        # parameter (Decision 27, fix B), the blank string still binds it, which selects PathSimple, so the row gets
+        # an InvalidParameterValue error instead of the default scope (ParameterSets.Access.Tests.ps1 has the same rows).
+        It 'Should write an InvalidParameterValue error for the row of a CSV file whose AppliesTo cell is blank, leave its folder alone, and still give the other rows their own scope' -Skip:(-not $canReadAudit) {
             $folders = @('AddCsvAuditBlankFirst', 'AddCsvAuditBlankCell', 'AddCsvAuditBlankLast' |
                     ForEach-Object -Process { New-TestSandboxItem -Sandbox $sandbox -Name $_ -Directory })
             $csv = Join-Path -Path $sandbox -ChildPath 'AddCsvAuditBlank.csv'
@@ -290,10 +291,14 @@ Describe 'Add-NTFSAudit' {
                 ('"{0}",{1},ReadData,SubfoldersAndFilesOnly' -f $folders[2], $probe)
             )
 
-            Import-Csv -LiteralPath $csv | Add-NTFSAudit -ErrorAction Stop
+            Import-Csv -LiteralPath $csv | Add-NTFSAudit -ErrorVariable auditErrors -ErrorAction SilentlyContinue
 
+            $auditErrors | Should -HaveCount 1
+            $auditErrors[0].FullyQualifiedErrorId | Should -BeLike 'InvalidParameterValue,*'
+            $auditErrors[0].CategoryInfo.Category | Should -Be 'InvalidArgument'
+            $auditErrors[0].TargetObject | Should -Be $folders[1]
             $scopes = $folders | ForEach-Object -Process { Get-TestAuditScope -Acl (Get-Acl -LiteralPath $_ -Audit) }
-            $scopes -join '|' | Should -BeExactly 'None/None|ContainerInherit, ObjectInherit/None|ContainerInherit, ObjectInherit/InheritOnly'
+            $scopes -join '|' | Should -BeExactly 'None/None||ContainerInherit, ObjectInherit/InheritOnly'
         }
 
         # $null cannot be bound at all: the object fails, loudly, and the cmdlet goes on with the next one.
@@ -911,6 +916,335 @@ Describe 'Get-NTFSOrphanedAudit' {
             $explicitOnly[0].Account.Sid | Should -Be 'S-1-5-21-1-2-3-9202'
             $byAccount | Should -HaveCount 1
             $byAccount[0].Account.Sid | Should -Be 'S-1-5-21-1-2-3-9202'
+        }
+    }
+}
+
+# Decision 27 (fix B): AuditFlags, InheritanceFlags, PropagationFlags, and AppliesTo of Add-NTFSAudit and
+# Remove-NTFSAudit are object parameters, converted in the cmdlet with LanguagePrimitives.ConvertTo, so that a piped
+# value the binder cannot convert to the enumeration is an error instead of a silently kept default. A bad value is
+# caught by the conversion before the cmdlet reads or writes the SACL, so none of these tests need the Security
+# privilege, unlike most of the tests above.
+Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationFlags, and AppliesTo' {
+    BeforeDiscovery {
+        $auditBadShapes = @(
+            @{ Shape = 'a misspelled name'; Value = 'Typoo'; ValueText = 'Typoo' }
+            @{ Shape = 'a blank string'; Value = ''; ValueText = $null }
+            @{ Shape = 'a white-space string'; Value = '  '; ValueText = $null }
+            @{ Shape = 'an undefined number'; Value = 99; ValueText = '99' }
+            @{ Shape = 'a hashtable'; Value = @{ Unrelated = 1 }; ValueText = $null }
+        )
+        $auditFlagsBadShapes = @(
+            @{ Shape = 'a misspelled name'; Value = 'Failurre'; ValueText = 'Failurre' }
+            @{ Shape = 'a blank string'; Value = ''; ValueText = $null }
+            @{ Shape = 'a white-space string'; Value = '  '; ValueText = $null }
+            @{ Shape = 'an undefined number'; Value = 99; ValueText = '99' }
+            @{ Shape = 'a hashtable'; Value = @{ Unrelated = 1 }; ValueText = $null }
+        )
+
+        # The cross product of the two cmdlets that share these parameters and every bad shape: 2 * (5 + 3 * 5) = 40 rows.
+        $auditInvalidParameterCases = foreach ($cmdlet in 'Add-NTFSAudit', 'Remove-NTFSAudit') {
+            foreach ($shapeCase in $auditFlagsBadShapes) {
+                @{ Cmdlet = $cmdlet; Parameter = 'AuditFlags'; Shape = $shapeCase.Shape; Value = $shapeCase.Value; ValueText = $shapeCase.ValueText }
+            }
+            foreach ($parameterName in 'InheritanceFlags', 'PropagationFlags', 'AppliesTo') {
+                foreach ($shapeCase in $auditBadShapes) {
+                    @{ Cmdlet = $cmdlet; Parameter = $parameterName; Shape = $shapeCase.Shape; Value = $shapeCase.Value; ValueText = $shapeCase.ValueText }
+                }
+            }
+        }
+
+        $auditSdInvalidParameterCases = foreach ($cmdlet in 'Add-NTFSAudit', 'Remove-NTFSAudit') {
+            @{ Cmdlet = $cmdlet; Parameter = 'AuditFlags'; Value = 'Failurre'; ValueText = 'Failurre' }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = 'Typoo'; ValueText = 'Typoo' }
+        }
+
+        $auditNoCarryOverCases = @(
+            @{ Parameter = 'AuditFlags'; Value = 'Failurre' }
+            @{ Parameter = 'InheritanceFlags'; Value = 'Typoo' }
+            @{ Parameter = 'PropagationFlags'; Value = 'Typoo' }
+            @{ Parameter = 'AppliesTo'; Value = 'Typoo' }
+        )
+
+        $auditNamedInvalidParameterCases = foreach ($cmdlet in 'Add-NTFSAudit', 'Remove-NTFSAudit') {
+            @{ Cmdlet = $cmdlet; Parameter = 'AuditFlags'; Value = 'Failurre' }
+            @{ Cmdlet = $cmdlet; Parameter = 'InheritanceFlags'; Value = 'Typoo' }
+            @{ Cmdlet = $cmdlet; Parameter = 'PropagationFlags'; Value = 'Typoo' }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = 'Typoo' }
+        }
+
+        $auditValidAuditFlagsShapeCases = @(
+            @{ Description = 'the exact name'; Value = 'Failure' }
+            @{ Description = 'a different case'; Value = 'failure' }
+            @{ Description = 'a comma list without spaces'; Value = 'Success,Failure' }
+            @{ Description = 'a comma list with spaces'; Value = 'Success, Failure' }
+            @{ Description = 'the enum value'; Value = [System.Security.AccessControl.AuditFlags]::Failure }
+            @{ Description = 'an integer'; Value = 2 }
+        )
+
+        $auditValidFlagsShapeCases = @(
+            @{ Description = 'a comma list without spaces'; Value = 'ContainerInherit,ObjectInherit' }
+            @{ Description = 'a comma list with spaces'; Value = 'ContainerInherit, ObjectInherit' }
+            @{ Description = 'the enum value'; Value = [System.Security.AccessControl.InheritanceFlags] 'ContainerInherit, ObjectInherit' }
+        )
+
+        $auditAmbiguousValueCases = @(
+            @{ AppliesToShape = 'a string'; AppliesToIsEnum = $false; FlagShape = 'a string'; FlagIsEnum = $false }
+            @{ AppliesToShape = 'an enum value'; AppliesToIsEnum = $true; FlagShape = 'a string'; FlagIsEnum = $false }
+            @{ AppliesToShape = 'a string'; AppliesToIsEnum = $false; FlagShape = 'an enum value'; FlagIsEnum = $true }
+            @{ AppliesToShape = 'an enum value'; AppliesToIsEnum = $true; FlagShape = 'an enum value'; FlagIsEnum = $true }
+        )
+
+        $auditCompleterCases = foreach ($cmdlet in 'Add-NTFSAudit', 'Remove-NTFSAudit') {
+            @{ Cmdlet = $cmdlet; Parameter = 'AuditFlags'; EnumTypeName = 'System.Security.AccessControl.AuditFlags' }
+            @{ Cmdlet = $cmdlet; Parameter = 'InheritanceFlags'; EnumTypeName = 'System.Security.AccessControl.InheritanceFlags' }
+            @{ Cmdlet = $cmdlet; Parameter = 'PropagationFlags'; EnumTypeName = 'System.Security.AccessControl.PropagationFlags' }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; EnumTypeName = 'Security2.ApplyTo' }
+        }
+    }
+
+    Context 'A bad value bound from the pipeline' {
+        # Writing an audit entry needs the Security privilege, so without it the "good" object right next to the bad
+        # one fails too, with its own (unrelated) privilege error; that part of the test runs only with the privilege,
+        # the same way most of Audit.Tests.ps1 does. The conversion failure that this test pins happens before the
+        # cmdlet ever touches the SACL, so the core assertions below run in every configuration.
+        It 'Should write one InvalidParameterValue error for <Cmdlet> -<Parameter> (<Shape>), change nothing, and still process the next object' -ForEach $auditInvalidParameterCases {
+            $path = New-TestSandboxItem -Sandbox $sandbox -Name 'InvalidValue' -Directory
+            $next = New-TestSandboxItem -Sandbox $sandbox -Name 'InvalidValueNext' -Directory
+            $before = if ($canReadAudit) { Get-TestAuditSddl -Path $path }
+            $extra = @{ }
+            $extra[$Parameter] = $Value
+
+            $rows = @(
+                [pscustomobject] (@{ FullName = $path; Account = 'S-1-1-0'; AccessRights = 'ReadData' } + $extra)
+                [pscustomobject]@{ FullName = $next; Account = 'S-1-1-0'; AccessRights = 'ReadData' }
+            )
+
+            $result = @($rows | & $Cmdlet -PassThru -ErrorVariable pipelineErrors -ErrorAction SilentlyContinue)
+
+            $invalidValueErrors = @($pipelineErrors | Where-Object -FilterScript { $_.TargetObject -eq $path })
+            $invalidValueErrors | Should -HaveCount 1
+            $invalidValueErrors[0].FullyQualifiedErrorId | Should -BeLike 'InvalidParameterValue,*'
+            $invalidValueErrors[0].CategoryInfo.Category | Should -Be 'InvalidArgument'
+            $invalidValueErrors[0].Exception.Message | Should -Match ([regex]::Escape($Parameter))
+            if ($ValueText) {
+                $invalidValueErrors[0].Exception.Message | Should -Match ([regex]::Escape($ValueText))
+            }
+            if ($canReadAudit) {
+                Get-TestAuditSddl -Path $path | Should -BeExactly $before
+                $pipelineErrors | Should -HaveCount 1
+                $result | Should -Not -BeNullOrEmpty
+                $result | ForEach-Object -Process { $_.FullName | Should -Be $next }
+            }
+        }
+
+        # A descriptor that Get-NTFSSecurityDescriptor read without the Security privilege has no audit section, so
+        # without the privilege the "good" descriptor also gets its own (unrelated) ReadSecurityError; see above.
+        It 'Should write one InvalidParameterValue error per descriptor for <Cmdlet> -<Parameter> bound to a piped descriptor, and leave the descriptors unchanged' -ForEach $auditSdInvalidParameterCases {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'InvalidSdFirst' -Directory
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'InvalidSdSecond' -Directory
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $first, $second -ErrorAction Stop)
+            $before = $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Access')
+            $extra = @{ }
+            $extra[$Parameter] = $Value
+
+            $rows = @(
+                [pscustomobject] (@{ SecurityDescriptor = $descriptors[0]; Account = 'S-1-1-0'; AccessRights = 'ReadData' } + $extra)
+                [pscustomobject]@{ SecurityDescriptor = $descriptors[1]; Account = 'S-1-1-0'; AccessRights = 'ReadData' }
+            )
+
+            $result = @($rows | & $Cmdlet -ErrorVariable pipelineErrors -ErrorAction SilentlyContinue)
+
+            $invalidValueErrors = @($pipelineErrors | Where-Object -FilterScript { $_.TargetObject -eq $descriptors[0] })
+            $invalidValueErrors | Should -HaveCount 1
+            $invalidValueErrors[0].FullyQualifiedErrorId | Should -BeLike 'InvalidParameterValue,*'
+            $invalidValueErrors[0].CategoryInfo.Category | Should -Be 'InvalidArgument'
+            $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Access') | Should -BeExactly $before
+            if ($canReadAudit) {
+                $pipelineErrors | Should -HaveCount 1
+            }
+        }
+    }
+
+    Context 'Continuation and no carry-over across piped objects' {
+        It 'Should apply both good objects when a bad AuditFlags value is between them, in the order of the rows' -Skip:(-not $canReadAudit) {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'ContinueFirst' -Directory
+            $middle = New-TestSandboxItem -Sandbox $sandbox -Name 'ContinueMiddle' -Directory
+            $last = New-TestSandboxItem -Sandbox $sandbox -Name 'ContinueLast' -Directory
+
+            $rows = @(
+                [pscustomobject]@{ FullName = $first; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AuditFlags = 'Failure' }
+                [pscustomobject]@{ FullName = $middle; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AuditFlags = 'Failurre' }
+                [pscustomobject]@{ FullName = $last; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AuditFlags = 'Failure' }
+            )
+
+            $rows | Add-NTFSAudit -ErrorVariable pipelineErrors -ErrorAction SilentlyContinue
+
+            $pipelineErrors | Should -HaveCount 1
+            $pipelineErrors[0].TargetObject | Should -Be $middle
+            $firstRule = Get-TestAccountAuditRule -Acl (Get-Acl -LiteralPath $first -Audit) -Account 'S-1-1-0'
+            $firstRule | Should -HaveCount 1
+            $firstRule[0].AuditFlags | Should -Be ([System.Security.AccessControl.AuditFlags]::Failure)
+            $middleRule = Get-TestAccountAuditRule -Acl (Get-Acl -LiteralPath $middle -Audit) -Account 'S-1-1-0'
+            $middleRule | Should -BeNullOrEmpty
+            $lastRule = Get-TestAccountAuditRule -Acl (Get-Acl -LiteralPath $last -Audit) -Account 'S-1-1-0'
+            $lastRule | Should -HaveCount 1
+            $lastRule[0].AuditFlags | Should -Be ([System.Security.AccessControl.AuditFlags]::Failure)
+        }
+
+        It 'Should give the row without AuditFlags the default Success and Failure after a preceding Failure-only row, with no carry-over' -Skip:(-not $canReadAudit) {
+            $failureFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'NoCarryOverFailure' -Directory
+            $defaultFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'NoCarryOverDefault' -Directory
+
+            @(
+                [pscustomobject]@{ FullName = $failureFolder; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AuditFlags = 'Failure' }
+                [pscustomobject]@{ FullName = $defaultFolder; Account = 'S-1-1-0'; AccessRights = 'ReadData' }
+            ) | Add-NTFSAudit -ErrorAction Stop
+
+            $failureRule = Get-TestAccountAuditRule -Acl (Get-Acl -LiteralPath $failureFolder -Audit) -Account 'S-1-1-0'
+            $failureRule | Should -HaveCount 1
+            $failureRule[0].AuditFlags | Should -Be ([System.Security.AccessControl.AuditFlags]::Failure)
+            $defaultRule = Get-TestAccountAuditRule -Acl (Get-Acl -LiteralPath $defaultFolder -Audit) -Account 'S-1-1-0'
+            $defaultRule | Should -HaveCount 1
+            $defaultRule[0].AuditFlags | Should -Be ([System.Security.AccessControl.AuditFlags] 'Success, Failure')
+        }
+
+        It 'Should give the row without <Parameter> its own default after a preceding row with an invalid value, with no carry-over' -ForEach $auditNoCarryOverCases -Skip:(-not $canReadAudit) {
+            $badFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'NoCarryOverBad' -Directory
+            $defaultFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'NoCarryOverAfterBad' -Directory
+            $extra = @{ }
+            $extra[$Parameter] = $Value
+
+            @(
+                [pscustomobject] (@{ FullName = $badFolder; Account = 'S-1-1-0'; AccessRights = 'ReadData' } + $extra)
+                [pscustomobject]@{ FullName = $defaultFolder; Account = 'S-1-1-0'; AccessRights = 'ReadData' }
+            ) | Add-NTFSAudit -ErrorAction SilentlyContinue
+
+            $defaultRule = Get-TestAccountAuditRule -Acl (Get-Acl -LiteralPath $defaultFolder -Audit) -Account 'S-1-1-0'
+            $defaultRule | Should -HaveCount 1
+            $defaultRule[0].AuditFlags | Should -Be ([System.Security.AccessControl.AuditFlags] 'Success, Failure')
+            $defaultRule[0].InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags] 'ContainerInherit, ObjectInherit')
+            $defaultRule[0].PropagationFlags | Should -Be ([System.Security.AccessControl.PropagationFlags]::None)
+        }
+    }
+
+    Context 'Valid values are unchanged for every shape' {
+        It 'Should add a Failure-only entry for AuditFlags given as <Description>' -ForEach $auditValidAuditFlagsShapeCases -Skip:(-not $canReadAudit) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ValidAuditFlags' -Directory
+
+            [pscustomobject]@{ FullName = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AuditFlags = $Value } | Add-NTFSAudit -ErrorAction Stop
+
+            $rule = Get-TestAccountAuditRule -Acl (Get-Acl -LiteralPath $folder -Audit) -Account 'S-1-1-0'
+            $rule | Should -HaveCount 1
+            $rule[0].AuditFlags.HasFlag([System.Security.AccessControl.AuditFlags]::Failure) | Should -BeTrue
+        }
+
+        It 'Should keep the default AuditFlags Success and Failure for a $null value' -Skip:(-not $canReadAudit) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ValidAuditFlagsNull' -Directory
+
+            [pscustomobject]@{ FullName = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AuditFlags = $null } | Add-NTFSAudit -ErrorAction Stop
+
+            $rule = Get-TestAccountAuditRule -Acl (Get-Acl -LiteralPath $folder -Audit) -Account 'S-1-1-0'
+            $rule | Should -HaveCount 1
+            $rule[0].AuditFlags | Should -Be ([System.Security.AccessControl.AuditFlags] 'Success, Failure')
+        }
+
+        It 'Should scope the entry with InheritanceFlags given as <Description>' -ForEach $auditValidFlagsShapeCases -Skip:(-not $canReadAudit) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ValidInheritanceFlags' -Directory
+
+            [pscustomobject]@{ FullName = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData'; InheritanceFlags = $Value; PropagationFlags = 'None' } | Add-NTFSAudit -ErrorAction Stop
+
+            $rule = Get-TestAccountAuditRule -Acl (Get-Acl -LiteralPath $folder -Audit) -Account 'S-1-1-0'
+            $rule | Should -HaveCount 1
+            $rule[0].InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags] 'ContainerInherit, ObjectInherit')
+        }
+
+        It 'Should keep the default flags for $null InheritanceFlags and PropagationFlags' -Skip:(-not $canReadAudit) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ValidFlagsNull' -Directory
+
+            [pscustomobject]@{ FullName = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData'; InheritanceFlags = $null; PropagationFlags = $null } | Add-NTFSAudit -ErrorAction Stop
+
+            $rule = Get-TestAccountAuditRule -Acl (Get-Acl -LiteralPath $folder -Audit) -Account 'S-1-1-0'
+            $rule | Should -HaveCount 1
+            $rule[0].InheritanceFlags | Should -Be ([System.Security.AccessControl.InheritanceFlags] 'ContainerInherit, ObjectInherit')
+            $rule[0].PropagationFlags | Should -Be ([System.Security.AccessControl.PropagationFlags]::None)
+        }
+    }
+
+    Context 'A bad value named on the command line' {
+        It 'Should throw a terminating InvalidParameterValue error for <Cmdlet> -<Parameter>, catchable with try/catch, and change nothing' -ForEach $auditNamedInvalidParameterCases {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'NamedInvalid' -Directory
+            $before = if ($canReadAudit) { Get-TestAuditSddl -Path $folder }
+            $namedArguments = @{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData' }
+            $namedArguments[$Parameter] = $Value
+
+            $caughtId = $null
+            try {
+                & $Cmdlet @namedArguments -ErrorAction Stop
+            }
+            catch {
+                $caughtId = $_.FullyQualifiedErrorId
+            }
+
+            $caughtId | Should -BeLike 'InvalidParameterValue,*'
+            if ($canReadAudit) {
+                Get-TestAuditSddl -Path $folder | Should -BeExactly $before
+            }
+        }
+
+        It 'Should stop before the first piped path when -AuditFlags is named and bad' {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'NamedBadFirst' -Directory
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'NamedBadSecond' -Directory
+            $before = if ($canReadAudit) { @((Get-TestAuditSddl -Path $first), (Get-TestAuditSddl -Path $second)) }
+
+            $caughtId = $null
+            try {
+                $first, $second | Add-NTFSAudit -Account 'S-1-1-0' -AccessRights ReadData -AuditFlags Failurre -ErrorAction Stop
+            }
+            catch {
+                $caughtId = $_.FullyQualifiedErrorId
+            }
+
+            $caughtId | Should -BeLike 'InvalidParameterValue,*'
+            if ($canReadAudit) {
+                Get-TestAuditSddl -Path $first | Should -BeExactly $before[0]
+                Get-TestAuditSddl -Path $second | Should -BeExactly $before[1]
+            }
+        }
+    }
+
+    Context 'Choosing the parameter set with a mix of string and enum values' {
+        It 'Should reject a piped object whose AppliesTo is <AppliesToShape> combined with InheritanceFlags as <FlagShape> with an AmbiguousParameterSet error' -ForEach $auditAmbiguousValueCases {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'AmbiguousPipedMix' -Directory
+            $appliesToValue = if ($AppliesToIsEnum) { [Security2.ApplyTo]::ThisFolderOnly } else { 'ThisFolderOnly' }
+            $flagValue = if ($FlagIsEnum) { [System.Security.AccessControl.InheritanceFlags]::None } else { 'None' }
+            $object = [pscustomobject]@{ FullName = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AppliesTo = $appliesToValue; InheritanceFlags = $flagValue }
+
+            { $object | Add-NTFSAudit -ErrorAction Stop } | Should -Throw -ErrorId 'AmbiguousParameterSet*'
+        }
+
+        It 'Should reject a named call whose -AppliesTo is <AppliesToShape> combined with -PropagationFlags as <FlagShape> with an AmbiguousParameterSet error' -ForEach $auditAmbiguousValueCases {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'AmbiguousNamedMix' -Directory
+            $appliesToValue = if ($AppliesToIsEnum) { [Security2.ApplyTo]::ThisFolderOnly } else { 'ThisFolderOnly' }
+            $flagValue = if ($FlagIsEnum) { [System.Security.AccessControl.InheritanceFlags]::None } else { 'None' }
+
+            { Add-NTFSAudit -Path $folder -Account 'S-1-1-0' -AccessRights ReadData -AppliesTo $appliesToValue -PropagationFlags $flagValue -ErrorAction Stop } |
+                Should -Throw -ErrorId 'AmbiguousParameterSet*'
+        }
+    }
+
+    Context 'Tab completion and the parameter type' {
+        It '<Cmdlet> -<Parameter> should complete exactly the names of its enumeration' -ForEach $auditCompleterCases {
+            $inputScript = '{0} -{1} ' -f $Cmdlet, $Parameter
+            $enumType = [type] $EnumTypeName
+
+            $completion = [System.Management.Automation.CommandCompletion]::CompleteInput($inputScript, $inputScript.Length, $null)
+
+            @($completion.CompletionMatches | ForEach-Object -Process { $_.CompletionText }) | Should -BeExactly ([Enum]::GetNames($enumType))
+        }
+
+        It '<Cmdlet> should declare -<Parameter> as [object]' -ForEach $auditCompleterCases {
+            (Get-Command -Name $Cmdlet).Parameters[$Parameter].ParameterType | Should -Be ([object])
         }
     }
 }
