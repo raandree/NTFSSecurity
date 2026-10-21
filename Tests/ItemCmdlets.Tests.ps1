@@ -250,7 +250,7 @@ Describe 'Get-ChildItem2' {
             ($result.Name | Sort-Object) -join ',' | Should -BeExactly 'NoExtension,NoExtensionFolder,Page.htm'
         }
 
-        # The cmdlet now has one matcher, not two (Decision 27, item 4): every dot in -Filter whose single next
+        # The cmdlet now has one matcher, not two: every dot in -Filter whose single next
         # character is an asterisk or a question mark, or that has nothing after it, is a DOS_DOT, and *.*.* has
         # two such dots, so it returns every item, the same as *.* and a plain *. Before this change, the cmdlet
         # compared the name with the pattern a second time with the dots read as ordinary characters, so only a
@@ -269,7 +269,7 @@ Describe 'Get-ChildItem2' {
         }
 
         # The names are matched once, by the cmdlet, with the Win32 "DOS" wildcard rules that Windows PowerShell 5.1
-        # applies to Get-ChildItem -Filter, in both editions (Decision 27, item 4): Report.* also returns Report,
+        # applies to Get-ChildItem -Filter, in both editions: Report.* also returns Report,
         # which has no dot, and a trailing dot asks for the names without a dot. Report* is the control: without a
         # dot in the pattern, the names with and without a dot are both returned, as before.
         It 'Should return <Outcome> for -Filter "<Filter>"' -ForEach @(
