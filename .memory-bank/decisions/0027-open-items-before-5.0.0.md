@@ -3,7 +3,7 @@ status: accepted
 date: 2026-10-21
 last-verified: 2026-10-21
 owner: shared
-source: maintainer answers of 2026-10-21 (fix scope B, items 3 to 7 change, review on); probes of 2026-10-21 on the published rc8
+source: maintainer answers of 2026-10-21 (fix scope B, items 3 to 7 change, review on; designs chosen in the third form); probes of 2026-10-21 on the published rc8
 ---
 
 # Decision 27: The open items before 5.0.0, and the piped optional parameters
@@ -14,10 +14,12 @@ source: maintainer answers of 2026-10-21 (fix scope B, items 3 to 7 change, revi
   is the last prerelease: a change after its acceptance needs rc10, and after
   5.0.0 the repository is archived (Decision 18). So this is the last moment
   to change any of the items below, and unchanged means accepted.
-- Status: accepted at the level of scope (see "The maintainer's choices"). The
-  designs of the items 3 to 7 are still to be proposed and chosen. Every
-  recommendation in the tables is the agent's; the last column of the table of
-  the other items stays empty, because the choices are listed below.
+- Status: accepted. The scope and the designs are chosen (see "The
+  maintainer's choices", both tables). Every recommendation in the tables is
+  the agent's; the last column of the table of the other items stays empty,
+  because the choices are listed below. The details of fix B that the
+  maintainer did not see (error id, terminating or not) are the agent's design
+  and are flagged for the independent review.
 
 ## New finding: the flaw is a family
 
@@ -97,10 +99,20 @@ limit (Decision 21); Decisions 22 and 24 are accepted; #34 is decided on
 | Items accepted as recommended | 8 (audit retry and read denial over SMB; #34 decides on 2026-11-02), 10, 11. Items 2 and 9 need no decision: the help sentence goes into rc9, and the tests for the eight getters follow when the code of rc9 is final |
 | Independent review of the rc9 change | Yes (`review: on`) |
 
-What follows: the agent proposes the design of each of the items 3 to 7
-(options, risk, tests, a recommended default); the maintainer chooses; the work
-goes test-first into one branch, one commit per item, so that any item can be
-dropped. A defect that the review finds is fixed before rc9 is tagged; a defect
+The design choices, third form, 2026-10-21 (each is the recommended default
+except where noted):
+
+| Item | Choice |
+| --- | --- |
+| 3 | Fix 3.1 (`FileSecurity` and `DirectorySecurity` conversions), 3.2 (`RemoveAll` honors the account list), 3.3 (the path overloads write at once), 3.10 (malformed `EnablePrivileges` setting). Not fixed: 3.4 (`PrivilegeEnabler` never disposed: high risk, stays a known limit of the .NET API), 3.6 (registry model and helpers: kept, Decisions 21 and 22), 3.9 (`PipelineControl.IsEnd`: kept) |
+| 4 | Option B: one matcher in the cmdlet with the Windows PowerShell 5.1 dot rules on the real names (8.3 short names stay ignored, invariant culture), in both editions |
+| 6a | Keep `WriteError` for `ReadSecurityError` after a failed ownership retry, and pin it with a test |
+| 6b | `Get-NTFSOrphanedAccess` writes an error for a read failure other than access denied: `ReadSecurityError`, `OpenError`, target the path |
+| 6c | `Set-NTFSSecurityDescriptor -SecurityDescriptor` at position 1 (cosmetic) |
+| B details | Not asked; the agent's design, see the row B below. `Get-FileHash2 -Algorithm` stays out (option C was not chosen) and is listed as a known limit |
+
+What follows: the work goes test-first into one branch, one commit per item, so
+that any item can be dropped. A defect that the review finds is fixed before rc9 is tagged; a defect
 that the acceptance finds needs rc10. One acceptance (about 70 minutes with
 `Chain-Published.ps1`) covers rc9 as a whole.
 
@@ -112,7 +124,7 @@ decided; the rest is to be chosen. Recommended defaults are the agent's.
 
 | # | Design | Recommended | Alternatives and risks |
 | --- | --- | --- | --- |
-| B | `AppliesTo`, `InheritanceFlags`, `PropagationFlags`, `AccessType` (access cmdlets), `AuditFlags` (audit cmdlets) become `object` parameters; ProcessRecord converts them with `LanguagePrimitives.ConvertTo` into locals. One shared error: id `InvalidPipedParameterValue`, category `InvalidData`, target the piped object, message "The value '{0}' for parameter '-{1}' could not be converted to '{2}'. The piped object was skipped." (blank: "The value for parameter '-{0}' is blank. The piped object was skipped."). A null `AccessType` or `AuditFlags` stays the default. Argument completers (`IArgumentCompleter`, available in the referenced Windows PowerShell 5.0 assembly) keep tab completion. Docs: `Type: Object`, help from `New-ExternalHelp`, the CHANGELOG paragraph at lines 247 to 258 | As described | `Get-FileHash2 -Algorithm` has the same flaw (option C, not chosen). Named calls change from a terminating binding error to the error record of the cmdlet |
+| B | `AppliesTo`, `InheritanceFlags`, `PropagationFlags`, `AccessType` (access cmdlets), `AuditFlags` (audit cmdlets) become `object` parameters; ProcessRecord converts them with `LanguagePrimitives.ConvertTo` into locals. One shared error: id `InvalidParameterValue`, category `InvalidArgument` (the category of the binder's own errors and of `AttributesEmpty`), message with the value, the parameter, and the valid names (a blank value has its own message). Revised before the build: a bad value on the command line stays a terminating error, as the binder made it (checked in `BeginProcessing`, so a `try`/`catch` around a named call still works); a bad value on a piped object is a non-terminating error per path (per descriptor in the `-SecurityDescriptor` sets), target that path, no item of that record is changed, and the next object goes on. A null `AccessType` or `AuditFlags` stays the default. Argument completers (`IArgumentCompleter`, available in the referenced Windows PowerShell 5.0 assembly) keep tab completion. Docs: `Type: Object`, help from `New-ExternalHelp`, the CHANGELOG paragraph at lines 247 to 258 | As described | `Get-FileHash2 -Algorithm` has the same flaw (option C, not chosen). The error of a named call now comes from the cmdlet, not the binder (other id, same terminating effect) |
 | 5 | In the four `-SecurityDescriptor` branches, a `try/catch (Exception)` around the change of each descriptor writes `AddAceError` or `RemoveAceError`, category `WriteError`, target the descriptor, message of the exception, and goes on; the later-command check of item 7 goes into the same catch. Lines: `AddAccess.cs` 176 to 184, `RemoveAccess.cs` 177 to 185, `AddAudit.cs` 175 to 185, `RemoveAudit.cs` 176 to 186 | As described | Tests: a failing descriptor followed by a valid one; the 7 unpinned rows |
 | 7 | One `IsFromLaterCommand(ex)` check, rethrowing, in each of the 17 outer handlers (the pattern of `SetSecurityDescriptor.cs` 72 to 101): `AddAccess`, `RemoveAccess`, `ClearAccess`, `GetAccess`, `GetOrphanedAccess`, `GetEffectiveAccess`, `AddAudit`, `RemoveAudit`, `ClearAudit`, `GetFileHash2`, the six inheritance cmdlets, and `SetSecurityDescriptor` | As described | Tests: one parameterized elevated-only test (a later command that throws on the `RestoreOwnerError` record), like the existing `restoreOwnerCases` |
 | 3.1 | `FileSystemSecurity2` conversions from `FileSecurity` and `DirectorySecurity` keep the given descriptor | Fix | Remove the operators: breaking public API. Medium risk |
