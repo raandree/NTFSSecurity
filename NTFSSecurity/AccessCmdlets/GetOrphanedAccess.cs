@@ -68,7 +68,9 @@ namespace NTFSSecurity
                 }
                 catch (Exception ex)
                 {
-                    this.WriteWarning(string.Format("Could not read item {0}. The error was: {1}", path, ex.Message));
+                    // A read failure that is not an access denial; before 5.0.0-rc9, the cmdlet warned about it
+                    // instead ("Could not read item {0}. The error was: {1}") and returned no entry for the item.
+                    this.WriteError(new ErrorRecord(ex, "ReadSecurityError", ErrorCategory.OpenError, path));
                     continue;
                 }
 

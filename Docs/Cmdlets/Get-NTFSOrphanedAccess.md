@@ -174,6 +174,8 @@ When the module setting `EnablePrivileges` is `$true` (the default in the `Priva
 
 If the ACL of an item cannot be read because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Reading the owner, which that fallback needs first, requires the same Read Permissions right as reading the ACL, so the cmdlet then writes a non-terminating `ReadSecurityError` and continues with the next item. Before 5.0.0, it reported that error as an `AddAceError`.
 
+A read failure that is not an access denial is reported the same way, as a non-terminating `ReadSecurityError`, categorized as `OpenError` and targeting the path; before 5.0.0-rc9, the cmdlet wrote a warning instead (`Could not read item {0}. The error was: {1}`) and returned no entry for the item, without an error to say why.
+
 Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor`, and after a path whose ACL could not be read, it returned the orphaned entries of the previous item again.
 
 ## RELATED LINKS
