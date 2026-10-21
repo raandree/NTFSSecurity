@@ -17,7 +17,7 @@ cmdlet is.
 - **The tests.** 89 new `It` blocks, which run as 121 cases per configuration,
   in the four `ParameterSets.*.Tests.ps1` files. The suite goes from 1,494 to
   1,615 cases per configuration, with no failure in Windows PowerShell 5.1 and
-  PowerShell 7, elevated and as a basic user.
+  PowerShell 7, elevated and as a basic user, on the host and on the CI runner.
 - **The parameter sets.** 38 of 64 are closed (7 before). 31 sets changed to
   closed, among them the one that was open (`Test-Path2`). The one set that had
   no judgement, `Set-NTFSSecurityDescriptor`, is now partly closed. 26 sets have
@@ -103,8 +103,14 @@ the counts per test file between this run and the last run before the round
 
 `master` has 1,494 cases per configuration, with 26, 291, 57, and 322 skipped.
 An earlier run with the audit, access, and items batches (1,590 cases) was also
-green in all four configurations. The CI of the pull request runs the same
-steps on a GitHub runner; I did not run that.
+green in all four configurations.
+
+The CI of the pull request (#129) ran the same steps on a GitHub runner
+(`windows-2025`, run 39551726767, 14 minutes). Its four configurations gave the
+counts of the table above with no failure, and each of the 29 test files has
+the same number of executed and skipped cases as in the local run. So the new
+cases that need a drive mapping, the administrative share, or a symbolic link
+ran there too: the runner user is a local administrator.
 
 ## What is left
 
@@ -188,9 +194,10 @@ explained, not tested.
 
 ## Checks not run, and limits
 
-- The CI on a GitHub runner did not run these tests yet; the pull request does.
-  Cases that need a drive mapping, an administrative share, or a symbolic link
-  skip where the token lacks them and can behave differently on a runner.
+- The new cases ran on Windows Server 2025 only, on the host and on the runner.
+  The suite of the rc8 acceptance ran on six machine classes, but before these
+  cases existed, so they have not run on Windows Server 2019 or 2022 or on
+  Windows 11.
 - No lab run: the product bytes did not change. The acceptance of rc8 of
   2026-10-20 stands for them.
 - No independent review agent ran on the four batches. I read the diffs of all
@@ -226,5 +233,6 @@ branch `ai/tests-round-1`.
 | `round1\suite\rc8suite-20261020-093109` | the last run of the four CI configurations before the round (1,494 cases per configuration) |
 | `round1\suite\round1-three-20261020-141224`, `round1\suite\round1-four-20261020-142909` | the runs with three and with all four batches (1,590 and 1,615 cases), each with the NUnit file, the log, and the summary of the four configurations |
 | `round1\suite\delta-four-vs-baseline.txt` | the output of `Measure-RoundSuiteDelta.ps1`: the new cases per file and configuration, and the 30 and 1 that skip |
+| `round1\suite\runner-39551726767` | the CI run of #129 on the GitHub runner: the log of the job `Build and test`, the four NUnit files of the artifact `test-results`, and the output of `Measure-RoundSuiteDelta.ps1` for them (GitHub deletes logs and artifacts after its retention period) |
 | `round1\tables-draft` | the draft of the ParameterSets CSV |
 | `scripts` | `Build-Worklists.ps1`, `Build-RoundTables.ps1` (the CSV of this round), `Invoke-RoundJob.ps1`, `Invoke-Build.ps1`, `Run-FocusedPester.ps1`, `Start-FocusedRuns.ps1` (the helper with the quoting defect, fixed), `Run-FullSuite.ps1`, `Run-CiConfiguration.ps1`, `Measure-RoundSuiteDelta.ps1` |
