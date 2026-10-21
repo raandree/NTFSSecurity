@@ -856,8 +856,13 @@ Describe 'The FileSystemSecurity2 conversions from FileSecurity and DirectorySec
         [object]::ReferenceEquals($wrapped.SecurityDescriptor, $raw) | Should -BeTrue
         $wrapped.IsFile | Should -Be $IsFile
         [object]::ReferenceEquals(($wrapped -as $targetType), $raw) | Should -BeTrue
-        $wrapped.FullName | Should -Be $null
-        $wrapped.Name | Should -Be $null
+        # A plain property read turns a throwing getter into $null (see Invoke-PropertyGetter above), so these two
+        # getters are invoked through reflection: a null FullName/Name is pinned as the getter's own return value,
+        # not as whatever a getter that happened to throw would also look like from here.
+        { Invoke-PropertyGetter -InputObject $wrapped -PropertyName 'FullName' } | Should -Not -Throw
+        { Invoke-PropertyGetter -InputObject $wrapped -PropertyName 'Name' } | Should -Not -Throw
+        (Invoke-PropertyGetter -InputObject $wrapped -PropertyName 'FullName') | Should -Be $null
+        (Invoke-PropertyGetter -InputObject $wrapped -PropertyName 'Name') | Should -Be $null
     }
 
     It 'Should compare two <Kind> conversions of the same descriptor as equal, and of different descriptors as unequal' -ForEach @(
@@ -941,14 +946,17 @@ Describe 'The FileSystemSecurity2 conversions from FileSecurity and DirectorySec
         $found[0].Account.Sid | Should -BeExactly 'S-1-1-0'
     }
 
-    It 'Should throw an InvalidOperationException, not a NullReferenceException, for the source of an inherited <RuleType> entry of a descriptor without an item' -ForEach @(
+    # Before this fix, a descriptor without an item made getInheritedFrom throw an InvalidOperationException, which a
+    # cmdlet caller has no parameter to avoid (the module setting GetInheritedFrom is $true by default): getInheritedFrom
+    # is now treated as false for such a descriptor instead, the same as an entry whose source Windows cannot name.
+    It 'Should return the <RuleType> entries with no source, not throw, when getInheritedFrom is requested for a descriptor without an item' -ForEach @(
         @{ RuleType = 'access' }
         @{ RuleType = 'audit' }
     ) {
         if ($RuleType -eq 'access') {
             $sd = [Security2.FileSystemSecurity2] (New-RawFileSystemSecurity -Kind 'FileSecurity')
-            $failure = { [Security2.FileSystemAccessRule2]::GetFileSystemAccessRules($sd, $true, $true, $true) } |
-                Should -Throw -PassThru
+            { [Security2.FileSystemAccessRule2]::GetFileSystemAccessRules($sd, $true, $true, $true) } | Should -Not -Throw
+            $found = @([Security2.FileSystemAccessRule2]::GetFileSystemAccessRules($sd, $true, $true, $true))
         }
         else {
             $raw = New-RawFileSystemSecurity -Kind 'FileSecurity'
@@ -957,12 +965,12 @@ Describe 'The FileSystemSecurity2 conversions from FileSecurity and DirectorySec
                         [System.Security.AccessControl.AuditFlags]::Success
                     )))
             $sd = [Security2.FileSystemSecurity2] $raw
-            $failure = { [Security2.FileSystemAuditRule2]::GetFileSystemAuditRules($sd, $true, $true, $true) } |
-                Should -Throw -PassThru
+            { [Security2.FileSystemAuditRule2]::GetFileSystemAuditRules($sd, $true, $true, $true) } | Should -Not -Throw
+            $found = @([Security2.FileSystemAuditRule2]::GetFileSystemAuditRules($sd, $true, $true, $true))
         }
 
-        $failure.Exception.GetBaseException() | Should -BeOfType [System.InvalidOperationException]
-        $failure.Exception.GetBaseException().Message | Should -BeLike '*item*'
+        $found | Should -HaveCount 1
+        $found[0].InheritedFrom | Should -Be $null
     }
 
     It 'Should return an owner object with a null FullName and an empty ToString for a <Kind> without an item' -ForEach @(
@@ -1018,9 +1026,62 @@ Describe 'The FileSystemSecurity2 conversions from FileSecurity and DirectorySec
     }
 }
 
-# Before 5.0.0, the account list of both methods was built but its filter result was never assigned anywhere, so a
-# non-null list removed every explicit entry regardless of what it named; only a .NET caller that passes a list is
-# affected, since the cmdlets never do.
+# Review finding: PowerShell's binder uses the fixed conversion of 3.1 for every -SecurityDescriptor parameter, so a
+# descriptor that Get-Acl returns, never meant for these cmdlets, now binds where it used to be a binding error. These
+# pin the four cmdlets the review named; the one-line probes of the others are in the final report, not here.
+Describe 'Cmdlets with a security descriptor that Get-Acl returns' {
+    BeforeAll {
+        $plainFile = New-TestSandboxItem -Sandbox $sandbox -Name 'GetAclPlain'
+        Add-NTFSAccess -Path $plainFile -Account 'S-1-1-0' -AccessRights ReadData -AppliesTo ThisFolderOnly
+    }
+
+    It 'Should return the explicit access entries and no error for Get-NTFSAccess -SecurityDescriptor (Get-Acl ...)' {
+        $sd = Get-Acl -LiteralPath $plainFile
+        $expected = @($sd.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]))
+
+        $result = @(Get-NTFSAccess -SecurityDescriptor $sd -ExcludeInherited -ErrorVariable accessErrors -ErrorAction SilentlyContinue)
+
+        $accessErrors | Should -BeNullOrEmpty
+        ($result.Account.Sid | Sort-Object) | Should -Be ($expected.IdentityReference.Value | Sort-Object)
+    }
+
+    It 'Should write the #109 ReadSecurityError, not an empty result, for Get-NTFSAudit -SecurityDescriptor (Get-Acl ...) without -Audit' {
+        $sd = Get-Acl -LiteralPath $plainFile
+
+        $result = @(Get-NTFSAudit -SecurityDescriptor $sd -ErrorVariable auditErrors -ErrorAction SilentlyContinue)
+
+        $result | Should -BeNullOrEmpty
+        $auditErrors | Should -HaveCount 1
+        $auditErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadSecurityError,*'
+        $auditErrors[0].CategoryInfo.Category | Should -Be 'InvalidData'
+        $auditErrors[0].Exception.Message | Should -BeLike "*doesn't contain the audit entries*"
+    }
+
+    It 'Should give a null AuditInheritanceEnabled and the right AccessInheritanceEnabled for Get-NTFSInheritance -SecurityDescriptor (Get-Acl ...)' {
+        $sd = Get-Acl -LiteralPath $plainFile
+
+        $result = Get-NTFSInheritance -SecurityDescriptor $sd -ErrorAction Stop
+
+        $result.AuditInheritanceEnabled | Should -Be $null
+        $result.AccessInheritanceEnabled | Should -Be (-not $sd.AreAccessRulesProtected)
+    }
+
+    It 'Should write a non-terminating error naming the missing item for Set-NTFSSecurityDescriptor -SecurityDescriptor (Get-Acl ...), and change nothing' {
+        $sd = Get-Acl -LiteralPath $plainFile
+        $sd.AddAccessRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
+                    $sid, [System.Security.AccessControl.FileSystemRights]::WriteData,
+                    [System.Security.AccessControl.AccessControlType]::Allow
+                )))
+        $before = (Get-Acl -LiteralPath $plainFile).Sddl
+
+        $null = Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorVariable sdErrors -ErrorAction SilentlyContinue
+
+        $sdErrors | Should -HaveCount 1
+        $sdErrors[0].FullyQualifiedErrorId | Should -BeLike 'WriteSdError,*'
+        $sdErrors[0].Exception.Message | Should -BeLike '*no item*'
+        (Get-Acl -LiteralPath $plainFile).Sddl | Should -BeExactly $before
+    }
+}
 Describe 'RemoveFileSystemAccessRuleAll and RemoveFileSystemAuditRuleAll honor the account list' {
     BeforeAll {
         $allow = [System.Security.AccessControl.AccessControlType]::Allow

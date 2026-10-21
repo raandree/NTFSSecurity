@@ -1,5 +1,4 @@
 ﻿using Alphaleonis.Win32.Filesystem;
-using System;
 using System.Collections.Generic;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -20,17 +19,15 @@ namespace Security2
             List<FileSystemAccessRule2> aceList = new List<FileSystemAccessRule2>();
             List<string> inheritedFrom = null;
 
-            if (getInheritedFrom)
-            {
-                // The source of an inherited entry is found from the path of the item that the descriptor was read
-                // from; a descriptor that a caller built directly, such as the conversion from FileSecurity, has none.
-                if (sd.Item == null)
-                {
-                    throw new InvalidOperationException(
-                        "Cannot find the source of an inherited entry: this security descriptor has no item, so there " +
-                        "is no path to search from. Pass getInheritedFrom as false, or read the entries from an item.");
-                }
+            // The source of an inherited entry is found from the path of the item that the descriptor was read from;
+            // a descriptor that a caller built directly, such as the conversion from FileSecurity, has none. Such an
+            // entry gets no source, the same as one whose source Windows could not name: a cmdlet caller has no
+            // parameter to turn getInheritedFrom off (the module setting GetInheritedFrom is true by default), so an
+            // exception here would stop a cmdlet that a descriptor without an item was never meant to reach.
+            var findInheritedFrom = getInheritedFrom && sd.Item != null;
 
+            if (findInheritedFrom)
+            {
                 inheritedFrom = Win32.GetInheritedFrom(sd.Item, sd.SecurityDescriptor, false);
             }
 
@@ -43,7 +40,7 @@ namespace Security2
 
             foreach (FileSystemAccessRule ace in acl)
             {
-                var source = getInheritedFrom && aceCounter < inheritedFrom.Count ? inheritedFrom[aceCounter] : null;
+                var source = findInheritedFrom && aceCounter < inheritedFrom.Count ? inheritedFrom[aceCounter] : null;
                 aceCounter++;
                 if (ace.IsInherited ? !includeInherited : !includeExplicit)
                 {
@@ -52,7 +49,7 @@ namespace Security2
 
                 // sd.FullName, not sd.Item.FullName: null without an item instead of a NullReferenceException.
                 var ace2 = new FileSystemAccessRule2(ace) { FullName = sd.FullName, InheritanceEnabled = !sd.SecurityDescriptor.AreAccessRulesProtected };
-                if (getInheritedFrom && inheritedFrom.Count > 0)
+                if (findInheritedFrom && inheritedFrom.Count > 0)
                 {
                     // Windows names a folder with a trailing backslash; the text for an unknown parent has none.
                     ace2.inheritedFrom = string.IsNullOrEmpty(source) ? "" : source.TrimEnd('\\');

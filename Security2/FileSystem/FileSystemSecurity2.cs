@@ -43,13 +43,20 @@ namespace Security2
         }
 
         // Wraps a descriptor that a caller created directly, such as the conversions from FileSecurity and
-        // DirectorySecurity do; the object has no item. The descriptor is treated as if every section had been read,
-        // since there was no partial read: WriteChanges compares against it as a whole.
+        // DirectorySecurity do; the object has no item. Access, Owner, and Group are always part of such a
+        // descriptor; Audit is part of it only when the descriptor actually carries a SACL (the same test as
+        // HasSystemAcl), since there was no read to tell sections apart otherwise. Without this, a descriptor that
+        // Get-Acl returned without -Audit reported HasAuditSection as true, so TestAuditSection (#109) let the audit
+        // cmdlets go on with no audit data at all, instead of reporting that the descriptor has none.
         private FileSystemSecurity2(FileSystemSecurity sd)
         {
             this.sd = sd;
             isFile = sd is FileSecurity;
-            sections = AccessControlSections.All;
+            sections = AccessControlSections.Access | AccessControlSections.Owner | AccessControlSections.Group;
+            if (new RawSecurityDescriptor(sd.GetSecurityDescriptorBinaryForm(), 0).SystemAcl != null)
+            {
+                sections |= AccessControlSections.Audit;
+            }
 
             RememberSections();
         }
