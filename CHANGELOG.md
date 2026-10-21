@@ -105,14 +105,16 @@ The format is based on
   `*.*.*` returns every item; and a question mark also matches nothing at
   the end of a name and before a dot, so `a?` also returns `a`. An empty
   `-Filter` returns every item, like `*`, instead of nothing, and a pattern
-  of more than 32,767 characters is a parameter error. Two edge cases are not
-  like Windows PowerShell 5.1: a blank at the end of a pattern is part of it,
-  where Windows PowerShell 5.1 drops it, and a pattern that ends in two dots
-  is accepted, where Windows PowerShell 5.1 stops with an error. In
+  of more than 32,767 characters is a parameter error. Two kinds of pattern
+  are not like Windows PowerShell 5.1: blanks at the end of a pattern, also
+  before a final dot, are part of it, where Windows PowerShell 5.1 drops them,
+  and a pattern that ends in an even number of dots, such as two, is
+  accepted, where Windows PowerShell 5.1 stops with an error. In
   PowerShell 7, `Get-ChildItem2` deliberately differs from
   `Get-ChildItem -Filter` for some patterns, for example for a pattern that
-  ends in a dot, unless an asterisk comes right before the dot, and for a
-  pattern in which an asterisk is followed by a dot and question marks
+  ends in a dot, unless an asterisk comes right before the dot (the pattern
+  of a single dot returns every item), and for a pattern in which an asterisk
+  is followed by a dot and question marks
 - **Breaking:** write a non-terminating error in `Get-NTFSOrphanedAccess` for
   an item that it can't read for a reason other than a denied access, and
   continue with the next item: `ReadSecurityError` with the category
@@ -342,7 +344,7 @@ The format is based on
   stop the command, but with the error id `InvalidParameterValue`, not the id
   of a parameter binding error; `-AppliesTo $null` keeps the error of the
   binder, because the parameter is mandatory. `-AccessType` and `-AppliesTo`
-  take one value: a comma list or an array of several values is an
+  take one value: a comma list or a collection of several values is an
   `InvalidParameterValue` error, where PowerShell added up the numbers of the
   values, so that `-AppliesTo 'ThisFolderOnly,FilesOnly'` created a
   `FilesOnly` entry and `-AccessType 'Allow,Deny'` a `Deny` entry. A script
