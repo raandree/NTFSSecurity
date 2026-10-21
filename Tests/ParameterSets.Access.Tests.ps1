@@ -418,6 +418,57 @@ Describe 'Add-NTFSAccess' {
             (Get-Acl -LiteralPath $second).Sddl | Should -BeExactly $before[1]
         }
     }
+
+    # Item 5 of Decision 27: a failing change to one of several descriptors (a Deny entry without rights, which .NET
+    # refuses to build, the same as Access.Tests.ps1:774 pins for -Path) reports an error for that descriptor and goes
+    # on with the next one, instead of ending the cmdlet with a terminating error.
+    Context 'A failing change to one of several descriptors' {
+        It 'Should write an AddAceError for the descriptor whose change fails in the SDSimple set, continue with the next, and return -PassThru only for the one that succeeded' {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'SdErrorSimpleFirst'
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'SdErrorSimpleSecond'
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $first, $second -ErrorAction Stop)
+            $before = $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Access')
+
+            $rows = @(
+                [pscustomobject]@{ SecurityDescriptor = $descriptors[0]; Account = 'S-1-1-0'; AccessRights = 'None'; AccessType = 'Deny'; AppliesTo = 'ThisFolderOnly' }
+                [pscustomobject]@{ SecurityDescriptor = $descriptors[1]; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AccessType = 'Deny'; AppliesTo = 'ThisFolderOnly' }
+            )
+
+            $result = @($rows | Add-NTFSAccess -PassThru -ErrorVariable sdErrors -ErrorAction SilentlyContinue)
+
+            $sdErrors | Should -HaveCount 1
+            $sdErrors[0].FullyQualifiedErrorId | Should -BeLike 'AddAceError,*'
+            $sdErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+            $sdErrors[0].TargetObject | Should -Be $descriptors[0]
+            $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Access') | Should -BeExactly $before
+            $result | Should -Not -BeNullOrEmpty
+            $result | ForEach-Object -Process { $_.FullName | Should -Be $second }
+            @($result | Where-Object -FilterScript { $_.Account.Sid -eq 'S-1-1-0' -and $_.AccessControlType -eq 'Deny' }) | Should -HaveCount 1
+        }
+
+        It 'Should write an AddAceError for the descriptor whose change fails in the SDComplex set, continue with the next, and return -PassThru only for the one that succeeded' {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'SdErrorComplexFirst'
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'SdErrorComplexSecond'
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $first, $second -ErrorAction Stop)
+            $before = $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Access')
+
+            $rows = @(
+                [pscustomobject]@{ SecurityDescriptor = $descriptors[0]; Account = 'S-1-1-0'; AccessRights = 'None'; AccessType = 'Deny' }
+                [pscustomobject]@{ SecurityDescriptor = $descriptors[1]; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AccessType = 'Deny' }
+            )
+
+            $result = @($rows | Add-NTFSAccess -PassThru -ErrorVariable sdErrors -ErrorAction SilentlyContinue)
+
+            $sdErrors | Should -HaveCount 1
+            $sdErrors[0].FullyQualifiedErrorId | Should -BeLike 'AddAceError,*'
+            $sdErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+            $sdErrors[0].TargetObject | Should -Be $descriptors[0]
+            $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Access') | Should -BeExactly $before
+            $result | Should -Not -BeNullOrEmpty
+            $result | ForEach-Object -Process { $_.FullName | Should -Be $second }
+            @($result | Where-Object -FilterScript { $_.Account.Sid -eq 'S-1-1-0' -and $_.AccessControlType -eq 'Deny' }) | Should -HaveCount 1
+        }
+    }
 }
 
 Describe 'Remove-NTFSAccess' {
@@ -734,6 +785,59 @@ Describe 'Remove-NTFSAccess' {
                 @((Get-Acl -LiteralPath $file).GetAccessRules($true, $false, $sidType) |
                         Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-5-21-1-2-3-9604' }) | Should -HaveCount 1
             }
+        }
+    }
+
+    # Item 5 of Decision 27: a failing change to one of several descriptors (a Deny entry without rights, which .NET
+    # refuses to build, the same as Access.Tests.ps1:571 pins for -Path) reports an error for that descriptor and goes
+    # on with the next one, instead of ending the cmdlet with a terminating error.
+    Context 'A failing change to one of several descriptors' {
+        It 'Should write a RemoveAceError for the descriptor whose change fails in the SDSimple set, continue with the next, and return -PassThru only for the one that succeeded' {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'SdErrorSimpleFirst'
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'SdErrorSimpleSecond'
+            Add-NTFSAccess -Path $first, $second -Account 'S-1-1-0' -AccessRights ReadData -AccessType Deny -AppliesTo ThisFolderOnly -ErrorAction Stop
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $first, $second -ErrorAction Stop)
+            $before = $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Access')
+
+            $rows = @(
+                [pscustomobject]@{ SecurityDescriptor = $descriptors[0]; Account = 'S-1-1-0'; AccessRights = 'None'; AccessType = 'Deny'; AppliesTo = 'ThisFolderOnly' }
+                [pscustomobject]@{ SecurityDescriptor = $descriptors[1]; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AccessType = 'Deny'; AppliesTo = 'ThisFolderOnly' }
+            )
+
+            $result = @($rows | Remove-NTFSAccess -PassThru -ErrorVariable sdErrors -ErrorAction SilentlyContinue)
+
+            $sdErrors | Should -HaveCount 1
+            $sdErrors[0].FullyQualifiedErrorId | Should -BeLike 'RemoveAceError,*'
+            $sdErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+            $sdErrors[0].TargetObject | Should -Be $descriptors[0]
+            $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Access') | Should -BeExactly $before
+            $result | Should -Not -BeNullOrEmpty
+            $result | ForEach-Object -Process { $_.FullName | Should -Be $second }
+            @($result | Where-Object -FilterScript { $_.Account.Sid -eq 'S-1-1-0' }) | Should -BeNullOrEmpty
+        }
+
+        It 'Should write a RemoveAceError for the descriptor whose change fails in the SDComplex set, continue with the next, and return -PassThru only for the one that succeeded' {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'SdErrorComplexFirst'
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'SdErrorComplexSecond'
+            Add-NTFSAccess -Path $first, $second -Account 'S-1-1-0' -AccessRights ReadData -AccessType Deny -ErrorAction Stop
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $first, $second -ErrorAction Stop)
+            $before = $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Access')
+
+            $rows = @(
+                [pscustomobject]@{ SecurityDescriptor = $descriptors[0]; Account = 'S-1-1-0'; AccessRights = 'None'; AccessType = 'Deny' }
+                [pscustomobject]@{ SecurityDescriptor = $descriptors[1]; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AccessType = 'Deny' }
+            )
+
+            $result = @($rows | Remove-NTFSAccess -PassThru -ErrorVariable sdErrors -ErrorAction SilentlyContinue)
+
+            $sdErrors | Should -HaveCount 1
+            $sdErrors[0].FullyQualifiedErrorId | Should -BeLike 'RemoveAceError,*'
+            $sdErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+            $sdErrors[0].TargetObject | Should -Be $descriptors[0]
+            $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Access') | Should -BeExactly $before
+            $result | Should -Not -BeNullOrEmpty
+            $result | ForEach-Object -Process { $_.FullName | Should -Be $second }
+            @($result | Where-Object -FilterScript { $_.Account.Sid -eq 'S-1-1-0' }) | Should -BeNullOrEmpty
         }
     }
 }

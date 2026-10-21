@@ -225,7 +225,15 @@ namespace NTFSSecurity
                         continue;
                     }
 
-                    FileSystemAuditRule2.RemoveFileSystemAuditRule(sd, account.ToList(), accessRights, auditFlagsValue, inheritance, propagation, removeSpecific);
+                    try
+                    {
+                        FileSystemAuditRule2.RemoveFileSystemAuditRule(sd, account.ToList(), accessRights, auditFlagsValue, inheritance, propagation, removeSpecific);
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteError(new ErrorRecord(ex, "RemoveAceError", ErrorCategory.WriteError, sd));
+                        continue;
+                    }
 
                     if (passThru == true)
                     {

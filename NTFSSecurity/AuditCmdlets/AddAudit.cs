@@ -214,7 +214,15 @@ namespace NTFSSecurity
                         continue;
                     }
 
-                    FileSystemAuditRule2.AddFileSystemAuditRule(sd, account.ToList(), accessRights, auditFlagsValue, inheritance, propagation);
+                    try
+                    {
+                        FileSystemAuditRule2.AddFileSystemAuditRule(sd, account.ToList(), accessRights, auditFlagsValue, inheritance, propagation);
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteError(new ErrorRecord(ex, "AddAceError", ErrorCategory.WriteError, sd));
+                        continue;
+                    }
 
                     if (passThru == true)
                     {

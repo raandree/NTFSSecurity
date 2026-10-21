@@ -357,6 +357,55 @@ Describe 'Add-NTFSAudit' {
             (Get-TestAccountAuditRule -Acl $sd.SecurityDescriptor -Account $probe) | Should -HaveCount 1
         }
     }
+
+    # Item 5 of Decision 27: a failing change to one of several descriptors (an audit entry without rights, which
+    # .NET refuses to build, the same as Audit.Tests.ps1:141 pins for -Path) reports an error for that descriptor and
+    # goes on with the next one, instead of ending the cmdlet with a terminating error.
+    Context 'A failing change to one of several descriptors' {
+        It 'Should write an AddAceError for the descriptor whose change fails in the SDSimple set, continue with the next, and return -PassThru only for the one that succeeded' -Skip:(-not $canReadAudit) {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'SdErrorSimpleFirst'
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'SdErrorSimpleSecond'
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $first, $second -ErrorAction Stop)
+            $before = $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit')
+
+            $rows = @(
+                [pscustomobject]@{ SecurityDescriptor = $descriptors[0]; Account = $probe; AccessRights = 'None'; AuditFlags = 'Success'; AppliesTo = 'ThisFolderOnly' }
+                [pscustomobject]@{ SecurityDescriptor = $descriptors[1]; Account = $probe; AccessRights = 'ReadData'; AuditFlags = 'Success'; AppliesTo = 'ThisFolderOnly' }
+            )
+
+            $result = @($rows | Add-NTFSAudit -PassThru -ErrorVariable sdErrors -ErrorAction SilentlyContinue)
+
+            $sdErrors | Should -HaveCount 1
+            $sdErrors[0].FullyQualifiedErrorId | Should -BeLike 'AddAceError,*'
+            $sdErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+            $sdErrors[0].TargetObject | Should -Be $descriptors[0]
+            $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit') | Should -BeExactly $before
+            $result | Should -Not -BeNullOrEmpty
+            $result | ForEach-Object -Process { $_.FullName | Should -Be $second }
+        }
+
+        It 'Should write an AddAceError for the descriptor whose change fails in the SDComplex set, continue with the next, and return -PassThru only for the one that succeeded' -Skip:(-not $canReadAudit) {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'SdErrorComplexFirst'
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'SdErrorComplexSecond'
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $first, $second -ErrorAction Stop)
+            $before = $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit')
+
+            $rows = @(
+                [pscustomobject]@{ SecurityDescriptor = $descriptors[0]; Account = $probe; AccessRights = 'None'; AuditFlags = 'Success' }
+                [pscustomobject]@{ SecurityDescriptor = $descriptors[1]; Account = $probe; AccessRights = 'ReadData'; AuditFlags = 'Success' }
+            )
+
+            $result = @($rows | Add-NTFSAudit -PassThru -ErrorVariable sdErrors -ErrorAction SilentlyContinue)
+
+            $sdErrors | Should -HaveCount 1
+            $sdErrors[0].FullyQualifiedErrorId | Should -BeLike 'AddAceError,*'
+            $sdErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+            $sdErrors[0].TargetObject | Should -Be $descriptors[0]
+            $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit') | Should -BeExactly $before
+            $result | Should -Not -BeNullOrEmpty
+            $result | ForEach-Object -Process { $_.FullName | Should -Be $second }
+        }
+    }
 }
 
 Describe 'Remove-NTFSAudit' {
@@ -603,6 +652,38 @@ Describe 'Remove-NTFSAudit' {
             (Get-TestAccountAuditRule -Acl (Get-TestAuditAcl -Path $file) -Account $keeper) | Should -HaveCount 1
             Get-TestAuditSddl -Path $file | Should -Not -BeExactly $auditBefore
             Get-TestDaclSddl -Path $file | Should -BeExactly $daclBefore
+        }
+    }
+
+    # Item 5 of Decision 27: a failing change to one of several descriptors (an audit entry without rights, which
+    # .NET refuses to build, the same as Audit.Tests.ps1:141 pins for -Path) reports an error for that descriptor and
+    # goes on with the next one, instead of ending the cmdlet with a terminating error. Only the SDComplex set is
+    # listed as open in Quality-Gate-Test-Round-2026-10-20-ParameterSets.csv (row 26); SDSimple is already closed.
+    Context 'A failing change to one of several descriptors' {
+        It 'Should write a RemoveAceError for the descriptor whose change fails in the SDComplex set, continue with the next, and return -PassThru only for the one that succeeded' -Skip:(-not $canReadAudit) {
+            $first = New-TestSandboxItem -Sandbox $sandbox -Name 'SdErrorComplexFirst'
+            $second = New-TestSandboxItem -Sandbox $sandbox -Name 'SdErrorComplexSecond'
+            # A keeper entry for a different account on both items: audit entries are not inherited by default, so
+            # without one, -PassThru of the descriptor that succeeds would show nothing once its only entry is gone.
+            Add-NTFSAudit -Path $first, $second -Account $probe -AccessRights ReadData -AuditFlags Success -ErrorAction Stop
+            Add-NTFSAudit -Path $first, $second -Account $keeper -AccessRights Delete -AuditFlags Success -ErrorAction Stop
+            $descriptors = @(Get-NTFSSecurityDescriptor -Path $first, $second -ErrorAction Stop)
+            $before = $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit')
+
+            $rows = @(
+                [pscustomobject]@{ SecurityDescriptor = $descriptors[0]; Account = $probe; AccessRights = 'None'; AuditFlags = 'Success' }
+                [pscustomobject]@{ SecurityDescriptor = $descriptors[1]; Account = $probe; AccessRights = 'ReadData'; AuditFlags = 'Success' }
+            )
+
+            $result = @($rows | Remove-NTFSAudit -PassThru -ErrorVariable sdErrors -ErrorAction SilentlyContinue)
+
+            $sdErrors | Should -HaveCount 1
+            $sdErrors[0].FullyQualifiedErrorId | Should -BeLike 'RemoveAceError,*'
+            $sdErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+            $sdErrors[0].TargetObject | Should -Be $descriptors[0]
+            $descriptors[0].SecurityDescriptor.GetSecurityDescriptorSddlForm('Audit') | Should -BeExactly $before
+            $result | Should -Not -BeNullOrEmpty
+            $result | ForEach-Object -Process { $_.FullName | Should -Be $second }
         }
     }
 }

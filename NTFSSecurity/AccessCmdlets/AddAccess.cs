@@ -210,7 +210,15 @@ namespace NTFSSecurity
             {
                 foreach (var sd in securityDescriptors)
                 {
-                    FileSystemAccessRule2.AddFileSystemAccessRule(sd, account.ToList(), accessRights, accessTypeValue, inheritance, propagation);
+                    try
+                    {
+                        FileSystemAccessRule2.AddFileSystemAccessRule(sd, account.ToList(), accessRights, accessTypeValue, inheritance, propagation);
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteError(new ErrorRecord(ex, "AddAceError", ErrorCategory.WriteError, sd));
+                        continue;
+                    }
 
                     if (passThru == true)
                     {

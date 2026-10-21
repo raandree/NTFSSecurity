@@ -221,7 +221,15 @@ namespace NTFSSecurity
             {
                 foreach (var sd in securityDescriptors)
                 {
-                    FileSystemAccessRule2.RemoveFileSystemAccessRule(sd, account.ToList(), accessRights, accessTypeValue, inheritance, propagation, removeSpecific);
+                    try
+                    {
+                        FileSystemAccessRule2.RemoveFileSystemAccessRule(sd, account.ToList(), accessRights, accessTypeValue, inheritance, propagation, removeSpecific);
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteError(new ErrorRecord(ex, "RemoveAceError", ErrorCategory.WriteError, sd));
+                        continue;
+                    }
 
                     if (passThru == true)
                     {
