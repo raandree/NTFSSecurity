@@ -94,7 +94,7 @@ namespace NTFSSecurity
         // a long or endless sequence is not read to its end), a collection of one element that holds such a list, or
         // collections nested deeper than MaxNesting; the returned value is then not used. A dictionary, an empty
         // collection, or a collection that cannot be enumerated is returned as it is, for the conversion to reject or
-        // convert with its own error; one whose enumeration fails after its second element is a list all the same.
+        // convert with its own error. A failure to release the enumerator after the elements were read changes nothing.
         private static object TakeOneValue(object value, out bool isList)
         {
             isList = false;
@@ -119,9 +119,11 @@ namespace NTFSSecurity
 
                 var count = 0;
                 object only = null;
+                IEnumerator enumerator = null;
                 try
                 {
-                    foreach (var item in collection)
+                    enumerator = collection.GetEnumerator();
+                    while (enumerator.MoveNext())
                     {
                         count++;
                         if (count > 1)
@@ -129,14 +131,16 @@ namespace NTFSSecurity
                             break;
                         }
 
-                        only = item;
+                        only = enumerator.Current;
                     }
                 }
                 catch (Exception)
                 {
-                    // The loop releases the enumerator when it stops after the second element, and that can fail.
-                    isList = count > 1;
                     return value;
+                }
+                finally
+                {
+                    Release(enumerator);
                 }
 
                 if (count == 1)
@@ -151,6 +155,25 @@ namespace NTFSSecurity
 
             isList = true;
             return value;
+        }
+
+        // Releasing the enumerator of a collection that was read can fail (only a custom enumerator does), and that does
+        // not change what was read.
+        private static void Release(IEnumerator enumerator)
+        {
+            var disposable = enumerator as IDisposable;
+            if (disposable == null)
+            {
+                return;
+            }
+
+            try
+            {
+                disposable.Dispose();
+            }
+            catch (Exception)
+            {
+            }
         }
 
         // The value as a message names it: a collection of one element by that element (also when it is a collection

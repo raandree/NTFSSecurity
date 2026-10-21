@@ -1834,11 +1834,15 @@ namespace NtfsSecurityTests
             }
         }
 
-        It 'Should reject a list of two values for <Parameter> given as <Mode>, and change nothing' -ForEach @(
-            @{ Parameter = 'AccessType'; Mode = 'named'; Values = @('Allow', 'Deny') }
-            @{ Parameter = 'AccessType'; Mode = 'piped'; Values = @('Allow', 'Deny') }
-            @{ Parameter = 'AppliesTo'; Mode = 'named'; Values = @('SubfoldersOnly', 'FilesOnly') }
-            @{ Parameter = 'AppliesTo'; Mode = 'piped'; Values = @('SubfoldersOnly', 'FilesOnly') }
+        It 'Should reject <Shape> for <Parameter> given as <Mode>, and change nothing' -ForEach @(
+            foreach ($mode in 'named', 'piped') {
+                @{ Parameter = 'AccessType'; Mode = $mode; Shape = 'a sequence of two values'; Values = @('Allow', 'Deny') }
+                @{ Parameter = 'AccessType'; Mode = $mode; Shape = 'a sequence of one comma list'; Values = @('Allow,Deny') }
+                @{ Parameter = 'AccessType'; Mode = $mode; Shape = 'a sequence of one array of two values'; Values = , @('Allow', 'Deny') }
+                @{ Parameter = 'AppliesTo'; Mode = $mode; Shape = 'a sequence of two values'; Values = @('SubfoldersOnly', 'FilesOnly') }
+                @{ Parameter = 'AppliesTo'; Mode = $mode; Shape = 'a sequence of one comma list'; Values = @('ThisFolderOnly,FilesOnly') }
+                @{ Parameter = 'AppliesTo'; Mode = $mode; Shape = 'a sequence of one array of two values'; Values = , @('SubfoldersOnly', 'FilesOnly') }
+            }
         ) {
             $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ReleaseFails' -Directory
             $before = (Get-Acl -LiteralPath $folder).Sddl
@@ -1864,6 +1868,26 @@ namespace NtfsSecurityTests
 
             $caughtId | Should -BeLike 'InvalidParameterValue,*'
             (Get-Acl -LiteralPath $folder).Sddl | Should -BeExactly $before
+        }
+
+        # What was read is what counts: a failing release does not turn one valid value into an error.
+        It 'Should still accept a sequence of one valid value for -AccessType given as <Mode>' -ForEach @(
+            @{ Mode = 'named' }
+            @{ Mode = 'piped' }
+        ) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'ReleaseFailsValid' -Directory
+            $sequence = [NtfsSecurityTests.SequenceWhoseEnumeratorFailsOnDispose]::new([object[]] @('Deny'))
+
+            if ($Mode -eq 'named') {
+                Add-NTFSAccess -Path $folder -Account 'S-1-1-0' -AccessRights ReadData -AccessType $sequence -ErrorAction Stop
+            }
+            else {
+                [pscustomobject]@{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData'; AccessType = $sequence } | Add-NTFSAccess -ErrorAction Stop
+            }
+
+            $rule = @((Get-Acl -LiteralPath $folder).GetAccessRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' })
+            $rule | Should -HaveCount 1
+            $rule[0].AccessControlType | Should -Be ([System.Security.AccessControl.AccessControlType]::Deny)
         }
     }
 
