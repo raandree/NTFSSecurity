@@ -22,9 +22,12 @@ namespace Security2
             set { item = value; }
         }
 
-        public string FullName { get { return item.FullName; } }
+        // An object that wraps a descriptor directly, such as the conversion from FileSecurity or DirectorySecurity,
+        // has no item and so no path to report; null reads more naturally here than an empty string, which would look
+        // like the path of an item whose name happens to be empty.
+        public string FullName { get { return item != null ? item.FullName : null; } }
 
-        public string Name { get { return item.Name; } }
+        public string Name { get { return item != null ? item.Name : null; } }
 
         public bool IsFile { get { return isFile; } }
 
@@ -35,6 +38,18 @@ namespace Security2
             isFile = item is FileInfo;
 
             sd = GetSecurity(item, sections);
+
+            RememberSections();
+        }
+
+        // Wraps a descriptor that a caller created directly, such as the conversions from FileSecurity and
+        // DirectorySecurity do; the object has no item. The descriptor is treated as if every section had been read,
+        // since there was no partial read: WriteChanges compares against it as a whole.
+        private FileSystemSecurity2(FileSystemSecurity sd)
+        {
+            this.sd = sd;
+            isFile = sd is FileSecurity;
+            sections = AccessControlSections.All;
 
             RememberSections();
         }
@@ -195,6 +210,8 @@ namespace Security2
         // that is read alone, and writing them back fails for an owner that the user cannot assign (#34).
         public void Write()
         {
+            RequireItem();
+
             SetSecurity(item, sd, sections);
 
             RememberSections();
@@ -204,6 +221,8 @@ namespace Security2
         // unchanged owner that the user cannot assign isn't written back (#34). Without a change, it writes nothing.
         internal void WriteChanges()
         {
+            RequireItem();
+
             var changedSections = ChangedSections;
             if (changedSections == AccessControlSections.None)
             {
@@ -213,6 +232,20 @@ namespace Security2
             SetSecurity(item, sd, changedSections);
 
             RememberSections();
+        }
+
+        // Write() and WriteChanges() write to the item that the descriptor was read from; an object that a conversion
+        // from FileSecurity or DirectorySecurity created has none. Without this check they would fail with a
+        // NullReferenceException deep in SetSecurity instead of saying what is missing.
+        private void RequireItem()
+        {
+            if (item == null)
+            {
+                throw new InvalidOperationException(
+                    "This security descriptor has no item to write to: it was created directly from a FileSecurity or " +
+                    "DirectorySecurity object, not read from a file or folder. Set the Item property first, or call " +
+                    "Write(FileSystemInfo) or Write(string) to choose where to write it.");
+            }
         }
 
         // Writes the sections that the descriptor was read with to another item, like Write().
@@ -243,14 +276,17 @@ namespace Security2
 
         #region Conversion
         // The descriptor is in sd. Before 5.0.0-rc6, these conversions returned fields that were never set, so they
-        // gave null, and the hash code threw a NullReferenceException.
+        // gave null, and the hash code threw a NullReferenceException. Before 5.0.0, the conversions the other way
+        // (from FileSecurity/DirectorySecurity) ignored the descriptor that was passed and returned an object built
+        // from an empty path, which always threw; they now keep the descriptor that was passed, see the private
+        // constructor above.
         public static implicit operator FileSecurity(FileSystemSecurity2 fs2)
         {
             return fs2.sd as FileSecurity;
         }
         public static implicit operator FileSystemSecurity2(FileSecurity fs)
         {
-            return new FileSystemSecurity2(new FileInfo(""));
+            return new FileSystemSecurity2((FileSystemSecurity)fs);
         }
 
         public static implicit operator DirectorySecurity(FileSystemSecurity2 fs2)
@@ -259,7 +295,7 @@ namespace Security2
         }
         public static implicit operator FileSystemSecurity2(DirectorySecurity fs)
         {
-            return new FileSystemSecurity2(new DirectoryInfo(""));
+            return new FileSystemSecurity2((FileSystemSecurity)fs);
         }
 
         // Like the descriptors of .NET, two objects are equal when they wrap the same descriptor; a descriptor of .NET

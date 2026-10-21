@@ -797,6 +797,99 @@ Describe 'Owner and descriptor objects' {
     }
 }
 
+# Before 5.0.0, both conversions ignored the descriptor that was passed and returned a FileSystemSecurity2 that wrapped
+# a FileInfo or a DirectoryInfo built from an empty path, which AlphaFS rejects, so the conversion always threw. The
+# object that the fixed conversion returns has no item: FullName and Name, which have no path to report, are null,
+# which reads most naturally as "nothing to name".
+Describe 'The FileSystemSecurity2 conversions from FileSecurity and DirectorySecurity' {
+    BeforeAll {
+        function New-RawFileSystemSecurity {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an in-memory descriptor only.'
+            )]
+            param ([string] $Kind)
+
+            $raw = New-Object -TypeName "System.Security.AccessControl.$Kind"
+            $rule = New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
+                $sid, [System.Security.AccessControl.FileSystemRights]::ReadData,
+                [System.Security.AccessControl.AccessControlType]::Allow
+            )
+            $raw.AddAccessRule($rule)
+            $raw
+        }
+    }
+
+    It 'Should wrap the <Kind> descriptor that was passed, report IsFile as <IsFile>, and round-trip the same instance' -ForEach @(
+        @{ Kind = 'FileSecurity'; IsFile = $true }
+        @{ Kind = 'DirectorySecurity'; IsFile = $false }
+    ) {
+        $raw = New-RawFileSystemSecurity -Kind $Kind
+        $targetType = [type] "System.Security.AccessControl.$Kind"
+
+        $wrapped = [Security2.FileSystemSecurity2] $raw
+
+        [object]::ReferenceEquals($wrapped.SecurityDescriptor, $raw) | Should -BeTrue
+        $wrapped.IsFile | Should -Be $IsFile
+        [object]::ReferenceEquals(($wrapped -as $targetType), $raw) | Should -BeTrue
+        $wrapped.FullName | Should -Be $null
+        $wrapped.Name | Should -Be $null
+    }
+
+    It 'Should compare two <Kind> conversions of the same descriptor as equal, and of different descriptors as unequal' -ForEach @(
+        @{ Kind = 'FileSecurity' }
+        @{ Kind = 'DirectorySecurity' }
+    ) {
+        $raw = New-RawFileSystemSecurity -Kind $Kind
+
+        $first = [Security2.FileSystemSecurity2] $raw
+        $second = [Security2.FileSystemSecurity2] $raw
+        $other = [Security2.FileSystemSecurity2] (New-RawFileSystemSecurity -Kind $Kind)
+
+        $first.Equals($second) | Should -BeTrue
+        $first.GetHashCode() | Should -Be $second.GetHashCode()
+        $first.Equals($other) | Should -BeFalse
+    }
+
+    It 'Should throw an InvalidOperationException, not a NullReferenceException, when a <Kind> without an item is written' -ForEach @(
+        @{ Kind = 'FileSecurity' }
+        @{ Kind = 'DirectorySecurity' }
+    ) {
+        $wrapped = [Security2.FileSystemSecurity2] (New-RawFileSystemSecurity -Kind $Kind)
+
+        $failure = { $wrapped.Write() } | Should -Throw -PassThru
+
+        $failure.Exception.GetBaseException() | Should -BeOfType [System.InvalidOperationException]
+        $failure.Exception.GetBaseException().Message | Should -BeLike '*item*'
+    }
+
+    It 'Should write a <Kind> without an item once the caller sets Item' -ForEach @(
+        @{ Kind = 'FileSecurity'; Directory = $false }
+        @{ Kind = 'DirectorySecurity'; Directory = $true }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'ConvertedWriteItem' -Directory:$Directory
+        $wrapped = [Security2.FileSystemSecurity2] (New-RawFileSystemSecurity -Kind $Kind)
+        $wrapped.Item = Get-Item2 -Path $path
+
+        $wrapped.Write()
+
+        @((Get-Acl -LiteralPath $path).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) | Should -HaveCount 1
+    }
+
+    It 'Should write a <Kind> without an item directly to a path' -ForEach @(
+        @{ Kind = 'FileSecurity'; Directory = $false }
+        @{ Kind = 'DirectorySecurity'; Directory = $true }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'ConvertedWritePath' -Directory:$Directory
+        $wrapped = [Security2.FileSystemSecurity2] (New-RawFileSystemSecurity -Kind $Kind)
+
+        $wrapped.Write([string] $path)
+
+        @((Get-Acl -LiteralPath $path).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) | Should -HaveCount 1
+    }
+}
+
 Describe 'Generic access rights and identity errors' {
     It 'Should map the generic mask <Mask> to the file system rights <Expected>' -ForEach @(
         @{ Mask = '80000000'; Expected = '00120089' }
