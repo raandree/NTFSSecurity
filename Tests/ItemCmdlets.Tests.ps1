@@ -166,9 +166,10 @@ Describe 'Get-ChildItem2' {
             @{ Filter = 'Page.ht?'; Expected = @('Page.htm') }
             @{ Filter = 'Page2.h*'; Expected = @('Page2.html') }
             @{ Filter = 'Page2.'; Expected = @() }
+            @{ Filter = 'LONGFI~1*'; Expected = @() }
         ) {
             $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterNames' -Directory
-            foreach ($name in 'Page.htm', 'Page2.html') {
+            foreach ($name in 'Page.htm', 'Page2.html', 'LongFileName') {
                 $file = Join-Path -Path $folder -ChildPath $name
                 Assert-TestSandboxPath -Sandbox $sandbox -Path $file
                 Set-Content -LiteralPath $file -Value $name
@@ -338,6 +339,37 @@ Describe 'Get-ChildItem2' {
             @{ Filter = 'ca?'; Expected = @() }
         ) {
             $folder = $filterTruthTableFolder
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter $Filter -Force -ErrorAction Stop)
+
+            ($result.Name | Sort-Object) -join ',' | Should -BeExactly (($Expected | Sort-Object) -join ',')
+        }
+
+        # A star in front of a dot token may cross every dot in the name but the LAST one (Win32 DOS_STAR), not stop
+        # at the first one: with names that have two or more dots, a pattern such as "*.?" still has to reach the
+        # last dot before the dot token and the question mark account for the final segment. The 8.3-compliant
+        # names of the truth table above have at most one dot, where the first dot and the last dot are the same
+        # position, so they cannot tell the two rules apart; this fixture uses names with two or three dots
+        # instead, including the realistic ones from the WI. Expected values are pinned with the real name of each
+        # item, confirmed with `fsutil file setshortname` so that a short name the volume might otherwise assign
+        # cannot also produce a match.
+        It 'Should match -Filter "<Filter>" on a name with two or more dots the way Windows PowerShell 5.1 does' -ForEach @(
+            @{ Filter = '*.?'; Expected = @('a.b.c', 'v1.2.3', 'x.y.z.w') }
+            @{ Filter = '*.??'; Expected = @('a.b.c', 'a.b.cd', 'archive.tar.gz', 'index.d.ts', 'jquery.min.js', 'my.file.tx', 'v1.2.3', 'x.y.z.w') }
+            @{ Filter = '*.???'; Expected = @('a.b.c', 'a.b.cd', 'archive.tar.gz', 'index.d.ts', 'jquery.min.js', 'my.file.name.txt', 'my.file.tx', 'v1.2.3', 'x.y.z.w') }
+            @{ Filter = '*.?.?'; Expected = @('a.b.c', 'v1.2.3', 'x.y.z.w') }
+            @{ Filter = '*.*.*'; Expected = @('a.b.c', 'a.b.cd', 'archive.tar.gz', 'index.d.ts', 'jquery.min.js', 'my.file.name.txt', 'my.file.tx', 'one.two.three', 'v1.2.3', 'x.y.z.w') }
+            @{ Filter = 'a*.?'; Expected = @('a.b.c') }
+            @{ Filter = 'a.b.?'; Expected = @('a.b.c') }
+            @{ Filter = 'a.b.??'; Expected = @('a.b.c', 'a.b.cd') }
+            @{ Filter = 'x.*.?'; Expected = @('x.y.z.w') }
+        ) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterMultiDot' -Directory
+            foreach ($name in 'a.b.c', 'a.b.cd', 'x.y.z.w', 'my.file.tx', 'one.two.three', 'archive.tar.gz', 'jquery.min.js', 'my.file.name.txt', 'v1.2.3', 'index.d.ts') {
+                $file = Join-Path -Path $folder -ChildPath $name
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+                Set-Content -LiteralPath $file -Value $name
+            }
 
             $result = @(Get-ChildItem2 -Path $folder -Filter $Filter -Force -ErrorAction Stop)
 

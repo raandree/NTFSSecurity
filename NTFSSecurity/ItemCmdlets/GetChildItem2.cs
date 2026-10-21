@@ -401,13 +401,14 @@ namespace NTFSSecurity
         // Windows PowerShell 5.1 applies to Get-ChildItem -Filter, in both editions, so that the two editions and
         // the short-name based matching that a past fix removed do not disagree. The rules come from
         // FsRtlIsNameInExpression with the Win32 translation of a DOS pattern (DOS_STAR, DOS_QM, DOS_DOT): an
-        // asterisk matches a run of characters (but not past a dot that a following dot token still has to
-        // account for); a question mark matches one character that is not a dot, or nothing where the name has
-        // no more characters left or the next one is a dot; and a dot matches a literal dot in the name, or
-        // nothing where the name has no more characters left, which is why "Report.*" also returns "Report" and
-        // "Report." returns only the names without a dot. Comparisons are case-insensitive with the invariant
-        // culture, never the thread culture, matching the enumeration (see InvariantCultureScope). Every
-        // character other than an asterisk or a question mark is ordinary, including a bracket and a backtick.
+        // asterisk matches a run of characters (but not past the LAST dot in the name, which a following dot
+        // token still has to account for); a question mark matches one character that is not a dot, or nothing
+        // where the name has no more characters left or the next one is a dot; and a dot matches a literal dot in
+        // the name, or nothing where the name has no more characters left, which is why "Report.*" also returns
+        // "Report" and "Report." returns only the names without a dot. Comparisons are case-insensitive with the
+        // invariant culture, never the thread culture, matching the enumeration (see InvariantCultureScope).
+        // Every character other than an asterisk or a question mark is ordinary, including a bracket and a
+        // backtick.
         private static class DosWildcard
         {
             private enum TokenKind
@@ -521,17 +522,19 @@ namespace NTFSSecurity
                 if (tok.Kind == TokenKind.Star)
                 {
                     // A star that is directly followed by a dot (a DOS_DOT or an ordinary dot) must leave that dot
-                    // for the dot token to account for: it cannot run past the next dot in the name, which is why
-                    // "Rep*." does not return "Report.txt" although a plain "*" could reach the end of the name by
-                    // crossing the dot. A star with anything else after it, including another star, is free to
-                    // cross dots, which is why "**." returns every item and "R*t" returns "Report.txt".
+                    // for the dot token to account for: it may cross every dot in the name but the LAST one (Win32
+                    // DOS_STAR), which is why "Rep*." does not return "Report.txt" although a plain "*" could reach
+                    // the end of the name by crossing the dot, and why "*.?" reaches the final segment of a name
+                    // with two or more dots, such as "archive.tar.gz". A star with anything else after it,
+                    // including another star, is free to cross every dot, which is why "**." returns every item
+                    // and "R*t" returns "Report.txt".
                     var max = name.Length;
                     if (ti + 1 < tokens.Count && tokens[ti + 1].Kind == TokenKind.Dot)
                     {
-                        var nextDot = name.IndexOf('.', ni);
-                        if (nextDot >= 0)
+                        var lastDot = name.LastIndexOf('.');
+                        if (lastDot >= ni)
                         {
-                            max = nextDot;
+                            max = lastDot;
                         }
                     }
 
