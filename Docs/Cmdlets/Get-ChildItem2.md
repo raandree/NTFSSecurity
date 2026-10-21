@@ -148,7 +148,7 @@ For example, `Report.*` also returns the item `Report`, which has no dot.
 
 A pattern of an asterisk, a dot, and an asterisk returns every item, also an item without a dot in its name, as `Get-ChildItem` does for this pattern.
 
-PowerShell 7 deliberately differs here from the built-in `Get-ChildItem`: its own `-Filter` returns nothing for a pattern that ends in a dot, unless the character right before the dot is an asterisk, and it returns every item for a pattern of an asterisk, a dot, and one or two question marks. `Get-ChildItem2` follows the Windows PowerShell 5.1 rules in both editions instead, so these are deliberate differences from PowerShell 7's own `Get-ChildItem`.
+In PowerShell 7, `Get-ChildItem2` deliberately differs from the built-in `Get-ChildItem` for two pattern shapes: the built-in `-Filter` returns nothing for a pattern that ends in a dot, unless the character right before the dot is an asterisk, and it returns every item for a pattern of an asterisk, a dot, and one or two question marks. `Get-ChildItem2` follows the Windows PowerShell 5.1 rules in both editions instead.
 
 The default value is `*`, which returns every item, and an empty value also returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.
 
