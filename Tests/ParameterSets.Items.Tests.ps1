@@ -1206,6 +1206,48 @@ Describe 'Get-FileHash2 binds -Algorithm by property name' {
     }
 }
 
+Describe 'Copy-Item2 and Move-Item2 bind -Destination by property name' {
+    # A piped object binds -Destination by its own property, so two objects can go to two destinations in one call.
+    It '<Command> should put each piped item in the destination that its own object names' -ForEach @(
+        @{ Command = 'Copy-Item2' }
+        @{ Command = 'Move-Item2' }
+    ) {
+        $folder = New-TestSandboxItem -Sandbox $sandbox -Name "DestinationByProperty$Command" -Directory
+        $destinationOne = Join-Path -Path $folder -ChildPath 'One'
+        $destinationTwo = Join-Path -Path $folder -ChildPath 'Two'
+        $first = Join-Path -Path $folder -ChildPath 'First.txt'
+        $second = Join-Path -Path $folder -ChildPath 'Second.txt'
+        Assert-TestSandboxPath -Sandbox $sandbox -Path $destinationOne, $destinationTwo, $first, $second
+        New-Item -ItemType Directory -Path $destinationOne, $destinationTwo | Out-Null
+        Set-Content -LiteralPath $first -Value 'First'
+        Set-Content -LiteralPath $second -Value 'Second'
+        $requests = @(
+            [pscustomobject]@{ Path = $first; Destination = $destinationOne }
+            [pscustomobject]@{ Path = $second; Destination = $destinationTwo }
+        )
+
+        $result = @($requests | & $Command -PassThru $true -ErrorAction Stop)
+
+        $copiedFirst = Join-Path -Path $destinationOne -ChildPath 'First.txt'
+        $copiedSecond = Join-Path -Path $destinationTwo -ChildPath 'Second.txt'
+        $result | Should -HaveCount 2
+        $result[0].FullName | Should -Be $copiedFirst
+        $result[1].FullName | Should -Be $copiedSecond
+        Get-Content -LiteralPath $copiedFirst | Should -Be 'First'
+        Get-Content -LiteralPath $copiedSecond | Should -Be 'Second'
+        (Join-Path -Path $destinationOne -ChildPath 'Second.txt') | Should -Not -Exist
+        (Join-Path -Path $destinationTwo -ChildPath 'First.txt') | Should -Not -Exist
+        if ($Command -eq 'Copy-Item2') {
+            $first | Should -Exist
+            $second | Should -Exist
+        }
+        else {
+            $first | Should -Not -Exist
+            $second | Should -Not -Exist
+        }
+    }
+}
+
 Describe 'Get-DiskSpace free-space values and validation error' {
     It 'Should report free-space values close to an independent .NET read for the system drive' {
         $before = New-Object -TypeName 'System.IO.DriveInfo' -ArgumentList $env:SystemDrive
