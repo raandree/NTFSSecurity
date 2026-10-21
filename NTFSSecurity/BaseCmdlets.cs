@@ -354,7 +354,6 @@ namespace NTFSSecurity
         protected PrivilegeAndAttributesCollection privileges = null;
         protected PrivilegeControl privControl = new PrivilegeControl();
         private List<string> enabledPrivileges = new List<string>();
-        Hashtable privateData = null;
 
         // A cmdlet that enables the privileges for the session, such as Enable-Privileges, keeps them enabled.
         protected virtual bool KeepEnabledPrivileges
@@ -364,9 +363,7 @@ namespace NTFSSecurity
 
         protected override void BeginProcessing()
         {
-            privateData = (Hashtable)MyInvocation.MyCommand.Module.PrivateData;
-
-            if ((bool)privateData["EnablePrivileges"])
+            if (GetEnablePrivilegesSetting())
             {
                 WriteVerbose("EnablePrivileges enabled in PrivateDate");
                 EnableFileSystemPrivileges(true);
@@ -375,7 +372,7 @@ namespace NTFSSecurity
 
         protected override void EndProcessing()
         {
-            if ((bool)privateData["EnablePrivileges"])
+            if (GetEnablePrivilegesSetting())
             {
                 WriteVerbose("EnablePrivileges enabled in PrivateDate");
 
@@ -393,6 +390,34 @@ namespace NTFSSecurity
                 }
                 WriteVerbose(string.Format("...finished"));
             }
+        }
+
+        /// <summary>
+        /// Reads the EnablePrivileges setting of the module manifest (NTFSSecurity.psd1, section PrivateData) and
+        /// terminates with one EnablePrivilegesSettingInvalid error when the setting is missing or is not a Boolean.
+        /// Before 5.0.0, BeginProcessing, EndProcessing, and Enable-Privileges each cast the setting on their own
+        /// without checking it first, so a missing key or a value that was not a Boolean, such as the string '$true'
+        /// from a typo in the manifest, failed with a NullReferenceException or an InvalidCastException before
+        /// anything useful was said, and Enable-Privileges raised a second, different message for the same cause
+        /// that was never reached, because BeginProcessing always failed first.
+        /// </summary>
+        protected bool GetEnablePrivilegesSetting()
+        {
+            var moduleData = (Hashtable)MyInvocation.MyCommand.Module.PrivateData;
+            var value = moduleData == null ? null : moduleData["EnablePrivileges"];
+
+            if (!(value is bool))
+            {
+                var found = value == null ? "missing" : string.Format("'{0}'", value);
+                var message = string.Format(
+                    "The 'EnablePrivileges' setting in the PrivateData section of the module manifest (NTFSSecurity.psd1) " +
+                    "must be $true or $false, but it is {0}. See the NTFSSecurity documentation for EnablePrivileges.",
+                    found);
+
+                ThrowTerminatingError(new ErrorRecord(new ArgumentException(message), "EnablePrivilegesSettingInvalid", ErrorCategory.InvalidData, value));
+            }
+
+            return (bool)value;
         }
 
         // PowerShell calls Dispose also when a later command or a terminating error stops the pipeline, and then

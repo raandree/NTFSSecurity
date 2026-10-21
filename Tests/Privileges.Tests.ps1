@@ -663,3 +663,40 @@ Describe 'The PrivilegeControl class' {
         Get-BackupPrivilegeState | Should -Be 'Disabled'
     }
 }
+
+# Before 5.0.0, a module setting that was not a Boolean (a typo such as the string '$true', or a missing key) made
+# every cmdlet derived from BaseCmdletWithPrivControl fail in BeginProcessing with an InvalidCastException or a
+# NullReferenceException before anything useful was said, and Enable-Privileges had its own try/catch for the same
+# cast that never ran, because BeginProcessing always failed first. One EnablePrivilegesSettingInvalid error now
+# names the setting instead, for a cmdlet and for Enable-Privileges alike. The test needs no elevation.
+Describe 'A malformed EnablePrivileges setting' {
+    BeforeAll {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'MalformedSetting'
+    }
+
+    It 'Should stop a cmdlet and Enable-Privileges with one EnablePrivilegesSettingInvalid error for <Case>, not an InvalidCastException or a NullReferenceException' -ForEach @(
+        @{ Case = 'a string value'; Setting = 'maybe' }
+        @{ Case = 'a missing value'; Setting = $null }
+    ) {
+        $privateData['EnablePrivileges'] = $Setting
+
+        try {
+            $cmdletFailure = { Get-NTFSInheritance -Path $file -ErrorAction Stop } | Should -Throw -PassThru
+            $enableFailure = { Enable-Privileges -ErrorAction Stop } | Should -Throw -PassThru
+        }
+        finally {
+            $privateData['EnablePrivileges'] = $enablePrivileges
+        }
+
+        foreach ($failure in $cmdletFailure, $enableFailure) {
+            $failure.FullyQualifiedErrorId | Should -BeLike 'EnablePrivilegesSettingInvalid,*'
+            $failure.Exception.Message | Should -BeLike '*EnablePrivileges*'
+            $failure.Exception | Should -Not -BeOfType [System.InvalidCastException]
+            $failure.Exception | Should -Not -BeOfType [System.NullReferenceException]
+        }
+
+        # Restoring the setting must leave the session usable again, for this test and the ones that follow it.
+        $privateData['EnablePrivileges'] | Should -Be $enablePrivileges
+        { Get-NTFSInheritance -Path $file -ErrorAction Stop } | Should -Not -Throw
+    }
+}
