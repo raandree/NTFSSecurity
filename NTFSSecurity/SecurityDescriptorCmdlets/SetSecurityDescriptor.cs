@@ -11,7 +11,7 @@ namespace NTFSSecurity
     {
         private SwitchParameter passThru;
 
-        [Parameter(Mandatory = true, Position = 2, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
+        [Parameter(Mandatory = true, Position = 1, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
         public FileSystemSecurity2[] SecurityDescriptor
         {
             get { return securityDescriptors.ToArray(); }
