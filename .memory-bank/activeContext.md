@@ -23,14 +23,14 @@ of the new error, a computer name of 32,718 characters, holds on Server 2019,
 2022, 2025, and Windows 11 26H1. He merged the record, #128, on 2026-10-21 at
 05:48Z, the tests-only round for the plain gaps (#129, 08:24Z; Next step 6),
 and this Memory Bank (#130, 08:47Z); `master` is `d0cb57c`. The new tests gave
-the same counts on the runner in three CI runs, equal to the local run in each
-test file. Open before the stable pull request: the maintainer's decision
-on #34 on 2026-11-02 (no reply to his follow-up of 2026-10-19), his check of
-`PSGALLERY_API_KEY`, and his decision on the open items (Next steps 3 and 6).
-The stable build is new bytes that no lab ran; the procedure accepts the last
-prerelease, so the stable change touches only the label, the CHANGELOG, and
-`$publishedVersions`. Any other product change needs rc9 and the same
-acceptance (about 70 minutes with the script).
+the same counts on the runner (three CI runs) and on six machine classes of the
+labs (24 runs, 0 failed). A probe found that a typo in a piped `AccessType`
+silently creates an Allow entry. He decided (Decision 27): rc9 fixes that
+family and the items 3 to 7 of its sheet, with a review. Open before the
+stable pull request: rc9 (designs, tests, review, acceptance of about 70
+minutes), his decision on #34 on 2026-11-02, and his check of
+`PSGALLERY_API_KEY`. The stable change then touches only the label, the
+CHANGELOG, and `$publishedVersions`.
 
 State at 2026-10-10: the maintainer integrated the release-gate stack into
 `master` (#116, #120, #118, #119, #121; `fa0701b`, CI green; GitHub closed #117
@@ -164,11 +164,10 @@ Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
    `[Unreleased]` and the links, and `5.0.0-rc8` in `$publishedVersions` (the
    list ends at rc7 now). The maintainer checks the expiry of
    `PSGALLERY_API_KEY` first, merges, and tags. Every release step is his.
-3. He decides the other open items of the paths report: `FileSecurity`
-   conversions, `RemoveAll` account filters, lazy path overloads, abandoned
-   `PrivilegeEnabler`, dot patterns of `Get-ChildItem2 -Filter`, the 17
-   owner-restore handlers without the later-command check, unused classes
-   (Decisions 21/22). Decisions 22 and 24 are accepted (2026-10-19).
+3. Decision 27 (2026-10-21): rc9 changes the library-only items, the dot
+   patterns of `Get-ChildItem2 -Filter`, the 17 owner-restore handlers, the
+   errors of the descriptor sets, and three inconsistencies; designs are being
+   researched. Decisions 22 and 24 are accepted (2026-10-19).
 4. #34 waits for a tester until 2026-11-02 (Decision 23, option 3; the
    follow-up went up on 2026-10-19, no reply yet; checklist:
    `Tests/Lab/Non-Windows-File-Server-Test.md`). On that date the maintainer
@@ -180,8 +179,8 @@ Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
    only with a result. He still decides the other: the ACL of the stage
    folders under `C:\` in the lab kit (they inherit Authenticated Users:
    Modify; protecting them is a design change of the controller and needs a new
-   acceptance). The help could also say that a local standard user who asks
-   about a domain account still gets "Access is denied".
+   acceptance). rc9 adds to the help that a local standard user who asks about
+   a domain account still gets "Access is denied" (Decision 27).
 6. Handoff 5 is done and merged (Evidence). Decided on 2026-10-19 (Decision
    21): the hard-link names under another root stay a known limit; the pages
    and the CHANGELOG say so since rc8. The tests-only round for the plain items
@@ -191,8 +190,8 @@ Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
    with a leftover (16 Limit, 7 MaintainerDecision, 3 would-pin), no defect;
    report `Tests/Coverage/Quality-Gate-Test-Round-2026-10-20.md`. The runner's
    counts equal the local run in three CI runs. No plain gap is left. A defect
-   that a test finds needs his decision and rc9. Still his: the 7
-   MaintainerDecision and 3 would-pin rows, the silent default scope for a
-   piped `AppliesTo` that PowerShell cannot convert (a design change), the 8
-   getters of pipeline parameters, and the audit paths.
+   that a test finds needs his decision and rc9. Decision 27 settles the rest:
+   rc9 fixes the 10 rows and the piped optional parameters (designs to
+   follow); the audit paths over SMB are accepted (#34); the tests for the 8
+   getters follow rc9.
 7. Do not release stable 5.0.0 or equate a percentage with gate closure.

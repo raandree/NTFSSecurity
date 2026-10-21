@@ -33,16 +33,14 @@ Gallery version: 4.2.6. After 5.0.0, archive in favor of WindowsAccessControl
 - 2026-10-08: #114 merged (`fcb370e`), rc5 published and live-tested.
   Decision 21 established the quality gate. Corrected four-run coverage:
   rc5 58.1% sequence points/38.0% branches, not the initial one-run result.
-- 2026-10-08: rc6 Phase 2 added basic-user CI, parameter-set/error tests,
-  expanded domain/SMB cases, and fixes for privilege cleanup, path
-  resolution, ownership retries, item conflicts, output equality, and
-  inherited flags. Suite: 677; coverage 68.14% sequence/44.32% branches.
-  Lab acceptance of `7b0781f` passed; two independent review passes.
-- 2026-10-08: rc7 implemented proposed Decision 22, including breaking
-  link binding/error changes, SimpleAccess traversal, cross-volume folder
-  preservation, and named effective-access warnings. Suite: 712, no
-  failures or test skipped everywhere. One review: no Blocker/Major.
-  Lab candidate `dc6e9f5`: 326 passed, 2 skipped, cleanup verified.
+- 2026-10-08: rc6 Phase 2 (basic-user CI, parameter-set and error tests,
+  expanded domain/SMB cases, fixes for privilege cleanup, path resolution,
+  ownership retries, item conflicts, output equality, inherited flags; suite
+  677, 68.14% sequence/44.32% branches; lab acceptance of `7b0781f` passed;
+  two review passes) and rc7 (Decision 22: breaking link binding and error
+  changes, SimpleAccess traversal, cross-volume folder preservation, named
+  effective-access warnings; suite 712; one review without Blocker or Major;
+  lab candidate `dc6e9f5`: 326 passed, 2 skipped, cleanup verified).
 - 2026-10-08: #115 merged (`b51d970`) and tagged rc6. Release run
   `37839669028` failed with HTTP 409 after Gallery publication. The log
   does not establish the previously assumed initial timeout/retry cause.
@@ -135,8 +133,10 @@ Gallery version: 4.2.6. After 5.0.0, archive in favor of WindowsAccessControl
   of 64 sets closed (7 before), 26 with a leftover (16 Limit, 7
   MaintainerDecision, 3 would-pin); no defect. Report:
   `Tests/Coverage/Quality-Gate-Test-Round-2026-10-20.md`. On 2026-10-21 he
-  merged #129 (08:24Z) and #130 (08:47Z); the runner gave the local counts in
-  three CI runs (`39551726767` and two more).
+  merged #129 (08:24Z) and #130 (08:47Z); the new tests passed in three CI
+  runs and in 24 lab runs on six machine classes (0 failed). A probe then
+  found that piped optional parameters ignore a bad value (a typo for Deny
+  creates an Allow entry); Decision 27 sets the scope of rc9.
 
 ## Stable capabilities
 
@@ -151,9 +151,8 @@ Gallery version: 4.2.6. After 5.0.0, archive in favor of WindowsAccessControl
 
 1. Decision 21 gate: the published rc7 and rc8 are accepted in the matrix and
    the first lab (records); stable follows rc8 (Decision 21, "Closing the
-   gate"). Do not release 5.0.0 until the other gates close: the decision on
-   #34 on 2026-11-02, the key check, and the decision on the open items (no
-   plain test gap is left). Release steps:
+   gate"). Do not release 5.0.0 until the other gates close: rc9 (Decision
+   27), the decision on #34 on 2026-11-02, and the key check. Release steps:
    `Docs/Contributing/05-Releasing.md`; remove the prerelease label, date
    `[5.0.0]`, add the last prerelease (rc8) to `$publishedVersions` (never the
    version of the manifest), tag through CI.
