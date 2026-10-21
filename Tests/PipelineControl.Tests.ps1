@@ -644,32 +644,32 @@ namespace NtfsSecurityTests { public class StandInForBreak : System.Management.A
 # and going on, or the caller never sees it. Each row denies the current user the right its own action needs (a
 # change denial for the writers, a read denial on Everyone for Get-FileHash2, which needs file data, not
 # permissions) and gives the item an owner that only the Restore privilege can set back, which the tests turn off;
-# InvokeAsOwner/WriteChangesAsOwner then takes ownership, runs the action, and fails to restore the owner. Six of
-# the thirteen handlers of item 7 can be pinned this way; the scenario and the "without a later command" assertion
-# already exist for all six: ParameterSets.Inheritance.Tests.ps1 (Disable/Enable-NTFSAccessInheritance,
+# InvokeAsOwner/WriteChangesAsOwner then takes ownership, runs the action, and fails to restore the owner. Eight of
+# the seventeen handlers of item 7 can be pinned this way. The scenario and the "without a later command" assertion
+# already exist for six of them: ParameterSets.Inheritance.Tests.ps1 (Disable/Enable-NTFSAccessInheritance,
 # Set-NTFSInheritance), PathErrors.Tests.ps1 (Clear-NTFSAccess -DisableInheritance), SecurityDescriptor.Tests.ps1
-# (Set-NTFSSecurityDescriptor), FileHash.Tests.ps1 (Get-FileHash2), so this table only adds the later-command
-# assertion, not a duplicate of the existing one.
+# (Set-NTFSSecurityDescriptor), FileHash.Tests.ps1 (Get-FileHash2); Add-NTFSAccess and Remove-NTFSAccess use the same
+# scenario as the inheritance cmdlets. So this table only adds the later-command assertion, not a duplicate of the
+# existing one.
 #
-# NOT DONE for the other seven (the reason is the same Windows rule in both groups: taking ownership only bypasses a
+# NOT DONE for the other nine (the reason is the same Windows rule in both groups: taking ownership only bypasses a
 # denial of ReadPermissions/ChangePermissions, never of a different right): Get-NTFSAccess, Get-NTFSOrphanedAccess,
 # Get-NTFSEffectiveAccess, and Get-NTFSInheritance read the security descriptor; InvokeAsOwner's own first statement,
 # FileSystemOwner.GetOwner, reads it too and needs the same ReadPermissions right the cmdlet's read needs, so a
 # denial that fails one fails the other and InvokeAsOwner never reaches the owner-restore step (verified: denying
 # ReadPermissions directly to the user reports ReadSecurityError with the plain UnauthorizedAccessException, not
 # RestoreOwnerError, and the owner is never taken; probes-wi2\p-restoreowner-read-vs-write.ps1,
-# p-read-cmdlets-2.ps1). Clear-NTFSAudit, Disable-NTFSAuditInheritance, and Enable-NTFSAuditInheritance write the
-# SACL, which Windows grants to this elevated session regardless of a DACL deny and regardless of the module's
-# EnablePrivileges setting, so the action does not fail to begin with (verified with both a ChangePermissions deny
-# and EnablePrivileges off: no error, the SACL is written, and the owner is left unchanged;
-# probes-wi2\p-audit-restoreowner.ps1, p-audit-restoreowner-2.ps1). The integrator's four rows for
-# Add/Remove-NTFSAccess/Audit need only the same four pieces of data (Prepare, Run, ItemErrorId, Untouched).
+# p-read-cmdlets-2.ps1). Clear-NTFSAudit, Disable-NTFSAuditInheritance, Enable-NTFSAuditInheritance, Add-NTFSAudit, and
+# Remove-NTFSAudit write the SACL, which Windows grants to this elevated session regardless of a DACL deny and
+# regardless of the module's EnablePrivileges setting, so the action does not fail to begin with (verified with both
+# a ChangePermissions deny and EnablePrivileges off: no error, the SACL is written, and the owner is left unchanged;
+# probes-wi2\p-audit-restoreowner.ps1, p-audit-restoreowner-2.ps1). The handlers of all seventeen carry the check.
 Describe 'A later command that throws at the RestoreOwnerError record' {
     BeforeDiscovery {
         $holdsRestorePrivilege = Test-PrivilegeHeld -Name 'SeRestorePrivilege'
         $laterCommandRestoreOwnerNames = @(
             'Clear-NTFSAccess', 'Disable-NTFSAccessInheritance', 'Enable-NTFSAccessInheritance', 'Set-NTFSInheritance',
-            'Set-NTFSSecurityDescriptor', 'Get-FileHash2'
+            'Set-NTFSSecurityDescriptor', 'Get-FileHash2', 'Add-NTFSAccess', 'Remove-NTFSAccess'
         )
     }
 
@@ -761,6 +761,31 @@ Describe 'A later command that throws at the RestoreOwnerError record' {
                 # for the blocked path in either state of the fix. Not @($Emitted): PowerShell's array operator
                 # raises ArgumentException for an empty generic List(Of T).
                 Untouched   = { param ($Context, $Emitted) (Test-Path -LiteralPath $Context.Next) -and $Emitted.Count -eq 0 }
+            }
+            'Add-NTFSAccess'                 = @{
+                Prepare     = {
+                    $blocked = New-TestSandboxItem -Sandbox $sandbox -Name 'LaterAddBlocked'
+                    $next = New-TestSandboxItem -Sandbox $sandbox -Name 'LaterAddNext'
+                    Add-TestDenyRule -Sandbox $sandbox -Path $blocked -Rights @{ $currentUser = 'ChangePermissions' }
+                    Set-TestOwner -Sandbox $sandbox -Path $blocked -Sid $trustedInstaller
+                    @{ Blocked = $blocked; Next = $next }
+                }
+                Run         = { param ($Context) Add-NTFSAccess -Path $Context.Blocked, $Context.Next -Account 'S-1-1-0' -AccessRights ReadData -ErrorAction Continue }
+                ItemErrorId = 'AddAceError'
+                Untouched   = { param ($Context, $Emitted) -not (Test-ExplicitEntry -Path $Context.Next -Account 'S-1-1-0') -and $Emitted.Count -eq 0 }
+            }
+            'Remove-NTFSAccess'              = @{
+                Prepare     = {
+                    $blocked = New-TestSandboxItem -Sandbox $sandbox -Name 'LaterRemoveBlocked'
+                    $next = New-TestSandboxItem -Sandbox $sandbox -Name 'LaterRemoveNext'
+                    Add-NTFSAccess -Path $blocked, $next -Account 'S-1-1-0' -AccessRights ReadData -ErrorAction Stop
+                    Add-TestDenyRule -Sandbox $sandbox -Path $blocked -Rights @{ $currentUser = 'ChangePermissions' }
+                    Set-TestOwner -Sandbox $sandbox -Path $blocked -Sid $trustedInstaller
+                    @{ Blocked = $blocked; Next = $next }
+                }
+                Run         = { param ($Context) Remove-NTFSAccess -Path $Context.Blocked, $Context.Next -Account 'S-1-1-0' -AccessRights ReadData -ErrorAction Continue }
+                ItemErrorId = 'RemoveAceError'
+                Untouched   = { param ($Context, $Emitted) (Test-ExplicitEntry -Path $Context.Next -Account 'S-1-1-0') -and $Emitted.Count -eq 0 }
             }
         }
     }
