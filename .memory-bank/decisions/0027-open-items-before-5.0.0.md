@@ -153,3 +153,45 @@ decided; the rest is to be chosen. Recommended defaults are the agent's.
   Desktop: Access 74/0, Audit 55/2, Inheritance 72/1, Items 90/0, executed and
   skipped). No OS-specific finding. The machines are saved again, and
   `OSWin11E` is off.
+
+## Built in rc9, the review, and the known limits
+
+- How: four implementers worked in separate worktrees (WI-1 the five piped
+  parameters and item 5, WI-2 item 7 and the three inconsistencies, WI-3 the
+  library items, WI-4 the filter), test first, one commit per item. The agent
+  integrated them, ran the whole suite on the integrated tree, and had three
+  read-only reviewers read it (brief `rc9\REVIEW-BRIEF.md` in the session
+  folder). The findings became follow-up commits, and the branch `ai/rc9` was
+  rebuilt with `git cherry-pick` in the order of each chain, so every fix sits
+  in the commit of its item and any item can still be dropped.
+
+What the review found:
+
+| Finding | What became of it |
+| --- | --- |
+| Blocker: a `*` before a dot has to stop at the LAST dot, the matcher stopped at the first; `*.??` missed `archive.tar.gz`. The differential check ran on 8.3 names, which have one dot, and could not see it | Fixed; a differential check over 732,630 multi-dot pairs found no mismatch; the tests pin the multi-dot shapes |
+| Major: with `object` parameters, a `$null`, DBNull, or blank value of the OTHER parameter group binds in both sets, so a CSV row with a blank cell of the other group is `AmbiguousParameterSet` (rc8 skipped the cell and created the entry) | Documented and pinned. **Flagged:** the alternative is a restructure of the parameter sets, a larger public change; the maintainer was told that the agent goes on with the documentation and has not objected |
+| Major: a named `$null` (`-AccessType $rule.AccessTpye`) silently selected the default | Fixed: a terminating `InvalidParameterValue` for a name in `BoundParameters` whose value is `$null` |
+| Minor: a script block is no longer delay-bound; the completers returned nothing for a quoted or wildcard word | Documented and pinned; the completers are fixed |
+| Minor: since 3.1, `-SecurityDescriptor (Get-Acl $f)` binds, and then threw from the inherited-from lookup and marked the audit section as read; the null guard of `Name` was not pinned; `Get-NTFSInheritance` wrote its object in a `finally` after it rethrew the exception of a later command | Fixed; the guard is pinned through reflection, because a PowerShell property read turns a throwing getter into `$null` |
+| Filter: platyPS removed paired asterisks of a paragraph; the PowerShell 7 claim was too broad; the CHANGELOG said nothing of the new `?`; a pattern of more than 32,767 characters ended the host with a stack overflow; one sentence contradicted itself | Fixed: one asterisk per paragraph, the exact shapes, the CHANGELOG sentence, `[ValidateLength(0,32767)]` |
+
+Known limits, kept and to be stated to the maintainer:
+
+- `Get-NTFSEffectiveAccess` on a FAT32 volume or on an item with a NULL DACL
+  ends with an `ArgumentOutOfRangeException` (mask 2097151). Found by a probe,
+  not caused by rc9, not fixed.
+- The error branch of 6b (`Get-NTFSOrphanedAccess` cannot read an item) has no
+  deterministic trigger: a locked file, a long path, a dangling junction, and a
+  FAT32 VHD were tried. It is reviewed, not pinned.
+- Item 7: 9 of the 17 handlers have no test. The getters' own
+  `FileSystemOwner.GetOwner` needs the same read right that the test takes
+  away, and the audit cmdlets write the SACL whatever the DACL says, so the
+  action never fails first.
+- `Get-FileHash2 -Algorithm` keeps the silent default of a piped value that
+  does not convert (option C was not chosen). The settings `GetInheritedFrom`,
+  `GetFileSystemModeProperty`, and `IdentifyHardLinks` still read their value
+  with an unchecked cast, as `EnablePrivileges` did. `PrivilegeEnabler` (3.4)
+  stays undisposed, a known limit of the .NET API.
+- In PowerShell 7, the case folding of `-Filter` differs from NTFS for a few
+  exotic letters (finding F7 of the review; not fixed).

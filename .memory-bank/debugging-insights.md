@@ -128,3 +128,54 @@ fails without it (Decision 16).
   gives up after 60 seconds when its runner never started (about 6 seconds
   normally). Before you blame the load for a stall, repeat the call alone with
   the same arguments.
+
+## Optional enum parameters that take pipeline input by property name
+
+- The binder skips a piped property that it cannot convert to the type of an
+  OPTIONAL parameter and keeps the default: a typo for `Deny`, a blank CSV
+  cell, or a misspelled scope silently made an Allow entry or the default
+  scope (probe `p-unconvertible-optional-params.ps1` on rc8, both editions; a
+  named call fails loudly; one parameter set with optional parameters does not
+  help). `Get-FileHash2 -Algorithm` has the same flaw and stays a known limit.
+- Decision 27, fix B: the five parameters of the four add and remove cmdlets
+  are `object`, converted in the cmdlet by `ParameterConversion`. All five
+  must be `object`: with `AppliesTo` alone, a row with `AppliesTo` and flags
+  lost its `AmbiguousParameterSet`. The price was found by the review, not by
+  the author's tests: a `$null`, DBNull, or blank value of the OTHER group
+  binds too (a CSV with columns of both groups is `AmbiguousParameterSet`); a
+  named `$null` binds, where rc8 refused it (`MyInvocation.BoundParameters`
+  shows it in `BeginProcessing`); a script block is no longer delay-bound; the
+  completion of the names has to be rebuilt (quotes, wildcards, declaration
+  order); help shows `Object`. Probe every form of a value before you write a
+  claim, and ask a reviewer for the negative space.
+- PowerShell calls the getter of a by-property-name parameter once per
+  command, when a piped object first binds it (`p-getter-calls.ps1`). A test
+  that must visit it pipes an object that has the property. A property getter
+  that throws reads as `$null` without a trace: test it through reflection.
+
+## A differential oracle that covers part of the input
+
+- The matcher of `Get-ChildItem2 -Filter` was checked against Windows
+  PowerShell 5.1 over 55,987 patterns, on 8.3-compliant names only, so that the
+  short name is the real name. Such names have at most one dot, where the first
+  and the last dot are the same, so a rule about the LAST dot was invisible:
+  `*.??` dropped `archive.tar.gz`. The review found it with 849k pairs. Cover
+  every dimension of the input, and neutralize a quirk of the oracle instead of
+  avoiding the inputs that trigger it: `fsutil file setshortname` gives a long
+  name a short name that matches nothing, `fsutil 8dot3name strip` removes it.
+- A very long pattern ended the host with a stack overflow (recursion depth =
+  tokens): bound the input of a recursive matcher (`ValidateLength`).
+
+## Agents in parallel worktrees
+
+- `git stash` is ONE list for all worktrees: a `pop` takes the top entry of
+  whoever created it and moved the edits of one agent into another's tree. The
+  brief forbids stash, `restore`, `reset`, `clean`, and checkout of a sha; a RED
+  run on the unchanged product uses a private base worktree. Protect a foreign
+  stash with `git update-ref` before anything else.
+- An agent that ends its turn without a report may have done nothing (a clean
+  worktree and an empty probe folder said so): write to it and ask.
+- Help generation: `Update-MarkdownHelp` reads `Position` from the help file
+  that the build copies, not from the C# attribute, so a page edit alone drifts:
+  edit the page, `New-ExternalHelp`, rebuild, then check the docs (the files are
+  a fixpoint). A pair of asterisks in one paragraph loses them in the XML.
