@@ -345,8 +345,8 @@ The format is based on
   of a parameter binding error; `-AppliesTo $null` keeps the error of the
   binder, because the parameter is mandatory. `-AccessType` and `-AppliesTo`
   take one value: a comma list or a collection of several values is an
-  `InvalidParameterValue` error, where PowerShell added up the numbers of the
-  values, so that `-AppliesTo 'ThisFolderOnly,FilesOnly'` created a
+  `InvalidParameterValue` error, where PowerShell combined the numbers of the
+  values bit by bit, so that `-AppliesTo 'ThisFolderOnly,FilesOnly'` created a
   `FilesOnly` entry and `-AccessType 'Allow,Deny'` a `Deny` entry. A script
   block, such as `-AccessType { 'Deny' }`, is no longer evaluated for every
   piped object and is a bad value. `Get-Help` shows the type `Object`, and

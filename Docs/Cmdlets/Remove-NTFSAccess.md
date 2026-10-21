@@ -105,7 +105,7 @@ Accept wildcard characters: False
 
 ### -AccessType
 
-Specifies whether an `Allow` or a `Deny` entry is addressed. The default is `Allow`. An entry of the other type is not touched. A value that cannot be converted to `Allow` or `Deny`, including a blank one, is an `InvalidParameterValue` error: terminating when `-AccessType` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would add up the numbers of the values, so that one of them wins silently.
+Specifies whether an `Allow` or a `Deny` entry is addressed. The default is `Allow`. An entry of the other type is not touched. A value that cannot be converted to `Allow` or `Deny`, including a blank one, is an `InvalidParameterValue` error: terminating when `-AccessType` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently.
 
 ```yaml
 Type: Object
@@ -138,7 +138,7 @@ Accept wildcard characters: False
 
 ### -AppliesTo
 
-Specifies the scope of the entry that is addressed, in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same entry. Use the scope that `Get-NTFSAccess` shows in the "Applies to" column of the entry. A value that cannot be converted to one of these scopes, including a blank one, is an `InvalidParameterValue` error: terminating when `-AppliesTo` is named on the command line, and reported for just that path or descriptor, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would add up the numbers of the values, so that one of them wins silently or a scope that you did not name is selected.
+Specifies the scope of the entry that is addressed, in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same entry. Use the scope that `Get-NTFSAccess` shows in the "Applies to" column of the entry. A value that cannot be converted to one of these scopes, including a blank one, is an `InvalidParameterValue` error: terminating when `-AppliesTo` is named on the command line, and reported for just that path or descriptor, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently or a scope that you did not name is selected.
 
 ```yaml
 Type: Object
