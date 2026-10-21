@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-20
+last-verified: 2026-10-21
 owner: active-agent
 source: current task evidence
 ---
@@ -21,15 +21,16 @@ six machine classes, the first lab 245/0/1 per edition, every end state CLEAN
 (record `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`, #128). The boundary
 of the new error, a computer name of 32,718 characters, holds on Server 2019,
 2022, 2025, and Windows 11 26H1. He merged the record, #128, on 2026-10-21 at
-05:48Z (`master` `461015e`, CI green). The tests-only round for the plain gaps
-ran on 2026-10-20 (Next step 6) and is #129, with this Memory Bank in #130;
-their CI is green, and the runner's counts equal the local run in each test
-file. Open before the stable pull request: the merge of both, the maintainer's
-decision on #34 on 2026-11-02 (no reply to his follow-up of 2026-10-19), and
-his check of `PSGALLERY_API_KEY`. The stable build is new bytes that no lab
-ran; the procedure accepts the last prerelease, so the stable change touches
-only the label, the CHANGELOG, and `$publishedVersions`. Any other product
-change needs rc9 and the same acceptance (about 70 minutes with the script).
+05:48Z, the tests-only round for the plain gaps (#129, 08:24Z; Next step 6),
+and this Memory Bank (#130, 08:47Z); `master` is `d0cb57c`. The new tests gave
+the same counts on the runner in three CI runs, equal to the local run in each
+test file. Open before the stable pull request: the maintainer's decision
+on #34 on 2026-11-02 (no reply to his follow-up of 2026-10-19), his check of
+`PSGALLERY_API_KEY`, and his decision on the open items (Next steps 3 and 6).
+The stable build is new bytes that no lab ran; the procedure accepts the last
+prerelease, so the stable change touches only the label, the CHANGELOG, and
+`$publishedVersions`. Any other product change needs rc9 and the same
+acceptance (about 70 minutes with the script).
 
 State at 2026-10-10: the maintainer integrated the release-gate stack into
 `master` (#116, #120, #118, #119, #121; `fa0701b`, CI green; GitHub closed #117
@@ -185,14 +186,13 @@ Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
    21): the hard-link names under another root stay a known limit; the pages
    and the CHANGELOG say so since rc8. The tests-only round for the plain items
    (68 `budget` mentions) ran on 2026-10-20: four implementers, one
-   `ParameterSets.*` file each, integrated on `ai/tests-round-1` (#129): 89 `It`
-   blocks, 121 cases, the suite 1,494 to 1,615 per configuration, 0 failed;
-   38 of 64 sets closed, 26 with a leftover (16 Limit, 7 MaintainerDecision, 3
-   would-pin), no defect; report
-   `Tests/Coverage/Quality-Gate-Test-Round-2026-10-20.md`. On the runner (CI run
-   `39551726767`) the counts equal the local run in each test file. No plain
-   gap is left. A defect that a test finds needs his decision and rc9. Still
-   his: the 7 MaintainerDecision and 3 would-pin rows, the silent default scope
-   for a piped `AppliesTo` that PowerShell cannot convert (a design change), the
-   8 getters of pipeline parameters, and the audit paths.
+   `ParameterSets.*` file each, merged as #129: 89 `It` blocks, 121 cases, the
+   suite 1,494 to 1,615 per configuration, 0 failed; 38 of 64 sets closed, 26
+   with a leftover (16 Limit, 7 MaintainerDecision, 3 would-pin), no defect;
+   report `Tests/Coverage/Quality-Gate-Test-Round-2026-10-20.md`. The runner's
+   counts equal the local run in three CI runs. No plain gap is left. A defect
+   that a test finds needs his decision and rc9. Still his: the 7
+   MaintainerDecision and 3 would-pin rows, the silent default scope for a
+   piped `AppliesTo` that PowerShell cannot convert (a design change), the 8
+   getters of pipeline parameters, and the audit paths.
 7. Do not release stable 5.0.0 or equate a percentage with gate closure.

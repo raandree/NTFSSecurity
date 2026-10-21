@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-20
+last-verified: 2026-10-21
 owner: active-agent
 source: repository and validation evidence
 ---
@@ -16,9 +16,10 @@ into `master` (CI green; the milestones have the details). On 2026-10-19 he
 merged #125 (Handoff 5) and #124 (Dependabot) and decided the path to stable
 (Decision 21, "Closing the gate"); on 2026-10-20 he merged #126 (the decisions)
 and #127 (the rc8 fix and label) and tagged rc8; on 2026-10-21 he merged #128
-(the rc8 record). The published rc7 and rc8 passed their lab acceptance in the
-matrix and in the first lab. Stable Gallery version: 4.2.6.
-After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
+(the rc8 record), #129 (tests), and #130 (this file). The published rc7 and
+rc8 passed their lab acceptance in the matrix and in the first lab. Stable
+Gallery version: 4.2.6. After 5.0.0, archive in favor of WindowsAccessControl
+(Decision 18).
 
 ## Recent milestones
 
@@ -129,13 +130,13 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   of 32,718 characters). Record
   `Tests/Lab/Acceptance-2026-10-20-published-rc8.md` (#128).
 - 2026-10-20: tests-only round (Decision 21). Four implementers, one
-  `ParameterSets.*` test file each; integrated on `ai/tests-round-1` (#129):
-  89 `It` blocks, 121 cases, the suite 1,494 to 1,615 per configuration, 0
-  failed in four configurations; 38 of 64 sets closed (7 before), 26 with a
-  leftover (16 Limit, 7 MaintainerDecision, 3 would-pin); no defect. Report:
-  `Tests/Coverage/Quality-Gate-Test-Round-2026-10-20.md`. On 2026-10-21 the
-  CI of #129 and #130 passed; the runner's counts equal the local run in each
-  test file (run `39551726767`).
+  `ParameterSets.*` test file each (#129): 89 `It` blocks, 121 cases, the
+  suite 1,494 to 1,615 per configuration, 0 failed in four configurations; 38
+  of 64 sets closed (7 before), 26 with a leftover (16 Limit, 7
+  MaintainerDecision, 3 would-pin); no defect. Report:
+  `Tests/Coverage/Quality-Gate-Test-Round-2026-10-20.md`. On 2026-10-21 he
+  merged #129 (08:24Z) and #130 (08:47Z); the runner gave the local counts in
+  three CI runs (`39551726767` and two more).
 
 ## Stable capabilities
 
@@ -150,9 +151,9 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 
 1. Decision 21 gate: the published rc7 and rc8 are accepted in the matrix and
    the first lab (records); stable follows rc8 (Decision 21, "Closing the
-   gate"). Do not release 5.0.0 until the other gates close: the merge of #129
-   and #130 (no plain gap is left), #34 on 2026-11-02, and the key check.
-   Release steps:
+   gate"). Do not release 5.0.0 until the other gates close: the decision on
+   #34 on 2026-11-02, the key check, and the decision on the open items (no
+   plain test gap is left). Release steps:
    `Docs/Contributing/05-Releasing.md`; remove the prerelease label, date
    `[5.0.0]`, add the last prerelease (rc8) to `$publishedVersions` (never the
    version of the manifest), tag through CI.
