@@ -1092,6 +1092,13 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
             @{ Cmdlet = $cmdlet; Parameter = 'PropagationFlags'; EnumTypeName = 'System.Security.AccessControl.PropagationFlags' }
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; EnumTypeName = 'Security2.ApplyTo' }
         }
+
+        # R1-4: AuditFlags is the one completer that ParameterSets.Access.Tests.ps1 does not already cover with the
+        # quoted and wildcard forms (it shares the same completer code for InheritanceFlags, PropagationFlags, and
+        # AppliesTo, so those are pinned there).
+        $auditCompletionFormCases = @(
+            @{ Parameter = 'AuditFlags'; Word = 'F'; ExpectedName = 'Failure' }
+        )
     }
 
     Context 'A bad value bound from the pipeline' {
@@ -1412,6 +1419,26 @@ Describe 'Invalid and valid values of AuditFlags, InheritanceFlags, PropagationF
 
         It '<Cmdlet> should declare -<Parameter> as [object]' -ForEach $auditCompleterCases {
             (Get-Command -Name $Cmdlet).Parameters[$Parameter].ParameterType | Should -Be ([object])
+        }
+
+        It 'Should complete Add-NTFSAudit -<Parameter> for the unquoted, single-quoted, double-quoted, and wildcard forms of <ExpectedName>' -ForEach $auditCompletionFormCases {
+            $base = 'Add-NTFSAudit -Path C:\x -Account a -AccessRights Read -{0} ' -f $Parameter
+
+            $unquoted = $base + $Word
+            $r1 = [System.Management.Automation.CommandCompletion]::CompleteInput($unquoted, $unquoted.Length, $null)
+            @($r1.CompletionMatches.CompletionText) | Should -Contain $ExpectedName
+
+            $singleQuoted = $base + "'" + $Word
+            $r2 = [System.Management.Automation.CommandCompletion]::CompleteInput($singleQuoted, $singleQuoted.Length, $null)
+            @($r2.CompletionMatches.CompletionText) | Should -Contain ("'" + $ExpectedName + "'")
+
+            $doubleQuoted = $base + '"' + $Word
+            $r3 = [System.Management.Automation.CommandCompletion]::CompleteInput($doubleQuoted, $doubleQuoted.Length, $null)
+            @($r3.CompletionMatches.CompletionText) | Should -Contain ('"' + $ExpectedName + '"')
+
+            $wildcard = $base + '*' + $ExpectedName.Substring($ExpectedName.Length - 3)
+            $r4 = [System.Management.Automation.CommandCompletion]::CompleteInput($wildcard, $wildcard.Length, $null)
+            @($r4.CompletionMatches.CompletionText) | Should -Contain $ExpectedName
         }
     }
 }

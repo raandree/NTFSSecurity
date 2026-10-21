@@ -13,21 +13,40 @@ namespace NTFSSecurity
     internal static class EnumArgumentCompletion
     {
         /// <summary>
-        /// Returns the names of the enumeration that start with the word the user already typed, compared without
-        /// regard to case, in the order Enum.GetNames returns them.
+        /// Returns the names of the enumeration that match the word the user already typed, compared without
+        /// regard to case, in the order Enum.GetNames returns them. A leading quote is stripped before matching,
+        /// together with the matching trailing quote that PowerShell adds to a word it completes while the quote
+        /// is still open, and every match is returned quoted the same way, so that completing inside an open quote
+        /// keeps the command line valid. The word itself may already contain a wildcard, such as "*Only" or "D*",
+        /// the same as PowerShell completes a parameter of an enumeration type.
         /// </summary>
         /// <param name="enumType">The enumeration to complete the names of.</param>
         /// <param name="wordToComplete">The word the user already typed; empty or null completes every name.</param>
         internal static IEnumerable<CompletionResult> Complete(Type enumType, string wordToComplete)
         {
             var word = wordToComplete ?? string.Empty;
+            char? quote = null;
+
+            if (word.Length > 0 && (word[0] == '\'' || word[0] == '"'))
+            {
+                quote = word[0];
+                word = word.Substring(1);
+
+                if (word.Length > 0 && word[word.Length - 1] == quote.Value)
+                {
+                    word = word.Substring(0, word.Length - 1);
+                }
+            }
+
+            var pattern = new WildcardPattern(word + "*", WildcardOptions.IgnoreCase);
             var results = new List<CompletionResult>();
 
             foreach (var name in Enum.GetNames(enumType))
             {
-                if (name.StartsWith(word, StringComparison.OrdinalIgnoreCase))
+                if (pattern.IsMatch(name))
                 {
-                    results.Add(new CompletionResult(name, name, CompletionResultType.ParameterValue, name));
+                    var completionText = quote.HasValue ? quote.Value + name + quote.Value : name;
+                    results.Add(new CompletionResult(completionText, name, CompletionResultType.ParameterValue, name));
                 }
             }
 

@@ -1420,6 +1420,17 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Cmdlet = $cmdlet; Parameter = 'PropagationFlags'; EnumTypeName = 'System.Security.AccessControl.PropagationFlags' }
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; EnumTypeName = 'Security2.ApplyTo' }
         }
+
+        # R1-4: a quoted or a wildcard word completed in rc8 (a typed parameter of an enumeration); the first
+        # EnumArgumentCompleters.cs returned nothing for either shape. Each ExpectedName has no sibling name that
+        # also starts with it (ThisFolderOnly has no ThisFolderOnlyOneLevel), so the unquoted and quoted forms match
+        # it alone; the wildcard only needs to contain it among the matches.
+        $accessCompletionFormCases = @(
+            @{ Parameter = 'AccessType'; Word = 'D'; ExpectedName = 'Deny' }
+            @{ Parameter = 'InheritanceFlags'; Word = 'Container'; ExpectedName = 'ContainerInherit' }
+            @{ Parameter = 'PropagationFlags'; Word = 'Inh'; ExpectedName = 'InheritOnly' }
+            @{ Parameter = 'AppliesTo'; Word = 'ThisFolderO'; ExpectedName = 'ThisFolderOnly' }
+        )
     }
 
     Context 'A bad value bound from the pipeline' {
@@ -1752,6 +1763,26 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
 
         It '<Cmdlet> should declare -<Parameter> as [object]' -ForEach $accessCompleterCases {
             (Get-Command -Name $Cmdlet).Parameters[$Parameter].ParameterType | Should -Be ([object])
+        }
+
+        It 'Should complete Add-NTFSAccess -<Parameter> for the unquoted, single-quoted, double-quoted, and wildcard forms of <ExpectedName>' -ForEach $accessCompletionFormCases {
+            $base = 'Add-NTFSAccess -Path C:\x -Account a -AccessRights Read -{0} ' -f $Parameter
+
+            $unquoted = $base + $Word
+            $r1 = [System.Management.Automation.CommandCompletion]::CompleteInput($unquoted, $unquoted.Length, $null)
+            @($r1.CompletionMatches.CompletionText) | Should -Contain $ExpectedName
+
+            $singleQuoted = $base + "'" + $Word
+            $r2 = [System.Management.Automation.CommandCompletion]::CompleteInput($singleQuoted, $singleQuoted.Length, $null)
+            @($r2.CompletionMatches.CompletionText) | Should -Contain ("'" + $ExpectedName + "'")
+
+            $doubleQuoted = $base + '"' + $Word
+            $r3 = [System.Management.Automation.CommandCompletion]::CompleteInput($doubleQuoted, $doubleQuoted.Length, $null)
+            @($r3.CompletionMatches.CompletionText) | Should -Contain ('"' + $ExpectedName + '"')
+
+            $wildcard = $base + '*' + $ExpectedName.Substring($ExpectedName.Length - 3)
+            $r4 = [System.Management.Automation.CommandCompletion]::CompleteInput($wildcard, $wildcard.Length, $null)
+            @($r4.CompletionMatches.CompletionText) | Should -Contain $ExpectedName
         }
     }
 }
