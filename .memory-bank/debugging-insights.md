@@ -36,6 +36,11 @@ fails without it (Decision 16).
   both: two mutations proved it), and is proved red on the previous build and
   green on the new one in all four configurations
   (`Tests/ItemCmdlets.Tests.ps1`, `Tests/ObjectApis.Tests.ps1`).
+- The argument completers of rc9 had the same flaw (`WildcardPattern` with
+  `IgnoreCase` only: `THISFOLDERO<Tab>` found nothing under `tr-TR`); the
+  second review found it, not the scan. A Turkish test word must put a capital
+  `I` against a lowercase `i` of the name: `NOPROPAGATEINH` faces the capital
+  `I` of `Inherit` and passes without the fix, so prove every row red first.
 
 ## A test oracle that is wrong on a domain member
 
@@ -128,3 +133,89 @@ fails without it (Decision 16).
   gives up after 60 seconds when its runner never started (about 6 seconds
   normally). Before you blame the load for a stall, repeat the call alone with
   the same arguments.
+
+## Optional enum parameters that take pipeline input by property name
+
+- The binder skips a piped property that it cannot convert to the type of an
+  OPTIONAL parameter and keeps the default: a typo for `Deny`, a blank CSV
+  cell, or a misspelled scope silently made an Allow entry or the default
+  scope (probe `p-unconvertible-optional-params.ps1` on rc8, both editions; a
+  named call fails loudly; one parameter set with optional parameters does not
+  help). `Get-FileHash2 -Algorithm` has the same flaw and stays a known limit.
+- Decision 27, fix B: the five parameters of the four add and remove cmdlets
+  are `object`, converted in the cmdlet by `ParameterConversion`. All five
+  must be `object`: with `AppliesTo` alone, a row with `AppliesTo` and flags
+  lost its `AmbiguousParameterSet`. The price was found by the review, not by
+  the author's tests: a `$null`, DBNull, or blank value of the OTHER group
+  binds too (a CSV with columns of both groups is `AmbiguousParameterSet`); a
+  named `$null` binds, where rc8 refused it (`MyInvocation.BoundParameters`
+  shows it in `BeginProcessing`); a script block is no longer delay-bound; the
+  completion of the names has to be rebuilt (quotes, wildcards, declaration
+  order); help shows `Object`. Probe every form of a value before you write a
+  claim, and ask a reviewer for the negative space.
+- PowerShell accepts a comma list or an array for an enumeration that is not
+  `[Flags]` and combines the numbers bit by bit (a logical or):
+  `-AppliesTo 'ThisFolderOnly,FilesOnly'` made a `FilesOnly` entry and
+  `-AccessType 'Allow,Deny'` a `Deny` entry (4.2.6 and rc8 alike). The
+  conversion rejects a list for such an enumeration, in whatever kind of
+  collection it comes; a single name and a one-element collection stay valid.
+  A matrix of valid shapes, run on the published build and on the new one,
+  showed that exactly the 9 list rows changed. Code that opens a one-element
+  collection needs a depth limit: an array that holds itself hung the first
+  version (the binder of rc8 ends the host with a stack overflow on it), so
+  the conversion opens at most 32 levels and reads at most two elements. The
+  three flags parameters still hand such a collection to PowerShell's own
+  conversion, which ends the host with a stack overflow, as in rc8; not fixed
+  (no real input builds one, and a test would end the Pester process too).
+- The message of a bad value is built inside a catch block, and a formatter
+  there must not throw: `Describe` called `ToString` of the one element outside
+  a guard, so an element whose `ToString` throws (a script method) ended a
+  piped command with an `ExtendedTypeSystemException` instead of one error for
+  that item (found by the last delta check of the second review; the version
+  before named a collection by its type and never formatted an element). Wrap
+  the whole formatter and fall back to the type name, in the short form
+  (`Type.ToString`; `FullName` spells out the assembly of every generic
+  argument). A test that pins a limit (ten elements named, two elements read)
+  is green on the code that it guards: prove it with a mutant of the limit (no
+  limit: 4 rows red; a limit of nine: 6 rows red).
+- A loop that stops early runs `Dispose` of the enumerator, and `Dispose` can
+  fail: the catch of `TakeOneValue` returned the collection to PowerShell's
+  conversion, which combines a list bit by bit, so a sequence whose enumerator
+  throws in `Dispose` let a list through. The first patch (`isList = count >
+  1` in the catch) fixed the reported shape (two elements) and left its
+  sibling (one element that holds a comma list); the closing check found it.
+  Fix the root: read with an explicit enumerator and release it in its own
+  guard, so that a failing release never changes what was read. The test needs
+  a compiled stand-in (`Add-Type`, as `PipelineControl.Tests.ps1` does); no
+  built-in enumerator fails in `Dispose`.
+- PowerShell calls the getter of a by-property-name parameter once per
+  command, when a piped object first binds it (`p-getter-calls.ps1`). A test
+  that must visit it pipes an object that has the property. A property getter
+  that throws reads as `$null` without a trace: test it through reflection.
+
+## A differential oracle that covers part of the input
+
+- The matcher of `Get-ChildItem2 -Filter` was checked against Windows
+  PowerShell 5.1 over 55,987 patterns, on 8.3-compliant names only, so that the
+  short name is the real name. Such names have at most one dot, where the first
+  and the last dot are the same, so a rule about the LAST dot was invisible:
+  `*.??` dropped `archive.tar.gz`. The review found it with 849k pairs. Cover
+  every dimension of the input, and neutralize a quirk of the oracle instead of
+  avoiding the inputs that trigger it: `fsutil file setshortname` gives a long
+  name a short name that matches nothing, `fsutil 8dot3name strip` removes it.
+- A very long pattern ended the host with a stack overflow (recursion depth =
+  tokens): bound the input of a recursive matcher (`ValidateLength`).
+
+## Agents in parallel worktrees
+
+- `git stash` is ONE list for all worktrees: a `pop` takes the top entry of
+  whoever created it and moved the edits of one agent into another's tree. The
+  brief forbids stash, `restore`, `reset`, `clean`, and checkout of a sha; a RED
+  run on the unchanged product uses a private base worktree. Protect a foreign
+  stash with `git update-ref` before anything else.
+- An agent that ends its turn without a report may have done nothing (a clean
+  worktree and an empty probe folder said so): write to it and ask.
+- Help generation: `Update-MarkdownHelp` reads `Position` from the help file
+  that the build copies, not from the C# attribute, so a page edit alone drifts:
+  edit the page, `New-ExternalHelp`, rebuild, then check the docs (the files are
+  a fixpoint). A pair of asterisks in one paragraph loses them in the XML.

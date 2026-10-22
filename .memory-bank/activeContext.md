@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-20
+last-verified: 2026-10-21
 owner: active-agent
 source: current task evidence
 ---
@@ -9,27 +9,56 @@ source: current task evidence
 
 ## Current focus
 
-State at 2026-10-21: 5.0.0-rc8 is published and accepted. The
-maintainer merged #126 (the decisions of 2026-10-19) and #127 (`c719197`: the
-fix of the false "no access" of `Get-NTFSEffectiveAccess`, the known limit of
-the hard-link cmdlets in the pages and the CHANGELOG, and the label `rc8`) and
-tagged `5.0.0-rc8` at about 10:28Z. The CI run `39408140862` passed, and the
-Gallery has rc8 since 10:40:58Z, GitHub since 10:41:07Z. The identity check
-passed. The lab acceptance of the published bytes passed in one detached driver
-(68 minutes, 10:38 to 11:47Z): three cells 1,374/0/12, the suite in 24 runs on
-six machine classes, the first lab 245/0/1 per edition, every end state CLEAN
-(record `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`, #128). The boundary
-of the new error, a computer name of 32,718 characters, holds on Server 2019,
-2022, 2025, and Windows 11 26H1. He merged the record, #128, on 2026-10-21 at
-05:48Z (`master` `461015e`, CI green). The tests-only round for the plain gaps
-ran on 2026-10-20 (Next step 6) and is #129, with this Memory Bank in #130;
-their CI is green, and the runner's counts equal the local run in each test
-file. Open before the stable pull request: the merge of both, the maintainer's
-decision on #34 on 2026-11-02 (no reply to his follow-up of 2026-10-19), and
-his check of `PSGALLERY_API_KEY`. The stable build is new bytes that no lab
-ran; the procedure accepts the last prerelease, so the stable change touches
-only the label, the CHANGELOG, and `$publishedVersions`. Any other product
-change needs rc9 and the same acceptance (about 70 minutes with the script).
+State at 2026-10-21: 5.0.0-rc8 is published and accepted (tag `c719197`, CI run
+`39408140862`, Gallery 2026-10-20 10:40:58Z, GitHub 10:41:07Z, identity check
+passed; lab acceptance of the published bytes 10:38 to 11:47Z, record
+`Tests/Lab/Acceptance-2026-10-20-published-rc8.md`, #128). `master` is
+`d0cb57c`: the maintainer merged #128 (2026-10-21 05:48Z), the tests-only round
+#129 (08:24Z), and the Memory Bank #130 (08:47Z).
+
+The last prerelease before the stable 5.0.0 is rc9 (Decision 27). The branch
+`ai/rc9` (base `d0cb57c`, 36 commits, head `696ac38`) is complete and
+validated; it is local until the maintainer pushes it, opens the pull request
+(body: `C:\Temp\ntfs-rc9\final-msgs\pr-rc9-body.md`, temporary), merges it, and
+tags `5.0.0-rc9`. It contains: the five piped parameters of `Add-` and
+`Remove-NTFSAccess` and `-NTFSAudit` are `object`, converted in the cmdlet
+(`ParameterConversion`), so a typo for `Deny` no longer creates an Allow entry;
+a list for `-AccessType` and `-AppliesTo` is rejected; the `-SecurityDescriptor`
+sets report a failing descriptor and go on; the 17 owner-restore handlers pass
+on what a later command raises; `Get-ChildItem2 -Filter` has one matcher with
+the Windows PowerShell 5.1 rules; the library fixes 3.1 to 3.3 and 3.10;
+`Get-NTFSOrphanedAccess` writes an error; `-SecurityDescriptor` of
+`Set-NTFSSecurityDescriptor` at position 1; tests that bind four parameters by
+property name; label `rc9`.
+
+Validation of `696ac38`: the full suite in the four CI configurations, 2,162
+cases each, 0 failed (rc8: 1,615; skipped 27, 359, 58, and 390, so every new
+case runs where it can); the pages and the help file are a fixpoint (0 drift, 0
+broken links; the help file is identical after a second generation);
+PSScriptAnalyzer reports nothing in the 11 changed scripts; the public surface
+differs from rc8 by 16 `object` properties, 5 completer classes, 1 protected
+method, and 1 parameter position, and equals the candidate of round 1; a
+matrix of valid shapes of the five parameters, run on the published rc8 and on
+this build in both editions, differs in exactly the 9 list rows of
+`Add-NTFSAccess`. Two review rounds (Decision 27, "Built in rc9"): round 1 on the
+first integration found a Blocker (the last-dot rule of the filter) and two
+Major findings; round 2 on the final tree and five checks of its fixes found
+only Minor findings and Nits (wrong statements in the pages, completers that
+were not culture invariant, the list for `-AccessType` and `-AppliesTo`, ways
+around that rejection, a collection that holds itself, a message formatter that
+threw, an enumerator that fails in `Dispose`); all are fixed with a test that
+is red without the fix, or decided, and both reviewers closed their last
+findings with "no finding" on `696ac38`. A collection that holds itself still
+ends the host through the three flags parameters, as in rc8 (known limit). A
+blank, `$null`, or `DBNull` value of the other parameter group is
+`AmbiguousParameterSet` (documented, not restructured).
+
+Open before the stable pull request: the pull request, merge, and tag of rc9
+(maintainer); the lab acceptance of the published rc9 (agent, about 70
+minutes, `Chain-Published.ps1`); his decision on #34 on 2026-11-02; his check of
+`PSGALLERY_API_KEY`. The stable change then touches only the label, the
+CHANGELOG, and `$publishedVersions` (add `5.0.0-rc9`). The Memory Bank of this
+work is a separate pull request (branch `ai/memory-bank-merged`).
 
 State at 2026-10-10: the maintainer integrated the release-gate stack into
 `master` (#116, #120, #118, #119, #121; `fa0701b`, CI green; GitHub closed #117
@@ -42,157 +71,67 @@ Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
 
 ## Evidence
 
-- rc6 Release run `37839669028`, attempt 2, succeeded; GitHub prerelease with
-  zip appeared 2026-10-09 07:01:34 UTC. The first attempt proves HTTP 409
-  after Gallery publication, not the earlier assumed retry chronology.
-- Integration on 2026-10-10 (UTC): #116 merged 09:10, #117 closed unmerged
-  09:10:16 (events `base_ref_deleted`, `closed`), #120 merged 10:50, #118
-  11:12, #119 11:28, head branches deleted 11:34, CI on `master` at `fa0701b`
-  green 11:40. A `git merge-tree` simulation of the chain was conflict-free and
-  ended in the tree of the matrix branch.
-- rc7 on 2026-10-10: tag at `fa0701b` about 12:20Z, CI run `38051611526`
-  green, Gallery 12:30:57Z, GitHub 12:31:09Z. `Test-PublishedRelease.ps1`
-  (12:33Z): tag commit on `master`, Gallery SHA-512 matches the nupkg, 11
-  module files identical in nupkg and zip, manifest `5.0.0-rc7`; hashes in the
-  deployment notes, evidence in the session folder `published-rc7`.
-- Gate 3 on the published rc7, 14:29 to 15:30 UTC (one detached driver; record
-  `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`, evidence `gate3-rc7` with
-  a manifest): the three matrix cells (OSFile19, 22, 25 with OSWin11E, both
-  editions) 1,374 passed, 0 failed, 12 skipped, `LIVE_RESULT_VERIFIED` and
-  CLEAN in each; the suite in 24 runs on six machine classes without a failure
-  and with the host's skipped tests; the first lab with case 9 245 / 0 / 1 per
-  edition, CLEAN in four domains and on both machines. Each controller run
-  downloaded the package of the identity check (nupkg and DLL hashes equal).
-  Same counts as the final local candidate; no checkpoint was taken.
-- Handoff 1 (paths), measured at `5a5d58b` (frozen Release, four configurations,
-  CI wrappers, then AltCover): 1,310 cases per configuration, zero failures
-  (baseline `3442194`: 914 cases); coverage 3,192/3,634 sequence points
-  (87.84%) and 1,273/1,978 branches (64.36%), against 74.21% and 50.39%. All 231
-  methods with 442 unvisited points are classified: 223 explained, 8 open for
-  the maintainer. Skip eligibility was checked by row: all 578 skipped rows
-  (137 distinct tests) are executed in two other configurations.
-- Eleven defects were fixed, ten with a guard that is red before the fix and
-  green after it (a red/green matrix over ten states of the branch: 76 rows
-  red at the base `f11ff41`, none after the last fix; the leak of a native
-  buffer has no guard). Mutation rounds at `5a5d58b`: 25 of 26 detected, M25
-  (the check by type) an equivalent mutant. The matrix doesn't show that a test
-  preceded its fix: each fix commit carries both. Report:
-  `Tests/Coverage/Quality-Gate-Paths-2026-10-09.md`.
+- Evidence of rc9 is outside git, in the session folder
+  `816cf47d-2f80-4eba-8ac9-41702c49560b\files\rc9`: the specs and review briefs,
+  `suite-full1` (first integration), `suite-final`, `suite-final2`,
+  `suite-final3`, `suite-final4`, `suite-final5`, `suite-final6-b436423`, and
+  `suite-final7-696ac38` (the head), the probes (`p-*.ps1`,
+  `fixb-probe`, `shapes-r2`, `Run-Oracle.ps1`, `Run-Pathological.ps1`), the
+  published rc8 (`rc8-published`), and the analyzer and surface results. The
+  review probes of the reviewers are in `C:\Temp\ntfs-rc9\review*-probes-*`
+  (temporary). The worktrees under `C:\Temp\ntfs-rc9` are temporary too.
+- Milestones of earlier gates (rc6 and rc7 releases, handoff 1, the operating
+  system matrix, handoff 5, the rc7 and rc8 acceptances) are in `progress.md`
+  and in the records and reports under `Tests/Lab` and `Tests/Coverage`.
 - Reviews: the custom `security-reviewer` can't start (its model is
-  unavailable; no override). The built-in `code-review` agent made nine static
-  passes of the paths work (no Blocker or Major) and four rounds on the matrix
-  (one Major, record accuracy, resolved by the replay; Minors corrected); the
-  built-in `security-review` agent found no exploitable vulnerability and two
-  LOW items left for the maintainer (Next step 5).
-- Live candidate of 2026-10-09 (09:20 to 09:51 UTC): 330 passed, 0 failed, 2
-  expected skips; published rc6: 326 passed, 4 expected failures, 2 skips; the
-  11 tested files match the ZIP. Independent probes verified the fixture
-  removal on six machines (`Tests/Lab/Acceptance-2026-10-09-quality-gate.md`).
-- Six checkpoints report Standard even after a successful ProductionOnly probe;
-  policy restored, no restore performed: don't claim verified Production
-  rollback evidence.
-- Lab acceptance of the paths fixes, 2026-10-09 20:41 to 21:42 UTC: candidate
-  `83149ee` against its base `f11ff41`, the same 244 tests per edition (78
-  new): 486 passed, 0 failed, 2 expected skips against 338 passed, 148 failed
-  (each green on the candidate); fixture removal verified. Record:
-  `Tests/Lab/Acceptance-2026-10-09-quality-gate-paths.md`.
-- Operating-system matrix, 2026-10-10 (record
-  `Tests/Lab/Acceptance-2026-10-10-os-matrix.md` with CSV tables): the suite of
-  the final candidate `fdd7a8b` passes on OSFile19/22/25, OSWin11E, OSWin11, and
-  the host (24 runs, no failure; the baseline `83149ee` fails 4 elevated and 20
-  basic-user tests on OSFile22 and OSFile25); the live controller passes in
-  three cells (1,374 passed, 0 failed, 12 skipped) and in the first lab with
-  case 9 (245 passed, 0 failed, 1 skipped per edition; fixture removed and
-  verified). The Admin-role effective-access failures in earlier cells were
-  stale account state, not the module: in a replay the baseline failed two of
-  three cells and the candidate one, and one lifetime of about ten minutes fits
-  43 runs of 27 cells (the Windows mechanism is unknown). The controller names
-  the case-3 account anew for each fixture (`1dec389`); four more cells with it
-  passed. A dry run of `Run-MatrixSequence.ps1 -Version 5.0.0-rc6` showed that
-  the published-package path works. Labs at 07:50 UTC on 2026-10-10: no fixture
-  or probe residue; `OSWin11E` shuts itself down an hour after its start.
-- Handoff 5, the coverage unknowns, 2026-10-10 to 11 (report
-  `Tests/Coverage/Quality-Gate-Unknowns-2026-10-10.md`; raw evidence in the
-  session folder `816cf47d-2f80-4eba-8ac9-41702c49560b\files\qg-unknowns`
-  with a hash manifest). rc7 measured at `fa0701b` (four frozen
-  configurations, AltCover): 3,198/3,649 sequence points (87.64%), 1,090/1,168
-  explicit branch points; 232 unvisited methods, all classified. Live suite on
-  an instrumented copy (first lab and three cells) and unit suite on
-  `OSFile25`: together +9 sequence and +4 explicit branch points (the code of
-  `fdd7a8b`); no test or probe reaches the audit ownership retry or the audit
-  read denial. 101 new `It` blocks; 7 of 64 parameter sets closed, 51 partly,
-  1 open, 4 left to the maintainer. Cultures `de-DE` and `tr-TR`: two defects,
-  fixed. The piped
-  `AppliesTo` (Decision 26, debugging insights): fixed in `93ed2c7`; the
-  independent reviews then found a carry-over of the scope between piped
-  objects (`9783d2a`; rc7 had it for descriptor objects) and two false
-  sentences of the documents about empty values (`7bc7925`, `2112ee3`). Final
-  commit `2112ee3`, product code of `9783d2a` (its help file differs from the
-  package that the labs accepted): 1,492 cases per configuration, 3,266/3,668
-  points, 183 unvisited methods, all classified. The labs accepted the package
-  (`ap7`, `ap8`): first lab 245/0/1 per edition; the 22 files on
-  `OSFile19/22/25` and `OSWin11` 1,189/0 in 16 configurations; the three cells
-  229/0/2 per edition; all end states clean at 13:45Z. The first start of the
-  cells did nothing: a `powershell.exe` that PowerShell 7 starts inherits its
-  `PSModulePath` (lab README). Server Core, ARM64, a localized system, and
-  non-Windows servers are out of scope (Decision 25).
-- rc8, 2026-10-20: fix (b) test-first on `ai/fix-effective-access-init-errors`.
-  A `-ServerName` of 40,000 characters gave `Synchronize` and no error before
-  and gives an error now; two tests were red and are green in four
-  configurations, and the suite has 1,494 cases per configuration, 0 failed.
-  The independent review (`code-review`) found one Minor, the warning "based on
-  this computer" before the error (fixed, with tests), and three Nits. The
-  acceptance evidence is `rc8-published` in the session folder
-  `816cf47d-2f80-4eba-8ac9-41702c49560b\files\qg-unknowns` (430 files, with a
-  manifest); the published hashes are in the deployment notes.
-- Raw evidence is outside git: the session folder
+  unavailable; no override); the built-in `code-review` agent reviewed the paths
+  work, the matrix, rc8, and rc9; the built-in `security-review` agent found no
+  exploitable vulnerability and two LOW items for the maintainer (Next step 5).
+- Raw evidence of the older gates is outside git: the session folder
   `4b12e2f4-d4c7-4a5d-883a-ddb7421c4848\files` (`qg-paths`, the matrix runs, the
-  night log) and
-  `26f151b6-e46f-49bd-9398-b27e20603949\files\quality-gate-3442194-20261009`.
+  night log), `26f151b6-e46f-49bd-9398-b27e20603949\files\quality-gate-3442194-20261009`,
+  and `816cf47d-2f80-4eba-8ac9-41702c49560b\files\qg-unknowns` (430 files of
+  `rc8-published`, with a manifest; the published hashes are in the deployment
+  notes).
+- Six checkpoints of the lab report Standard even after a successful
+  ProductionOnly probe; policy restored, no restore performed: don't claim
+  verified Production rollback evidence.
 
 ## Next step
 
-1. Gate 3 is done for the published rc7 and rc8 (the records). The stable build
-   is accepted through rc8 (Decision 21, "Closing the gate"). Open: keep or
-   replace the matrix VMs (about 60 GB, saved between runs) and the evaluation
-   client (it shuts down every hour; `OSWin11E` is off), and a domain cell for
-   Windows 11 26H1, whose client loses the secure channel to the Server 2025
-   domain controller. `Chain-Published.ps1` in the session files runs the whole
-   sequence (not in the kit; deployment notes).
+1. The maintainer pushes `ai/rc9`, creates the pull request, merges it after
+   CI, and tags `5.0.0-rc9` (commands in the reply of 2026-10-21; every release
+   step is his). Then run `Chain-Published.ps1 -Version 5.0.0-rc9 -Tag 5.0.0-rc9
+   -Evidence <dir>` from the session files (about 70 minutes, detached, with the
+   heartbeat; save the labs afterwards) and write the acceptance record
+   `Tests/Lab/Acceptance-<date>-published-rc9.md`. A defect that it finds needs
+   rc10.
 2. The stable pull request: no `Prerelease`, `## [5.0.0] - <date>` with an empty
-   `[Unreleased]` and the links, and `5.0.0-rc8` in `$publishedVersions` (the
-   list ends at rc7 now). The maintainer checks the expiry of
-   `PSGALLERY_API_KEY` first, merges, and tags. Every release step is his.
-3. He decides the other open items of the paths report: `FileSecurity`
-   conversions, `RemoveAll` account filters, lazy path overloads, abandoned
-   `PrivilegeEnabler`, dot patterns of `Get-ChildItem2 -Filter`, the 17
-   owner-restore handlers without the later-command check, unused classes
-   (Decisions 21/22). Decisions 22 and 24 are accepted (2026-10-19).
-4. #34 waits for a tester until 2026-11-02 (Decision 23, option 3; the
-   follow-up went up on 2026-10-19, no reply yet; checklist:
+   `[Unreleased]` and the links, and `5.0.0-rc9` in `$publishedVersions` (the
+   list ends at rc7 now; rc8 comes with the rc9 pull request). The maintainer
+   checks the expiry of `PSGALLERY_API_KEY` first, merges, and tags.
+3. #34 waits for a tester until 2026-11-02 (Decision 23, option 3; checklist:
    `Tests/Lab/Non-Windows-File-Server-Test.md`). On that date the maintainer
    chooses between waiting longer and accepting the untested risk with a
    release-note caveat. No agent can accept it.
-5. Of the two LOW findings of the security review (record, Limits), the
-   swallowed initialization errors of `GetEffectiveAccess` are fixed in rc8
-   (`25fe775`, #127): an error instead of a false "no access", and the warning
-   only with a result. He still decides the other: the ACL of the stage
-   folders under `C:\` in the lab kit (they inherit Authenticated Users:
-   Modify; protecting them is a design change of the controller and needs a new
-   acceptance). The help could also say that a local standard user who asks
-   about a domain account still gets "Access is denied".
-6. Handoff 5 is done and merged (Evidence). Decided on 2026-10-19 (Decision
-   21): the hard-link names under another root stay a known limit; the pages
-   and the CHANGELOG say so since rc8. The tests-only round for the plain items
-   (68 `budget` mentions) ran on 2026-10-20: four implementers, one
-   `ParameterSets.*` file each, integrated on `ai/tests-round-1` (#129): 89 `It`
-   blocks, 121 cases, the suite 1,494 to 1,615 per configuration, 0 failed;
-   38 of 64 sets closed, 26 with a leftover (16 Limit, 7 MaintainerDecision, 3
-   would-pin), no defect; report
-   `Tests/Coverage/Quality-Gate-Test-Round-2026-10-20.md`. On the runner (CI run
-   `39551726767`) the counts equal the local run in each test file. No plain
-   gap is left. A defect that a test finds needs his decision and rc9. Still
-   his: the 7 MaintainerDecision and 3 would-pin rows, the silent default scope
-   for a piped `AppliesTo` that PowerShell cannot convert (a design change), the
-   8 getters of pipeline parameters, and the audit paths.
+4. Open housekeeping: keep or replace the matrix VMs (about 60 GB, saved between
+   runs) and the evaluation client (it shuts down every hour; `OSWin11E` is
+   off); a domain cell for Windows 11 26H1, whose client loses the secure
+   channel to the Server 2025 domain controller; the cleanup list before the
+   archive (AppVeyor, Read the Docs, wiki, `test/transfer`, old checkpoints) is
+   the maintainer's. The tests-round report still says that the new tests "have
+   not run on Windows Server 2019/2022/Windows 11"; the 24 lab runs of
+   2026-10-21 changed that (fix in a later documentation pull request).
+5. Of the two LOW findings of the security review, the swallowed initialization
+   errors of `GetEffectiveAccess` are fixed in rc8; he still decides the other:
+   the ACL of the stage folders under `C:\` in the lab kit (they inherit
+   Authenticated Users: Modify; protecting them is a design change of the
+   controller and needs a new acceptance).
+6. Known limits after rc9, for the archive (Decision 27): `Get-FileHash2
+   -Algorithm` keeps the silent default for a piped value that does not convert;
+   three settings still read their value with an unchecked cast;
+   `PrivilegeEnabler` is not disposed in some paths; `Get-NTFSEffectiveAccess`
+   fails with an `ArgumentOutOfRangeException` on a FAT32 volume or an item with
+   a NULL DACL (older than rc9); 9 of the 17 owner-restore handlers and the
+   error branch of `Get-NTFSOrphanedAccess` cannot be pinned by a test.
 7. Do not release stable 5.0.0 or equate a percentage with gate closure.

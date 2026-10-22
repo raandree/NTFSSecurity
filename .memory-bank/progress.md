@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-20
+last-verified: 2026-10-21
 owner: active-agent
 source: repository and validation evidence
 ---
@@ -16,53 +16,32 @@ into `master` (CI green; the milestones have the details). On 2026-10-19 he
 merged #125 (Handoff 5) and #124 (Dependabot) and decided the path to stable
 (Decision 21, "Closing the gate"); on 2026-10-20 he merged #126 (the decisions)
 and #127 (the rc8 fix and label) and tagged rc8; on 2026-10-21 he merged #128
-(the rc8 record). The published rc7 and rc8 passed their lab acceptance in the
-matrix and in the first lab. Stable Gallery version: 4.2.6.
-After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
+(the rc8 record), #129 (tests), and #130 (this file). The published rc7 and
+rc8 passed their lab acceptance in the matrix and in the first lab. rc9
+(Decision 27) is built on the local branch `ai/rc9` and waits for his push,
+pull request, merge, and tag. Stable Gallery version: 4.2.6. After 5.0.0,
+archive in favor of WindowsAccessControl (Decision 18).
 
 ## Recent milestones
 
-- 2026-10-02 to 2026-10-06: documentation/help aligned with source, CI and
-  wiki moved to GitHub Actions, versioning/release automation established,
-  and prereleases rc1 to rc4 published. Earlier detail is in git,
-  `CHANGELOG.md`, `Docs/Version-History.md`, and Decisions 1 to 19.
-- 2026-10-07: lab comparison of rc2/rc4 reproduced #34 over SMB and proved
-  changed-section writes preserve the owner. Remote effective-access
-  fallback returned no result; fixed test-first for rc5 (Decision 20).
-- 2026-10-08: #114 merged (`fcb370e`), rc5 published and live-tested.
-  Decision 21 established the quality gate. Corrected four-run coverage:
-  rc5 58.1% sequence points/38.0% branches, not the initial one-run result.
-- 2026-10-08: rc6 Phase 2 added basic-user CI, parameter-set/error tests,
-  expanded domain/SMB cases, and fixes for privilege cleanup, path
-  resolution, ownership retries, item conflicts, output equality, and
-  inherited flags. Suite: 677; coverage 68.14% sequence/44.32% branches.
-  Lab acceptance of `7b0781f` passed; two independent review passes.
-- 2026-10-08: rc7 implemented proposed Decision 22, including breaking
-  link binding/error changes, SimpleAccess traversal, cross-volume folder
-  preservation, and named effective-access warnings. Suite: 712, no
-  failures or test skipped everywhere. One review: no Blocker/Major.
-  Lab candidate `dc6e9f5`: 326 passed, 2 skipped, cleanup verified.
-- 2026-10-08: #115 merged (`b51d970`) and tagged rc6. Release run
-  `37839669028` failed with HTTP 409 after Gallery publication. The log
-  does not establish the previously assumed initial timeout/retry cause.
-  Published rc6 live tests differed only in rc7's warning expectation.
-- 2026-10-09: release attempt 2 succeeded; rc6 GitHub prerelease and zip
-  appeared at 07:01:34 UTC. #116 passed CI on `d25647d`.
-- 2026-10-09: autonomous follow-up on `ai/quality-gate-coverage` (#117, then
-  #120), through `3442194`: 202 cases above rc7; fixed rooted result paths and
-  the first-hidden-item omission; publication recovery verifies the exact
-  SHA-512 identity, not merely the version. Suite: 914 per configuration, zero
-  failures; 2,641/3,559 sequence points (74.21%), 974/1,933 branches (50.39%).
-  Live comparison: candidate 330 passed, 0 failed, 2 expected skips (`7594e0c`).
-- 2026-10-09: handoff 1 (#118): suite 914 to 1,310 per configuration, zero
-  failures; 3,192/3,634 sequence points (87.84%), 1,273/1,978 branches; all 231
-  unvisited methods classified (223 explained, 8 open). Eleven defects fixed,
-  ten with a guard that is red before the fix and green after it (76 rows red
-  at the base), among them a later command's exception that cmdlets swallowed
-  (a `throw` made `Remove-Item2` remove the next item) and a privilege left
-  enabled. Lab acceptance, `83149ee` against `f11ff41`: 486 passed, 0 failed, 2
-  expected skips against 338 passed, 148 failed. Report in `Tests/Coverage`;
-  record `Tests/Lab/Acceptance-2026-10-09-quality-gate-paths.md`.
+- 2026-10-02 to 2026-10-09: documentation and help aligned with the source, CI
+  and wiki on GitHub Actions, release automation, and rc1 to rc6 published
+  (rc5: the remote effective-access fallback, Decision 20; rc6 and the rc7
+  candidate: Phase 2 and the behavior changes of Decision 22). #114 (`fcb370e`)
+  and #115 (`b51d970`) merged. The rc6 release run failed with HTTP 409 after
+  Gallery publication and attempt 2 succeeded (GitHub prerelease 2026-10-09
+  07:01:34Z); the log does not establish the earlier assumed timeout cause.
+  Detail: git, `CHANGELOG.md`, `Docs/Version-History.md`, Decisions 1 to 22.
+- 2026-10-09: the autonomous follow-up (#117, then #120, through `3442194`) and
+  handoff 1 (#118) took the suite from 202 cases above rc7 to 1,310 per
+  configuration with zero failures and 3,192/3,634 sequence points (87.84%;
+  74.21% before); publication recovery verifies the exact SHA-512 identity.
+  Eleven defects were fixed, ten with a guard that is red before the fix (76
+  rows red at the base), among them a later command's exception that cmdlets
+  swallowed (a `throw` made `Remove-Item2` remove the next item) and a privilege
+  left enabled. Lab acceptance, `83149ee` against `f11ff41`: 486 passed, 0
+  failed against 338 passed, 148 failed. Report in `Tests/Coverage`; record
+  `Tests/Lab/Acceptance-2026-10-09-quality-gate-paths.md`.
 - 2026-10-09 to 10: handoffs 2 to 4 under the maintainer's delegation (decisions
   D1 to D47 in the night log of the session files). The matrix lab
   `NtfsSecurityOsMatrixLab` (Server 2019, 2022, 2025, a Windows 11 Enterprise
@@ -129,13 +108,31 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
   of 32,718 characters). Record
   `Tests/Lab/Acceptance-2026-10-20-published-rc8.md` (#128).
 - 2026-10-20: tests-only round (Decision 21). Four implementers, one
-  `ParameterSets.*` test file each; integrated on `ai/tests-round-1` (#129):
-  89 `It` blocks, 121 cases, the suite 1,494 to 1,615 per configuration, 0
-  failed in four configurations; 38 of 64 sets closed (7 before), 26 with a
-  leftover (16 Limit, 7 MaintainerDecision, 3 would-pin); no defect. Report:
-  `Tests/Coverage/Quality-Gate-Test-Round-2026-10-20.md`. On 2026-10-21 the
-  CI of #129 and #130 passed; the runner's counts equal the local run in each
-  test file (run `39551726767`).
+  `ParameterSets.*` test file each (#129): 89 `It` blocks, 121 cases, the
+  suite 1,494 to 1,615 per configuration, 0 failed in four configurations; 38
+  of 64 sets closed (7 before), 26 with a leftover (16 Limit, 7
+  MaintainerDecision, 3 would-pin); no defect. Report:
+  `Tests/Coverage/Quality-Gate-Test-Round-2026-10-20.md`. On 2026-10-21 he
+  merged #129 (08:24Z) and #130 (08:47Z); the new tests passed in three CI
+  runs and in 24 lab runs on six machine classes (0 failed). A probe then
+  found that piped optional parameters ignore a bad value (a typo for Deny
+  creates an Allow entry); Decision 27 sets the scope of rc9, the designs were
+  chosen on 2026-10-21, and four work items started (branch
+  `ai/rc9-before-stable`).
+- 2026-10-21: rc9 built and reviewed (Decision 27; branch `ai/rc9`, 36 commits
+  over `d0cb57c`, head `696ac38`, local until he pushes). Four implementers
+  worked test-first in worktrees (the five piped parameters, the 17 handlers
+  and three inconsistencies, the library items, the filter); the chains were
+  cherry-picked in order, so every fix sits in the commit of its item. Round 1
+  (three read-only reviewers) found a Blocker (the last-dot rule of the
+  filter) and two Major findings (a named `$null`; a blank value of the other
+  parameter group, documented); round 2 (two reviewers, five checks) found
+  only Minor findings and Nits, among them completers that were not culture
+  invariant (`tr-TR`) and a list for `-AccessType` or `-AppliesTo`, which
+  PowerShell combines bit by bit; he chose to reject it. Final suite on
+  `696ac38`: 2,162 cases per configuration, 0 failed in four configurations
+  (rc8: 1,615); docs fixpoint; analyzer clean; valid shapes differ from rc8 in
+  9 list rows only; both reviewers: no finding.
 
 ## Stable capabilities
 
@@ -149,13 +146,13 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 ## Open work
 
 1. Decision 21 gate: the published rc7 and rc8 are accepted in the matrix and
-   the first lab (records); stable follows rc8 (Decision 21, "Closing the
-   gate"). Do not release 5.0.0 until the other gates close: the merge of #129
-   and #130 (no plain gap is left), #34 on 2026-11-02, and the key check.
-   Release steps:
-   `Docs/Contributing/05-Releasing.md`; remove the prerelease label, date
-   `[5.0.0]`, add the last prerelease (rc8) to `$publishedVersions` (never the
-   version of the manifest), tag through CI.
+   the first lab (records); stable follows rc9 (Decision 27): after his push,
+   pull request, merge, and tag of rc9 the agent runs the lab acceptance of
+   the published bytes (about 70 minutes). Do not release 5.0.0 until the other
+   gates close: that acceptance, the decision on #34 on 2026-11-02, and the key
+   check. Release steps: `Docs/Contributing/05-Releasing.md`; remove the
+   prerelease label, date `[5.0.0]`, add the last prerelease (rc9) to
+   `$publishedVersions` (never the version of the manifest), tag through CI.
 2. Issues: #110's seven items were addressed by rc6, but #115 deliberately
    used no closing keyword. #34 stays open for non-Windows owner feedback
    or maintainer acceptance. #16, #21, #45, #89 await reporters. #68 tracks
@@ -177,10 +174,9 @@ After 5.0.0, archive in favor of WindowsAccessControl (Decision 18).
    (`2112ee3`): 402 unvisited sequence points in 183 methods, all classified
    (`Tests/Coverage`): 167 explained from source with evidence, 16 open (8:
    `FileSecurity` conversions, `RemoveAll` account filters; 8 getters of
-   pipeline parameters that no test binds by property name). Other open
-   decisions: lazy path overloads, abandoned `PrivilegeEnabler`, dot patterns
-   of `Get-ChildItem2 -Filter`, 17 owner-restore handlers that do not pass on
-   what a later command raises (a rare combination), unused classes. No
+   pipeline parameters that no test binds by property name). Decision 27: rc9
+   fixes the conversions, `RemoveAll`, the lazy overloads, the dot patterns,
+   and the 17 handlers; `PrivilegeEnabler` and unused classes stay. No
    trigger for an audit write's ownership retry was found on a local volume or
    a Windows file server (probe of 48 calls) and no test reaches it. A
    conditional ACE display remains a .NET representation limit, not evidence

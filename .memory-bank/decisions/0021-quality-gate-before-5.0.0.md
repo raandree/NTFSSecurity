@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-10-08
-last-verified: 2026-10-20
+last-verified: 2026-10-21
 owner: shared
 source: maintainer decision of 2026-10-08; closing choices of 2026-10-19; status of 2026-10-20
 ---
@@ -83,10 +83,10 @@ tests-only round ran the same afternoon (report
 `Tests/Coverage/Quality-Gate-Test-Round-2026-10-20.md`): 89 `It` blocks, 121
 cases, the suite 1,494 to 1,615 per configuration with no failure, 38 of 64
 parameter sets closed, 26 with a leftover (16 Limit, 7 MaintainerDecision, 3
-would-pin), no defect. It is #129; on the runner the counts equal the local
-run in each test file. No plain gap is left. Open are the merge of #129, the
-10 rows that wait for his decision (7 MaintainerDecision, 3 would-pin), #34
-(2026-11-02), and the key check. The stable build is new bytes: the stable
-change may touch only the
-label, the CHANGELOG, and `$publishedVersions`; any other product change needs
-rc9 and the same acceptance.
+would-pin), no defect. It is #129 (merged 2026-10-21); on the runner the
+counts equal the local run in each test file. No plain gap is left. Open are
+the 10 rows that wait for his decision (7 MaintainerDecision, 3 would-pin),
+the decision on #34 (2026-11-02), and the key check. The stable build is new
+bytes: the stable change may touch only the label, the CHANGELOG, and
+`$publishedVersions`; any other product change needs rc9 and the same
+acceptance.
