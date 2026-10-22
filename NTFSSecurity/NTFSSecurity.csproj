@@ -73,6 +73,8 @@
     <Compile Include="AuditCmdlets\RemoveAudit.cs" />
     <Compile Include="BaseCmdlets.cs" />
     <Compile Include="CodeMembers.cs" />
+    <Compile Include="EnumArgumentCompleters.cs" />
+    <Compile Include="ParameterConversion.cs" />
     <Compile Include="InheritanceCmdlets\SetInheritance.cs" />
     <Compile Include="InheritanceCmdlets\DisableAccessInheritance.cs" />
     <Compile Include="InheritanceCmdlets\DisableAuditInheritance.cs" />

@@ -87,17 +87,27 @@ namespace Security2
             return ace;
         }
 
+        /// <summary>
+        /// Adds one access entry per account to the item at the path, and returns them in the order of
+        /// <paramref name="accounts"/>. Before 5.0.0, this overload was an iterator (a yield return in the loop
+        /// below), so nothing happened until the caller enumerated the result; called as a statement, or assigned to
+        /// a variable that is never read, it changed nothing. It now builds the list and writes the entries before
+        /// returning, like its FileSystemInfo and FileSystemSecurity2 siblings; an exception that adding an entry
+        /// raises is now thrown by this call, not by the later enumeration.
+        /// </summary>
         public static IEnumerable<FileSystemAccessRule2> AddFileSystemAccessRule(string path, List<IdentityReference2> accounts, FileSystemRights2 rights, AccessControlType type, InheritanceFlags inheritanceFlags, PropagationFlags propagationFlags)
         {
             if (type == AccessControlType.Allow)
                 rights = rights | FileSystemRights2.Synchronize;
+
+            var aces = new List<FileSystemAccessRule2>();
 
             if (File.Exists(path))
             {
                 var item = new FileInfo(path);
                 foreach (var account in accounts)
                 {
-                    yield return AddFileSystemAccessRule(item, account, rights, type, inheritanceFlags, propagationFlags);
+                    aces.Add(AddFileSystemAccessRule(item, account, rights, type, inheritanceFlags, propagationFlags));
                 }
             }
             else
@@ -105,9 +115,11 @@ namespace Security2
                 var item = new DirectoryInfo(path);
                 foreach (var account in accounts)
                 {
-                    yield return AddFileSystemAccessRule(item, account, rights, type, inheritanceFlags, propagationFlags);
+                    aces.Add(AddFileSystemAccessRule(item, account, rights, type, inheritanceFlags, propagationFlags));
                 }
             }
+
+            return aces;
         }
 
         public static void AddFileSystemAccessRule(FileSystemAccessRule2 rule)

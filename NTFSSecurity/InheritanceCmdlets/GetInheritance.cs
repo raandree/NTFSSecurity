@@ -80,6 +80,12 @@ namespace NTFSSecurity
                         }
                         catch (Exception ex2)
                         {
+                            // Not what a later command raises, for example when it takes the RestoreOwnerError record.
+                            if (IsFromLaterCommand(ex2))
+                            {
+                                throw;
+                            }
+
                             WriteError(new ErrorRecord(ex2, "ReadSecurityError", ErrorCategory.WriteError, path));
                             continue;
                         }
@@ -89,12 +95,12 @@ namespace NTFSSecurity
                         WriteError(new ErrorRecord(ex, "ReadSecurityError", ErrorCategory.OpenError, path));
                         continue;
                     }
-                    finally
+
+                    // After the try, not in a finally: what a later command raises while the retry restores the owner
+                    // leaves the loop through the check above, and the object must not go to that command then.
+                    if (inheritanceInfo != null)
                     {
-                        if (inheritanceInfo != null)
-                        {
-                            WriteObject(inheritanceInfo);
-                        }
+                        WriteObject(inheritanceInfo);
                     }
                 }
             }

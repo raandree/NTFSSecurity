@@ -16,28 +16,28 @@ Removes an audit entry from a file or folder.
 ### PathSimple
 ```
 Remove-NTFSAudit [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
- [-AuditFlags <AuditFlags>] -AppliesTo <ApplyTo> [-RemoveSpecific] [-PassThru] [<CommonParameters>]
+ [-AuditFlags <Object>] -AppliesTo <Object> [-RemoveSpecific] [-PassThru] [<CommonParameters>]
 ```
 
 ### PathComplex
 ```
 Remove-NTFSAudit [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
- [-AuditFlags <AuditFlags>] [-InheritanceFlags <InheritanceFlags>] [-PropagationFlags <PropagationFlags>]
- [-RemoveSpecific] [-PassThru] [<CommonParameters>]
+ [-AuditFlags <Object>] [-InheritanceFlags <Object>] [-PropagationFlags <Object>] [-RemoveSpecific] [-PassThru]
+ [<CommonParameters>]
 ```
 
 ### SDSimple
 ```
 Remove-NTFSAudit [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
- [-AccessRights] <FileSystemRights2> [-AuditFlags <AuditFlags>] -AppliesTo <ApplyTo> [-RemoveSpecific]
- [-PassThru] [<CommonParameters>]
+ [-AccessRights] <FileSystemRights2> [-AuditFlags <Object>] -AppliesTo <Object> [-RemoveSpecific] [-PassThru]
+ [<CommonParameters>]
 ```
 
 ### SDComplex
 ```
 Remove-NTFSAudit [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
- [-AccessRights] <FileSystemRights2> [-AuditFlags <AuditFlags>] [-InheritanceFlags <InheritanceFlags>]
- [-PropagationFlags <PropagationFlags>] [-RemoveSpecific] [-PassThru] [<CommonParameters>]
+ [-AccessRights] <FileSystemRights2> [-AuditFlags <Object>] [-InheritanceFlags <Object>]
+ [-PropagationFlags <Object>] [-RemoveSpecific] [-PassThru] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -46,7 +46,7 @@ The `Remove-NTFSAudit` cmdlet removes an audit entry from the system access cont
 
 Because the inheritance and propagation flags take part in the match, they must describe the entry you want to remove. `-AppliesTo ThisFolderOnly` removes an entry that is not inherited by child items, which is also the shape of every audit entry on a file, while the default of the complex parameter sets removes an entry that applies to the folder, its subfolders, and its files. An entry that an item inherits from a parent folder is stored on that parent, so remove it there, or use `Clear-NTFSAudit` with `-DisableInheritance` to drop the inherited entries on the item.
 
-In the `PathSimple` and `PathComplex` parameter sets the cmdlet reads the security descriptor of every item in `-Path` and writes it back right away. In the `SDSimple` and `SDComplex` parameter sets it changes an in-memory `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, and the change reaches the file system only when you pass the object to `Set-NTFSSecurityDescriptor`. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor, and a command that has `-AppliesTo` together with `-InheritanceFlags` or `-PropagationFlags` fails, because PowerShell can't choose between the sets. The same holds for an object that you pipe in: its property `AppliesTo` selects a `Simple` set, its properties `InheritanceFlags` and `PropagationFlags` select a `Complex` set, and an object that has both kinds, an object that has both `Path` and `SecurityDescriptor`, or one whose `AppliesTo` is `$null`, fails. `Import-Csv` gives `$null` for a column that a row lacks because it has fewer fields than the header. An `AppliesTo` that PowerShell can't convert to a scope, such as the blank cell of a CSV file or a misspelled name, is ignored, and the object is handled as one without `AppliesTo`: it uses its own `InheritanceFlags` and `PropagationFlags`, or the default scope if it has none. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.
+In the `PathSimple` and `PathComplex` parameter sets the cmdlet reads the security descriptor of every item in `-Path` and writes it back right away. In the `SDSimple` and `SDComplex` parameter sets it changes an in-memory `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, and the change reaches the file system only when you pass the object to `Set-NTFSSecurityDescriptor`. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor, and a command that has `-AppliesTo` together with `-InheritanceFlags` or `-PropagationFlags` fails, because PowerShell can't choose between the sets. The same holds for an object that you pipe in: its property `AppliesTo` selects a `Simple` set, its properties `InheritanceFlags` and `PropagationFlags` select a `Complex` set, and an object that has both `Path` and `SecurityDescriptor` fails. A `$null`, an empty string, or `DBNull` value of a property counts as present for this choice, the same as a real value, so a CSV file, or any other source of piped objects, should have the columns of only one group: `AppliesTo`, or `InheritanceFlags` and `PropagationFlags`. A row or object that has properties of both groups is an `AmbiguousParameterSet` error, even if the value of one of them is `$null` (for example in a short CSV row, whose missing trailing columns `Import-Csv` fills with `$null`), an empty string, or `DBNull`: the error is terminating when you name the parameters on the command line, and it is reported for just that object, which is left unchanged, when the object comes from the pipeline. A `$null` value of `-AppliesTo` itself, named or piped, fails too, but with the binder's own error for a mandatory parameter, `ParameterArgumentValidationErrorNullNotAllowed`. Within the group that PowerShell did choose, an `AppliesTo`, `AuditFlags`, `InheritanceFlags`, or `PropagationFlags` value that PowerShell can't convert to its type, such as a blank cell or a misspelled name, is an `InvalidParameterValue` error for that object: the object is left unchanged, and the next one in the pipeline is still processed; the same bad value named on the command line fails the whole command instead. Before 5.0.0, such a piped value was silently ignored, and the object was handled as one without it. A script block is a plain value for these parameters, so a named script block, for example `-AppliesTo { 'FilesOnly' }`, fails with a terminating `InvalidParameterValue` error, the same as any other named value of the wrong type; before 5.0.0, a script block was evaluated once for each piped object. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.
 
 When you omit them, `-AuditFlags` is `Success, Failure`, `-InheritanceFlags` is `ContainerInherit, ObjectInherit`, `-PropagationFlags` is `None`. All parameters bind by property name, and `-Path` also binds by value and through its `FullName` alias, so you can pipe the output of `Get-NTFSAudit`, `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` into the cmdlet. The cmdlet writes no object unless you use `-PassThru`.
 
@@ -123,10 +123,10 @@ Accept wildcard characters: False
 
 ### -AppliesTo
 
-Specifies the scope of the audit entry to remove with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. The value must describe the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`.
+Specifies the scope of the audit entry to remove with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. The value must describe the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. A value that cannot be converted to one of these scopes, including a blank one, is an `InvalidParameterValue` error: terminating when `-AppliesTo` is named on the command line, and reported for just that path or descriptor, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently or a scope that you did not name is selected.
 
 ```yaml
-Type: ApplyTo
+Type: Object
 Parameter Sets: PathSimple, SDSimple
 Aliases:
 Accepted values: ThisFolderOnly, ThisFolderSubfoldersAndFiles, ThisFolderAndSubfolders, ThisFolderAndFiles, SubfoldersAndFilesOnly, SubfoldersOnly, FilesOnly, ThisFolderSubfoldersAndFilesOneLevel, ThisFolderAndSubfoldersOneLevel, ThisFolderAndFilesOneLevel, SubfoldersAndFilesOnlyOneLevel, SubfoldersOnlyOneLevel, FilesOnlyOneLevel
@@ -140,10 +140,10 @@ Accept wildcard characters: False
 
 ### -AuditFlags
 
-Specifies which audited access attempts are removed from the entry. `Success` removes the auditing of successful attempts, `Failure` removes the auditing of denied attempts, and `Success, Failure` removes both. An entry that audits the flag you did not specify stays in place with that flag. The default is `Success, Failure`.
+Specifies which audited access attempts are removed from the entry. `Success` removes the auditing of successful attempts, `Failure` removes the auditing of denied attempts, and `Success, Failure` removes both. An entry that audits the flag you did not specify stays in place with that flag. The default is `Success, Failure`. A value that cannot be converted to one of these, including a blank one, is an `InvalidParameterValue` error: terminating when `-AuditFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.
 
 ```yaml
-Type: AuditFlags
+Type: Object
 Parameter Sets: (All)
 Aliases:
 Accepted values: None, Success, Failure
@@ -157,10 +157,10 @@ Accept wildcard characters: False
 
 ### -InheritanceFlags
 
-Specifies the inheritance flags of the audit entry to remove. `ContainerInherit` addresses an entry that child folders inherit, `ObjectInherit` an entry that child files inherit, and `None` an entry that stays on the item itself. The values can be combined, and the default is `ContainerInherit, ObjectInherit`. The flags must match the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed.
+Specifies the inheritance flags of the audit entry to remove. `ContainerInherit` addresses an entry that child folders inherit, `ObjectInherit` an entry that child files inherit, and `None` an entry that stays on the item itself. The values can be combined, and the default is `ContainerInherit, ObjectInherit`. The flags must match the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-InheritanceFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.
 
 ```yaml
-Type: InheritanceFlags
+Type: Object
 Parameter Sets: PathComplex, SDComplex
 Aliases:
 Accepted values: None, ContainerInherit, ObjectInherit
@@ -206,10 +206,10 @@ Accept wildcard characters: False
 
 ### -PropagationFlags
 
-Specifies the propagation flags of the audit entry to remove. `None` addresses an entry that applies to the item itself and to all inheriting child items, `InheritOnly` an entry that applies to the child items only, and `NoPropagateInherit` an entry whose inheritance stops at the direct children. The values `InheritOnly` and `NoPropagateInherit` can be combined, and the default is `None`.
+Specifies the propagation flags of the audit entry to remove. `None` addresses an entry that applies to the item itself and to all inheriting child items, `InheritOnly` an entry that applies to the child items only, and `NoPropagateInherit` an entry whose inheritance stops at the direct children. The values `InheritOnly` and `NoPropagateInherit` can be combined, and the default is `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-PropagationFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.
 
 ```yaml
-Type: PropagationFlags
+Type: Object
 Parameter Sets: PathComplex, SDComplex
 Aliases:
 Accepted values: None, NoPropagateInherit, InheritOnly

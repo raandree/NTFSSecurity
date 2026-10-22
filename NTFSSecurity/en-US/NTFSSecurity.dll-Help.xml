@@ -12,7 +12,7 @@
     <maml:description>
       <maml:para>Adds an access control entry (ACE) to the discretionary access control list (DACL) of a file or a folder. Every account in `-Account` receives the rights in `-AccessRights`, either as an `Allow` or as a `Deny` entry.</maml:para>
       <maml:para>`-AccessRights` accepts the basic rights such as `Read`, `Modify`, and `FullControl` as well as the granular rights such as `CreateFiles` or `WriteAttributes`, and several values can be combined, for example `-AccessRights ReadData, WriteData, Delete`. For the mapping between the values of this module, the rights that Windows displays, and the entries of the advanced security dialog, see Concepts (../Concepts.md).</maml:para>
-      <maml:para>The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`; both describe the same ACE flags. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor, and a command that has `-AppliesTo` together with `-InheritanceFlags` or `-PropagationFlags` fails, because PowerShell can't choose between the sets. The same holds for an object that you pipe in: its property `AppliesTo` selects a `Simple` set, its properties `InheritanceFlags` and `PropagationFlags` select a `Complex` set, and an object that has both kinds, an object that has both `Path` and `SecurityDescriptor`, or one whose `AppliesTo` is `$null`, fails. `Import-Csv` gives `$null` for a column that a row lacks because it has fewer fields than the header. An `AppliesTo` that PowerShell can't convert to a scope, such as the blank cell of a CSV file or a misspelled name, is ignored, and the object is handled as one without `AppliesTo`: it uses its own `InheritanceFlags` and `PropagationFlags`, or the default scope if it has none. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.</maml:para>
+      <maml:para>The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`; both describe the same ACE flags. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor, and a command that has `-AppliesTo` together with `-InheritanceFlags` or `-PropagationFlags` fails, because PowerShell can't choose between the sets. The same holds for an object that you pipe in: its property `AppliesTo` selects a `Simple` set, its properties `InheritanceFlags` and `PropagationFlags` select a `Complex` set, and an object that has both `Path` and `SecurityDescriptor` fails. A `$null`, an empty string, or `DBNull` value of a property counts as present for this choice, the same as a real value, so a CSV file, or any other source of piped objects, should have the columns of only one group: `AppliesTo`, or `InheritanceFlags` and `PropagationFlags`. A row or object that has properties of both groups is an `AmbiguousParameterSet` error, even if the value of one of them is `$null` (for example in a short CSV row, whose missing trailing columns `Import-Csv` fills with `$null`), an empty string, or `DBNull`: the error is terminating when you name the parameters on the command line, and it is reported for just that object, which is left unchanged, when the object comes from the pipeline. A `$null` value of `-AppliesTo` itself, named or piped, fails too, but with the binder's own error for a mandatory parameter, `ParameterArgumentValidationErrorNullNotAllowed`. Within the group that PowerShell did choose, an `AppliesTo`, `AccessType`, `InheritanceFlags`, or `PropagationFlags` value that PowerShell can't convert to its type, such as a blank cell or a misspelled name, is an `InvalidParameterValue` error for that object: the object is left unchanged, and the next one in the pipeline is still processed; the same bad value named on the command line fails the whole command instead. Before 5.0.0, such a piped value was silently ignored, and the object was handled as one without it. A script block is a plain value for these parameters, so a named script block, for example `-AppliesTo { 'FilesOnly' }`, fails with a terminating `InvalidParameterValue` error, the same as any other named value of the wrong type; before 5.0.0, a script block was evaluated once for each piped object. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.</maml:para>
       <maml:para>When `-AccessType`, `-AppliesTo`, `-InheritanceFlags`, and `-PropagationFlags` are omitted, the cmdlet adds an `Allow` ACE that applies to this folder, subfolders, and files, which corresponds to the inheritance flags `ContainerInherit, ObjectInherit` and no propagation flags. An `Allow` ACE always receives the `Synchronize` right in addition to the requested rights, inheritance and propagation flags are ignored on files, and rights for an account that already has an ACE with the same access type and the same flags are merged into that ACE. The cmdlet writes no output unless `-PassThru` is used, and a failure on one item is reported as a non-terminating error while the remaining items are processed.</maml:para>
       <maml:para>`-Path` accepts pipeline input by value and by property name through its alias `FullName`, so output of `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` can be piped in. `-Account`, `-AccessRights`, `-AccessType`, `-InheritanceFlags`, and `-PropagationFlags` bind by property name as well, which lets you pipe `Security2.FileSystemAccessRule2` objects, or rows imported from a CSV file created from them, directly into the cmdlet.</maml:para>
     </maml:description>
@@ -88,15 +88,15 @@
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="AccessControlType">
           <maml:name>AccessType</maml:name>
           <maml:description>
-            <maml:para>Specifies whether the ACE allows or denies the rights in `-AccessRights`. The default is `Allow`. A `Deny` ACE takes precedence over `Allow` ACEs that grant the same rights.</maml:para>
+            <maml:para>Specifies whether the ACE allows or denies the rights in `-AccessRights`. The default is `Allow`. A `Deny` ACE takes precedence over `Allow` ACEs that grant the same rights. A value that cannot be converted to `Allow` or `Deny`, including a blank one, is an `InvalidParameterValue` error: terminating when `-AccessType` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">Allow</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Deny</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">AccessControlType</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>AccessControlType</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>Allow</dev:defaultValue>
@@ -104,7 +104,7 @@
         <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AppliesTo</maml:name>
           <maml:description>
-            <maml:para>Specifies the scope of the ACE in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same ACE. The values ending in `OneLevel` limit inheritance to the direct children of the folder.</maml:para>
+            <maml:para>Specifies the scope of the ACE in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same ACE. The values ending in `OneLevel` limit inheritance to the direct children of the folder. A value that cannot be converted to one of these scopes, including a blank one, is an `InvalidParameterValue` error: terminating when `-AppliesTo` is named on the command line, and reported for just that path or descriptor, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently or a scope that you did not name is selected.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">ThisFolderOnly</command:parameterValue>
@@ -121,9 +121,9 @@
             <command:parameterValue required="false" command:variableLength="false">SubfoldersOnlyOneLevel</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">FilesOnlyOneLevel</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">ApplyTo</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>ApplyTo</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -212,15 +212,15 @@
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="AccessControlType">
           <maml:name>AccessType</maml:name>
           <maml:description>
-            <maml:para>Specifies whether the ACE allows or denies the rights in `-AccessRights`. The default is `Allow`. A `Deny` ACE takes precedence over `Allow` ACEs that grant the same rights.</maml:para>
+            <maml:para>Specifies whether the ACE allows or denies the rights in `-AccessRights`. The default is `Allow`. A `Deny` ACE takes precedence over `Allow` ACEs that grant the same rights. A value that cannot be converted to `Allow` or `Deny`, including a blank one, is an `InvalidParameterValue` error: terminating when `-AccessType` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">Allow</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Deny</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">AccessControlType</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>AccessControlType</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>Allow</dev:defaultValue>
@@ -228,7 +228,7 @@
         <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AppliesTo</maml:name>
           <maml:description>
-            <maml:para>Specifies the scope of the ACE in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same ACE. The values ending in `OneLevel` limit inheritance to the direct children of the folder.</maml:para>
+            <maml:para>Specifies the scope of the ACE in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same ACE. The values ending in `OneLevel` limit inheritance to the direct children of the folder. A value that cannot be converted to one of these scopes, including a blank one, is an `InvalidParameterValue` error: terminating when `-AppliesTo` is named on the command line, and reported for just that path or descriptor, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently or a scope that you did not name is selected.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">ThisFolderOnly</command:parameterValue>
@@ -245,9 +245,9 @@
             <command:parameterValue required="false" command:variableLength="false">SubfoldersOnlyOneLevel</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">FilesOnlyOneLevel</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">ApplyTo</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>ApplyTo</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -335,15 +335,15 @@
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="AccessControlType">
           <maml:name>AccessType</maml:name>
           <maml:description>
-            <maml:para>Specifies whether the ACE allows or denies the rights in `-AccessRights`. The default is `Allow`. A `Deny` ACE takes precedence over `Allow` ACEs that grant the same rights.</maml:para>
+            <maml:para>Specifies whether the ACE allows or denies the rights in `-AccessRights`. The default is `Allow`. A `Deny` ACE takes precedence over `Allow` ACEs that grant the same rights. A value that cannot be converted to `Allow` or `Deny`, including a blank one, is an `InvalidParameterValue` error: terminating when `-AccessType` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">Allow</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Deny</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">AccessControlType</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>AccessControlType</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>Allow</dev:defaultValue>
@@ -351,7 +351,7 @@
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>InheritanceFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies which kind of child objects inherit the ACE. `ContainerInherit` passes the ACE on to child folders, `ObjectInherit` passes it on to child files, and `None` keeps the ACE on the item itself. The default is `ContainerInherit, ObjectInherit`. Inheritance flags have no effect on files, where the ACE is always created with `None`.</maml:para>
+            <maml:para>Specifies which kind of child objects inherit the ACE. `ContainerInherit` passes the ACE on to child folders, `ObjectInherit` passes it on to child files, and `None` keeps the ACE on the item itself. The default is `ContainerInherit, ObjectInherit`. Inheritance flags have no effect on files, where the ACE is always created with `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-InheritanceFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
             <maml:para>For details about the flags, see the .NET documentation of the InheritanceFlags Enum (https://learn.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.inheritanceflags).</maml:para>
           </maml:description>
           <command:parameterValueGroup>
@@ -359,9 +359,9 @@
             <command:parameterValue required="false" command:variableLength="false">ContainerInherit</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">ObjectInherit</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">InheritanceFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>InheritanceFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>ContainerInherit, ObjectInherit</dev:defaultValue>
@@ -380,16 +380,16 @@
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>PropagationFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies how the ACE is propagated to child objects. `None` propagates the ACE to all levels that the inheritance flags allow, `InheritOnly` keeps the ACE from applying to the item it is defined on, and `NoPropagateInherit` limits inheritance to the direct children of the folder. The default is `None`, and propagation flags only have an effect in combination with `-InheritanceFlags`.</maml:para>
+            <maml:para>Specifies how the ACE is propagated to child objects. `None` propagates the ACE to all levels that the inheritance flags allow, `InheritOnly` keeps the ACE from applying to the item it is defined on, and `NoPropagateInherit` limits inheritance to the direct children of the folder. The default is `None`, and propagation flags only have an effect in combination with `-InheritanceFlags`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-PropagationFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">NoPropagateInherit</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">InheritOnly</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">PropagationFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>PropagationFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -467,15 +467,15 @@
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="AccessControlType">
           <maml:name>AccessType</maml:name>
           <maml:description>
-            <maml:para>Specifies whether the ACE allows or denies the rights in `-AccessRights`. The default is `Allow`. A `Deny` ACE takes precedence over `Allow` ACEs that grant the same rights.</maml:para>
+            <maml:para>Specifies whether the ACE allows or denies the rights in `-AccessRights`. The default is `Allow`. A `Deny` ACE takes precedence over `Allow` ACEs that grant the same rights. A value that cannot be converted to `Allow` or `Deny`, including a blank one, is an `InvalidParameterValue` error: terminating when `-AccessType` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">Allow</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Deny</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">AccessControlType</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>AccessControlType</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>Allow</dev:defaultValue>
@@ -483,7 +483,7 @@
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>InheritanceFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies which kind of child objects inherit the ACE. `ContainerInherit` passes the ACE on to child folders, `ObjectInherit` passes it on to child files, and `None` keeps the ACE on the item itself. The default is `ContainerInherit, ObjectInherit`. Inheritance flags have no effect on files, where the ACE is always created with `None`.</maml:para>
+            <maml:para>Specifies which kind of child objects inherit the ACE. `ContainerInherit` passes the ACE on to child folders, `ObjectInherit` passes it on to child files, and `None` keeps the ACE on the item itself. The default is `ContainerInherit, ObjectInherit`. Inheritance flags have no effect on files, where the ACE is always created with `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-InheritanceFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
             <maml:para>For details about the flags, see the .NET documentation of the InheritanceFlags Enum (https://learn.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.inheritanceflags).</maml:para>
           </maml:description>
           <command:parameterValueGroup>
@@ -491,9 +491,9 @@
             <command:parameterValue required="false" command:variableLength="false">ContainerInherit</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">ObjectInherit</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">InheritanceFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>InheritanceFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>ContainerInherit, ObjectInherit</dev:defaultValue>
@@ -512,16 +512,16 @@
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>PropagationFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies how the ACE is propagated to child objects. `None` propagates the ACE to all levels that the inheritance flags allow, `InheritOnly` keeps the ACE from applying to the item it is defined on, and `NoPropagateInherit` limits inheritance to the direct children of the folder. The default is `None`, and propagation flags only have an effect in combination with `-InheritanceFlags`.</maml:para>
+            <maml:para>Specifies how the ACE is propagated to child objects. `None` propagates the ACE to all levels that the inheritance flags allow, `InheritOnly` keeps the ACE from applying to the item it is defined on, and `NoPropagateInherit` limits inheritance to the direct children of the folder. The default is `None`, and propagation flags only have an effect in combination with `-InheritanceFlags`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-PropagationFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">NoPropagateInherit</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">InheritOnly</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">PropagationFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>PropagationFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -544,11 +544,11 @@
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="AccessControlType">
         <maml:name>AccessType</maml:name>
         <maml:description>
-          <maml:para>Specifies whether the ACE allows or denies the rights in `-AccessRights`. The default is `Allow`. A `Deny` ACE takes precedence over `Allow` ACEs that grant the same rights.</maml:para>
+          <maml:para>Specifies whether the ACE allows or denies the rights in `-AccessRights`. The default is `Allow`. A `Deny` ACE takes precedence over `Allow` ACEs that grant the same rights. A value that cannot be converted to `Allow` or `Deny`, including a blank one, is an `InvalidParameterValue` error: terminating when `-AccessType` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently.</maml:para>
         </maml:description>
-        <command:parameterValue required="true" variableLength="false">AccessControlType</command:parameterValue>
+        <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
         <dev:type>
-          <maml:name>AccessControlType</maml:name>
+          <maml:name>Object</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>Allow</dev:defaultValue>
@@ -568,11 +568,11 @@
       <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>AppliesTo</maml:name>
         <maml:description>
-          <maml:para>Specifies the scope of the ACE in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same ACE. The values ending in `OneLevel` limit inheritance to the direct children of the folder.</maml:para>
+          <maml:para>Specifies the scope of the ACE in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same ACE. The values ending in `OneLevel` limit inheritance to the direct children of the folder. A value that cannot be converted to one of these scopes, including a blank one, is an `InvalidParameterValue` error: terminating when `-AppliesTo` is named on the command line, and reported for just that path or descriptor, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently or a scope that you did not name is selected.</maml:para>
         </maml:description>
-        <command:parameterValue required="true" variableLength="false">ApplyTo</command:parameterValue>
+        <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
         <dev:type>
-          <maml:name>ApplyTo</maml:name>
+          <maml:name>Object</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
@@ -580,12 +580,12 @@
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>InheritanceFlags</maml:name>
         <maml:description>
-          <maml:para>Specifies which kind of child objects inherit the ACE. `ContainerInherit` passes the ACE on to child folders, `ObjectInherit` passes it on to child files, and `None` keeps the ACE on the item itself. The default is `ContainerInherit, ObjectInherit`. Inheritance flags have no effect on files, where the ACE is always created with `None`.</maml:para>
+          <maml:para>Specifies which kind of child objects inherit the ACE. `ContainerInherit` passes the ACE on to child folders, `ObjectInherit` passes it on to child files, and `None` keeps the ACE on the item itself. The default is `ContainerInherit, ObjectInherit`. Inheritance flags have no effect on files, where the ACE is always created with `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-InheritanceFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           <maml:para>For details about the flags, see the .NET documentation of the InheritanceFlags Enum (https://learn.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.inheritanceflags).</maml:para>
         </maml:description>
-        <command:parameterValue required="true" variableLength="false">InheritanceFlags</command:parameterValue>
+        <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
         <dev:type>
-          <maml:name>InheritanceFlags</maml:name>
+          <maml:name>Object</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>ContainerInherit, ObjectInherit</dev:defaultValue>
@@ -617,11 +617,11 @@
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>PropagationFlags</maml:name>
         <maml:description>
-          <maml:para>Specifies how the ACE is propagated to child objects. `None` propagates the ACE to all levels that the inheritance flags allow, `InheritOnly` keeps the ACE from applying to the item it is defined on, and `NoPropagateInherit` limits inheritance to the direct children of the folder. The default is `None`, and propagation flags only have an effect in combination with `-InheritanceFlags`.</maml:para>
+          <maml:para>Specifies how the ACE is propagated to child objects. `None` propagates the ACE to all levels that the inheritance flags allow, `InheritOnly` keeps the ACE from applying to the item it is defined on, and `NoPropagateInherit` limits inheritance to the direct children of the folder. The default is `None`, and propagation flags only have an effect in combination with `-InheritanceFlags`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-PropagationFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
         </maml:description>
-        <command:parameterValue required="true" variableLength="false">PropagationFlags</command:parameterValue>
+        <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
         <dev:type>
-          <maml:name>PropagationFlags</maml:name>
+          <maml:name>Object</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
@@ -796,7 +796,7 @@
     <maml:description>
       <maml:para>The `Add-NTFSAudit` cmdlet adds an audit entry to the system access control list (SACL) of a file or folder. Windows then writes an event to the security log when the audited account uses one of the audited access rights on the item. `-AuditFlags Success` audits successful attempts, `-AuditFlags Failure` audits failed attempts, and the default audits both. For what the individual access rights permit, see Concepts (../Concepts.md).</maml:para>
       <maml:para>In the `PathSimple` and `PathComplex` parameter sets the cmdlet reads the security descriptor of every item in `-Path`, adds the entry, and writes the descriptor back right away. In the `SDSimple` and `SDComplex` parameter sets it adds the entry to an in-memory `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned; that change only reaches the file system when you pass the object to `Set-NTFSSecurityDescriptor`. The simple sets describe the scope of the entry with the single `-AppliesTo` parameter, the complex sets with `-InheritanceFlags` and `-PropagationFlags`.</maml:para>
-      <maml:para>A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor, and a command that has `-AppliesTo` together with `-InheritanceFlags` or `-PropagationFlags` fails, because PowerShell can't choose between the sets. The same holds for an object that you pipe in: its property `AppliesTo` selects a `Simple` set, its properties `InheritanceFlags` and `PropagationFlags` select a `Complex` set, and an object that has both kinds, an object that has both `Path` and `SecurityDescriptor`, or one whose `AppliesTo` is `$null`, fails. `Import-Csv` gives `$null` for a column that a row lacks because it has fewer fields than the header. An `AppliesTo` that PowerShell can't convert to a scope, such as the blank cell of a CSV file or a misspelled name, is ignored, and the object is handled as one without `AppliesTo`: it uses its own `InheritanceFlags` and `PropagationFlags`, or the default scope if it has none. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.</maml:para>
+      <maml:para>A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor, and a command that has `-AppliesTo` together with `-InheritanceFlags` or `-PropagationFlags` fails, because PowerShell can't choose between the sets. The same holds for an object that you pipe in: its property `AppliesTo` selects a `Simple` set, its properties `InheritanceFlags` and `PropagationFlags` select a `Complex` set, and an object that has both `Path` and `SecurityDescriptor` fails. A `$null`, an empty string, or `DBNull` value of a property counts as present for this choice, the same as a real value, so a CSV file, or any other source of piped objects, should have the columns of only one group: `AppliesTo`, or `InheritanceFlags` and `PropagationFlags`. A row or object that has properties of both groups is an `AmbiguousParameterSet` error, even if the value of one of them is `$null` (for example in a short CSV row, whose missing trailing columns `Import-Csv` fills with `$null`), an empty string, or `DBNull`: the error is terminating when you name the parameters on the command line, and it is reported for just that object, which is left unchanged, when the object comes from the pipeline. A `$null` value of `-AppliesTo` itself, named or piped, fails too, but with the binder's own error for a mandatory parameter, `ParameterArgumentValidationErrorNullNotAllowed`. Within the group that PowerShell did choose, an `AppliesTo`, `AuditFlags`, `InheritanceFlags`, or `PropagationFlags` value that PowerShell can't convert to its type, such as a blank cell or a misspelled name, is an `InvalidParameterValue` error for that object: the object is left unchanged, and the next one in the pipeline is still processed; the same bad value named on the command line fails the whole command instead. Before 5.0.0, such a piped value was silently ignored, and the object was handled as one without it. A script block is a plain value for these parameters, so a named script block, for example `-AppliesTo { 'FilesOnly' }`, fails with a terminating `InvalidParameterValue` error, the same as any other named value of the wrong type; before 5.0.0, a script block was evaluated once for each piped object. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.</maml:para>
       <maml:para>When you omit them, `-AuditFlags` is `Success, Failure`, `-InheritanceFlags` is `ContainerInherit, ObjectInherit`, `-PropagationFlags` is `None`, and `-AppliesTo` is `ThisFolderSubfoldersAndFiles`, so both the simple and the complex set audit the item, its subfolders, and its files by default. Inheritance applies to folders only: when the item is a file, the cmdlet stores the entry without inheritance and propagation flags.</maml:para>
       <maml:para>`-Path` accepts pipeline input by value and by property name through its `FullName` alias, so the output of `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` binds to it, and the remaining parameters bind by property name. The cmdlet writes no object unless you use `-PassThru`.</maml:para>
     </maml:description>
@@ -872,7 +872,7 @@
         <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AppliesTo</maml:name>
           <maml:description>
-            <maml:para>Specifies the scope of the audit entry with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. `ThisFolderOnly` audits the folder itself, `ThisFolderSubfoldersAndFiles` audits the folder and everything below it, `SubfoldersAndFilesOnly` audits the content but not the folder itself, and the values ending in `OneLevel` limit inheritance to the direct children. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`.</maml:para>
+            <maml:para>Specifies the scope of the audit entry with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. `ThisFolderOnly` audits the folder itself, `ThisFolderSubfoldersAndFiles` audits the folder and everything below it, `SubfoldersAndFilesOnly` audits the content but not the folder itself, and the values ending in `OneLevel` limit inheritance to the direct children. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. A value that cannot be converted to one of these scopes, including a blank one, is an `InvalidParameterValue` error: terminating when `-AppliesTo` is named on the command line, and reported for just that path or descriptor, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently or a scope that you did not name is selected.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">ThisFolderOnly</command:parameterValue>
@@ -889,9 +889,9 @@
             <command:parameterValue required="false" command:variableLength="false">SubfoldersOnlyOneLevel</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">FilesOnlyOneLevel</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">ApplyTo</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>ApplyTo</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -899,16 +899,16 @@
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AuditFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies which access attempts are audited. `Success` audits attempts that succeeded, `Failure` audits attempts that were denied, and `Success, Failure` audits both. The default is `Success, Failure`.</maml:para>
+            <maml:para>Specifies which access attempts are audited. `Success` audits attempts that succeeded, `Failure` audits attempts that were denied, and `Success, Failure` audits both. The default is `Success, Failure`. A value that cannot be converted to one of these, including a blank one, is an `InvalidParameterValue` error: terminating when `-AuditFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Success</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Failure</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">AuditFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>AuditFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>Success, Failure</dev:defaultValue>
@@ -996,7 +996,7 @@
         <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AppliesTo</maml:name>
           <maml:description>
-            <maml:para>Specifies the scope of the audit entry with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. `ThisFolderOnly` audits the folder itself, `ThisFolderSubfoldersAndFiles` audits the folder and everything below it, `SubfoldersAndFilesOnly` audits the content but not the folder itself, and the values ending in `OneLevel` limit inheritance to the direct children. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`.</maml:para>
+            <maml:para>Specifies the scope of the audit entry with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. `ThisFolderOnly` audits the folder itself, `ThisFolderSubfoldersAndFiles` audits the folder and everything below it, `SubfoldersAndFilesOnly` audits the content but not the folder itself, and the values ending in `OneLevel` limit inheritance to the direct children. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. A value that cannot be converted to one of these scopes, including a blank one, is an `InvalidParameterValue` error: terminating when `-AppliesTo` is named on the command line, and reported for just that path or descriptor, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently or a scope that you did not name is selected.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">ThisFolderOnly</command:parameterValue>
@@ -1013,9 +1013,9 @@
             <command:parameterValue required="false" command:variableLength="false">SubfoldersOnlyOneLevel</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">FilesOnlyOneLevel</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">ApplyTo</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>ApplyTo</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -1023,16 +1023,16 @@
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AuditFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies which access attempts are audited. `Success` audits attempts that succeeded, `Failure` audits attempts that were denied, and `Success, Failure` audits both. The default is `Success, Failure`.</maml:para>
+            <maml:para>Specifies which access attempts are audited. `Success` audits attempts that succeeded, `Failure` audits attempts that were denied, and `Success, Failure` audits both. The default is `Success, Failure`. A value that cannot be converted to one of these, including a blank one, is an `InvalidParameterValue` error: terminating when `-AuditFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Success</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Failure</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">AuditFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>AuditFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>Success, Failure</dev:defaultValue>
@@ -1120,16 +1120,16 @@
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AuditFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies which access attempts are audited. `Success` audits attempts that succeeded, `Failure` audits attempts that were denied, and `Success, Failure` audits both. The default is `Success, Failure`.</maml:para>
+            <maml:para>Specifies which access attempts are audited. `Success` audits attempts that succeeded, `Failure` audits attempts that were denied, and `Success, Failure` audits both. The default is `Success, Failure`. A value that cannot be converted to one of these, including a blank one, is an `InvalidParameterValue` error: terminating when `-AuditFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Success</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Failure</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">AuditFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>AuditFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>Success, Failure</dev:defaultValue>
@@ -1137,16 +1137,16 @@
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>InheritanceFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies which child items inherit the audit entry. `ContainerInherit` passes the entry on to child folders, `ObjectInherit` passes it on to child files, and `None` keeps the entry on the item itself. The values can be combined, and the default is `ContainerInherit, ObjectInherit`. Use `-PropagationFlags` to control whether the entry also applies to the item itself and how far it propagates.</maml:para>
+            <maml:para>Specifies which child items inherit the audit entry. `ContainerInherit` passes the entry on to child folders, `ObjectInherit` passes it on to child files, and `None` keeps the entry on the item itself. The values can be combined, and the default is `ContainerInherit, ObjectInherit`. Use `-PropagationFlags` to control whether the entry also applies to the item itself and how far it propagates. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-InheritanceFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">ContainerInherit</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">ObjectInherit</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">InheritanceFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>InheritanceFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>ContainerInherit, ObjectInherit</dev:defaultValue>
@@ -1165,16 +1165,16 @@
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>PropagationFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies how the inheritance selected with `-InheritanceFlags` propagates. `None` applies the entry to the item itself and to all inheriting child items, `InheritOnly` applies it to the inheriting child items but not to the item itself, and `NoPropagateInherit` limits inheritance to the direct children. The values `InheritOnly` and `NoPropagateInherit` can be combined, and the default is `None`. The parameter has no effect when `-InheritanceFlags` is `None`.</maml:para>
+            <maml:para>Specifies how the inheritance selected with `-InheritanceFlags` propagates. `None` applies the entry to the item itself and to all inheriting child items, `InheritOnly` applies it to the inheriting child items but not to the item itself, and `NoPropagateInherit` limits inheritance to the direct children. The values `InheritOnly` and `NoPropagateInherit` can be combined, and the default is `None`. The parameter has no effect when `-InheritanceFlags` is `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-PropagationFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">NoPropagateInherit</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">InheritOnly</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">PropagationFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>PropagationFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -1251,16 +1251,16 @@
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AuditFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies which access attempts are audited. `Success` audits attempts that succeeded, `Failure` audits attempts that were denied, and `Success, Failure` audits both. The default is `Success, Failure`.</maml:para>
+            <maml:para>Specifies which access attempts are audited. `Success` audits attempts that succeeded, `Failure` audits attempts that were denied, and `Success, Failure` audits both. The default is `Success, Failure`. A value that cannot be converted to one of these, including a blank one, is an `InvalidParameterValue` error: terminating when `-AuditFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Success</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Failure</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">AuditFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>AuditFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>Success, Failure</dev:defaultValue>
@@ -1268,16 +1268,16 @@
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>InheritanceFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies which child items inherit the audit entry. `ContainerInherit` passes the entry on to child folders, `ObjectInherit` passes it on to child files, and `None` keeps the entry on the item itself. The values can be combined, and the default is `ContainerInherit, ObjectInherit`. Use `-PropagationFlags` to control whether the entry also applies to the item itself and how far it propagates.</maml:para>
+            <maml:para>Specifies which child items inherit the audit entry. `ContainerInherit` passes the entry on to child folders, `ObjectInherit` passes it on to child files, and `None` keeps the entry on the item itself. The values can be combined, and the default is `ContainerInherit, ObjectInherit`. Use `-PropagationFlags` to control whether the entry also applies to the item itself and how far it propagates. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-InheritanceFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">ContainerInherit</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">ObjectInherit</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">InheritanceFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>InheritanceFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>ContainerInherit, ObjectInherit</dev:defaultValue>
@@ -1296,16 +1296,16 @@
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>PropagationFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies how the inheritance selected with `-InheritanceFlags` propagates. `None` applies the entry to the item itself and to all inheriting child items, `InheritOnly` applies it to the inheriting child items but not to the item itself, and `NoPropagateInherit` limits inheritance to the direct children. The values `InheritOnly` and `NoPropagateInherit` can be combined, and the default is `None`. The parameter has no effect when `-InheritanceFlags` is `None`.</maml:para>
+            <maml:para>Specifies how the inheritance selected with `-InheritanceFlags` propagates. `None` applies the entry to the item itself and to all inheriting child items, `InheritOnly` applies it to the inheriting child items but not to the item itself, and `NoPropagateInherit` limits inheritance to the direct children. The values `InheritOnly` and `NoPropagateInherit` can be combined, and the default is `None`. The parameter has no effect when `-InheritanceFlags` is `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-PropagationFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">NoPropagateInherit</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">InheritOnly</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">PropagationFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>PropagationFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -1340,11 +1340,11 @@
       <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>AppliesTo</maml:name>
         <maml:description>
-          <maml:para>Specifies the scope of the audit entry with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. `ThisFolderOnly` audits the folder itself, `ThisFolderSubfoldersAndFiles` audits the folder and everything below it, `SubfoldersAndFilesOnly` audits the content but not the folder itself, and the values ending in `OneLevel` limit inheritance to the direct children. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`.</maml:para>
+          <maml:para>Specifies the scope of the audit entry with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. `ThisFolderOnly` audits the folder itself, `ThisFolderSubfoldersAndFiles` audits the folder and everything below it, `SubfoldersAndFilesOnly` audits the content but not the folder itself, and the values ending in `OneLevel` limit inheritance to the direct children. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. A value that cannot be converted to one of these scopes, including a blank one, is an `InvalidParameterValue` error: terminating when `-AppliesTo` is named on the command line, and reported for just that path or descriptor, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently or a scope that you did not name is selected.</maml:para>
         </maml:description>
-        <command:parameterValue required="true" variableLength="false">ApplyTo</command:parameterValue>
+        <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
         <dev:type>
-          <maml:name>ApplyTo</maml:name>
+          <maml:name>Object</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
@@ -1352,11 +1352,11 @@
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>AuditFlags</maml:name>
         <maml:description>
-          <maml:para>Specifies which access attempts are audited. `Success` audits attempts that succeeded, `Failure` audits attempts that were denied, and `Success, Failure` audits both. The default is `Success, Failure`.</maml:para>
+          <maml:para>Specifies which access attempts are audited. `Success` audits attempts that succeeded, `Failure` audits attempts that were denied, and `Success, Failure` audits both. The default is `Success, Failure`. A value that cannot be converted to one of these, including a blank one, is an `InvalidParameterValue` error: terminating when `-AuditFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
         </maml:description>
-        <command:parameterValue required="true" variableLength="false">AuditFlags</command:parameterValue>
+        <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
         <dev:type>
-          <maml:name>AuditFlags</maml:name>
+          <maml:name>Object</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>Success, Failure</dev:defaultValue>
@@ -1364,11 +1364,11 @@
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>InheritanceFlags</maml:name>
         <maml:description>
-          <maml:para>Specifies which child items inherit the audit entry. `ContainerInherit` passes the entry on to child folders, `ObjectInherit` passes it on to child files, and `None` keeps the entry on the item itself. The values can be combined, and the default is `ContainerInherit, ObjectInherit`. Use `-PropagationFlags` to control whether the entry also applies to the item itself and how far it propagates.</maml:para>
+          <maml:para>Specifies which child items inherit the audit entry. `ContainerInherit` passes the entry on to child folders, `ObjectInherit` passes it on to child files, and `None` keeps the entry on the item itself. The values can be combined, and the default is `ContainerInherit, ObjectInherit`. Use `-PropagationFlags` to control whether the entry also applies to the item itself and how far it propagates. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-InheritanceFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
         </maml:description>
-        <command:parameterValue required="true" variableLength="false">InheritanceFlags</command:parameterValue>
+        <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
         <dev:type>
-          <maml:name>InheritanceFlags</maml:name>
+          <maml:name>Object</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>ContainerInherit, ObjectInherit</dev:defaultValue>
@@ -1400,11 +1400,11 @@
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>PropagationFlags</maml:name>
         <maml:description>
-          <maml:para>Specifies how the inheritance selected with `-InheritanceFlags` propagates. `None` applies the entry to the item itself and to all inheriting child items, `InheritOnly` applies it to the inheriting child items but not to the item itself, and `NoPropagateInherit` limits inheritance to the direct children. The values `InheritOnly` and `NoPropagateInherit` can be combined, and the default is `None`. The parameter has no effect when `-InheritanceFlags` is `None`.</maml:para>
+          <maml:para>Specifies how the inheritance selected with `-InheritanceFlags` propagates. `None` applies the entry to the item itself and to all inheriting child items, `InheritOnly` applies it to the inheriting child items but not to the item itself, and `NoPropagateInherit` limits inheritance to the direct children. The values `InheritOnly` and `NoPropagateInherit` can be combined, and the default is `None`. The parameter has no effect when `-InheritanceFlags` is `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-PropagationFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
         </maml:description>
-        <command:parameterValue required="true" variableLength="false">PropagationFlags</command:parameterValue>
+        <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
         <dev:type>
-          <maml:name>PropagationFlags</maml:name>
+          <maml:name>Object</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
@@ -3497,7 +3497,7 @@ PS C:\&gt; Disable-Privileges</dev:code>
     </command:details>
     <maml:description>
       <maml:para>The `Get-ChildItem2` cmdlet lists the files and folders in the folders that you specify with `-Path`. It returns an `Alphaleonis.Win32.Filesystem.FileInfo` object for every file and an `Alphaleonis.Win32.Filesystem.DirectoryInfo` object for every folder. The cmdlet is the long-path counterpart of the built-in `Get-ChildItem` cmdlet: it enumerates the file system through the AlphaFS library (`Alphaleonis.Win32.Filesystem`) instead of `System.IO`, so it also returns items whose path is longer than the 260-character `MAX_PATH` limit.</maml:para>
-      <maml:para>If you omit `-Path`, the cmdlet lists the current location. Relative paths and the `.` and `..` notations are resolved against the current location. Each path must name a folder, and wildcard characters are not supported. The parameter accepts pipeline input by value and by the property name `FullName`, so you can pipe folders from `Get-ChildItem2` or `Get-Item2` into another `Get-ChildItem2` call, and you can pipe the result into `Get-NTFSAccess` and the other NTFSSecurity cmdlets.</maml:para>
+      <maml:para>If you omit `-Path`, the cmdlet lists the current location. Relative paths and the `.` and `..` notations are resolved against the current location. Each path must name an existing folder or file, and wildcard characters are not supported. The parameter accepts pipeline input by value and by the property name `FullName`, so you can pipe folders from `Get-ChildItem2` or `Get-Item2` into another `Get-ChildItem2` call, and you can pipe the result into `Get-NTFSAccess` and the other NTFSSecurity cmdlets.</maml:para>
       <maml:para>By default the cmdlet returns the immediate content of each folder and omits hidden items. Use `-Recurse` to walk the whole tree, `-Depth` to limit how deep the recursion goes, `-Filter` to restrict the result by name, `-Directory` or `-File` to restrict it by item type, and `-Force`, `-Hidden`, `-System`, `-ReadOnly`, or `-Attributes` to restrict it by file attributes.</maml:para>
       <maml:para>Two settings in the `PrivateData` section of the module manifest change the objects that this cmdlet emits. `GetFileSystemModeProperty` adds the `Mode` property, which shows the directory, archive, read-only, hidden, and system attributes in `darhs` notation. `IdentifyHardLinks` adds a `HardLinkCount` property to every file object. Both are `$true` by default and are read once when the cmdlet starts.</maml:para>
       <maml:para>A folder that the cmdlet cannot read produces a non-terminating error, and the enumeration continues with the next folder. If a folder cannot be opened while `-Recurse` looks for subfolders, the cmdlet reports the problem as a verbose message instead, so run the command with the `-Verbose` common parameter if you need to know which branches were skipped.</maml:para>
@@ -3520,7 +3520,12 @@ PS C:\&gt; Disable-Privileges</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="2" aliases="none">
           <maml:name>Filter</maml:name>
           <maml:description>
-            <maml:para>Specifies a name pattern that an item must match to be returned. The pattern supports the asterisk and the question mark as wildcard characters, an asterisk for any number of characters and a question mark for exactly one, and the match ignores case. Any other character stands for itself; a bracket is an ordinary character, so `Report[1].txt` returns the file of that name. As for `Get-ChildItem`, a pattern of an asterisk, a dot, and an asterisk returns every item, also an item without a dot in its name. The default value is `*`, which returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.</maml:para>
+            <maml:para>Specifies a name pattern that an item must match to be returned. The pattern follows the wildcard rules that Windows PowerShell 5.1 applies to `Get-ChildItem -Filter`, in both editions, on the real name of the item, not its 8.3 short name. An asterisk stands for a run of any characters, and a question mark stands for one character that is not a dot, or for nothing where a dot or the end of the name follows. A dot stands for a literal dot, or for nothing where only wildcards or the end of the pattern follow. The match ignores case and is not affected by the culture of the session. Any other character stands for itself, including a bracket, so `Report[1].txt` returns the file of that name.</maml:para>
+            <maml:para>For example, `Report.*` also returns the item `Report`, which has no dot.</maml:para>
+            <maml:para>A pattern of an asterisk, a dot, and an asterisk returns every item, also an item without a dot in its name, as `Get-ChildItem` does for this pattern.</maml:para>
+            <maml:para>`Get-ChildItem2` follows the Windows PowerShell 5.1 rules in both editions, so the result does not depend on the edition. The built-in `Get-ChildItem -Filter` of PowerShell 7 differs for some patterns, for example for a pattern that ends in a dot, for which it returns nothing unless an asterisk comes right before the dot (the pattern of a single dot returns every item), and for a pattern in which an asterisk is followed by a dot and question marks, for which it ignores the dot and the question marks.</maml:para>
+            <maml:para>Two kinds of pattern are not like Windows PowerShell 5.1: blanks at the end of the pattern, also before a final dot, are part of it, where Windows PowerShell 5.1 drops them, and a pattern that ends in an even number of dots, such as two, is accepted, where Windows PowerShell 5.1 stops with an error.</maml:para>
+            <maml:para>The default value is `*`, which returns every item, and an empty value also returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
           <dev:type>
@@ -3724,7 +3729,12 @@ PS C:\&gt; Disable-Privileges</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="2" aliases="none">
         <maml:name>Filter</maml:name>
         <maml:description>
-          <maml:para>Specifies a name pattern that an item must match to be returned. The pattern supports the asterisk and the question mark as wildcard characters, an asterisk for any number of characters and a question mark for exactly one, and the match ignores case. Any other character stands for itself; a bracket is an ordinary character, so `Report[1].txt` returns the file of that name. As for `Get-ChildItem`, a pattern of an asterisk, a dot, and an asterisk returns every item, also an item without a dot in its name. The default value is `*`, which returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.</maml:para>
+          <maml:para>Specifies a name pattern that an item must match to be returned. The pattern follows the wildcard rules that Windows PowerShell 5.1 applies to `Get-ChildItem -Filter`, in both editions, on the real name of the item, not its 8.3 short name. An asterisk stands for a run of any characters, and a question mark stands for one character that is not a dot, or for nothing where a dot or the end of the name follows. A dot stands for a literal dot, or for nothing where only wildcards or the end of the pattern follow. The match ignores case and is not affected by the culture of the session. Any other character stands for itself, including a bracket, so `Report[1].txt` returns the file of that name.</maml:para>
+          <maml:para>For example, `Report.*` also returns the item `Report`, which has no dot.</maml:para>
+          <maml:para>A pattern of an asterisk, a dot, and an asterisk returns every item, also an item without a dot in its name, as `Get-ChildItem` does for this pattern.</maml:para>
+          <maml:para>`Get-ChildItem2` follows the Windows PowerShell 5.1 rules in both editions, so the result does not depend on the edition. The built-in `Get-ChildItem -Filter` of PowerShell 7 differs for some patterns, for example for a pattern that ends in a dot, for which it returns nothing unless an asterisk comes right before the dot (the pattern of a single dot returns every item), and for a pattern in which an asterisk is followed by a dot and question marks, for which it ignores the dot and the question marks.</maml:para>
+          <maml:para>Two kinds of pattern are not like Windows PowerShell 5.1: blanks at the end of the pattern, also before a final dot, are part of it, where Windows PowerShell 5.1 drops them, and a pattern that ends in an even number of dots, such as two, is accepted, where Windows PowerShell 5.1 stops with an error.</maml:para>
+          <maml:para>The default value is `*`, which returns every item, and an empty value also returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
         <dev:type>
@@ -3867,7 +3877,9 @@ PS C:\&gt; Disable-Privileges</dev:code>
         <maml:para>A folder that cannot be read produces a non-terminating error with the ID `DirUnauthorizedAccessError` for an access denial or `DirUnspecifiedError` for any other failure, and a path that does not exist produces the error `FileNotFound`. In each case the cmdlet continues with the next path. Failures that occur while `-Recurse` collects the subfolders of a folder are reported as verbose messages only, not as errors.</maml:para>
         <maml:para>Before 5.0.0, a `-Path` value that points to a file stopped the cmdlet with an `InvalidCastException`, `-Attributes` returned only the items that had all the listed attributes, and an empty `-Attributes` value returned every item, also the hidden ones. Earlier builds, including the 5.0.0 prereleases, could also omit the first hidden item with `-Hidden` unless `-Force` was explicitly supplied.</maml:para>
         <maml:para>Before 5.0.0, `-Filter` read a bracket as the start of a character class, so a file with brackets in its name, such as `Report[1].txt`, was not returned for its name, and a pattern of an asterisk, a dot, and an asterisk dropped the items without a dot in their names, most folders among them.</maml:para>
-        <maml:para>The names are matched twice, by the enumeration of the AlphaFS library and by the cmdlet, which reads a dot as an ordinary character, and their rules for a dot can differ from those of `Get-ChildItem`: a pattern such as `Report.*` does not return the file `Report`, which has no dot, a pattern that ends in a dot returns nothing, and an empty value returns nothing. Only the pattern of an asterisk, a dot, and an asterisk is treated as a single asterisk.</maml:para>
+        <maml:para>The cmdlet enumerates broadly and matches each name once, with the Win32 "DOS" wildcard rules that Windows PowerShell 5.1 applies to `Get-ChildItem -Filter`, in both editions: a pattern that ends in a dot returns the names without a dot, and an empty value returns every item, the same as a plain asterisk.</maml:para>
+        <maml:para>For example, `Report.*` also returns the item `Report`, which has no dot. A star in front of a dot token may cross every dot in the name but the last one, so a pattern such as a star followed by a dot also reaches the final segment of a name with two or more dots, for example `archive.tar.gz`.</maml:para>
+        <maml:para>PowerShell 7 itself differs from Windows PowerShell 5.1 here: its own `Get-ChildItem -Filter` returns nothing for a pattern that ends in a dot, unless the character right before the dot is an asterisk (the pattern of a single dot returns every item), and it ignores the dot and the question marks of a pattern in which an asterisk is followed by a dot and question marks. `Get-ChildItem2` follows the Windows PowerShell 5.1 rules in both editions instead of the edition it runs in, so this is a deliberate difference from the built-in `Get-ChildItem` in PowerShell 7 for these and some similar patterns.</maml:para>
         <maml:para>Before 5.0.0, a `break`, a `continue`, or a `throw` in a later command of the pipeline did not end the cmdlet for an item below the first folder, also when the later command took the error of a folder that the cmdlet cannot read, for example with `2&gt;&amp;1`.</maml:para>
       </maml:alert>
     </maml:alertSet>
@@ -5170,6 +5182,7 @@ PS C:\&gt; Get-NTFSAudit -SecurityDescriptor $sd</dev:code>
         <maml:para>Before 5.0.0-rc7, the warning about a computer that couldn't be reached didn't name the computer, and the cmdlet warned for every name of this computer except `localhost` in lowercase, such as `.`, `LOCALHOST`, or the computer name.</maml:para>
         <maml:para>Before 5.0.0-rc7, a user who wasn't an administrator got the error "Access is denied" and no result on a computer in a domain, also for a name of this computer, such as the default `localhost`.</maml:para>
         <maml:para>Before 5.0.0-rc8, the cmdlet returned no access and no error when Windows refused to start the authorization manager for the computer of `-ServerName`, for example for a name of 32,718 characters or more, so that the result looked like an account without any rights. The cmdlet now writes a non-terminating `GetEffectiveAccessError` with the error that Windows reported and returns no result for the item, as it does for every other failure of the calculation. It warns that the result is based on this computer only when it calculated a result; before 5.0.0-rc8, the warning also came before an error when the computer couldn't be reached.</maml:para>
+        <maml:para>A user who has no domain credentials, such as a local standard user, still gets the error "Access is denied" from Windows when it asks for the effective access of a user account of the domain, also for a name of this computer; the cmdlet writes it as a non-terminating `GetEffectiveAccessError` and returns no result for that item. Accounts of this computer and groups such as `Everyone` or `Domain Users` give a result.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -5760,6 +5773,7 @@ PS C:\&gt; Get-NTFSAudit -SecurityDescriptor $sd</dev:code>
       <maml:alert>
         <maml:para>When the module setting `EnablePrivileges` is `$true` (the default in the `PrivateData` section of NTFSSecurity.psd1), this cmdlet tries to enable the Backup, Restore, Take Ownership, and Security privileges while it runs and disables the privileges it enabled when it finishes. These privileges are only available in an elevated session of an account that holds them, such as a member of the local Administrators group. If a privilege cannot be enabled, the cmdlet continues without it and writes a debug message.</maml:para>
         <maml:para>If the ACL of an item cannot be read because access is denied, the cmdlet tries once more after making the current account the owner of the item, and restores the previous owner afterwards. Reading the owner, which that fallback needs first, requires the same Read Permissions right as reading the ACL, so the cmdlet then writes a non-terminating `ReadSecurityError` and continues with the next item. Before 5.0.0, it reported that error as an `AddAceError`.</maml:para>
+        <maml:para>A read failure that is not an access denial is reported the same way, as a non-terminating `ReadSecurityError`, categorized as `OpenError` and targeting the path; before 5.0.0-rc9, the cmdlet wrote a warning instead (`Could not read item {0}. The error was: {1}`) and returned no entry for the item, without an error to say why.</maml:para>
         <maml:para>Before 5.0.0, the cmdlet ignored `-Account` and `-SecurityDescriptor`, and after a path whose ACL could not be read, it returned the orphaned entries of the previous item again.</maml:para>
       </maml:alert>
     </maml:alertSet>
@@ -7724,7 +7738,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <maml:para>Removes the rights in `-AccessRights` from the access control entries (ACEs) of a file or a folder. An entry is addressed by the account in `-Account`, the access type in `-AccessType`, and the inheritance and propagation flags, which are given either as `-AppliesTo` or as `-InheritanceFlags` and `-PropagationFlags`.</maml:para>
       <maml:para>Only the specified rights are taken away: when an entry grants more than `-AccessRights` names, the remaining rights stay in place, and the entry disappears only when all of its rights are removed. An `Allow` entry is always matched with the `Synchronize` right added to the specified rights. The flags must describe the entry as it exists on the item; when they do not, Windows splits the entry instead of removing the rights, so use the values that `Get-NTFSAccess` reports for the entry you want to change. With `-RemoveSpecific`, the cmdlet removes only an entry that matches exactly.</maml:para>
       <maml:para>Inherited entries cannot be removed from the item that inherits them. Remove them from the folder named in the `InheritedFrom` property, or run `Disable-NTFSAccessInheritance` on the item first, which copies the inherited entries into it as explicit ones that this cmdlet can then remove.</maml:para>
-      <maml:para>The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor, and a command that has `-AppliesTo` together with `-InheritanceFlags` or `-PropagationFlags` fails, because PowerShell can't choose between the sets. The same holds for an object that you pipe in: its property `AppliesTo` selects a `Simple` set, its properties `InheritanceFlags` and `PropagationFlags` select a `Complex` set, and an object that has both kinds, an object that has both `Path` and `SecurityDescriptor`, or one whose `AppliesTo` is `$null`, fails. `Import-Csv` gives `$null` for a column that a row lacks because it has fewer fields than the header. An `AppliesTo` that PowerShell can't convert to a scope, such as the blank cell of a CSV file or a misspelled name, is ignored, and the object is handled as one without `AppliesTo`: it uses its own `InheritanceFlags` and `PropagationFlags`, or the default scope if it has none. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets. All relevant parameters bind by property name, so the output of `Get-NTFSAccess` and `Get-NTFSOrphanedAccess` can be piped directly into this cmdlet. The cmdlet writes no output unless `-PassThru` is used.</maml:para>
+      <maml:para>The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor, and a command that has `-AppliesTo` together with `-InheritanceFlags` or `-PropagationFlags` fails, because PowerShell can't choose between the sets. The same holds for an object that you pipe in: its property `AppliesTo` selects a `Simple` set, its properties `InheritanceFlags` and `PropagationFlags` select a `Complex` set, and an object that has both `Path` and `SecurityDescriptor` fails. A `$null`, an empty string, or `DBNull` value of a property counts as present for this choice, the same as a real value, so a CSV file, or any other source of piped objects, should have the columns of only one group: `AppliesTo`, or `InheritanceFlags` and `PropagationFlags`. A row or object that has properties of both groups is an `AmbiguousParameterSet` error, even if the value of one of them is `$null` (for example in a short CSV row, whose missing trailing columns `Import-Csv` fills with `$null`), an empty string, or `DBNull`: the error is terminating when you name the parameters on the command line, and it is reported for just that object, which is left unchanged, when the object comes from the pipeline. A `$null` value of `-AppliesTo` itself, named or piped, fails too, but with the binder's own error for a mandatory parameter, `ParameterArgumentValidationErrorNullNotAllowed`. Within the group that PowerShell did choose, an `AppliesTo`, `AccessType`, `InheritanceFlags`, or `PropagationFlags` value that PowerShell can't convert to its type, such as a blank cell or a misspelled name, is an `InvalidParameterValue` error for that object: the object is left unchanged, and the next one in the pipeline is still processed; the same bad value named on the command line fails the whole command instead. Before 5.0.0, such a piped value was silently ignored, and the object was handled as one without it. A script block is a plain value for these parameters, so a named script block, for example `-AppliesTo { 'FilesOnly' }`, fails with a terminating `InvalidParameterValue` error, the same as any other named value of the wrong type; before 5.0.0, a script block was evaluated once for each piped object. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets. All relevant parameters bind by property name, so the output of `Get-NTFSAccess` and `Get-NTFSOrphanedAccess` can be piped directly into this cmdlet. The cmdlet writes no output unless `-PassThru` is used.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
@@ -7798,15 +7812,15 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="AccessControlType">
           <maml:name>AccessType</maml:name>
           <maml:description>
-            <maml:para>Specifies whether an `Allow` or a `Deny` entry is addressed. The default is `Allow`. An entry of the other type is not touched.</maml:para>
+            <maml:para>Specifies whether an `Allow` or a `Deny` entry is addressed. The default is `Allow`. An entry of the other type is not touched. A value that cannot be converted to `Allow` or `Deny`, including a blank one, is an `InvalidParameterValue` error: terminating when `-AccessType` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">Allow</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Deny</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">AccessControlType</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>AccessControlType</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>Allow</dev:defaultValue>
@@ -7814,7 +7828,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AppliesTo</maml:name>
           <maml:description>
-            <maml:para>Specifies the scope of the entry that is addressed, in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same entry. Use the scope that `Get-NTFSAccess` shows in the "Applies to" column of the entry.</maml:para>
+            <maml:para>Specifies the scope of the entry that is addressed, in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same entry. Use the scope that `Get-NTFSAccess` shows in the "Applies to" column of the entry. A value that cannot be converted to one of these scopes, including a blank one, is an `InvalidParameterValue` error: terminating when `-AppliesTo` is named on the command line, and reported for just that path or descriptor, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently or a scope that you did not name is selected.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">ThisFolderOnly</command:parameterValue>
@@ -7831,9 +7845,9 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
             <command:parameterValue required="false" command:variableLength="false">SubfoldersOnlyOneLevel</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">FilesOnlyOneLevel</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">ApplyTo</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>ApplyTo</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -7933,15 +7947,15 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="AccessControlType">
           <maml:name>AccessType</maml:name>
           <maml:description>
-            <maml:para>Specifies whether an `Allow` or a `Deny` entry is addressed. The default is `Allow`. An entry of the other type is not touched.</maml:para>
+            <maml:para>Specifies whether an `Allow` or a `Deny` entry is addressed. The default is `Allow`. An entry of the other type is not touched. A value that cannot be converted to `Allow` or `Deny`, including a blank one, is an `InvalidParameterValue` error: terminating when `-AccessType` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">Allow</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Deny</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">AccessControlType</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>AccessControlType</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>Allow</dev:defaultValue>
@@ -7949,7 +7963,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AppliesTo</maml:name>
           <maml:description>
-            <maml:para>Specifies the scope of the entry that is addressed, in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same entry. Use the scope that `Get-NTFSAccess` shows in the "Applies to" column of the entry.</maml:para>
+            <maml:para>Specifies the scope of the entry that is addressed, in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same entry. Use the scope that `Get-NTFSAccess` shows in the "Applies to" column of the entry. A value that cannot be converted to one of these scopes, including a blank one, is an `InvalidParameterValue` error: terminating when `-AppliesTo` is named on the command line, and reported for just that path or descriptor, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently or a scope that you did not name is selected.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">ThisFolderOnly</command:parameterValue>
@@ -7966,9 +7980,9 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
             <command:parameterValue required="false" command:variableLength="false">SubfoldersOnlyOneLevel</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">FilesOnlyOneLevel</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">ApplyTo</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>ApplyTo</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -8067,15 +8081,15 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="AccessControlType">
           <maml:name>AccessType</maml:name>
           <maml:description>
-            <maml:para>Specifies whether an `Allow` or a `Deny` entry is addressed. The default is `Allow`. An entry of the other type is not touched.</maml:para>
+            <maml:para>Specifies whether an `Allow` or a `Deny` entry is addressed. The default is `Allow`. An entry of the other type is not touched. A value that cannot be converted to `Allow` or `Deny`, including a blank one, is an `InvalidParameterValue` error: terminating when `-AccessType` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">Allow</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Deny</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">AccessControlType</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>AccessControlType</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>Allow</dev:defaultValue>
@@ -8083,16 +8097,16 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>InheritanceFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies the inheritance flags of the entry that is addressed. `ContainerInherit` marks an entry that child folders inherit, `ObjectInherit` marks an entry that child files inherit, and `None` marks an entry that is not inherited at all. The default is `ContainerInherit, ObjectInherit`, which is the scope `ThisFolderSubfoldersAndFiles`. Entries on files always carry `None`.</maml:para>
+            <maml:para>Specifies the inheritance flags of the entry that is addressed. `ContainerInherit` marks an entry that child folders inherit, `ObjectInherit` marks an entry that child files inherit, and `None` marks an entry that is not inherited at all. The default is `ContainerInherit, ObjectInherit`, which is the scope `ThisFolderSubfoldersAndFiles`. Entries on files always carry `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-InheritanceFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">ContainerInherit</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">ObjectInherit</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">InheritanceFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>InheritanceFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>ContainerInherit, ObjectInherit</dev:defaultValue>
@@ -8111,16 +8125,16 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>PropagationFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies the propagation flags of the entry that is addressed. `None` marks an entry that is inherited by all levels allowed by its inheritance flags, `InheritOnly` marks an entry that does not apply to the item it is defined on, and `NoPropagateInherit` marks an entry that is only inherited by the direct children of the folder. The default is `None`.</maml:para>
+            <maml:para>Specifies the propagation flags of the entry that is addressed. `None` marks an entry that is inherited by all levels allowed by its inheritance flags, `InheritOnly` marks an entry that does not apply to the item it is defined on, and `NoPropagateInherit` marks an entry that is only inherited by the direct children of the folder. The default is `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-PropagationFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">NoPropagateInherit</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">InheritOnly</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">PropagationFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>PropagationFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -8209,15 +8223,15 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="AccessControlType">
           <maml:name>AccessType</maml:name>
           <maml:description>
-            <maml:para>Specifies whether an `Allow` or a `Deny` entry is addressed. The default is `Allow`. An entry of the other type is not touched.</maml:para>
+            <maml:para>Specifies whether an `Allow` or a `Deny` entry is addressed. The default is `Allow`. An entry of the other type is not touched. A value that cannot be converted to `Allow` or `Deny`, including a blank one, is an `InvalidParameterValue` error: terminating when `-AccessType` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">Allow</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Deny</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">AccessControlType</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>AccessControlType</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>Allow</dev:defaultValue>
@@ -8225,16 +8239,16 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>InheritanceFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies the inheritance flags of the entry that is addressed. `ContainerInherit` marks an entry that child folders inherit, `ObjectInherit` marks an entry that child files inherit, and `None` marks an entry that is not inherited at all. The default is `ContainerInherit, ObjectInherit`, which is the scope `ThisFolderSubfoldersAndFiles`. Entries on files always carry `None`.</maml:para>
+            <maml:para>Specifies the inheritance flags of the entry that is addressed. `ContainerInherit` marks an entry that child folders inherit, `ObjectInherit` marks an entry that child files inherit, and `None` marks an entry that is not inherited at all. The default is `ContainerInherit, ObjectInherit`, which is the scope `ThisFolderSubfoldersAndFiles`. Entries on files always carry `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-InheritanceFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">ContainerInherit</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">ObjectInherit</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">InheritanceFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>InheritanceFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>ContainerInherit, ObjectInherit</dev:defaultValue>
@@ -8253,16 +8267,16 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>PropagationFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies the propagation flags of the entry that is addressed. `None` marks an entry that is inherited by all levels allowed by its inheritance flags, `InheritOnly` marks an entry that does not apply to the item it is defined on, and `NoPropagateInherit` marks an entry that is only inherited by the direct children of the folder. The default is `None`.</maml:para>
+            <maml:para>Specifies the propagation flags of the entry that is addressed. `None` marks an entry that is inherited by all levels allowed by its inheritance flags, `InheritOnly` marks an entry that does not apply to the item it is defined on, and `NoPropagateInherit` marks an entry that is only inherited by the direct children of the folder. The default is `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-PropagationFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">NoPropagateInherit</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">InheritOnly</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">PropagationFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>PropagationFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -8296,11 +8310,11 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="AccessControlType">
         <maml:name>AccessType</maml:name>
         <maml:description>
-          <maml:para>Specifies whether an `Allow` or a `Deny` entry is addressed. The default is `Allow`. An entry of the other type is not touched.</maml:para>
+          <maml:para>Specifies whether an `Allow` or a `Deny` entry is addressed. The default is `Allow`. An entry of the other type is not touched. A value that cannot be converted to `Allow` or `Deny`, including a blank one, is an `InvalidParameterValue` error: terminating when `-AccessType` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently.</maml:para>
         </maml:description>
-        <command:parameterValue required="true" variableLength="false">AccessControlType</command:parameterValue>
+        <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
         <dev:type>
-          <maml:name>AccessControlType</maml:name>
+          <maml:name>Object</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>Allow</dev:defaultValue>
@@ -8320,11 +8334,11 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>AppliesTo</maml:name>
         <maml:description>
-          <maml:para>Specifies the scope of the entry that is addressed, in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same entry. Use the scope that `Get-NTFSAccess` shows in the "Applies to" column of the entry.</maml:para>
+          <maml:para>Specifies the scope of the entry that is addressed, in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same entry. Use the scope that `Get-NTFSAccess` shows in the "Applies to" column of the entry. A value that cannot be converted to one of these scopes, including a blank one, is an `InvalidParameterValue` error: terminating when `-AppliesTo` is named on the command line, and reported for just that path or descriptor, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently or a scope that you did not name is selected.</maml:para>
         </maml:description>
-        <command:parameterValue required="true" variableLength="false">ApplyTo</command:parameterValue>
+        <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
         <dev:type>
-          <maml:name>ApplyTo</maml:name>
+          <maml:name>Object</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
@@ -8332,11 +8346,11 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>InheritanceFlags</maml:name>
         <maml:description>
-          <maml:para>Specifies the inheritance flags of the entry that is addressed. `ContainerInherit` marks an entry that child folders inherit, `ObjectInherit` marks an entry that child files inherit, and `None` marks an entry that is not inherited at all. The default is `ContainerInherit, ObjectInherit`, which is the scope `ThisFolderSubfoldersAndFiles`. Entries on files always carry `None`.</maml:para>
+          <maml:para>Specifies the inheritance flags of the entry that is addressed. `ContainerInherit` marks an entry that child folders inherit, `ObjectInherit` marks an entry that child files inherit, and `None` marks an entry that is not inherited at all. The default is `ContainerInherit, ObjectInherit`, which is the scope `ThisFolderSubfoldersAndFiles`. Entries on files always carry `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-InheritanceFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
         </maml:description>
-        <command:parameterValue required="true" variableLength="false">InheritanceFlags</command:parameterValue>
+        <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
         <dev:type>
-          <maml:name>InheritanceFlags</maml:name>
+          <maml:name>Object</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>ContainerInherit, ObjectInherit</dev:defaultValue>
@@ -8368,11 +8382,11 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>PropagationFlags</maml:name>
         <maml:description>
-          <maml:para>Specifies the propagation flags of the entry that is addressed. `None` marks an entry that is inherited by all levels allowed by its inheritance flags, `InheritOnly` marks an entry that does not apply to the item it is defined on, and `NoPropagateInherit` marks an entry that is only inherited by the direct children of the folder. The default is `None`.</maml:para>
+          <maml:para>Specifies the propagation flags of the entry that is addressed. `None` marks an entry that is inherited by all levels allowed by its inheritance flags, `InheritOnly` marks an entry that does not apply to the item it is defined on, and `NoPropagateInherit` marks an entry that is only inherited by the direct children of the folder. The default is `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-PropagationFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
         </maml:description>
-        <command:parameterValue required="true" variableLength="false">PropagationFlags</command:parameterValue>
+        <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
         <dev:type>
-          <maml:name>PropagationFlags</maml:name>
+          <maml:name>Object</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
@@ -8563,7 +8577,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
     <maml:description>
       <maml:para>The `Remove-NTFSAudit` cmdlet removes an audit entry from the system access control list (SACL) of a file or folder. The cmdlet builds an audit entry from `-Account`, `-AccessRights`, `-AuditFlags`, and the inheritance and propagation flags, and removes that entry from the SACL. The audit entries of the account are matched by their inheritance and propagation flags, and the requested access rights and audit flags are then taken away from them: an entry that audits further rights keeps those rights and disappears only when nothing is left. To remove an entry completely, pass the same values that `Get-NTFSAudit` reports for it. With `-RemoveSpecific`, the cmdlet removes only an entry that matches exactly.</maml:para>
       <maml:para>Because the inheritance and propagation flags take part in the match, they must describe the entry you want to remove. `-AppliesTo ThisFolderOnly` removes an entry that is not inherited by child items, which is also the shape of every audit entry on a file, while the default of the complex parameter sets removes an entry that applies to the folder, its subfolders, and its files. An entry that an item inherits from a parent folder is stored on that parent, so remove it there, or use `Clear-NTFSAudit` with `-DisableInheritance` to drop the inherited entries on the item.</maml:para>
-      <maml:para>In the `PathSimple` and `PathComplex` parameter sets the cmdlet reads the security descriptor of every item in `-Path` and writes it back right away. In the `SDSimple` and `SDComplex` parameter sets it changes an in-memory `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, and the change reaches the file system only when you pass the object to `Set-NTFSSecurityDescriptor`. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor, and a command that has `-AppliesTo` together with `-InheritanceFlags` or `-PropagationFlags` fails, because PowerShell can't choose between the sets. The same holds for an object that you pipe in: its property `AppliesTo` selects a `Simple` set, its properties `InheritanceFlags` and `PropagationFlags` select a `Complex` set, and an object that has both kinds, an object that has both `Path` and `SecurityDescriptor`, or one whose `AppliesTo` is `$null`, fails. `Import-Csv` gives `$null` for a column that a row lacks because it has fewer fields than the header. An `AppliesTo` that PowerShell can't convert to a scope, such as the blank cell of a CSV file or a misspelled name, is ignored, and the object is handled as one without `AppliesTo`: it uses its own `InheritanceFlags` and `PropagationFlags`, or the default scope if it has none. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.</maml:para>
+      <maml:para>In the `PathSimple` and `PathComplex` parameter sets the cmdlet reads the security descriptor of every item in `-Path` and writes it back right away. In the `SDSimple` and `SDComplex` parameter sets it changes an in-memory `Security2.FileSystemSecurity2` object that `Get-NTFSSecurityDescriptor` returned, and the change reaches the file system only when you pass the object to `Set-NTFSSecurityDescriptor`. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor, and a command that has `-AppliesTo` together with `-InheritanceFlags` or `-PropagationFlags` fails, because PowerShell can't choose between the sets. The same holds for an object that you pipe in: its property `AppliesTo` selects a `Simple` set, its properties `InheritanceFlags` and `PropagationFlags` select a `Complex` set, and an object that has both `Path` and `SecurityDescriptor` fails. A `$null`, an empty string, or `DBNull` value of a property counts as present for this choice, the same as a real value, so a CSV file, or any other source of piped objects, should have the columns of only one group: `AppliesTo`, or `InheritanceFlags` and `PropagationFlags`. A row or object that has properties of both groups is an `AmbiguousParameterSet` error, even if the value of one of them is `$null` (for example in a short CSV row, whose missing trailing columns `Import-Csv` fills with `$null`), an empty string, or `DBNull`: the error is terminating when you name the parameters on the command line, and it is reported for just that object, which is left unchanged, when the object comes from the pipeline. A `$null` value of `-AppliesTo` itself, named or piped, fails too, but with the binder's own error for a mandatory parameter, `ParameterArgumentValidationErrorNullNotAllowed`. Within the group that PowerShell did choose, an `AppliesTo`, `AuditFlags`, `InheritanceFlags`, or `PropagationFlags` value that PowerShell can't convert to its type, such as a blank cell or a misspelled name, is an `InvalidParameterValue` error for that object: the object is left unchanged, and the next one in the pipeline is still processed; the same bad value named on the command line fails the whole command instead. Before 5.0.0, such a piped value was silently ignored, and the object was handled as one without it. A script block is a plain value for these parameters, so a named script block, for example `-AppliesTo { 'FilesOnly' }`, fails with a terminating `InvalidParameterValue` error, the same as any other named value of the wrong type; before 5.0.0, a script block was evaluated once for each piped object. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets.</maml:para>
       <maml:para>When you omit them, `-AuditFlags` is `Success, Failure`, `-InheritanceFlags` is `ContainerInherit, ObjectInherit`, `-PropagationFlags` is `None`. All parameters bind by property name, and `-Path` also binds by value and through its `FullName` alias, so you can pipe the output of `Get-NTFSAudit`, `Get-ChildItem`, `Get-ChildItem2`, and `Get-Item2` into the cmdlet. The cmdlet writes no object unless you use `-PassThru`.</maml:para>
     </maml:description>
     <command:syntax>
@@ -8638,7 +8652,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AppliesTo</maml:name>
           <maml:description>
-            <maml:para>Specifies the scope of the audit entry to remove with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. The value must describe the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`.</maml:para>
+            <maml:para>Specifies the scope of the audit entry to remove with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. The value must describe the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. A value that cannot be converted to one of these scopes, including a blank one, is an `InvalidParameterValue` error: terminating when `-AppliesTo` is named on the command line, and reported for just that path or descriptor, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently or a scope that you did not name is selected.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">ThisFolderOnly</command:parameterValue>
@@ -8655,9 +8669,9 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
             <command:parameterValue required="false" command:variableLength="false">SubfoldersOnlyOneLevel</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">FilesOnlyOneLevel</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">ApplyTo</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>ApplyTo</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -8665,16 +8679,16 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AuditFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies which audited access attempts are removed from the entry. `Success` removes the auditing of successful attempts, `Failure` removes the auditing of denied attempts, and `Success, Failure` removes both. An entry that audits the flag you did not specify stays in place with that flag. The default is `Success, Failure`.</maml:para>
+            <maml:para>Specifies which audited access attempts are removed from the entry. `Success` removes the auditing of successful attempts, `Failure` removes the auditing of denied attempts, and `Success, Failure` removes both. An entry that audits the flag you did not specify stays in place with that flag. The default is `Success, Failure`. A value that cannot be converted to one of these, including a blank one, is an `InvalidParameterValue` error: terminating when `-AuditFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Success</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Failure</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">AuditFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>AuditFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>Success, Failure</dev:defaultValue>
@@ -8773,7 +8787,7 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AppliesTo</maml:name>
           <maml:description>
-            <maml:para>Specifies the scope of the audit entry to remove with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. The value must describe the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`.</maml:para>
+            <maml:para>Specifies the scope of the audit entry to remove with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. The value must describe the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. A value that cannot be converted to one of these scopes, including a blank one, is an `InvalidParameterValue` error: terminating when `-AppliesTo` is named on the command line, and reported for just that path or descriptor, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently or a scope that you did not name is selected.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">ThisFolderOnly</command:parameterValue>
@@ -8790,9 +8804,9 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
             <command:parameterValue required="false" command:variableLength="false">SubfoldersOnlyOneLevel</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">FilesOnlyOneLevel</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">ApplyTo</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>ApplyTo</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -8800,16 +8814,16 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AuditFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies which audited access attempts are removed from the entry. `Success` removes the auditing of successful attempts, `Failure` removes the auditing of denied attempts, and `Success, Failure` removes both. An entry that audits the flag you did not specify stays in place with that flag. The default is `Success, Failure`.</maml:para>
+            <maml:para>Specifies which audited access attempts are removed from the entry. `Success` removes the auditing of successful attempts, `Failure` removes the auditing of denied attempts, and `Success, Failure` removes both. An entry that audits the flag you did not specify stays in place with that flag. The default is `Success, Failure`. A value that cannot be converted to one of these, including a blank one, is an `InvalidParameterValue` error: terminating when `-AuditFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Success</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Failure</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">AuditFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>AuditFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>Success, Failure</dev:defaultValue>
@@ -8908,16 +8922,16 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AuditFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies which audited access attempts are removed from the entry. `Success` removes the auditing of successful attempts, `Failure` removes the auditing of denied attempts, and `Success, Failure` removes both. An entry that audits the flag you did not specify stays in place with that flag. The default is `Success, Failure`.</maml:para>
+            <maml:para>Specifies which audited access attempts are removed from the entry. `Success` removes the auditing of successful attempts, `Failure` removes the auditing of denied attempts, and `Success, Failure` removes both. An entry that audits the flag you did not specify stays in place with that flag. The default is `Success, Failure`. A value that cannot be converted to one of these, including a blank one, is an `InvalidParameterValue` error: terminating when `-AuditFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Success</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Failure</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">AuditFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>AuditFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>Success, Failure</dev:defaultValue>
@@ -8925,16 +8939,16 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>InheritanceFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies the inheritance flags of the audit entry to remove. `ContainerInherit` addresses an entry that child folders inherit, `ObjectInherit` an entry that child files inherit, and `None` an entry that stays on the item itself. The values can be combined, and the default is `ContainerInherit, ObjectInherit`. The flags must match the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed.</maml:para>
+            <maml:para>Specifies the inheritance flags of the audit entry to remove. `ContainerInherit` addresses an entry that child folders inherit, `ObjectInherit` an entry that child files inherit, and `None` an entry that stays on the item itself. The values can be combined, and the default is `ContainerInherit, ObjectInherit`. The flags must match the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-InheritanceFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">ContainerInherit</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">ObjectInherit</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">InheritanceFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>InheritanceFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>ContainerInherit, ObjectInherit</dev:defaultValue>
@@ -8953,16 +8967,16 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>PropagationFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies the propagation flags of the audit entry to remove. `None` addresses an entry that applies to the item itself and to all inheriting child items, `InheritOnly` an entry that applies to the child items only, and `NoPropagateInherit` an entry whose inheritance stops at the direct children. The values `InheritOnly` and `NoPropagateInherit` can be combined, and the default is `None`.</maml:para>
+            <maml:para>Specifies the propagation flags of the audit entry to remove. `None` addresses an entry that applies to the item itself and to all inheriting child items, `InheritOnly` an entry that applies to the child items only, and `NoPropagateInherit` an entry whose inheritance stops at the direct children. The values `InheritOnly` and `NoPropagateInherit` can be combined, and the default is `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-PropagationFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">NoPropagateInherit</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">InheritOnly</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">PropagationFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>PropagationFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -9050,16 +9064,16 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>AuditFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies which audited access attempts are removed from the entry. `Success` removes the auditing of successful attempts, `Failure` removes the auditing of denied attempts, and `Success, Failure` removes both. An entry that audits the flag you did not specify stays in place with that flag. The default is `Success, Failure`.</maml:para>
+            <maml:para>Specifies which audited access attempts are removed from the entry. `Success` removes the auditing of successful attempts, `Failure` removes the auditing of denied attempts, and `Success, Failure` removes both. An entry that audits the flag you did not specify stays in place with that flag. The default is `Success, Failure`. A value that cannot be converted to one of these, including a blank one, is an `InvalidParameterValue` error: terminating when `-AuditFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Success</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">Failure</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">AuditFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>AuditFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>Success, Failure</dev:defaultValue>
@@ -9067,16 +9081,16 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>InheritanceFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies the inheritance flags of the audit entry to remove. `ContainerInherit` addresses an entry that child folders inherit, `ObjectInherit` an entry that child files inherit, and `None` an entry that stays on the item itself. The values can be combined, and the default is `ContainerInherit, ObjectInherit`. The flags must match the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed.</maml:para>
+            <maml:para>Specifies the inheritance flags of the audit entry to remove. `ContainerInherit` addresses an entry that child folders inherit, `ObjectInherit` an entry that child files inherit, and `None` an entry that stays on the item itself. The values can be combined, and the default is `ContainerInherit, ObjectInherit`. The flags must match the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-InheritanceFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">ContainerInherit</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">ObjectInherit</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">InheritanceFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>InheritanceFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>ContainerInherit, ObjectInherit</dev:defaultValue>
@@ -9095,16 +9109,16 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
           <maml:name>PropagationFlags</maml:name>
           <maml:description>
-            <maml:para>Specifies the propagation flags of the audit entry to remove. `None` addresses an entry that applies to the item itself and to all inheriting child items, `InheritOnly` an entry that applies to the child items only, and `NoPropagateInherit` an entry whose inheritance stops at the direct children. The values `InheritOnly` and `NoPropagateInherit` can be combined, and the default is `None`.</maml:para>
+            <maml:para>Specifies the propagation flags of the audit entry to remove. `None` addresses an entry that applies to the item itself and to all inheriting child items, `InheritOnly` an entry that applies to the child items only, and `NoPropagateInherit` an entry whose inheritance stops at the direct children. The values `InheritOnly` and `NoPropagateInherit` can be combined, and the default is `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-PropagationFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
           </maml:description>
           <command:parameterValueGroup>
             <command:parameterValue required="false" command:variableLength="false">None</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">NoPropagateInherit</command:parameterValue>
             <command:parameterValue required="false" command:variableLength="false">InheritOnly</command:parameterValue>
           </command:parameterValueGroup>
-          <command:parameterValue required="true" variableLength="false">PropagationFlags</command:parameterValue>
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
           <dev:type>
-            <maml:name>PropagationFlags</maml:name>
+            <maml:name>Object</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -9150,11 +9164,11 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>AppliesTo</maml:name>
         <maml:description>
-          <maml:para>Specifies the scope of the audit entry to remove with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. The value must describe the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`.</maml:para>
+          <maml:para>Specifies the scope of the audit entry to remove with a single value instead of the `-InheritanceFlags` and `-PropagationFlags` pair, in the same wording the Advanced Security Settings dialog uses. The value must describe the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. Without `-AppliesTo`, the cmdlet uses `-InheritanceFlags` and `-PropagationFlags`, whose defaults describe `ThisFolderSubfoldersAndFiles`. A value that cannot be converted to one of these scopes, including a blank one, is an `InvalidParameterValue` error: terminating when `-AppliesTo` is named on the command line, and reported for just that path or descriptor, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently or a scope that you did not name is selected.</maml:para>
         </maml:description>
-        <command:parameterValue required="true" variableLength="false">ApplyTo</command:parameterValue>
+        <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
         <dev:type>
-          <maml:name>ApplyTo</maml:name>
+          <maml:name>Object</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
@@ -9162,11 +9176,11 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>AuditFlags</maml:name>
         <maml:description>
-          <maml:para>Specifies which audited access attempts are removed from the entry. `Success` removes the auditing of successful attempts, `Failure` removes the auditing of denied attempts, and `Success, Failure` removes both. An entry that audits the flag you did not specify stays in place with that flag. The default is `Success, Failure`.</maml:para>
+          <maml:para>Specifies which audited access attempts are removed from the entry. `Success` removes the auditing of successful attempts, `Failure` removes the auditing of denied attempts, and `Success, Failure` removes both. An entry that audits the flag you did not specify stays in place with that flag. The default is `Success, Failure`. A value that cannot be converted to one of these, including a blank one, is an `InvalidParameterValue` error: terminating when `-AuditFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
         </maml:description>
-        <command:parameterValue required="true" variableLength="false">AuditFlags</command:parameterValue>
+        <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
         <dev:type>
-          <maml:name>AuditFlags</maml:name>
+          <maml:name>Object</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>Success, Failure</dev:defaultValue>
@@ -9174,11 +9188,11 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>InheritanceFlags</maml:name>
         <maml:description>
-          <maml:para>Specifies the inheritance flags of the audit entry to remove. `ContainerInherit` addresses an entry that child folders inherit, `ObjectInherit` an entry that child files inherit, and `None` an entry that stays on the item itself. The values can be combined, and the default is `ContainerInherit, ObjectInherit`. The flags must match the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed.</maml:para>
+          <maml:para>Specifies the inheritance flags of the audit entry to remove. `ContainerInherit` addresses an entry that child folders inherit, `ObjectInherit` an entry that child files inherit, and `None` an entry that stays on the item itself. The values can be combined, and the default is `ContainerInherit, ObjectInherit`. The flags must match the entry as `Get-NTFSAudit` reports it, otherwise nothing is removed. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-InheritanceFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
         </maml:description>
-        <command:parameterValue required="true" variableLength="false">InheritanceFlags</command:parameterValue>
+        <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
         <dev:type>
-          <maml:name>InheritanceFlags</maml:name>
+          <maml:name>Object</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>ContainerInherit, ObjectInherit</dev:defaultValue>
@@ -9210,11 +9224,11 @@ PS C:\Data&gt; Get-NTFSSecurityDescriptor</dev:code>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName)" position="named" aliases="none">
         <maml:name>PropagationFlags</maml:name>
         <maml:description>
-          <maml:para>Specifies the propagation flags of the audit entry to remove. `None` addresses an entry that applies to the item itself and to all inheriting child items, `InheritOnly` an entry that applies to the child items only, and `NoPropagateInherit` an entry whose inheritance stops at the direct children. The values `InheritOnly` and `NoPropagateInherit` can be combined, and the default is `None`.</maml:para>
+          <maml:para>Specifies the propagation flags of the audit entry to remove. `None` addresses an entry that applies to the item itself and to all inheriting child items, `InheritOnly` an entry that applies to the child items only, and `NoPropagateInherit` an entry whose inheritance stops at the direct children. The values `InheritOnly` and `NoPropagateInherit` can be combined, and the default is `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-PropagationFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.</maml:para>
         </maml:description>
-        <command:parameterValue required="true" variableLength="false">PropagationFlags</command:parameterValue>
+        <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
         <dev:type>
-          <maml:name>PropagationFlags</maml:name>
+          <maml:name>Object</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
@@ -9949,7 +9963,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
     <command:syntax>
       <command:syntaxItem>
         <maml:name>Set-NTFSSecurityDescriptor</maml:name>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="none">
           <maml:name>SecurityDescriptor</maml:name>
           <maml:description>
             <maml:para>Specifies one or more security descriptors that `Get-NTFSSecurityDescriptor` returned. Each descriptor is written to the file or folder it was read from, including every change that was made to it in memory.</maml:para>
@@ -9987,7 +10001,7 @@ PS C:\&gt; Set-NTFSSecurityDescriptor -SecurityDescriptor $sd</dev:code>
         </dev:type>
         <dev:defaultValue>False</dev:defaultValue>
       </command:parameter>
-      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="2" aliases="none">
+      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByPropertyName, ByValue)" position="1" aliases="none">
         <maml:name>SecurityDescriptor</maml:name>
         <maml:description>
           <maml:para>Specifies one or more security descriptors that `Get-NTFSSecurityDescriptor` returned. Each descriptor is written to the file or folder it was read from, including every change that was made to it in memory.</maml:para>

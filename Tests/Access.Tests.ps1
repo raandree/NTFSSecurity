@@ -88,6 +88,26 @@ Describe 'Get-NTFSEffectiveAccess' {
         $result | Should -BeNullOrEmpty
     }
 
+    # Each piped object names its own account, so one call calculates the access of two accounts on the same item.
+    It 'Should bind -Account by property name and calculate the access of the account that its own object names' {
+        $file = New-TestSandboxItem -Sandbox $sandbox -Name 'EffectiveAccountByProperty'
+        Disable-NTFSAccessInheritance -Path $file -RemoveInheritedAccessRules -ErrorAction Stop
+        Add-NTFSAccess -Path $file -Account 'S-1-1-0' -AccessRights ReadData -ErrorAction Stop
+        Add-NTFSAccess -Path $file -Account 'S-1-5-32-546' -AccessRights ReadData -AccessType Deny -ErrorAction Stop
+        $requests = @(
+            [pscustomobject]@{ Path = $file; Account = 'S-1-1-0' }
+            [pscustomobject]@{ Path = $file; Account = 'S-1-5-32-546' }
+        )
+
+        $result = @($requests | Get-NTFSEffectiveAccess -WarningAction SilentlyContinue -ErrorAction Stop)
+
+        $result | Should -HaveCount 2
+        $result[0].Account.Sid | Should -Be 'S-1-1-0'
+        $result[0].AccessRights.HasFlag([Security2.FileSystemRights2]::ReadData) | Should -BeTrue
+        $result[1].Account.Sid | Should -Be 'S-1-5-32-546'
+        $result[1].AccessRights.HasFlag([Security2.FileSystemRights2]::ReadData) | Should -BeFalse
+    }
+
     It 'Should return an account with access when -ExcludeNoneAccessEntries is used' {
         $result = @(Get-NTFSEffectiveAccess -Path $effectiveFile -ExcludeNoneAccessEntries -WarningAction SilentlyContinue -ErrorAction Stop)
 

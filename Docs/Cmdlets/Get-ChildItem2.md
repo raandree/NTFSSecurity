@@ -23,7 +23,7 @@ Get-ChildItem2 [[-Path] <String[]>] [[-Filter] <String>] [-Recurse] [-Directory]
 
 The `Get-ChildItem2` cmdlet lists the files and folders in the folders that you specify with `-Path`. It returns an `Alphaleonis.Win32.Filesystem.FileInfo` object for every file and an `Alphaleonis.Win32.Filesystem.DirectoryInfo` object for every folder. The cmdlet is the long-path counterpart of the built-in `Get-ChildItem` cmdlet: it enumerates the file system through the AlphaFS library (`Alphaleonis.Win32.Filesystem`) instead of `System.IO`, so it also returns items whose path is longer than the 260-character `MAX_PATH` limit.
 
-If you omit `-Path`, the cmdlet lists the current location. Relative paths and the `.` and `..` notations are resolved against the current location. Each path must name a folder, and wildcard characters are not supported. The parameter accepts pipeline input by value and by the property name `FullName`, so you can pipe folders from `Get-ChildItem2` or `Get-Item2` into another `Get-ChildItem2` call, and you can pipe the result into `Get-NTFSAccess` and the other NTFSSecurity cmdlets.
+If you omit `-Path`, the cmdlet lists the current location. Relative paths and the `.` and `..` notations are resolved against the current location. Each path must name an existing folder or file, and wildcard characters are not supported. The parameter accepts pipeline input by value and by the property name `FullName`, so you can pipe folders from `Get-ChildItem2` or `Get-Item2` into another `Get-ChildItem2` call, and you can pipe the result into `Get-NTFSAccess` and the other NTFSSecurity cmdlets.
 
 By default the cmdlet returns the immediate content of each folder and omits hidden items. Use `-Recurse` to walk the whole tree, `-Depth` to limit how deep the recursion goes, `-Filter` to restrict the result by name, `-Directory` or `-File` to restrict it by item type, and `-Force`, `-Hidden`, `-System`, `-ReadOnly`, or `-Attributes` to restrict it by file attributes.
 
@@ -142,7 +142,17 @@ Accept wildcard characters: False
 
 ### -Filter
 
-Specifies a name pattern that an item must match to be returned. The pattern supports the asterisk and the question mark as wildcard characters, an asterisk for any number of characters and a question mark for exactly one, and the match ignores case. Any other character stands for itself; a bracket is an ordinary character, so `Report[1].txt` returns the file of that name. As for `Get-ChildItem`, a pattern of an asterisk, a dot, and an asterisk returns every item, also an item without a dot in its name. The default value is `*`, which returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.
+Specifies a name pattern that an item must match to be returned. The pattern follows the wildcard rules that Windows PowerShell 5.1 applies to `Get-ChildItem -Filter`, in both editions, on the real name of the item, not its 8.3 short name. An asterisk stands for a run of any characters, and a question mark stands for one character that is not a dot, or for nothing where a dot or the end of the name follows. A dot stands for a literal dot, or for nothing where only wildcards or the end of the pattern follow. The match ignores case and is not affected by the culture of the session. Any other character stands for itself, including a bracket, so `Report[1].txt` returns the file of that name.
+
+For example, `Report.*` also returns the item `Report`, which has no dot.
+
+A pattern of an asterisk, a dot, and an asterisk returns every item, also an item without a dot in its name, as `Get-ChildItem` does for this pattern.
+
+`Get-ChildItem2` follows the Windows PowerShell 5.1 rules in both editions, so the result does not depend on the edition. The built-in `Get-ChildItem -Filter` of PowerShell 7 differs for some patterns, for example for a pattern that ends in a dot, for which it returns nothing unless an asterisk comes right before the dot (the pattern of a single dot returns every item), and for a pattern in which an asterisk is followed by a dot and question marks, for which it ignores the dot and the question marks.
+
+Two kinds of pattern are not like Windows PowerShell 5.1: blanks at the end of the pattern, also before a final dot, are part of it, where Windows PowerShell 5.1 drops them, and a pattern that ends in an even number of dots, such as two, is accepted, where Windows PowerShell 5.1 stops with an error.
+
+The default value is `*`, which returns every item, and an empty value also returns every item. The pattern is applied to the name of each item, not to its path, and during a recursive listing it restricts only the returned items; the cmdlet still descends into every subfolder.
 
 ```yaml
 Type: String
@@ -319,7 +329,11 @@ Before 5.0.0, a `-Path` value that points to a file stopped the cmdlet with an `
 
 Before 5.0.0, `-Filter` read a bracket as the start of a character class, so a file with brackets in its name, such as `Report[1].txt`, was not returned for its name, and a pattern of an asterisk, a dot, and an asterisk dropped the items without a dot in their names, most folders among them.
 
-The names are matched twice, by the enumeration of the AlphaFS library and by the cmdlet, which reads a dot as an ordinary character, and their rules for a dot can differ from those of `Get-ChildItem`: a pattern such as `Report.*` does not return the file `Report`, which has no dot, a pattern that ends in a dot returns nothing, and an empty value returns nothing. Only the pattern of an asterisk, a dot, and an asterisk is treated as a single asterisk.
+The cmdlet enumerates broadly and matches each name once, with the Win32 "DOS" wildcard rules that Windows PowerShell 5.1 applies to `Get-ChildItem -Filter`, in both editions: a pattern that ends in a dot returns the names without a dot, and an empty value returns every item, the same as a plain asterisk.
+
+For example, `Report.*` also returns the item `Report`, which has no dot. A star in front of a dot token may cross every dot in the name but the last one, so a pattern such as a star followed by a dot also reaches the final segment of a name with two or more dots, for example `archive.tar.gz`.
+
+PowerShell 7 itself differs from Windows PowerShell 5.1 here: its own `Get-ChildItem -Filter` returns nothing for a pattern that ends in a dot, unless the character right before the dot is an asterisk (the pattern of a single dot returns every item), and it ignores the dot and the question marks of a pattern in which an asterisk is followed by a dot and question marks. `Get-ChildItem2` follows the Windows PowerShell 5.1 rules in both editions instead of the edition it runs in, so this is a deliberate difference from the built-in `Get-ChildItem` in PowerShell 7 for these and some similar patterns.
 
 Before 5.0.0, a `break`, a `continue`, or a `throw` in a later command of the pipeline did not end the cmdlet for an item below the first folder, also when the later command took the error of a folder that the cmdlet cannot read, for example with `2>&1`.
 

@@ -97,6 +97,37 @@ The format is based on
   `FileNotFoundException`. A volume that is mounted into a folder, and a
   junction or symbolic link to another volume, probably fail the same way.
   Use a path that starts at the root of the volume
+- **Breaking:** match `Get-ChildItem2 -Filter` once, in the cmdlet, with the
+  wildcard rules that `Get-ChildItem -Filter` applies in Windows PowerShell
+  5.1, in both editions, and on the real name of an item, not its 8.3 short
+  name. `Report.*` also returns `Report`, which has no dot; a pattern that
+  ends in a dot, such as `Report.` or `*.`, returns the names without a dot;
+  `*.*.*` returns every item; and a question mark also matches nothing at
+  the end of a name and before a dot, so `a?` also returns `a`. An empty
+  `-Filter` returns every item, like `*`, instead of nothing, and a pattern
+  of more than 32,767 characters is a parameter error. Two kinds of pattern
+  are not like Windows PowerShell 5.1: blanks at the end of a pattern, also
+  before a final dot, are part of it, where Windows PowerShell 5.1 drops them,
+  and a pattern that ends in an even number of dots, such as two, is
+  accepted, where Windows PowerShell 5.1 stops with an error. In
+  PowerShell 7, `Get-ChildItem2` deliberately differs from
+  `Get-ChildItem -Filter` for some patterns, for example for a pattern that
+  ends in a dot, unless an asterisk comes right before the dot (the pattern
+  of a single dot returns every item), and for a pattern in which an asterisk
+  is followed by a dot and question marks
+- **Breaking:** write a non-terminating error in `Get-NTFSOrphanedAccess` for
+  an item that it can't read for a reason other than a denied access, and
+  continue with the next item: `ReadSecurityError` with the category
+  `OpenError`; it wrote a warning. A script that reads the failure with
+  `-WarningVariable` needs `-ErrorVariable`, and `-ErrorAction Stop` now
+  stops at it
+- Take `-SecurityDescriptor` of `Set-NTFSSecurityDescriptor` at position 1,
+  like the first positional parameter of the other cmdlets; it was at
+  position 2. A positional call isn't affected, because it is the only
+  positional parameter
+- Document that `Get-NTFSEffectiveAccess` writes the error "Access is denied"
+  for a user account of the domain when the user who runs the cmdlet has no
+  domain credentials, such as a local standard user
 
 ### Deprecated
 
@@ -121,6 +152,32 @@ The format is based on
 - Compare boxed privilege output values by their privilege and attributes;
   the object overload rejected privilege values and recursively compared
   an attributes enum instead
+- Convert a `FileSecurity` or a `DirectorySecurity` object to
+  `FileSystemSecurity2` in the .NET API of `Security2.dll`: the conversions
+  ignored the descriptor and threw an exception for an empty path. The result
+  wraps the descriptor and has no item: `FullName` and `Name` are `$null`,
+  `Write()` throws an `InvalidOperationException`, and the entries, the
+  owner, the inheritance, and the effective access can be read; an inherited
+  entry has no source. PowerShell uses the conversion to bind
+  `-SecurityDescriptor`, so the cmdlets now accept the object that `Get-Acl`
+  returns, where they stopped with a parameter binding error. Such a
+  descriptor can't be written, so `Set-NTFSSecurityDescriptor` writes a
+  `WriteSdError` for it, and the audit cmdlets write a `ReadSecurityError`
+  for one that has no audit entries
+- **Breaking:** fix `RemoveFileSystemAccessRuleAll` and
+  `RemoveFileSystemAuditRuleAll` of the .NET API, which ignored the list of
+  accounts and removed every explicit entry; they remove only the entries of
+  the listed accounts, and an empty list removes none
+- **Breaking:** fix the overloads of `AddFileSystemAccessRule` and
+  `AddFileSystemAuditRule` of the .NET API that take a path and a list of
+  accounts, which did nothing until the caller enumerated the result; they
+  write at once, and an exception reaches the caller of the method
+- Fix a module setting `EnablePrivileges` that is missing or not `$true` or
+  `$false`, for example after
+  `(Get-Module NTFSSecurity).PrivateData['EnablePrivileges'] = 'false'`: the
+  cmdlets that use privileges failed with an `InvalidCastException` or a
+  `NullReferenceException`; they stop with one error,
+  `EnablePrivilegesSettingInvalid`, which names the setting
 - Fix `Clear-NTFSAccess -DisableInheritance` and `Set-NTFSSecurityDescriptor`,
   which reported a `RestoreOwnerError` for an owner that had not changed:
   after they took ownership of an item that the user owned already and left a
@@ -150,6 +207,15 @@ The format is based on
   exception of a later command when that command took the debug message
   after the enabling, for example with `5>&1 | Select-Object -First 2`; they
   now disable the privilege and pass the exception on
+- Fix the 17 cmdlets that take ownership of an item to retry a denied read or
+  change and then set the previous owner back: the `Add-`, `Remove-`, and
+  `Clear-` cmdlets for access and audit entries, `Get-NTFSAccess`,
+  `Get-NTFSOrphanedAccess`, `Get-NTFSEffectiveAccess`, the six inheritance
+  cmdlets, `Get-FileHash2`, and `Set-NTFSSecurityDescriptor`. When a later
+  command in the pipeline threw at the `RestoreOwnerError` that setting the
+  owner back can write, they reported the exception as the error of the item
+  and went on with the next one, so that the caller never saw it; they now
+  pass it on
 - Fix `Get-ChildItem2 -Filter`, which read a bracket as the start of a
   character class, so that it did not return a file with brackets in its name,
   such as `Report[1].txt`, for that name; only `*` and `?` are wildcards. A
@@ -243,22 +309,55 @@ The format is based on
   `-PropagationFlags`; `-AppliesTo` is now mandatory in the `Simple`
   parameter sets, so such a command uses the flag parameters and their
   defaults, as for a path
-- Fix `Add-NTFSAccess`, `Remove-NTFSAccess`, `Add-NTFSAudit`, and
+- **Breaking:** fix `Add-NTFSAccess`, `Remove-NTFSAccess`, `Add-NTFSAudit`, and
   `Remove-NTFSAudit`, which ignored the `AppliesTo` property of an object
   piped to them with a path and used the default scope, and which gave a
-  piped security descriptor object without a scope the scope of the object
-  before it; the property now sets the scope of its own object only. A piped
+  piped security descriptor object that had only `InheritanceFlags` or
+  `PropagationFlags` the scope of the object before it; the property now sets
+  the scope of its own object only. A piped
   object that has `AppliesTo` and `InheritanceFlags` or `PropagationFlags`
   now fails with `AmbiguousParameterSet`, like the same parameters on the
   command line, and so does an object that has both `Path` and
-  `SecurityDescriptor`, where the path won before. An `AppliesTo` that is
-  `$null` fails to bind for that object (a row of a CSV file that has fewer
-  fields than its header gives `$null`). A value that PowerShell can't
+  `SecurityDescriptor`, where the path won before. The empty cell of a CSV
+  file, `$null`, and `DBNull` count as a value of the other group here,
+  because PowerShell binds them to the parameters of both groups: a file
+  that has columns of both groups fails for a row that leaves one of them
+  empty, so give such a file the columns of one group only. An `AppliesTo`
+  that is `$null` fails to bind for that object (a row of a CSV file that has
+  fewer fields than its header gives `$null`). A value that PowerShell can't
   convert to a scope, such as the empty cell of a CSV file or a misspelled
-  name, is ignored, and the object is handled as one without `AppliesTo`: it
-  gets its own flags, or the default scope if it has none. A call with
+  name, is an error for that object, see the next entry. A call with
   neither `-Path` nor `-SecurityDescriptor` now fails with
   `AmbiguousParameterSet` instead of a missing-parameter error for `-Path`
+- Fix `Add-NTFSAccess`, `Remove-NTFSAccess`, `Add-NTFSAudit`, and
+  `Remove-NTFSAudit`, which silently used the default when a piped object had
+  a value of `AccessType` (`AuditFlags` for the audit cmdlets),
+  `InheritanceFlags`, `PropagationFlags`, or `AppliesTo` that PowerShell
+  could not convert, such as a misspelled name or the empty cell of a CSV
+  file: a typo for `Deny` created an `Allow` entry, and a misspelled scope
+  used the default scope, without a message. The cmdlets now write the
+  non-terminating error `InvalidParameterValue` for that object, change
+  nothing for it, and go on with the next one; a blank value is such an
+  error too, where it used the default. **Breaking:** the five parameters
+  have the type `Object`, because the cmdlets convert the values themselves.
+  A bad value that you name on the command line, and a named `$null`, still
+  stop the command, but with the error id `InvalidParameterValue`, not the id
+  of a parameter binding error; `-AppliesTo $null` keeps the error of the
+  binder, because the parameter is mandatory. `-AccessType` and `-AppliesTo`
+  take one value: a comma list or a collection of several values is an
+  `InvalidParameterValue` error, where PowerShell combined the numbers of the
+  values bit by bit, so that `-AppliesTo 'ThisFolderOnly,FilesOnly'` created a
+  `FilesOnly` entry and `-AccessType 'Allow,Deny'` a `Deny` entry. A script
+  block, such as `-AccessType { 'Deny' }`, is no longer evaluated for every
+  piped object and is a bad value. `Get-Help` shows the type `Object`, and
+  tab completion still offers the valid names
+- **Breaking:** fix `Add-NTFSAccess`, `Remove-NTFSAccess`, `Add-NTFSAudit`, and
+  `Remove-NTFSAudit` with `-SecurityDescriptor`, which ended the whole
+  command with a terminating error when the change of one descriptor failed,
+  such as for a deny entry without rights; they write the non-terminating
+  error `AddAceError` or `RemoveAceError` for that descriptor and go on with
+  the next one, as they do for a path. A script that relies on the stop needs
+  `-ErrorAction Stop`
 - Fix `Get-NTFSEffectiveAccess`: `-ExcludeNoneAccessEntries` now leaves out
   items without access, the cmdlet uses the current location when `-Path`
   is omitted, and `-SecurityDescriptor` returns the effective access of the

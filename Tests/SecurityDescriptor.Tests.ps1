@@ -73,6 +73,24 @@ Describe 'Get-NTFSSecurityDescriptor' {
 }
 
 Describe 'Set-NTFSSecurityDescriptor' {
+    Context 'Parameter declaration' {
+        # Its siblings (Get-NTFSSecurityDescriptor and the cmdlets with a -SecurityDescriptor parameter set) take
+        # their first positional parameter at 1; -SecurityDescriptor was the only one at 2 (6c), cosmetic only: a
+        # positional call with one argument already bound to it, because it was the only positional parameter.
+        It 'Should declare -SecurityDescriptor at position 1, and still accept it positionally' {
+            (Get-Command -Name 'Set-NTFSSecurityDescriptor').Parameters['SecurityDescriptor'].Attributes.Position | Should -Be 1
+
+            $file = New-TestSandboxItem -Sandbox $sandbox -Name 'PositionalWrite'
+            Assert-TestSandboxPath -Sandbox $sandbox -Path $file
+            $sd = Get-NTFSSecurityDescriptor -Path $file
+            Add-NTFSAccess -SecurityDescriptor $sd -Account 'Everyone' -AccessRights ReadData
+
+            Set-NTFSSecurityDescriptor $sd
+
+            @(Get-EveryoneRule -Path $file) | Should -HaveCount 1
+        }
+    }
+
     Context 'When a cmdlet added an access entry to the descriptor' {
         It 'Should write the entry as the only explicit entry of the item' {
             $file = New-TestSandboxItem -Sandbox $sandbox -Name 'AddedEntry'

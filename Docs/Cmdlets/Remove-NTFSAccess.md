@@ -16,28 +16,28 @@ Removes rights from the access control entries (ACEs) of a file, a folder, or a 
 ### PathSimple
 ```
 Remove-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
- [-AccessType <AccessControlType>] -AppliesTo <ApplyTo> [-RemoveSpecific] [-PassThru] [<CommonParameters>]
+ [-AccessType <Object>] -AppliesTo <Object> [-RemoveSpecific] [-PassThru] [<CommonParameters>]
 ```
 
 ### PathComplex
 ```
 Remove-NTFSAccess [-Path] <String[]> [-Account] <IdentityReference2[]> [-AccessRights] <FileSystemRights2>
- [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
- [-PropagationFlags <PropagationFlags>] [-RemoveSpecific] [-PassThru] [<CommonParameters>]
+ [-AccessType <Object>] [-InheritanceFlags <Object>] [-PropagationFlags <Object>] [-RemoveSpecific] [-PassThru]
+ [<CommonParameters>]
 ```
 
 ### SDSimple
 ```
 Remove-NTFSAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
- [-AccessRights] <FileSystemRights2> [-AccessType <AccessControlType>] -AppliesTo <ApplyTo> [-RemoveSpecific]
- [-PassThru] [<CommonParameters>]
+ [-AccessRights] <FileSystemRights2> [-AccessType <Object>] -AppliesTo <Object> [-RemoveSpecific] [-PassThru]
+ [<CommonParameters>]
 ```
 
 ### SDComplex
 ```
 Remove-NTFSAccess [-SecurityDescriptor] <FileSystemSecurity2[]> [-Account] <IdentityReference2[]>
- [-AccessRights] <FileSystemRights2> [-AccessType <AccessControlType>] [-InheritanceFlags <InheritanceFlags>]
- [-PropagationFlags <PropagationFlags>] [-RemoveSpecific] [-PassThru] [<CommonParameters>]
+ [-AccessRights] <FileSystemRights2> [-AccessType <Object>] [-InheritanceFlags <Object>]
+ [-PropagationFlags <Object>] [-RemoveSpecific] [-PassThru] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -48,7 +48,7 @@ Only the specified rights are taken away: when an entry grants more than `-Acces
 
 Inherited entries cannot be removed from the item that inherits them. Remove them from the folder named in the `InheritedFrom` property, or run `Disable-NTFSAccessInheritance` on the item first, which copies the inherited entries into it as explicit ones that this cmdlet can then remove.
 
-The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor, and a command that has `-AppliesTo` together with `-InheritanceFlags` or `-PropagationFlags` fails, because PowerShell can't choose between the sets. The same holds for an object that you pipe in: its property `AppliesTo` selects a `Simple` set, its properties `InheritanceFlags` and `PropagationFlags` select a `Complex` set, and an object that has both kinds, an object that has both `Path` and `SecurityDescriptor`, or one whose `AppliesTo` is `$null`, fails. `Import-Csv` gives `$null` for a column that a row lacks because it has fewer fields than the header. An `AppliesTo` that PowerShell can't convert to a scope, such as the blank cell of a CSV file or a misspelled name, is ignored, and the object is handled as one without `AppliesTo`: it uses its own `InheritanceFlags` and `PropagationFlags`, or the default scope if it has none. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets. All relevant parameters bind by property name, so the output of `Get-NTFSAccess` and `Get-NTFSOrphanedAccess` can be piped directly into this cmdlet. The cmdlet writes no output unless `-PassThru` is used.
+The cmdlet has four parameter sets. The `Path` sets read the item from disk and write the changed DACL back immediately, while the `SD` sets change a `Security2.FileSystemSecurity2` object returned by `Get-NTFSSecurityDescriptor` in memory until `Set-NTFSSecurityDescriptor` writes it back. The `Simple` sets take `-AppliesTo`, the `Complex` sets take `-InheritanceFlags` and `-PropagationFlags`. A command without `-AppliesTo` uses a `Complex` set, also when it works on a security descriptor, and a command that has `-AppliesTo` together with `-InheritanceFlags` or `-PropagationFlags` fails, because PowerShell can't choose between the sets. The same holds for an object that you pipe in: its property `AppliesTo` selects a `Simple` set, its properties `InheritanceFlags` and `PropagationFlags` select a `Complex` set, and an object that has both `Path` and `SecurityDescriptor` fails. A `$null`, an empty string, or `DBNull` value of a property counts as present for this choice, the same as a real value, so a CSV file, or any other source of piped objects, should have the columns of only one group: `AppliesTo`, or `InheritanceFlags` and `PropagationFlags`. A row or object that has properties of both groups is an `AmbiguousParameterSet` error, even if the value of one of them is `$null` (for example in a short CSV row, whose missing trailing columns `Import-Csv` fills with `$null`), an empty string, or `DBNull`: the error is terminating when you name the parameters on the command line, and it is reported for just that object, which is left unchanged, when the object comes from the pipeline. A `$null` value of `-AppliesTo` itself, named or piped, fails too, but with the binder's own error for a mandatory parameter, `ParameterArgumentValidationErrorNullNotAllowed`. Within the group that PowerShell did choose, an `AppliesTo`, `AccessType`, `InheritanceFlags`, or `PropagationFlags` value that PowerShell can't convert to its type, such as a blank cell or a misspelled name, is an `InvalidParameterValue` error for that object: the object is left unchanged, and the next one in the pipeline is still processed; the same bad value named on the command line fails the whole command instead. Before 5.0.0, such a piped value was silently ignored, and the object was handled as one without it. A script block is a plain value for these parameters, so a named script block, for example `-AppliesTo { 'FilesOnly' }`, fails with a terminating `InvalidParameterValue` error, the same as any other named value of the wrong type; before 5.0.0, a script block was evaluated once for each piped object. Before 5.0.0, a command that used `-SecurityDescriptor` without `-AppliesTo`, `-InheritanceFlags`, or `-PropagationFlags` failed, because PowerShell couldn't choose between the two `SD` sets. All relevant parameters bind by property name, so the output of `Get-NTFSAccess` and `Get-NTFSOrphanedAccess` can be piped directly into this cmdlet. The cmdlet writes no output unless `-PassThru` is used.
 
 ## EXAMPLES
 
@@ -105,10 +105,10 @@ Accept wildcard characters: False
 
 ### -AccessType
 
-Specifies whether an `Allow` or a `Deny` entry is addressed. The default is `Allow`. An entry of the other type is not touched.
+Specifies whether an `Allow` or a `Deny` entry is addressed. The default is `Allow`. An entry of the other type is not touched. A value that cannot be converted to `Allow` or `Deny`, including a blank one, is an `InvalidParameterValue` error: terminating when `-AccessType` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently.
 
 ```yaml
-Type: AccessControlType
+Type: Object
 Parameter Sets: (All)
 Aliases: AccessControlType
 Accepted values: Allow, Deny
@@ -138,10 +138,10 @@ Accept wildcard characters: False
 
 ### -AppliesTo
 
-Specifies the scope of the entry that is addressed, in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same entry. Use the scope that `Get-NTFSAccess` shows in the "Applies to" column of the entry.
+Specifies the scope of the entry that is addressed, in the wording of the Windows security dialog, for example `ThisFolderOnly`, `ThisFolderAndSubfolders`, or `SubfoldersAndFilesOnly`. The cmdlet translates the value into the equivalent inheritance and propagation flags, so this parameter and the pair `-InheritanceFlags` and `-PropagationFlags` are two ways to describe the same entry. Use the scope that `Get-NTFSAccess` shows in the "Applies to" column of the entry. A value that cannot be converted to one of these scopes, including a blank one, is an `InvalidParameterValue` error: terminating when `-AppliesTo` is named on the command line, and reported for just that path or descriptor, unchanged, when it comes from the pipeline. The parameter takes one value: a comma list or a collection of several values is an `InvalidParameterValue` error too, because PowerShell would combine the numbers of the values bit by bit, so that one of them wins silently or a scope that you did not name is selected.
 
 ```yaml
-Type: ApplyTo
+Type: Object
 Parameter Sets: PathSimple, SDSimple
 Aliases:
 Accepted values: ThisFolderOnly, ThisFolderSubfoldersAndFiles, ThisFolderAndSubfolders, ThisFolderAndFiles, SubfoldersAndFilesOnly, SubfoldersOnly, FilesOnly, ThisFolderSubfoldersAndFilesOneLevel, ThisFolderAndSubfoldersOneLevel, ThisFolderAndFilesOneLevel, SubfoldersAndFilesOnlyOneLevel, SubfoldersOnlyOneLevel, FilesOnlyOneLevel
@@ -155,10 +155,10 @@ Accept wildcard characters: False
 
 ### -InheritanceFlags
 
-Specifies the inheritance flags of the entry that is addressed. `ContainerInherit` marks an entry that child folders inherit, `ObjectInherit` marks an entry that child files inherit, and `None` marks an entry that is not inherited at all. The default is `ContainerInherit, ObjectInherit`, which is the scope `ThisFolderSubfoldersAndFiles`. Entries on files always carry `None`.
+Specifies the inheritance flags of the entry that is addressed. `ContainerInherit` marks an entry that child folders inherit, `ObjectInherit` marks an entry that child files inherit, and `None` marks an entry that is not inherited at all. The default is `ContainerInherit, ObjectInherit`, which is the scope `ThisFolderSubfoldersAndFiles`. Entries on files always carry `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-InheritanceFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.
 
 ```yaml
-Type: InheritanceFlags
+Type: Object
 Parameter Sets: PathComplex, SDComplex
 Aliases:
 Accepted values: None, ContainerInherit, ObjectInherit
@@ -204,10 +204,10 @@ Accept wildcard characters: False
 
 ### -PropagationFlags
 
-Specifies the propagation flags of the entry that is addressed. `None` marks an entry that is inherited by all levels allowed by its inheritance flags, `InheritOnly` marks an entry that does not apply to the item it is defined on, and `NoPropagateInherit` marks an entry that is only inherited by the direct children of the folder. The default is `None`.
+Specifies the propagation flags of the entry that is addressed. `None` marks an entry that is inherited by all levels allowed by its inheritance flags, `InheritOnly` marks an entry that does not apply to the item it is defined on, and `NoPropagateInherit` marks an entry that is only inherited by the direct children of the folder. The default is `None`. A value that cannot be converted to one of these flags, including a blank one, is an `InvalidParameterValue` error: terminating when `-PropagationFlags` is named on the command line, and reported for just that item, unchanged, when it comes from the pipeline.
 
 ```yaml
-Type: PropagationFlags
+Type: Object
 Parameter Sets: PathComplex, SDComplex
 Aliases:
 Accepted values: None, NoPropagateInherit, InheritOnly

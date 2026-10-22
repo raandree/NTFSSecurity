@@ -31,7 +31,9 @@ namespace Security2
         public FileSystemAccessRule2(FileSystemAccessRule fileSystemAccessRule, FileSystemInfo item)
         {
             this.fileSystemAccessRule = fileSystemAccessRule;
-            this.fullName = item.FullName;
+            // Null without an item, such as when EffectiveAccess.GetEffectiveAccess builds this from a
+            // FileSystemSecurity2 that has none, instead of a NullReferenceException.
+            this.fullName = item != null ? item.FullName : null;
         }
 
         public FileSystemAccessRule2(FileSystemAccessRule fileSystemAccessRule, string path)

@@ -237,6 +237,24 @@ Describe 'Set-NTFSOwner' {
         ($result.FullName -join '|') | Should -Be ($files -join '|')
     }
 
+    # Each piped object names its own owner; the owners are accounts that only the Restore privilege can assign, so
+    # that the result differs from the owner that the items have already.
+    It 'Should bind -Account by property name and give each piped item the owner that its own object names' -Skip:(-not $canAssignAnyOwner) {
+        $first = New-TestSandboxItem -Sandbox $sandbox -Name 'SetOwnerAccountByPropertyFirst'
+        $second = New-TestSandboxItem -Sandbox $sandbox -Name 'SetOwnerAccountByPropertySecond'
+        $administrators = 'S-1-5-32-544'
+        $requests = @(
+            [pscustomobject]@{ Path = $first; Account = $trustedInstaller }
+            [pscustomobject]@{ Path = $second; Account = $administrators }
+        )
+
+        $result = @($requests | Set-NTFSOwner -PassThru -ErrorAction Stop)
+
+        $result | Should -HaveCount 2
+        Get-TestOwner -Path $first | Should -Be $trustedInstaller
+        Get-TestOwner -Path $second | Should -Be $administrators
+    }
+
     It 'Should set an owner that only the Restore privilege allows' -Skip:(-not $canAssignAnyOwner) {
         $file = New-TestSandboxItem -Sandbox $sandbox -Name 'SetOwnerRestore'
 

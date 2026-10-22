@@ -190,6 +190,8 @@ Before 5.0.0-rc7, a user who wasn't an administrator got the error "Access is de
 
 Before 5.0.0-rc8, the cmdlet returned no access and no error when Windows refused to start the authorization manager for the computer of `-ServerName`, for example for a name of 32,718 characters or more, so that the result looked like an account without any rights. The cmdlet now writes a non-terminating `GetEffectiveAccessError` with the error that Windows reported and returns no result for the item, as it does for every other failure of the calculation. It warns that the result is based on this computer only when it calculated a result; before 5.0.0-rc8, the warning also came before an error when the computer couldn't be reached.
 
+A user who has no domain credentials, such as a local standard user, still gets the error "Access is denied" from Windows when it asks for the effective access of a user account of the domain, also for a name of this computer; the cmdlet writes it as a non-terminating `GetEffectiveAccessError` and returns no result for that item. Accounts of this computer and groups such as `Everyone` or `Domain Users` give a result.
+
 ## RELATED LINKS
 
 [Get-NTFSAccess](Get-NTFSAccess.md)

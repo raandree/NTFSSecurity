@@ -274,6 +274,12 @@ change the module's behavior:
 cost extra work for every item. Turn them off to speed up large folder
 trees when you don't need the information.
 
+A malformed `EnablePrivileges` setting, such as a string instead of
+`$true` or `$false`, or a missing key, stops every cmdlet that uses
+privileges, and `Enable-Privileges`, with the error
+`EnablePrivilegesSettingInvalid` naming the setting, instead of an
+unrelated exception.
+
 To change a setting for the current session only, change the value after
 you import the module:
 

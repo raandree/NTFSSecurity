@@ -11,7 +11,7 @@ namespace NTFSSecurity
     {
         private SwitchParameter passThru;
 
-        [Parameter(Mandatory = true, Position = 2, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
+        [Parameter(Mandatory = true, Position = 1, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
         public FileSystemSecurity2[] SecurityDescriptor
         {
             get { return securityDescriptors.ToArray(); }
@@ -61,6 +61,12 @@ namespace NTFSSecurity
                     }
                     catch (Exception ex2)
                     {
+                        // Not what a later command raises, for example when it takes the RestoreOwnerError record.
+                        if (IsFromLaterCommand(ex2))
+                        {
+                            throw;
+                        }
+
                         WriteError(new ErrorRecord(ex2, "WriteSdError", ErrorCategory.WriteError, sd.Item));
                         continue;
                     }

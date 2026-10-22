@@ -29,17 +29,12 @@ namespace NTFSSecurity
 
         protected override void ProcessRecord()
         {
-            var privateData = (System.Collections.Hashtable)this.MyInvocation.MyCommand.Module.PrivateData;
             var psCallStack = (CallStackFrame)this.InvokeCommand.InvokeScript("Get-PSCallStack")[1].BaseObject;
 
-            try
-            {
-                enablePrivileges = (bool)privateData["EnablePrivileges"];
-            }
-            catch (Exception ex)
-            {
-                throw new ParseException("Could not parse the module's PrivateData field in the module's psd1 file. Please refer to the documentation for further details", ex);
-            }
+            // The base class raises one EnablePrivilegesSettingInvalid error for a setting that is not $true or
+            // $false; before 5.0.0, this had its own try/catch that raised a ParseException for the same cast, but
+            // it never ran, because BeginProcessing always failed first with its own uncaught cast.
+            enablePrivileges = GetEnablePrivilegesSetting();
 
             //if the command is called from NTFSSecurity.Init.ps1 and EnablePrivileges is set to true in the NTFSSecurity.psd1 or if the cmdlet is called from somewhere else
             if ((psCallStack.InvocationInfo.MyCommand.Name == "NTFSSecurity.Init.ps1" && enablePrivileges == true))

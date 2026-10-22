@@ -395,9 +395,11 @@ Describe 'Access rule helpers that take a path' {
         $entries[0].FileSystemRights | Should -Be ([System.Security.AccessControl.FileSystemRights] 'ReadData, Synchronize')
     }
 
-    # The overload that takes a path returns an iterator, so the caller must enumerate the result to write the entries.
-    # The overloads that take an item write them at once; this test doesn't pin the difference.
-    It 'Should add the entries of several accounts to a <Kind> by its path when the result is enumerated' -ForEach @(
+    # Before 5.0.0, the overload that takes a path was an iterator (yield return) that changed nothing until the
+    # caller enumerated the result, so a call as a statement, or an assignment that the caller never reads, wrote
+    # nothing; the overloads that take an item or a FileSystemSecurity2 were never lazy. It now writes at once, like
+    # its siblings, so the entries exist before $pending is ever touched.
+    It 'Should add the entries of several accounts to a <Kind> by its path at once, before the result is ever enumerated' -ForEach @(
         @{ Kind = 'file'; Directory = $false }
         @{ Kind = 'folder'; Directory = $true }
     ) {
@@ -408,9 +410,13 @@ Describe 'Access rule helpers that take a path' {
             $path, $accounts, [Security2.FileSystemRights2]::ReadData, $allow, $noInheritance, $noPropagation
         )
 
-        @($pending) | Should -HaveCount 2
         @(Get-ExplicitEntries -Path $path) | Should -HaveCount 1
         @(Get-ExplicitEntries -Path $path -Account 'S-1-5-32-545') | Should -HaveCount 1
+
+        $added = @($pending)
+        $added | Should -HaveCount 2
+        $added[0].Account.Sid | Should -BeExactly $identity.Sid
+        $added[1].Account.Sid | Should -BeExactly $users.Sid
     }
 
     It 'Should add the deny entries of several accounts without Synchronize when the result is enumerated' {
@@ -589,7 +595,10 @@ Describe 'Audit rule helpers that take a path' -Skip:(-not $holdsSecurityPrivile
         $found[0].FullName | Should -BeExactly $path
     }
 
-    It 'Should add the entries of several accounts to a <Kind> by its path when the result is enumerated, and remove them again' -ForEach @(
+    # Before 5.0.0, the overload that takes a path was an iterator (yield return) that changed nothing until the
+    # caller enumerated the result; it now writes at once, like its siblings, so the entries exist before $pending is
+    # ever touched. This overload needs the Security privilege like its neighbors, so the whole Describe skips without it.
+    It 'Should add the entries of several accounts to a <Kind> by its path at once, before the result is ever enumerated, and remove them again' -ForEach @(
         @{ Kind = 'file'; Directory = $false }
         @{ Kind = 'folder'; Directory = $true }
     ) {
@@ -602,9 +611,13 @@ Describe 'Audit rule helpers that take a path' -Skip:(-not $holdsSecurityPrivile
             $path, $accounts, [Security2.FileSystemRights2]::Delete, $success, $noInheritance, $noPropagation
         )
 
-        @($pending) | Should -HaveCount 2
         @(Get-AuditEntries -Path $path) | Should -HaveCount 1
         @(Get-AuditEntries -Path $path -Account 'S-1-5-32-545') | Should -HaveCount 1
+        $added = @($pending)
+        $added | Should -HaveCount 2
+        $added[0].Account.Sid | Should -BeExactly $identity.Sid
+        $added[1].Account.Sid | Should -BeExactly $users.Sid
+
         [Security2.FileSystemAuditRule2]::RemoveFileSystemAuditRule(
             $path, $identity, [Security2.FileSystemRights2]::Delete, $success, $noInheritance, $noPropagation, $true
         )
@@ -794,6 +807,442 @@ Describe 'Owner and descriptor objects' {
 
         $inheritance | Should -Be 'None'
         $propagation | Should -Be 'None'
+    }
+}
+
+# Before 5.0.0, both conversions ignored the descriptor that was passed and returned a FileSystemSecurity2 that wrapped
+# a FileInfo or a DirectoryInfo built from an empty path, which AlphaFS rejects, so the conversion always threw. The
+# object that the fixed conversion returns has no item: FullName and Name, which have no path to report, are null,
+# which reads most naturally as "nothing to name".
+Describe 'The FileSystemSecurity2 conversions from FileSecurity and DirectorySecurity' {
+    BeforeAll {
+        function New-RawFileSystemSecurity {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an in-memory descriptor only.'
+            )]
+            param ([string] $Kind)
+
+            $raw = New-Object -TypeName "System.Security.AccessControl.$Kind"
+            $rule = New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
+                $sid, [System.Security.AccessControl.FileSystemRights]::ReadData,
+                [System.Security.AccessControl.AccessControlType]::Allow
+            )
+            $raw.AddAccessRule($rule)
+            $raw
+        }
+
+        # PowerShell silently turns an exception that a property getter throws into $null, without even recording a
+        # non-terminating error, so a plain "$object.Property" cannot tell a getter that throws from one that
+        # legitimately returns null. The getter is invoked through reflection instead, so that it throws normally.
+        function Invoke-PropertyGetter {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only reads a property through reflection.'
+            )]
+            param ([object] $InputObject, [string] $PropertyName)
+
+            $InputObject.GetType().GetProperty($PropertyName).GetGetMethod().Invoke($InputObject, $null)
+        }
+    }
+
+    It 'Should wrap the <Kind> descriptor that was passed, report IsFile as <IsFile>, and round-trip the same instance' -ForEach @(
+        @{ Kind = 'FileSecurity'; IsFile = $true }
+        @{ Kind = 'DirectorySecurity'; IsFile = $false }
+    ) {
+        $raw = New-RawFileSystemSecurity -Kind $Kind
+        $targetType = [type] "System.Security.AccessControl.$Kind"
+
+        $wrapped = [Security2.FileSystemSecurity2] $raw
+
+        [object]::ReferenceEquals($wrapped.SecurityDescriptor, $raw) | Should -BeTrue
+        $wrapped.IsFile | Should -Be $IsFile
+        [object]::ReferenceEquals(($wrapped -as $targetType), $raw) | Should -BeTrue
+        # A plain property read turns a throwing getter into $null (see Invoke-PropertyGetter above), so these two
+        # getters are invoked through reflection: a null FullName/Name is pinned as the getter's own return value,
+        # not as whatever a getter that happened to throw would also look like from here.
+        { Invoke-PropertyGetter -InputObject $wrapped -PropertyName 'FullName' } | Should -Not -Throw
+        { Invoke-PropertyGetter -InputObject $wrapped -PropertyName 'Name' } | Should -Not -Throw
+        (Invoke-PropertyGetter -InputObject $wrapped -PropertyName 'FullName') | Should -Be $null
+        (Invoke-PropertyGetter -InputObject $wrapped -PropertyName 'Name') | Should -Be $null
+    }
+
+    It 'Should compare two <Kind> conversions of the same descriptor as equal, and of different descriptors as unequal' -ForEach @(
+        @{ Kind = 'FileSecurity' }
+        @{ Kind = 'DirectorySecurity' }
+    ) {
+        $raw = New-RawFileSystemSecurity -Kind $Kind
+
+        $first = [Security2.FileSystemSecurity2] $raw
+        $second = [Security2.FileSystemSecurity2] $raw
+        $other = [Security2.FileSystemSecurity2] (New-RawFileSystemSecurity -Kind $Kind)
+
+        $first.Equals($second) | Should -BeTrue
+        $first.GetHashCode() | Should -Be $second.GetHashCode()
+        $first.Equals($other) | Should -BeFalse
+    }
+
+    It 'Should throw an InvalidOperationException, not a NullReferenceException, when a <Kind> without an item is written' -ForEach @(
+        @{ Kind = 'FileSecurity' }
+        @{ Kind = 'DirectorySecurity' }
+    ) {
+        $wrapped = [Security2.FileSystemSecurity2] (New-RawFileSystemSecurity -Kind $Kind)
+
+        $failure = { $wrapped.Write() } | Should -Throw -PassThru
+
+        $failure.Exception.GetBaseException() | Should -BeOfType [System.InvalidOperationException]
+        $failure.Exception.GetBaseException().Message | Should -BeLike '*item*'
+    }
+
+    It 'Should write a <Kind> without an item once the caller sets Item' -ForEach @(
+        @{ Kind = 'FileSecurity'; Directory = $false }
+        @{ Kind = 'DirectorySecurity'; Directory = $true }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'ConvertedWriteItem' -Directory:$Directory
+        $wrapped = [Security2.FileSystemSecurity2] (New-RawFileSystemSecurity -Kind $Kind)
+        $wrapped.Item = Get-Item2 -Path $path
+
+        $wrapped.Write()
+
+        @((Get-Acl -LiteralPath $path).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) | Should -HaveCount 1
+    }
+
+    It 'Should write a <Kind> without an item directly to a path' -ForEach @(
+        @{ Kind = 'FileSecurity'; Directory = $false }
+        @{ Kind = 'DirectorySecurity'; Directory = $true }
+    ) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'ConvertedWritePath' -Directory:$Directory
+        $wrapped = [Security2.FileSystemSecurity2] (New-RawFileSystemSecurity -Kind $Kind)
+
+        $wrapped.Write([string] $path)
+
+        @((Get-Acl -LiteralPath $path).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+                Where-Object -FilterScript { $_.IdentityReference.Value -eq 'S-1-1-0' }) | Should -HaveCount 1
+    }
+
+    # 3.1 makes a FileSystemSecurity2 without an item reachable from a .NET caller; the readers below must not meet a
+    # NullReferenceException from it. Built in memory, so no privilege is needed to add the audit rule.
+    It 'Should return the <RuleType> entries of a <Kind> without an item, with a null FullName' -ForEach @(
+        @{ Kind = 'FileSecurity'; RuleType = 'access' }
+        @{ Kind = 'DirectorySecurity'; RuleType = 'access' }
+        @{ Kind = 'FileSecurity'; RuleType = 'audit' }
+        @{ Kind = 'DirectorySecurity'; RuleType = 'audit' }
+    ) {
+        if ($RuleType -eq 'access') {
+            $sd = [Security2.FileSystemSecurity2] (New-RawFileSystemSecurity -Kind $Kind)
+            $found = @([Security2.FileSystemAccessRule2]::GetFileSystemAccessRules($sd, $true, $true, $false))
+        }
+        else {
+            $raw = New-RawFileSystemSecurity -Kind $Kind
+            $raw.AddAuditRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList (
+                        $sid, [System.Security.AccessControl.FileSystemRights]::ReadData,
+                        [System.Security.AccessControl.AuditFlags]::Success
+                    )))
+            $sd = [Security2.FileSystemSecurity2] $raw
+            $found = @([Security2.FileSystemAuditRule2]::GetFileSystemAuditRules($sd, $true, $true, $false))
+        }
+
+        $found | Should -HaveCount 1
+        $found[0].FullName | Should -Be $null
+        $found[0].Account.Sid | Should -BeExactly 'S-1-1-0'
+    }
+
+    # Before this fix, a descriptor without an item made getInheritedFrom throw an InvalidOperationException, which a
+    # cmdlet caller has no parameter to avoid (the module setting GetInheritedFrom is $true by default): getInheritedFrom
+    # is now treated as false for such a descriptor instead, the same as an entry whose source Windows cannot name.
+    It 'Should return the <RuleType> entries with no source, not throw, when getInheritedFrom is requested for a descriptor without an item' -ForEach @(
+        @{ RuleType = 'access' }
+        @{ RuleType = 'audit' }
+    ) {
+        if ($RuleType -eq 'access') {
+            $sd = [Security2.FileSystemSecurity2] (New-RawFileSystemSecurity -Kind 'FileSecurity')
+            { [Security2.FileSystemAccessRule2]::GetFileSystemAccessRules($sd, $true, $true, $true) } | Should -Not -Throw
+            $found = @([Security2.FileSystemAccessRule2]::GetFileSystemAccessRules($sd, $true, $true, $true))
+        }
+        else {
+            $raw = New-RawFileSystemSecurity -Kind 'FileSecurity'
+            $raw.AddAuditRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList (
+                        $sid, [System.Security.AccessControl.FileSystemRights]::ReadData,
+                        [System.Security.AccessControl.AuditFlags]::Success
+                    )))
+            $sd = [Security2.FileSystemSecurity2] $raw
+            { [Security2.FileSystemAuditRule2]::GetFileSystemAuditRules($sd, $true, $true, $true) } | Should -Not -Throw
+            $found = @([Security2.FileSystemAuditRule2]::GetFileSystemAuditRules($sd, $true, $true, $true))
+        }
+
+        $found | Should -HaveCount 1
+        $found[0].InheritedFrom | Should -Be $null
+    }
+
+    It 'Should return an owner object with a null FullName and an empty ToString for a <Kind> without an item' -ForEach @(
+        @{ Kind = 'FileSecurity' }
+        @{ Kind = 'DirectorySecurity' }
+    ) {
+        $raw = New-RawFileSystemSecurity -Kind $Kind
+        $raw.SetOwner($sid)
+        $sd = [Security2.FileSystemSecurity2] $raw
+
+        $owner = [Security2.FileSystemOwner]::GetOwner($sd)
+
+        $owner.Owner.Sid | Should -BeExactly 'S-1-1-0'
+        { Invoke-PropertyGetter -InputObject $owner -PropertyName 'FullName' } | Should -Not -Throw
+        (Invoke-PropertyGetter -InputObject $owner -PropertyName 'FullName') | Should -Be $null
+        $owner.ToString() | Should -BeExactly ''
+    }
+
+    It 'Should return inheritance info with a null FullName and Name for a <Kind> without an item' -ForEach @(
+        @{ Kind = 'FileSecurity' }
+        @{ Kind = 'DirectorySecurity' }
+    ) {
+        $sd = [Security2.FileSystemSecurity2] (New-RawFileSystemSecurity -Kind $Kind)
+
+        $info = [Security2.FileSystemInheritanceInfo]::GetFileSystemInheritanceInfo($sd)
+
+        { Invoke-PropertyGetter -InputObject $info -PropertyName 'FullName' } | Should -Not -Throw
+        { Invoke-PropertyGetter -InputObject $info -PropertyName 'Name' } | Should -Not -Throw
+        (Invoke-PropertyGetter -InputObject $info -PropertyName 'FullName') | Should -Be $null
+        (Invoke-PropertyGetter -InputObject $info -PropertyName 'Name') | Should -Be $null
+        $info.AccessInheritanceEnabled | Should -BeTrue
+    }
+
+    # The Authz access check needs a descriptor with an owner and a group, like any real file has; the minimal
+    # descriptor of the other tests has neither, and the call fails with "The parameter is incorrect" for either.
+    It 'Should return the effective access of a <Kind> without an item, with a null FullName on the result' -ForEach @(
+        @{ Kind = 'FileSecurity' }
+        @{ Kind = 'DirectorySecurity' }
+    ) {
+        $raw = New-RawFileSystemSecurity -Kind $Kind
+        $raw.SetOwner($sid)
+        $raw.SetGroup($sid)
+        $sd = [Security2.FileSystemSecurity2] $raw
+
+        $result = [Security2.EffectiveAccess]::GetEffectiveAccess($sd, $identity, $null)
+
+        if ($result.OperationFailed) {
+            Set-ItResult -Skipped -Because "the Authz call could not run in this configuration: $($result.AuthzException.Message)"
+            return
+        }
+
+        $result.Ace.FullName | Should -Be $null
+    }
+}
+
+# PowerShell's binder uses the conversion from FileSecurity and DirectorySecurity for every -SecurityDescriptor
+# parameter, so a descriptor that Get-Acl returns, never meant for these cmdlets, binds where it used to be a binding
+# error. The descriptor has no item and no audit section unless Get-Acl read one. These pin a reader of the access
+# entries, a reader of the audit entries, the inheritance reader, and the writer.
+Describe 'Cmdlets with a security descriptor that Get-Acl returns' {
+    BeforeAll {
+        $plainFile = New-TestSandboxItem -Sandbox $sandbox -Name 'GetAclPlain'
+        Add-NTFSAccess -Path $plainFile -Account 'S-1-1-0' -AccessRights ReadData -AppliesTo ThisFolderOnly
+    }
+
+    It 'Should return the explicit access entries and no error for Get-NTFSAccess -SecurityDescriptor (Get-Acl ...)' {
+        $sd = Get-Acl -LiteralPath $plainFile
+        $expected = @($sd.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]))
+
+        $result = @(Get-NTFSAccess -SecurityDescriptor $sd -ExcludeInherited -ErrorVariable accessErrors -ErrorAction SilentlyContinue)
+
+        $accessErrors | Should -BeNullOrEmpty
+        ($result.Account.Sid | Sort-Object) | Should -Be ($expected.IdentityReference.Value | Sort-Object)
+    }
+
+    It 'Should write the #109 ReadSecurityError, not an empty result, for Get-NTFSAudit -SecurityDescriptor (Get-Acl ...) without -Audit' {
+        $sd = Get-Acl -LiteralPath $plainFile
+
+        $result = @(Get-NTFSAudit -SecurityDescriptor $sd -ErrorVariable auditErrors -ErrorAction SilentlyContinue)
+
+        $result | Should -BeNullOrEmpty
+        $auditErrors | Should -HaveCount 1
+        $auditErrors[0].FullyQualifiedErrorId | Should -BeLike 'ReadSecurityError,*'
+        $auditErrors[0].CategoryInfo.Category | Should -Be 'InvalidData'
+        $auditErrors[0].Exception.Message | Should -BeLike "*doesn't contain the audit entries*"
+    }
+
+    It 'Should give a null AuditInheritanceEnabled and the right AccessInheritanceEnabled for Get-NTFSInheritance -SecurityDescriptor (Get-Acl ...)' {
+        $sd = Get-Acl -LiteralPath $plainFile
+
+        $result = Get-NTFSInheritance -SecurityDescriptor $sd -ErrorAction Stop
+
+        $result.AuditInheritanceEnabled | Should -Be $null
+        $result.AccessInheritanceEnabled | Should -Be (-not $sd.AreAccessRulesProtected)
+    }
+
+    It 'Should write a non-terminating error naming the missing item for Set-NTFSSecurityDescriptor -SecurityDescriptor (Get-Acl ...), and change nothing' {
+        $sd = Get-Acl -LiteralPath $plainFile
+        $sd.AddAccessRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
+                    $sid, [System.Security.AccessControl.FileSystemRights]::WriteData,
+                    [System.Security.AccessControl.AccessControlType]::Allow
+                )))
+        $before = (Get-Acl -LiteralPath $plainFile).Sddl
+
+        $null = Set-NTFSSecurityDescriptor -SecurityDescriptor $sd -ErrorVariable sdErrors -ErrorAction SilentlyContinue
+
+        $sdErrors | Should -HaveCount 1
+        $sdErrors[0].FullyQualifiedErrorId | Should -BeLike 'WriteSdError,*'
+        $sdErrors[0].Exception.Message | Should -BeLike '*no item*'
+        (Get-Acl -LiteralPath $plainFile).Sddl | Should -BeExactly $before
+    }
+}
+
+Describe 'RemoveFileSystemAccessRuleAll and RemoveFileSystemAuditRuleAll honor the account list' {
+    BeforeAll {
+        $allow = [System.Security.AccessControl.AccessControlType]::Allow
+        $success = [System.Security.AccessControl.AuditFlags]::Success
+        $accountOne = $identity
+        $accountTwo = [Security2.IdentityReference2] 'S-1-5-32-545'
+        $accountThree = [Security2.IdentityReference2] 'S-1-5-32-544'
+        $accountsByLabel = @{ One = $accountOne; Two = $accountTwo; Three = $accountThree }
+
+        function New-AccessSecurityFor {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an in-memory descriptor only.'
+            )]
+            param ([Security2.IdentityReference2[]] $Accounts)
+
+            $raw = New-Object -TypeName 'System.Security.AccessControl.FileSecurity'
+            foreach ($account in $Accounts) {
+                $raw.AddAccessRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
+                            [System.Security.Principal.SecurityIdentifier] $account,
+                            [System.Security.AccessControl.FileSystemRights]::ReadData, $allow
+                        )))
+            }
+            $raw
+        }
+
+        function New-AuditSecurityFor {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an in-memory descriptor only.'
+            )]
+            param ([Security2.IdentityReference2[]] $Accounts)
+
+            $raw = New-Object -TypeName 'System.Security.AccessControl.FileSecurity'
+            foreach ($account in $Accounts) {
+                $raw.AddAuditRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList (
+                            [System.Security.Principal.SecurityIdentifier] $account,
+                            [System.Security.AccessControl.FileSystemRights]::ReadData, $success
+                        )))
+            }
+            $raw
+        }
+
+        function New-IdentityList {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper that only creates a list.'
+            )]
+            param ([Security2.IdentityReference2[]] $Accounts)
+
+            $list = New-Object -TypeName 'System.Collections.Generic.List[Security2.IdentityReference2]'
+            foreach ($account in $Accounts) {
+                $list.Add($account)
+            }
+            , $list
+        }
+
+        function Get-AccessSddl {
+            param ([System.Security.AccessControl.FileSecurity] $Raw)
+
+            $Raw.GetSecurityDescriptorSddlForm([System.Security.AccessControl.AccessControlSections]::Access)
+        }
+
+        function Get-AuditSddl {
+            param ([System.Security.AccessControl.FileSecurity] $Raw)
+
+            $Raw.GetSecurityDescriptorSddlForm([System.Security.AccessControl.AccessControlSections]::Audit)
+        }
+
+        # Builds the expected result by removing the given accounts with the .NET method directly, instead of with
+        # a freshly built descriptor that only holds the remaining accounts: once an entry was added and removed
+        # again, the SACL stays present but empty, while a SACL that never held an entry is absent, and the two give
+        # a different SDDL for the same set of remaining entries.
+        function Get-ExpectedAccessSddl {
+            param ([Security2.IdentityReference2[]] $AccountsToRemove)
+
+            $raw = New-AccessSecurityFor -Accounts $accountOne, $accountTwo, $accountThree
+            foreach ($account in $AccountsToRemove) {
+                $raw.RemoveAccessRuleSpecific((New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList (
+                            [System.Security.Principal.SecurityIdentifier] $account,
+                            [System.Security.AccessControl.FileSystemRights]::ReadData, $allow
+                        )))
+            }
+            Get-AccessSddl $raw
+        }
+
+        function Get-ExpectedAuditSddl {
+            param ([Security2.IdentityReference2[]] $AccountsToRemove)
+
+            $raw = New-AuditSecurityFor -Accounts $accountOne, $accountTwo, $accountThree
+            foreach ($account in $AccountsToRemove) {
+                $raw.RemoveAuditRuleSpecific((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList (
+                            [System.Security.Principal.SecurityIdentifier] $account,
+                            [System.Security.AccessControl.FileSystemRights]::ReadData, $success
+                        )))
+            }
+            Get-AuditSddl $raw
+        }
+    }
+
+    It 'Should honor the account list when it removes access entries from a descriptor with three accounts, in memory, for <Scenario>' -ForEach @(
+        @{ Scenario = 'a list with one account'; AccountsToRemove = @('One') }
+        @{ Scenario = 'a list with two accounts'; AccountsToRemove = @('One', 'Two') }
+        @{ Scenario = 'a null list'; AccountsToRemove = $null }
+        @{ Scenario = 'an empty list'; AccountsToRemove = @() }
+    ) {
+        $raw = New-AccessSecurityFor -Accounts $accountOne, $accountTwo, $accountThree
+        $toRemove = if ($null -eq $AccountsToRemove) { $accountOne, $accountTwo, $accountThree } else { $AccountsToRemove.ForEach({ $accountsByLabel[$_] }) }
+        $expected = Get-ExpectedAccessSddl -AccountsToRemove $toRemove
+        $accounts = if ($null -eq $AccountsToRemove) { $null } else { New-IdentityList -Accounts $AccountsToRemove.ForEach({ $accountsByLabel[$_] }) }
+
+        [Security2.FileSystemAccessRule2]::RemoveFileSystemAccessRuleAll(([Security2.FileSystemSecurity2] $raw), $accounts)
+
+        Get-AccessSddl $raw | Should -BeExactly $expected
+    }
+
+    It 'Should honor the account list when it removes audit entries from a descriptor with three accounts, in memory, for <Scenario>' -ForEach @(
+        @{ Scenario = 'a list with one account'; AccountsToRemove = @('One') }
+        @{ Scenario = 'a list with two accounts'; AccountsToRemove = @('One', 'Two') }
+        @{ Scenario = 'a null list'; AccountsToRemove = $null }
+        @{ Scenario = 'an empty list'; AccountsToRemove = @() }
+    ) {
+        $raw = New-AuditSecurityFor -Accounts $accountOne, $accountTwo, $accountThree
+        $toRemove = if ($null -eq $AccountsToRemove) { $accountOne, $accountTwo, $accountThree } else { $AccountsToRemove.ForEach({ $accountsByLabel[$_] }) }
+        $expected = Get-ExpectedAuditSddl -AccountsToRemove $toRemove
+        $accounts = if ($null -eq $AccountsToRemove) { $null } else { New-IdentityList -Accounts $AccountsToRemove.ForEach({ $accountsByLabel[$_] }) }
+
+        [Security2.FileSystemAuditRule2]::RemoveFileSystemAuditRuleAll(([Security2.FileSystemSecurity2] $raw), $accounts)
+
+        Get-AuditSddl $raw | Should -BeExactly $expected
+    }
+
+    It 'Should remove only the listed account''s explicit access entries of a sandbox item, read back with .NET' {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveAllAccessByItem'
+        $item = New-Object -TypeName 'Alphaleonis.Win32.Filesystem.FileInfo' -ArgumentList $path
+        foreach ($account in $accountOne, $accountTwo, $accountThree) {
+            [void] [Security2.FileSystemAccessRule2]::AddFileSystemAccessRule(
+                $item, $account, [Security2.FileSystemRights2]::ReadData, $allow,
+                [System.Security.AccessControl.InheritanceFlags]::None, [System.Security.AccessControl.PropagationFlags]::None
+            )
+        }
+
+        [Security2.FileSystemAccessRule2]::RemoveFileSystemAccessRuleAll($item, (New-IdentityList -Accounts $accountOne))
+
+        $remaining = @((Get-Acl -LiteralPath $path).GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]))
+        @($remaining.IdentityReference.Value | Sort-Object) | Should -Be @(($accountTwo.Sid, $accountThree.Sid) | Sort-Object)
+    }
+
+    It 'Should remove only the listed account''s explicit audit entries of a sandbox item, read back with .NET' -Skip:(-not $holdsSecurityPrivilege) {
+        $path = New-TestSandboxItem -Sandbox $sandbox -Name 'RemoveAllAuditByItem'
+        $item = New-Object -TypeName 'Alphaleonis.Win32.Filesystem.FileInfo' -ArgumentList $path
+        foreach ($account in $accountOne, $accountTwo, $accountThree) {
+            [void] [Security2.FileSystemAuditRule2]::AddFileSystemAuditRule(
+                $item, $account, [Security2.FileSystemRights2]::ReadData, $success,
+                [System.Security.AccessControl.InheritanceFlags]::None, [System.Security.AccessControl.PropagationFlags]::None
+            )
+        }
+
+        [Security2.FileSystemAuditRule2]::RemoveFileSystemAuditRuleAll($item, (New-IdentityList -Accounts $accountOne))
+
+        $remaining = @((Get-Acl -LiteralPath $path -Audit).GetAuditRules($true, $false, [System.Security.Principal.SecurityIdentifier]))
+        @($remaining.IdentityReference.Value | Sort-Object) | Should -Be @(($accountTwo.Sid, $accountThree.Sid) | Sort-Object)
     }
 }
 

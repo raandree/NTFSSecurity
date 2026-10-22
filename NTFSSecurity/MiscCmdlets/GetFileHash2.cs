@@ -103,6 +103,12 @@ namespace NTFSSecurity
                     }
                     catch (Exception ex2)
                     {
+                        // Not what a later command raises, for example when it takes the RestoreOwnerError record.
+                        if (IsFromLaterCommand(ex2))
+                        {
+                            throw;
+                        }
+
                         WriteError(new ErrorRecord(ex2, "GetHashError", ErrorCategory.WriteError, path));
                         continue;
                     }

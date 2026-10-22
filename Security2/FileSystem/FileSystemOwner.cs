@@ -27,7 +27,9 @@ namespace Security2
 
         public string FullName
         {
-            get { return item.FullName; }
+            // Null without an item, such as for a descriptor that a conversion from FileSecurity built directly,
+            // instead of a NullReferenceException.
+            get { return item != null ? item.FullName : null; }
         }
 
         private FileSystemOwner(FileSystemInfo item, IdentityReference2 owner)
@@ -62,7 +64,9 @@ namespace Security2
 
         public override string ToString()
         {
-            return item.FullName;
+            // Empty, not null, without an item: ToString must never return null, and there is no other
+            // representation of this object to fall back to.
+            return item != null ? item.FullName : string.Empty;
         }
     }
 }
