@@ -9,18 +9,24 @@ source: current task evidence
 
 ## Current focus
 
-State at 2026-10-21: 5.0.0-rc8 is published and accepted (tag `c719197`, CI run
-`39408140862`, Gallery 2026-10-20 10:40:58Z, GitHub 10:41:07Z, identity check
-passed; lab acceptance of the published bytes 10:38 to 11:47Z, record
-`Tests/Lab/Acceptance-2026-10-20-published-rc8.md`, #128). `master` is
-`d0cb57c`: the maintainer merged #128 (2026-10-21 05:48Z), the tests-only round
-#129 (08:24Z), and the Memory Bank #130 (08:47Z).
+State at 2026-10-22: 5.0.0-rc9 is published, the last prerelease before the
+stable 5.0.0 (Decision 27). The maintainer merged #131 (`823c814`, 08:13Z; its
+tree is byte-identical to the validated head `696ac38`) and the Memory Bank
+#132 (`f2bcd9d`, 10:15Z), and pushed the lightweight tag `5.0.0-rc9` at
+`823c814` at about 08:37Z. The CI run `39749188259` of the tag passed (Build
+and test, then Release without an approval step) and the GitHub prerelease
+appeared at 08:51:19Z. `Test-PublishedRelease.ps1` printed
+`PUBLISHED_IDENTITY_VERIFIED` at 10:54Z and again inside the chain at 11:02Z
+(the Gallery's SHA-512 matches the nupkg, the 11 module files are identical in
+the nupkg and the zip, the manifest says `5.0.0-rc9`); the pathological-input,
+`ToString`, and valid-shape probes give the results of the validated build on
+the published bytes. The lab acceptance of the published bytes runs since
+11:00:36Z in one detached chain (`Chain-Published.ps1 -Version 5.0.0-rc9 -Tag
+rc9`, evidence `files\rc9\rc9-published` in the session folder, expected end
+about 12:10Z, heartbeat every 10 minutes). rc8 (tag `c719197`) was accepted on
+2026-10-20 (record `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`, #128).
 
-The last prerelease before the stable 5.0.0 is rc9 (Decision 27). The branch
-`ai/rc9` (base `d0cb57c`, 36 commits, head `696ac38`) is complete and
-validated; it is local until the maintainer pushes it, opens the pull request
-(body: `C:\Temp\ntfs-rc9\final-msgs\pr-rc9-body.md`, temporary), merges it, and
-tags `5.0.0-rc9`. It contains: the five piped parameters of `Add-` and
+rc9 contains (36 commits over `d0cb57c`, head `696ac38`): the five piped parameters of `Add-` and
 `Remove-NTFSAccess` and `-NTFSAudit` are `object`, converted in the cmdlet
 (`ParameterConversion`), so a typo for `Deny` no longer creates an Allow entry;
 a list for `-AccessType` and `-AppliesTo` is rejected; the `-SecurityDescriptor`
@@ -53,12 +59,10 @@ ends the host through the three flags parameters, as in rc8 (known limit). A
 blank, `$null`, or `DBNull` value of the other parameter group is
 `AmbiguousParameterSet` (documented, not restructured).
 
-Open before the stable pull request: the pull request, merge, and tag of rc9
-(maintainer); the lab acceptance of the published rc9 (agent, about 70
-minutes, `Chain-Published.ps1`); his decision on #34 on 2026-11-02; his check of
-`PSGALLERY_API_KEY`. The stable change then touches only the label, the
-CHANGELOG, and `$publishedVersions` (add `5.0.0-rc9`). The Memory Bank of this
-work is a separate pull request (branch `ai/memory-bank-merged`).
+Open before the stable pull request: the end of the lab acceptance of the
+published rc9 and its record (agent); his decision on #34 on 2026-11-02; his
+check of `PSGALLERY_API_KEY`. The stable change then touches only the label,
+the CHANGELOG, and `$publishedVersions` (add `5.0.0-rc9`; the list ends at rc8).
 
 State at 2026-10-10: the maintainer integrated the release-gate stack into
 `master` (#116, #120, #118, #119, #121; `fa0701b`, CI green; GitHub closed #117
@@ -73,13 +77,15 @@ Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
 
 - Evidence of rc9 is outside git, in the session folder
   `816cf47d-2f80-4eba-8ac9-41702c49560b\files\rc9`: the specs and review briefs,
-  `suite-full1` (first integration), `suite-final`, `suite-final2`,
-  `suite-final3`, `suite-final4`, `suite-final5`, `suite-final6-b436423`, and
-  `suite-final7-696ac38` (the head), the probes (`p-*.ps1`,
-  `fixb-probe`, `shapes-r2`, `Run-Oracle.ps1`, `Run-Pathological.ps1`), the
-  published rc8 (`rc8-published`), and the analyzer and surface results. The
-  review probes of the reviewers are in `C:\Temp\ntfs-rc9\review*-probes-*`
-  (temporary). The worktrees under `C:\Temp\ntfs-rc9` are temporary too.
+  `suite-full1` (first integration), `suite-final` to `suite-final7-696ac38`
+  (the head), the probes (`p-*.ps1`, `fixb-probe`, `shapes-r2`, `Run-Oracle.ps1`,
+  `Run-Pathological.ps1`), the published rc8 (`rc8-published`), the published
+  rc9 (`rc9-published-identity`: the nupkg, the zip, `Identity-5.0.0-rc9.json`;
+  `oracle-published-rc9`), the chain of the acceptance (`rc9-published`: log
+  `chain-published-rc9.log`, a stage folder and a result folder per stage), and
+  the analyzer and surface results. The review probes of the reviewers are in
+  `C:\Temp\ntfs-rc9\review*-probes-*` (temporary). The worktrees under
+  `C:\Temp\ntfs-rc9` are temporary too.
 - Milestones of earlier gates (rc6 and rc7 releases, handoff 1, the operating
   system matrix, handoff 5, the rc7 and rc8 acceptances) are in `progress.md`
   and in the records and reports under `Tests/Lab` and `Tests/Coverage`.
@@ -99,17 +105,20 @@ Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
 
 ## Next step
 
-1. The maintainer pushes `ai/rc9`, creates the pull request, merges it after
-   CI, and tags `5.0.0-rc9` (commands in the reply of 2026-10-21; every release
-   step is his). Then run `Chain-Published.ps1 -Version 5.0.0-rc9 -Tag 5.0.0-rc9
-   -Evidence <dir>` from the session files (about 70 minutes, detached, with the
-   heartbeat; save the labs afterwards) and write the acceptance record
-   `Tests/Lab/Acceptance-<date>-published-rc9.md`. A defect that it finds needs
-   rc10.
+1. Lab acceptance of the published rc9: the chain started 2026-10-22 11:00:36Z
+   (log `rc9-published\chain-published-rc9.log`; 68 minutes for rc8). When the
+   log ends with `chain-published-rc9-DONE`, read the stage logs and the
+   `Validate-LabResults.ps1` output, never the marker alone; save the machines
+   again (`Save-VM`;
+   `OSWin11E` is off after its hour); write
+   `Tests/Lab/Acceptance-2026-10-22-published-rc9.md` and update this file,
+   `progress.md`, and `deployment-notes.md` in one pull request (branch
+   `ai/acceptance-published-rc9`; the maintainer pushes and merges). A defect
+   that the chain finds needs rc10.
 2. The stable pull request: no `Prerelease`, `## [5.0.0] - <date>` with an empty
    `[Unreleased]` and the links, and `5.0.0-rc9` in `$publishedVersions` (the
-   list ends at rc7 now; rc8 comes with the rc9 pull request). The maintainer
-   checks the expiry of `PSGALLERY_API_KEY` first, merges, and tags.
+   list ends at rc8). The maintainer checks the expiry of `PSGALLERY_API_KEY`
+   first, merges, and tags. Not before his decision on #34 (item 3).
 3. #34 waits for a tester until 2026-11-02 (Decision 23, option 3; checklist:
    `Tests/Lab/Non-Windows-File-Server-Test.md`). On that date the maintainer
    chooses between waiting longer and accepting the untested risk with a

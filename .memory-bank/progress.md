@@ -9,18 +9,19 @@ source: repository and validation evidence
 
 ## Current status
 
-5.0.0-rc8 is published on the Gallery and GitHub (2026-10-20, tag at
-`c719197`); rc7 (2026-10-10, tag at `fa0701b`) is the one before it. On
-2026-10-10 the maintainer merged the stack of #116, #120, #118, #119, and #121
-into `master` (CI green; the milestones have the details). On 2026-10-19 he
-merged #125 (Handoff 5) and #124 (Dependabot) and decided the path to stable
-(Decision 21, "Closing the gate"); on 2026-10-20 he merged #126 (the decisions)
-and #127 (the rc8 fix and label) and tagged rc8; on 2026-10-21 he merged #128
-(the rc8 record), #129 (tests), and #130 (this file). The published rc7 and
-rc8 passed their lab acceptance in the matrix and in the first lab. rc9
-(Decision 27) is built on the local branch `ai/rc9` and waits for his push,
-pull request, merge, and tag. Stable Gallery version: 4.2.6. After 5.0.0,
-archive in favor of WindowsAccessControl (Decision 18).
+5.0.0-rc9 is published on the Gallery and GitHub (2026-10-22, tag at `823c814`);
+rc8 (2026-10-20, tag at `c719197`) and rc7 (2026-10-10, tag at `fa0701b`) are the
+ones before it. On 2026-10-10 the maintainer merged the stack of #116, #120,
+#118, #119, and #121 into `master` (CI green; the milestones have the details).
+On 2026-10-19 he merged #125 (Handoff 5) and #124 (Dependabot) and decided the
+path to stable (Decision 21, "Closing the gate"); on 2026-10-20 he merged #126
+(the decisions) and #127 (the rc8 fix and label) and tagged rc8; on 2026-10-21
+he merged #128 (the rc8 record), #129 (tests), and #130 (this file); on
+2026-10-22 he merged #131 (rc9) and #132 (the Memory Bank) and tagged rc9. The
+published rc7 and rc8 passed their lab acceptance in the matrix and in the
+first lab; the acceptance of the published rc9 runs (see `activeContext.md`).
+Stable Gallery version: 4.2.6. After 5.0.0, archive in favor of
+WindowsAccessControl (Decision 18).
 
 ## Recent milestones
 
@@ -32,47 +33,34 @@ archive in favor of WindowsAccessControl (Decision 18).
   Gallery publication and attempt 2 succeeded (GitHub prerelease 2026-10-09
   07:01:34Z); the log does not establish the earlier assumed timeout cause.
   Detail: git, `CHANGELOG.md`, `Docs/Version-History.md`, Decisions 1 to 22.
-- 2026-10-09: the autonomous follow-up (#117, then #120, through `3442194`) and
-  handoff 1 (#118) took the suite from 202 cases above rc7 to 1,310 per
-  configuration with zero failures and 3,192/3,634 sequence points (87.84%;
-  74.21% before); publication recovery verifies the exact SHA-512 identity.
-  Eleven defects were fixed, ten with a guard that is red before the fix (76
-  rows red at the base), among them a later command's exception that cmdlets
-  swallowed (a `throw` made `Remove-Item2` remove the next item) and a privilege
-  left enabled. Lab acceptance, `83149ee` against `f11ff41`: 486 passed, 0
-  failed against 338 passed, 148 failed. Report in `Tests/Coverage`; record
-  `Tests/Lab/Acceptance-2026-10-09-quality-gate-paths.md`.
-- 2026-10-09 to 10: handoffs 2 to 4 under the maintainer's delegation (decisions
-  D1 to D47 in the night log of the session files). The matrix lab
-  `NtfsSecurityOsMatrixLab` (Server 2019, 2022, 2025, a Windows 11 Enterprise
-  22H2 client, Windows 11 26H1 suite only) found three module defects, fixed in
-  `962887a` and `fdd7a8b`: audit inheritance by descriptor,
-  `Get-NTFSEffectiveAccess -ServerName ''`, and the same cmdlet for a
-  non-administrator on a domain member. The final candidate passes the module's
-  suite on every machine (24 runs), the live controller in three cells (1,374
-  passed, 0 failed, 12 skipped), and the first lab with case 9 (245 passed, 0
-  failed, 1 skipped per edition). The Server 2022 effective-access failures
-  were stale account state, not the module (the controller names the case-3
-  account anew, `1dec389`). The built-in security review found no exploitable
-  vulnerability and two LOW items left for the maintainer. Record:
+- 2026-10-09 to 10: the quality gate. The autonomous follow-up (#117, then
+  #120) and handoff 1 (#118) took the suite from 202 cases above rc7 to 1,310
+  per configuration (3,192/3,634 sequence points, 87.84%) and fixed eleven
+  defects, ten with a guard that is red before the fix (a later command's
+  exception that cmdlets swallowed, a privilege left enabled); lab acceptance
+  `83149ee` against `f11ff41`: 486 passed against 338 passed, 148 failed
+  (record `Tests/Lab/Acceptance-2026-10-09-quality-gate-paths.md`). Handoffs 2
+  to 4 (decisions D1 to D47 in the night log of the session files) built the
+  matrix lab `NtfsSecurityOsMatrixLab` (Server 2019, 2022, 2025, Windows 11
+  22H2; 26H1 suite only), which found three module defects, fixed in `962887a`
+  and `fdd7a8b` (audit inheritance by descriptor, `Get-NTFSEffectiveAccess
+  -ServerName ''`, the same cmdlet for a non-administrator on a domain member);
+  the final candidate passed the suite on every machine (24 runs), the live
+  controller in three cells (1,374/0/12), and the first lab (245/0/1 per
+  edition); the built-in security review found no exploitable vulnerability and
+  two LOW items for the maintainer. Record
   `Tests/Lab/Acceptance-2026-10-10-os-matrix.md`.
 - 2026-10-10: the maintainer integrated the stack. His branch deletion after the
-  merge of #116 (`8a6be9f`, 09:10:12Z) removed the base branch of #117, and
-  GitHub closed #117 unmerged three seconds later instead of retargeting it
-  (`cli/cli#14223` shows the same events); the earlier guidance that relied on a
-  retarget was wrong. Nothing was lost: #120 (`bdb9981`, 10:50Z) replaced #117,
-  then #118 (`03bef2c`, 11:12Z) and #119 (`fa0701b`, 11:28Z) merged after their
-  retargeting; CI on `master` passed at 11:40Z. Decision 15 has the rule.
-- 2026-10-10: rc7 published. The maintainer tagged `fa0701b` at about 12:20Z;
-  the CI run of the tag passed and the Release job published without an
-  approval step (Gallery 12:30:57Z, GitHub 12:31:09Z). The identity check
-  (`Test-PublishedRelease.ps1`, 12:33Z) passed: Gallery SHA-512, nupkg and zip
-  identical, manifest `5.0.0-rc7`. Hashes: deployment notes.
-- 2026-10-10: gate 3 on the published rc7, 14:29 to 15:30 UTC, in one detached
-  driver: the three matrix cells 1,374 passed, 0 failed, 12 skipped; the suite
-  in 24 runs on six machine classes without a failure; the first lab with case
-  9 245 / 0 / 1 per edition; every end state CLEAN. The counts equal those of
-  the final local candidate. Record:
+  merge of #116 (`8a6be9f`) removed the base branch of #117, and GitHub closed
+  #117 unmerged instead of retargeting it (`cli/cli#14223`; Decision 15 has the
+  rule); #120 (`bdb9981`) replaced it, then #118 (`03bef2c`) and #119
+  (`fa0701b`) merged; CI on `master` passed at 11:40Z.
+- 2026-10-10: rc7 published (tag `fa0701b` at about 12:20Z, Gallery 12:30:57Z,
+  GitHub 12:31:09Z, no approval step; identity check passed at 12:33Z; hashes in
+  the deployment notes). Gate 3 on the published rc7 (14:29 to 15:30 UTC, one
+  detached driver): three cells 1,374/0/12, the suite in 24 runs on six machine
+  classes without a failure, the first lab 245/0/1 per edition, every end state
+  CLEAN; the counts equal those of the final local candidate. Record
   `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`.
 - 2026-10-10 to 2026-10-11: Handoff 5, the coverage unknowns (branch
   `ai/coverage-unknowns`, merged as #125 on 2026-10-19). rc7 measured at
@@ -120,7 +108,7 @@ archive in favor of WindowsAccessControl (Decision 18).
   chosen on 2026-10-21, and four work items started (branch
   `ai/rc9-before-stable`).
 - 2026-10-21: rc9 built and reviewed (Decision 27; branch `ai/rc9`, 36 commits
-  over `d0cb57c`, head `696ac38`, local until he pushes). Four implementers
+  over `d0cb57c`, head `696ac38`). Four implementers
   worked test-first in worktrees (the five piped parameters, the 17 handlers
   and three inconsistencies, the library items, the filter); the chains were
   cherry-picked in order, so every fix sits in the commit of its item. Round 1
@@ -133,6 +121,19 @@ archive in favor of WindowsAccessControl (Decision 18).
   `696ac38`: 2,162 cases per configuration, 0 failed in four configurations
   (rc8: 1,615); docs fixpoint; analyzer clean; valid shapes differ from rc8 in
   9 list rows only; both reviewers: no finding.
+- 2026-10-22: rc9 published. The maintainer merged #131 (`823c814`, 08:13Z; its
+  tree equals the validated `696ac38`; the CI of the PR ran 2,162 cases per
+  configuration on the runner, equal to the local run in all four
+  configurations) and #132 (`f2bcd9d`, 10:15Z), and tagged `823c814` at about
+  08:37Z. The CI run `39749188259` of the tag passed, Release without an
+  approval step; GitHub 08:51:19Z. `Test-PublishedRelease.ps1`: identity
+  verified at 10:54Z. Published bytes: `NTFSSecurity.dll` SHA-256
+  `464CAB365AD63CD22208B21012A5B7F0B8B630E819CF300019787A0172791198`, zip
+  `5A05BC008605D9B4B1EAB074FFC811B460FAF6D3549701D00ABA15D9208ED571`, nupkg
+  `72CC5E28567BEC564DB052AF34C91F237ECFC9558FA2E981E201E02E16B4F8F3`. The
+  published bytes give the results of the validated build in the pathological,
+  `ToString`, and valid-shape probes (9 list rows differ from rc8). The lab
+  acceptance chain started at 11:00:36Z.
 
 ## Stable capabilities
 
