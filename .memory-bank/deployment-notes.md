@@ -60,18 +60,20 @@ Its bytes:
 The release notes of a prerelease are the `[Unreleased]` section of
 `CHANGELOG.md`.
 
-1. Accept the published package (next section): done for rc7 (2026-10-10) and
-   rc8 (2026-10-20), running for rc9 (the record
-   `Tests/Lab/Acceptance-<date>-published-rc9.md` follows); the records are
-   `Tests/Lab/Acceptance-2026-10-10-published-rc7.md` and
-   `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`. A changed binary (rc9,
-   or a build of 5.0.0 that differs by more than the label) needs the same
-   cells again.
+1. Accept the published package (next section): done for rc7 (2026-10-10),
+   rc8 (2026-10-20), and rc9 (2026-11-10, in four parts after a host shutdown
+   and a lost secure channel); the records are
+   `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`,
+   `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`, and
+   `Tests/Lab/Acceptance-2026-11-10-published-rc9.md`. A build of 5.0.0 that
+   differs by more than the label needs the same cells again.
 2. The stable change adds `5.0.0-rc9` to `$publishedVersions` in
    `Tests/Repository.Tests.ps1` (the list ends at rc8), as
    `Docs/Contributing/05-Releasing.md` says. The test "Should not reuse a
    version that the PowerShell Gallery already has" fails when the list holds
-   the version of the manifest.
+   the version of the manifest. After the tag, `git diff --stat 5.0.0-rc9
+   5.0.0 -- NTFSSecurity Security2 PrivilegeControl ProcessPrivileges Log`
+   should list only the manifest.
 
 ## Accept a published package
 

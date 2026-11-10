@@ -42,9 +42,9 @@ source: repository and executable evidence
 
 ## Constraints
 
-- Manifest: ModuleVersion 5.0.0, prerelease rc8 (tag at `c719197`; `ai/rc9`
-  sets rc9). Latest stable 4.2.6. `$publishedVersions` ends at rc7; the reuse
-  test fails if it holds the manifest's version, so rc9 adds rc8, stable rc9.
+- Manifest: ModuleVersion 5.0.0, prerelease rc9 (tag at `823c814`, published
+  2026-10-22). Latest stable 4.2.6. `$publishedVersions` ends at rc8; the reuse
+  test fails if it holds the manifest's version, so stable adds rc9.
 - Changed-section writes preserve unchanged owner/group/DACL/SACL (19).
   Roots use root-folder APIs, not AlphaFS device security (#41).
 - CHANGELOG contains user-visible changes only (7); tests and CI-only fixes

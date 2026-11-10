@@ -9,45 +9,32 @@ source: current task evidence
 
 ## Current focus
 
-State at 2026-10-22: 5.0.0-rc9 is published, the last prerelease before the
-stable 5.0.0 (Decision 27). The maintainer merged #131 (`823c814`, 08:13Z; its
-tree is byte-identical to the validated head `696ac38`) and the Memory Bank
-#132 (`f2bcd9d`, 10:15Z), and pushed the lightweight tag `5.0.0-rc9` at
-`823c814` at about 08:37Z. The CI run `39749188259` of the tag passed (Build
-and test, then Release without an approval step) and the GitHub prerelease
-appeared at 08:51:19Z. `Test-PublishedRelease.ps1` printed
-`PUBLISHED_IDENTITY_VERIFIED` at 10:54Z and again inside the chain at 11:02Z
-(the Gallery's SHA-512 matches the nupkg, the 11 module files are identical in
-the nupkg and the zip, the manifest says `5.0.0-rc9`); the pathological-input,
-`ToString`, and valid-shape probes give the results of the validated build on
-the published bytes. The lab acceptance of the published bytes started on
-2026-10-22 at 11:00:36Z (`Chain-Published.ps1 -Version 5.0.0-rc9 -Tag rc9`,
-evidence `files\rc9\rc9-published` in the session folder) and a planned
-shutdown of the host killed it at 11:14:36Z (System event 1074, reason "Other
-(Planned)", started by `svchost` `ExHost`; no scheduled task of this host is
-the cause; the host stayed off until 2026-11-10 14:16Z). Cell 1 of the matrix
-(OSFile19 with OSWin11E) had passed in both editions (229 passed, 0 failed, 2
-skipped each, `LIVE_RESULT_VERIFIED`) and the Snapshot of its cleanup had just
-started, so its fixture may still be in the matrix lab. The 19 machines of the
-two labs were Off, not Saved, at the next start. The second attempt started on
-2026-11-10 at 14:26:36Z, the whole chain again in one detached run with a fresh
-evidence folder (`files\rc9\rc9-published-2`) and a heartbeat every 10 minutes.
-In it, the labs passed the readiness after the cold start at the first
-attempt, but the matrix stage stopped at the readiness of cell 1 (14:35Z):
-OSWin11E, started cold four minutes before, reported `secure channel False`, so
-no cell ran. The chain went on: the six suites passed (0 failed; 1,859 cases
-per configuration on OSFile19 and OSWin11E, 1,858 on the host) and the first
-lab passed (Desktop and Core each 245 passed, 0 failed, 1 skipped; its end
-state and that of the client are CLEAN). A first rerun of the matrix (tag
-`rc9m`) failed at the same readiness: the lab account got "Access is denied"
-from WinRM of OSWin11E while `Test-ComputerSecureChannel` in a session of the
-local account returned True (a stale answer). The second rerun (tag `rc9n`,
-15:36:36Z) repaired the channel with `Test-ComputerSecureChannel -Repair` and
-the lab account, judged it by a session of the lab account, and started the
-three cells at 15:37:56Z. The matrix lab still holds the fixture of
-2026-10-22 (OU `NTFSSecurityLive`) until the cleanup of the cells removes it.
-rc8 (tag `c719197`) was accepted on
-2026-10-20 (record `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`, #128).
+State at 2026-11-10: the lab acceptance of the published 5.0.0-rc9 is complete,
+and its record is committed on `ai/acceptance-published-rc9`
+(`Tests/Lab/Acceptance-2026-11-10-published-rc9.md` with four tables; the
+maintainer pushes and merges). rc9 is the last prerelease before the stable
+5.0.0 (Decision 27). The maintainer merged #131 (`823c814`; its tree equals the
+validated head `696ac38`) and the Memory Bank #132 on 2026-10-22 and tagged
+`5.0.0-rc9` at `823c814`; the tag run `39749188259` passed (Gallery
+08:50:59Z, GitHub 08:51:19Z), and `Test-PublishedRelease.ps1` printed
+`PUBLISHED_IDENTITY_VERIFIED` on 2026-10-22 and again on 2026-11-10 (14:27Z).
+The acceptance came in four parts. A planned shutdown of the host (System event
+1074, 2026-10-22 11:14:36Z) killed the first attempt after cell 1 had passed.
+The second attempt (2026-11-10 from 14:26:36Z, cold start of both labs) passed
+the six suites (24 runs, 0 failed; 1,859 cases per configuration, 1,858 on the
+host) and the first lab (245 passed, 0 failed, 1 skipped per edition, CLEAN),
+but `OSWin11E` lost its secure channel after the cold start, so no cell ran.
+The first rerun failed at the same check (the lab account got "Access is
+denied" while a session of the local account still said True). The second rerun
+(15:36:36Z) repaired the channel with `Test-ComputerSecureChannel -Repair` and
+the lab account, judged it by a session of the lab account, and passed the
+three cells (229 / 0 / 2 per edition and cell, 1,374 / 0 / 12 in all; CLEAN).
+Both labs were CLEAN at 16:03Z, and the 18 machines other than `OSWin11E` were
+saved again at 16:10Z. The record names the deviations (suites before the
+cells; cell 1 on the accounts of the interrupted fixture). The outputs of the
+pathological-input probe on the published bytes weren't kept. rc8 (tag
+`c719197`) was accepted on 2026-10-20 (record
+`Tests/Lab/Acceptance-2026-10-20-published-rc8.md`, #128).
 
 rc9 contains (36 commits over `d0cb57c`, head `696ac38`): the five piped parameters of `Add-` and
 `Remove-NTFSAccess` and `-NTFSAudit` are `object`, converted in the cmdlet
@@ -82,10 +69,10 @@ ends the host through the three flags parameters, as in rc8 (known limit). A
 blank, `$null`, or `DBNull` value of the other parameter group is
 `AmbiguousParameterSet` (documented, not restructured).
 
-Open before the stable pull request: the end of the lab acceptance of the
-published rc9 and its record (agent). Two gates closed on 2026-11-10, in answer
-to an explicit question: he accepts the untested risk of #34 (Decision 23,
-option 2: release 5.0.0 with the caveat) and says that he checked
+Open before the stable pull request: the maintainer merges the acceptance
+record of rc9 (the agent's part is done). Two gates closed on 2026-11-10, in
+answer to an explicit question: he accepts the untested risk of #34 (Decision
+23, option 2: release 5.0.0 with the caveat) and says that he checked
 `PSGALLERY_API_KEY` (valid, not expiring soon; the key is a secret that the
 agent cannot read, and nothing about it is recorded here). The stable change
 touches only the label, the CHANGELOG (with the caveat), and `$publishedVersions`
@@ -108,9 +95,14 @@ Decisions 22 and 24 on 2026-10-19 and decided 23 on 2026-11-10 (option 2).
   (the head), the probes (`p-*.ps1`, `fixb-probe`, `shapes-r2`, `Run-Oracle.ps1`,
   `Run-Pathological.ps1`), the published rc8 (`rc8-published`), the published
   rc9 (`rc9-published-identity`: the nupkg, the zip, `Identity-5.0.0-rc9.json`;
-  `oracle-published-rc9`), the chain of the acceptance (`rc9-published`: log
-  `chain-published-rc9.log`, a stage folder and a result folder per stage), and
-  the analyzer and surface results. The review probes of the reviewers are in
+  `oracle-published-rc9`), the acceptance (`rc9-published`: the first attempt;
+  `rc9-published-2`: the second attempt and the reruns, with the log
+  `chain-published-rc9.log`, a stage folder per stage, `live-matrix-rc9n`,
+  `live-rc9`, `localsuite-rc9`, `tables`; `evidence-manifest.csv` lists the 618
+  files), and the analyzer and surface results. The helper scripts of the
+  acceptance (the driver, the restore, the checks, `Rerun-Matrix.ps1`,
+  `Repair-ClientChannel2.ps1`, `Build-RecordTables2.ps1`) are in
+  `files\qg-unknowns\scripts`. The review probes of the reviewers are in
   `C:\Temp\ntfs-rc9\review*-probes-*` (temporary). The worktrees under
   `C:\Temp\ntfs-rc9` are temporary too.
 - Milestones of earlier gates (rc6 and rc7 releases, handoff 1, the operating
@@ -132,32 +124,27 @@ Decisions 22 and 24 on 2026-10-19 and decided 23 on 2026-11-10 (option 2).
 
 ## Next step
 
-1. Lab acceptance of the published rc9: the second attempt started 2026-11-10
-   14:26:36Z (log `rc9-published-2\chain-published-rc9.log`; the first attempt,
-   `rc9-published`, was killed by a host shutdown) and ended at 15:30Z except
-   for the matrix. Its rerun (tag `rc9n`, started 15:36Z, about 30 minutes;
-   scripts `Rerun-Matrix.ps1` and `Repair-ClientChannel2.ps1` in
-   `files\qg-unknowns\scripts`; logs `rerun-matrix-rc9n.log` and
-   `live-matrix-rc9n\rc9n-sequence.log`) ends with `Verify-Labs`. A
-   detached chain does not survive a host shutdown: if it dies without a marker,
-   read the System log (events 1074, 6006, 13, 41) and the newest file of the
-   evidence folder, then start it again with a fresh folder. When the log ends
-   with a `-DONE` marker, read the stage logs and the
-   `Validate-LabResults.ps1` output, never the marker alone; save the machines
-   again (`Save-VM`; `OSWin11E` is off after its hour); write
-   `Tests/Lab/Acceptance-<date>-published-rc9.md` and update this file,
-   `progress.md`, and `deployment-notes.md` in one pull request (branch
-   `ai/acceptance-published-rc9`; the maintainer pushes and merges). The record
-   names both attempts. A defect that the chain finds needs rc10.
+1. The acceptance record of rc9 (branch `ai/acceptance-published-rc9`: the
+   record `Tests/Lab/Acceptance-2026-11-10-published-rc9.md` with four tables,
+   and the Memory Bank): the maintainer pushes it, opens the pull request, and
+   merges it with a merge commit before the stable pull request. A detached
+   chain does not survive a host shutdown: if it dies without a marker, read
+   the System log (events 1074, 6006, 13, 41) and the newest file of the
+   evidence folder, then start it again with a fresh folder. A defect that a
+   later run finds needs rc10.
 2. The stable pull request (branch `ai/release-5.0.0`, prepared locally on
-   2026-11-10, not pushed): no `Prerelease`, `## [5.0.0] - <date>` with the
-   caveat of #34 and an empty `[Unreleased]` above it plus the links, and
-   `5.0.0-rc9` in `$publishedVersions` (the list ends at rc8). The maintainer
-   merges it only after the acceptance record of rc9 is merged, sets the date to
-   the day of the tag (the Release job only warns about a different day), and
-   tags. After the release, run `Test-PublishedRelease.ps1 -Version 5.0.0` and
-   compare the module files with those of rc9: only the manifest (the label)
-   and the rebuilt DLL may differ.
+   2026-11-10, not pushed; the body draft is
+   `C:\Temp\ntfs-rc9\final-msgs\pr-stable-body.md`): no `Prerelease`,
+   `## [5.0.0] - <date>` with the caveat of #34 and an empty `[Unreleased]`
+   above it plus the links, and `5.0.0-rc9` in `$publishedVersions` (the list
+   ends at rc8). The maintainer merges it after the record is merged, sets the
+   date to the day of the tag (the Release job only warns about a different
+   day), and tags. After the release, run
+   `Test-PublishedRelease.ps1 -Version 5.0.0`; the module sources must differ
+   from rc9 only in the manifest: `git diff --stat 5.0.0-rc9 5.0.0 --
+   NTFSSecurity Security2 PrivilegeControl ProcessPrivileges Log` lists only
+   `NTFSSecurity/NTFSSecurity.psd1` (the rebuilt DLL differs too; the build
+   isn't byte-reproducible).
 3. #34: decided on 2026-11-10 (Decision 23, option 2; see the first paragraph
    of this section). The issue has no comment since 2026-10-19 and no tester
    result. The caveat names the file servers that the matrix tested (Windows

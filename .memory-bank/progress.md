@@ -18,10 +18,10 @@ path to stable (Decision 21, "Closing the gate"); on 2026-10-20 he merged #126
 (the decisions) and #127 (the rc8 fix and label) and tagged rc8; on 2026-10-21
 he merged #128 (the rc8 record), #129 (tests), and #130 (this file); on
 2026-10-22 he merged #131 (rc9) and #132 (the Memory Bank) and tagged rc9. The
-published rc7 and rc8 passed their lab acceptance in the matrix and in the
-first lab; the acceptance of the published rc9 runs (see `activeContext.md`).
-Stable Gallery version: 4.2.6. After 5.0.0, archive in favor of
-WindowsAccessControl (Decision 18).
+published rc7, rc8, and rc9 passed their lab acceptance in the matrix and in the
+first lab (the rc9 record is on `ai/acceptance-published-rc9`, see
+`activeContext.md`). Stable Gallery version: 4.2.6. After 5.0.0, archive in
+favor of WindowsAccessControl (Decision 18).
 
 ## Recent milestones
 
@@ -121,12 +121,17 @@ WindowsAccessControl (Decision 18).
   validated build in the probes (9 list rows differ from rc8). The lab
   acceptance chain started at 11:00:36Z; a planned shutdown of the host killed
   it at 11:14:36Z, after cell 1 of the matrix had passed (229/0/2 per edition).
-- 2026-11-10: second attempt of the rc9 acceptance (14:26:36Z, cold start of
-  both labs; ready at the first attempt). The matrix stage stopped at the
-  readiness of cell 1 (OSWin11E: `secure channel False`, four minutes after its
-  cold start); the suites ran. He decided #34 (Decision 23, option 2: release
-  with the caveat) and said that he checked `PSGALLERY_API_KEY`; the stable
-  branch `ai/release-5.0.0` is prepared locally.
+- 2026-11-10: the lab acceptance of the published rc9 is complete (record
+  `Tests/Lab/Acceptance-2026-11-10-published-rc9.md`, branch
+  `ai/acceptance-published-rc9`). The second attempt (14:26:36Z, cold start of
+  both labs) passed the suites and the first lab; the matrix stage stopped at
+  the readiness of cell 1 (`OSWin11E`: `secure channel False`). A first rerun
+  failed the same way ("Access is denied" for the lab account); the second
+  rerun repaired the channel with `Test-ComputerSecureChannel -Repair` and the
+  lab account and passed the three cells (1,374 / 0 / 12, CLEAN; both labs
+  CLEAN at 16:03Z). He decided #34 (Decision 23, option 2: release with the
+  caveat) and said that he checked `PSGALLERY_API_KEY`; the stable branch
+  `ai/release-5.0.0` is prepared locally.
 
 ## Stable capabilities
 
@@ -139,14 +144,13 @@ WindowsAccessControl (Decision 18).
 
 ## Open work
 
-1. Decision 21 gate: the published rc7 and rc8 are accepted in the matrix and
-   the first lab (records); stable follows rc9 (Decision 27): after his push,
-   pull request, merge, and tag of rc9 the agent runs the lab acceptance of
-   the published bytes (about 70 minutes). Do not release 5.0.0 until the other
-   gates close: that acceptance, the decision on #34 on 2026-11-02, and the key
-   check. Release steps: `Docs/Contributing/05-Releasing.md`; remove the
-   prerelease label, date `[5.0.0]`, add the last prerelease (rc9) to
-   `$publishedVersions` (never the version of the manifest), tag through CI.
+1. Decision 21 gate: the published rc7, rc8, and rc9 are accepted in the matrix
+   and the first lab (records; the rc9 record awaits his merge); stable follows
+   rc9 (Decision 27). The decision on #34 and the key check closed on
+   2026-11-10. Do not release 5.0.0 before the rc9 record and the stable pull
+   request are merged. Release steps: `Docs/Contributing/05-Releasing.md`;
+   remove the prerelease label, date `[5.0.0]`, add the last prerelease (rc9)
+   to `$publishedVersions` (never the version of the manifest), tag through CI.
 2. Issues: #110's seven items were addressed by rc6, but #115 deliberately
    used no closing keyword. #34 stays open for non-Windows owner feedback
    or maintainer acceptance. #16, #21, #45, #89 await reporters. #68 tracks
