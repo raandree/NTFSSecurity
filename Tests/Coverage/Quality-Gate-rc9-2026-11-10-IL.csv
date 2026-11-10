@@ -1,0 +1,5 @@
+"Assembly","MethodsLeft","MethodsRight","Instructions","OnlyLeft","OnlyRight","DifferentBody","Equal"
+"NTFSSecurity","681","681","10459","0","0","1","False"
+"Security2","392","392","5228","0","0","3","False"
+"PrivilegeControl","8","8","80","0","0","0","True"
+"ProcessPrivileges","91","91","1227","0","0","6","False"
