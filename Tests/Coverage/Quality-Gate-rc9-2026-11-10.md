@@ -46,8 +46,10 @@ The work is on `ai/rc9-tests`, stacked on the record of the rc9 acceptance
   five of those methods have none left. The statements after
   `ThrowTerminatingError` in the four `ValidateNamedValue` (8 points) cannot
   run, and one operand of a guard in `DescribeValue` is redundant; both are
-  explained. Each new test fails against a mutation of the product in a
-  scratch build, and the mutations are not part of the branch.
+  explained. Each group of the new tests fails against at least one mutation of
+  the product in a scratch build; the eight mutations are a sample and do not
+  reach every case (see [The mutations](#the-mutations)), and they are not part
+  of the branch.
 - **Criterion 2.** In the four configurations the suite discovers 8,856 rows
   (2,214 each). 834 rows are skipped, 417 distinct rows of 214 tests, each
   skipped in two configurations and executed in the other two: 0 skipped rows
@@ -202,16 +204,20 @@ the ones this section reads against the current source.
 | `GetFileHash2.ProcessRecord` | Moved | 6/0 | HASH-POLICY-AND-RETRY |
 | `FileSystemAuditRule2.GetFileSystemAuditRules` | Moved | 0/1 | INHERITED-FROM-EMPTY-LIST |
 
-### The check that a later command raises, in nine handlers
+### The check that a later command raises, in ten handlers
 
 Decision 27, item 7, put the same check into the 17 handlers of the retry as
 the owner: `if (IsFromLaterCommand(ex2)) { throw; }`. Eight handlers have a
 test that drives them into `RestoreOwnerError` and a later command that throws
-(`PipelineControl.Tests.ps1`). The check of the other nine is unvisited, and
-the reason is a rule of Windows, not of the tests:
+(`PipelineControl.Tests.ps1`). The check of the other nine is unvisited. A
+tenth handler, `Get-NTFSSecurityDescriptor`, is not in the list of Decision 27:
+it has had the same check in the same place since before rc9 (its code is the
+same in `2112ee3`, rc8, and rc9), and no test reaches it either. The reason is
+a rule of Windows, not of the tests:
 
-- **The four getters** (`Get-NTFSAccess`, `Get-NTFSOrphanedAccess`,
-  `Get-NTFSEffectiveAccess`, `Get-NTFSInheritance`; READ-RETRY-LATER-COMMAND).
+- **The five getters** (`Get-NTFSAccess`, `Get-NTFSOrphanedAccess`,
+  `Get-NTFSEffectiveAccess`, `Get-NTFSInheritance`, and
+  `Get-NTFSSecurityDescriptor`; READ-RETRY-LATER-COMMAND).
   The retry starts with `FileSystemOwner.GetOwner` (`InvokeAsOwner`,
   `BaseCmdlets.cs`), which needs the READ_CONTROL right whose denial started
   the retry. A denial that fails the first read fails that statement too, so the
@@ -232,9 +238,9 @@ the reason is a rule of Windows, not of the tests:
   (#34, out of scope).
 
 The residual risk is the one of Decision 27: a later command that throws for
-exactly the `RestoreOwnerError` record of one of these nine would be reported
-as the error of the item and the loop would go on, as it did before rc9 for all
-17. No state of an item leads there.
+exactly the `RestoreOwnerError` record of one of these ten would be reported
+as the error of the item and the loop would go on, as it did before rc9 for the
+17 handlers of the decision. No state of an item leads there.
 
 `GetInheritance` also has two guards, `if (inheritanceInfo != null)`, in the
 loop of the paths and in the loop of the descriptors. Both overloads of
@@ -304,7 +310,7 @@ three methods that mention this were written before the fix and are corrected:
 
 | File | Cases | What they pin |
 | --- | ---: | --- |
-| `Tests\ParameterSets.Access.Tests.ps1` | 34 | An empty collection (array, list) for each of the four parameters, piped (8) and named (6), is rejected with `InvalidParameterValue` and named by its type; a sequence whose `GetEnumerator` or `MoveNext` throws is rejected for `-AccessType`, `-AppliesTo`, and `-InheritanceFlags`, piped and named (12); the five completers complete a word with an opening quote and no closing quote, and a quote alone, for both quotes (8, called directly, because PowerShell hands them a closing quote) |
+| `Tests\ParameterSets.Access.Tests.ps1` | 34 | An empty collection (array, list) is rejected with `InvalidParameterValue`, for each of the four parameters when it is piped (8, and the message names the type of the collection) and for `-AccessType`, `-AppliesTo`, and `-InheritanceFlags` when it is named (6, the error ID is asserted); a sequence whose `GetEnumerator` or `MoveNext` throws is rejected for `-AccessType`, `-AppliesTo`, and `-InheritanceFlags`, piped and named (12); the four completers of the access cmdlets complete a word with an opening quote and no closing quote, and a quote alone, for both quotes (8, called directly, because PowerShell hands them a closing quote) |
 | `Tests\ItemCmdlets.Tests.ps1` | 18 | `-Filter` with `.` and `...`, and with `a...` and `*...` (7 rows of the truth table of Windows PowerShell 5.1); six patterns with several asterisks that meet one position of a name again (`*a*a*c`, `*a*a*b`, `*a*b*a*b`, ...), pinned with the answers of Windows PowerShell 5.1; five patterns with an even run of dots at the end (`..`, `....`, `a..`, `a.b..`, `*..`), which Windows PowerShell 5.1 rejects with an error and which `Get-ChildItem2` accepts, as its page says |
 
 The expected values of the filter rows are literal, taken from Windows
@@ -338,6 +344,20 @@ M1b survived the first set of tests: the completion tests that go through
 `CommandCompletion.CompleteInput` never hand the completer a lone quote. The
 direct calls were added for that, and M1b and M1c fail in the second run
 (`mut-2`).
+
+The eight mutations are a sample. The table counts the tests that failed (the
+four of M1a are older tests, so at most 37 of the 52 new cases failed under
+some mutation, and a case can fail under more than one), and the evidence keeps
+the first two names of each run. Three groups of new cases are not reached by
+any of them, by reading the code, and no run shows them failing against a
+changed product: the four cases of a sequence that cannot be read for
+`-InheritanceFlags` (a flags parameter converts its elements one by one and
+does not call `TakeOneValue`, so M2 cannot change them); the six named empty
+collections (they assert the error ID, and M3 changes only the message); and
+the five patterns `a...`, `*...`, `a..`, `a.b..`, and `*..` of
+`Get-ChildItem2` (M4, M5, and M6 change other lines). Their expected values
+are answers of Windows PowerShell 5.1 or an error ID, so a change that altered
+those answers would fail them; the sample did not try one.
 
 ## The skip check by row
 
@@ -418,7 +438,8 @@ What this does not show: a coverage run of the published bytes themselves.
 ## Open items for the maintainer
 
 1. **Accept the explanations** of the 169 methods for criterion 3, or name the
-   ones that need a test or a change. The nine handlers of item 7 and the
+   ones that need a test or a change. The ten handlers whose check no test
+   reaches (the nine of item 7 and `Get-NTFSSecurityDescriptor`) and the
    authorization arms are the ones that rest on a statement about Windows;
    each statement is in the methods table with its source and its probe.
 2. **Confirm the six known limits** in the `[5.0.0]` section of the CHANGELOG
