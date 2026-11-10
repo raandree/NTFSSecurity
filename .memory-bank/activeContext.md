@@ -32,6 +32,11 @@ started, so its fixture may still be in the matrix lab. The 19 machines of the
 two labs were Off, not Saved, at the next start. The second attempt started on
 2026-11-10 at 14:26:36Z, the whole chain again in one detached run with a fresh
 evidence folder (`files\rc9\rc9-published-2`) and a heartbeat every 10 minutes.
+In it, the labs passed the readiness after the cold start at the first
+attempt, but the matrix stage stopped at the readiness of cell 1 (14:35Z):
+OSWin11E, started cold four minutes before, reported `secure channel False`, so
+no cell ran; the chain went on with the suites, and the three cells need a
+rerun once the channel is repaired (OSWin11E has an hour per start).
 rc8 (tag `c719197`) was accepted on
 2026-10-20 (record `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`, #128).
 
@@ -69,10 +74,13 @@ blank, `$null`, or `DBNull` value of the other parameter group is
 `AmbiguousParameterSet` (documented, not restructured).
 
 Open before the stable pull request: the end of the lab acceptance of the
-published rc9 and its record (agent); his decision on #34 (the date 2026-11-02
-has passed without an answer; Decision 23: no answer keeps the gate open); his
-check of `PSGALLERY_API_KEY`. The stable change then touches only the label,
-the CHANGELOG, and `$publishedVersions` (add `5.0.0-rc9`; the list ends at rc8).
+published rc9 and its record (agent). Two gates closed on 2026-11-10, in answer
+to an explicit question: he accepts the untested risk of #34 (Decision 23,
+option 2: release 5.0.0 with the caveat) and says that he checked
+`PSGALLERY_API_KEY` (valid, not expiring soon; the key is a secret that the
+agent cannot read, and nothing about it is recorded here). The stable change
+touches only the label, the CHANGELOG (with the caveat), and `$publishedVersions`
+(add `5.0.0-rc9`; the list ends at rc8).
 
 State at 2026-10-10: the maintainer integrated the release-gate stack into
 `master` (#116, #120, #118, #119, #121; `fa0701b`, CI green; GitHub closed #117
@@ -81,7 +89,7 @@ unmerged when the branch deletion removed its base, Decision 15) and tagged rc7
 (record `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`). The agent's
 delegated decisions of 2026-10-09 and 10 are D1 to D47 in
 `decisions-night-2026-10-09.md` of the session files; the maintainer accepted
-Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
+Decisions 22 and 24 on 2026-10-19 and decided 23 on 2026-11-10 (option 2).
 
 ## Evidence
 
@@ -128,16 +136,19 @@ Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
    `progress.md`, and `deployment-notes.md` in one pull request (branch
    `ai/acceptance-published-rc9`; the maintainer pushes and merges). The record
    names both attempts. A defect that the chain finds needs rc10.
-2. The stable pull request: no `Prerelease`, `## [5.0.0] - <date>` with an empty
-   `[Unreleased]` and the links, and `5.0.0-rc9` in `$publishedVersions` (the
-   list ends at rc8). The maintainer checks the expiry of `PSGALLERY_API_KEY`
-   first, merges, and tags. Not before his decision on #34 (item 3).
-3. #34 waited for a tester until 2026-11-02 (Decision 23, option 3; checklist:
-   `Tests/Lab/Non-Windows-File-Server-Test.md`). On 2026-11-10 the issue has no
-   comment since the follow-up of 2026-10-19 and no tester result, and the
-   maintainer's choice between waiting longer and accepting the untested risk
-   with a release-note caveat is not recorded. No agent can accept it; no
-   answer keeps the gate open.
+2. The stable pull request (branch `ai/release-5.0.0`, prepared locally on
+   2026-11-10, not pushed): no `Prerelease`, `## [5.0.0] - <date>` with the
+   caveat of #34 and an empty `[Unreleased]` above it plus the links, and
+   `5.0.0-rc9` in `$publishedVersions` (the list ends at rc8). The maintainer
+   merges it only after the acceptance record of rc9 is merged, sets the date to
+   the day of the tag (the Release job only warns about a different day), and
+   tags. After the release, run `Test-PublishedRelease.ps1 -Version 5.0.0` and
+   compare the module files with those of rc9: only the manifest (the label)
+   and the rebuilt DLL may differ.
+3. #34: decided on 2026-11-10 (Decision 23, option 2; see the first paragraph
+   of this section). The issue has no comment since 2026-10-19 and no tester
+   result. The caveat names the file servers that the matrix tested (Windows
+   Server 2019, 2022, 2025) and says where to report after the archive.
 4. Open housekeeping: keep or replace the matrix VMs (about 60 GB, saved between
    runs) and the evaluation client (it shuts down every hour; `OSWin11E` is
    off); a domain cell for Windows 11 26H1, whose client loses the secure

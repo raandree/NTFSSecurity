@@ -7,9 +7,27 @@ source: release gates of 5.0.0 (lab acceptance, OS matrix, publication plan), re
 
 # Deployment notes
 
-## Publish the next prerelease (rc8 is published)
+## Publish the next prerelease (rc9 is published)
 
-State on 2026-10-20 at 12:40 UTC: rc8 is published. #127 (`c719197`, 10:27:39Z:
+State on 2026-11-10: rc9, the last prerelease before 5.0.0, is published. #131
+(`823c814`, merged 2026-10-22 08:13Z; the tree equals the validated head
+`696ac38`) and #132 are merged, and the maintainer pushed the lightweight tag
+`5.0.0-rc9` at `823c814` at about 08:37Z. The CI run `39749188259` of the tag
+passed (Build and test, then Release without an approval step). The Gallery
+has rc9 since 08:50:59Z, GitHub since 08:51:19Z. `Test-PublishedRelease.ps1
+-Version 5.0.0-rc9` verified the identity at 10:54Z (and again in the chain):
+the Gallery's SHA-512 matches the nupkg, the 11 module files are
+byte-identical in the nupkg and the GitHub zip, and the manifest says
+`5.0.0-rc9`. The published bytes of rc9:
+
+- `NTFSSecurity.dll` SHA-256
+  `464CAB365AD63CD22208B21012A5B7F0B8B630E819CF300019787A0172791198`
+- `NTFSSecurity.zip` SHA-256
+  `5A05BC008605D9B4B1EAB074FFC811B460FAF6D3549701D00ABA15D9208ED571`
+- nupkg SHA-256
+  `72CC5E28567BEC564DB052AF34C91F237ECFC9558FA2E981E201E02E16B4F8F3`
+
+State on 2026-10-20 at 12:40 UTC: rc8 was published. #127 (`c719197`, 10:27:39Z:
 the fix of `Get-NTFSEffectiveAccess`, the hard-link known limit, the label
 `rc8`) and #126 are merged. The maintainer pushed the lightweight tag
 `5.0.0-rc8` at `c719197` at about 10:28Z. The CI run `39408140862` of the tag
@@ -43,12 +61,14 @@ The release notes of a prerelease are the `[Unreleased]` section of
 `CHANGELOG.md`.
 
 1. Accept the published package (next section): done for rc7 (2026-10-10) and
-   rc8 (2026-10-20); the records are `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`
-   and `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`. A changed binary (rc9,
+   rc8 (2026-10-20), running for rc9 (the record
+   `Tests/Lab/Acceptance-<date>-published-rc9.md` follows); the records are
+   `Tests/Lab/Acceptance-2026-10-10-published-rc7.md` and
+   `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`. A changed binary (rc9,
    or a build of 5.0.0 that differs by more than the label) needs the same
    cells again.
-2. The stable change adds `5.0.0-rc8` to `$publishedVersions` in
-   `Tests/Repository.Tests.ps1` (the list ends at rc7), as
+2. The stable change adds `5.0.0-rc9` to `$publishedVersions` in
+   `Tests/Repository.Tests.ps1` (the list ends at rc8), as
    `Docs/Contributing/05-Releasing.md` says. The test "Should not reuse a
    version that the PowerShell Gallery already has" fails when the list holds
    the version of the manifest.

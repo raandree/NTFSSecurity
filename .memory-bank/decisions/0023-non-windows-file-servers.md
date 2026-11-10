@@ -1,9 +1,9 @@
 ---
 status: accepted
 date: 2026-10-09
-last-verified: 2026-10-19
+last-verified: 2026-11-10
 owner: shared
-source: agent assessment for the maintainer (Handoff 4), from #34 read on 2026-10-09 21:33 UTC; option 3 chosen by the maintainer on 2026-10-19
+source: agent assessment for the maintainer (Handoff 4), from #34 read on 2026-10-09 21:33 UTC; option 3 chosen by the maintainer on 2026-10-19; the risk accepted by the maintainer on 2026-11-10
 ---
 
 # Decision 23: Non-Windows file servers before 5.0.0 (#34)
@@ -68,6 +68,19 @@ source: agent assessment for the maintainer (Handoff 4), from #34 read on 2026-1
   accepted. On 2026-11-02 the maintainer chooses between waiting longer
   (option 1) and accepting the untested risk with the caveat below (option 2).
   No answer keeps the gate open.
+- Decided (maintainer, 2026-11-10, in answer to an explicit question; not a
+  delegated choice): option 2. The date of 2026-11-02 had passed. #34 had no
+  comment since his follow-up of 2026-10-19 (22 days) and no tester result.
+  He accepts the untested risk on file servers that aren't Windows, and 5.0.0
+  is released with the caveat in the `[5.0.0]` section of the CHANGELOG, which
+  is the text of the GitHub release. The agent's recommendation was the same:
+  nobody answered in 22 days, the repository is archived after 5.0.0, so waiting
+  leaves no later fix path, and the failure is a clear error with `icacls` as
+  the fallback. The agent adapted the caveat in two places, for the maintainer
+  to approve in the pull request: it names what the matrix tested (file servers
+  with Windows Server 2019, 2022, and 2025), and it says where to report after
+  the archive, because an archived repository takes no comment on #34 (the
+  README already names WindowsAccessControl, whose issues are open).
 - Tester checklist: `Tests/Lab/Non-Windows-File-Server-Test.md`. It uses a
   new folder that the tester controls and asks for sanitized evidence.
 - Draft comment for #34 (for the maintainer to post; the agent posts

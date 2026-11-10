@@ -84,29 +84,20 @@ WindowsAccessControl (Decision 18).
   went up at 12:09 UTC), rc8 with the fix of `GetEffectiveAccess`, and a
   tests-only round for the plain test gaps until 2026-11-02.
 - 2026-10-20: rc8. The maintainer merged #126 and #127 (`c719197`: the fix of
-  the swallowed initialization errors of `GetEffectiveAccess`, the known limit
-  of the hard-link cmdlets in the pages and the CHANGELOG, label `rc8`) and
-  tagged `5.0.0-rc8` at about 10:28Z; Gallery 10:40:58Z, GitHub 10:41:07Z, no
-  approval step. The identity check passed (10:42Z). The lab acceptance of the
-  published bytes ran in one detached chain (68 minutes, 10:38 to 11:47Z, the
-  saved machines restored first): three cells 1,374 passed, 0 failed, 12
-  skipped; the suite in 24 runs without a failure (1,191 cases per
-  configuration); the first lab 245/0/1 per edition; every end state CLEAN. A
-  probe on four operating systems showed the boundary of the new error (a name
-  of 32,718 characters). Record
+  the swallowed initialization errors of `GetEffectiveAccess`, the hard-link
+  limit in the pages, label `rc8`) and tagged `5.0.0-rc8` at about 10:28Z
+  (Gallery 10:40:58Z, GitHub 10:41:07Z). Identity passed (10:42Z); the lab
+  acceptance of the published bytes ran in one detached chain (68 minutes):
+  three cells 1,374/0/12, the suite in 24 runs without a failure, the first lab
+  245/0/1 per edition, every end state CLEAN. Record
   `Tests/Lab/Acceptance-2026-10-20-published-rc8.md` (#128).
-- 2026-10-20: tests-only round (Decision 21). Four implementers, one
-  `ParameterSets.*` test file each (#129): 89 `It` blocks, 121 cases, the
-  suite 1,494 to 1,615 per configuration, 0 failed in four configurations; 38
-  of 64 sets closed (7 before), 26 with a leftover (16 Limit, 7
-  MaintainerDecision, 3 would-pin); no defect. Report:
-  `Tests/Coverage/Quality-Gate-Test-Round-2026-10-20.md`. On 2026-10-21 he
-  merged #129 (08:24Z) and #130 (08:47Z); the new tests passed in three CI
-  runs and in 24 lab runs on six machine classes (0 failed). A probe then
-  found that piped optional parameters ignore a bad value (a typo for Deny
-  creates an Allow entry); Decision 27 sets the scope of rc9, the designs were
-  chosen on 2026-10-21, and four work items started (branch
-  `ai/rc9-before-stable`).
+- 2026-10-20: tests-only round (Decision 21; #129): 89 `It` blocks, the suite
+  1,494 to 1,615 per configuration, 0 failed; 38 of 64 parameter sets closed,
+  26 with a leftover; no defect (report
+  `Tests/Coverage/Quality-Gate-Test-Round-2026-10-20.md`). On 2026-10-21 he
+  merged #129 and #130; 24 lab runs passed. A probe then found that piped
+  optional parameters ignore a bad value (a typo for Deny creates an Allow
+  entry): Decision 27 sets the scope of rc9.
 - 2026-10-21: rc9 built and reviewed (Decision 27; branch `ai/rc9`, 36 commits
   over `d0cb57c`, head `696ac38`). Four implementers
   worked test-first in worktrees (the five piped parameters, the 17 handlers
@@ -122,21 +113,20 @@ WindowsAccessControl (Decision 18).
   (rc8: 1,615); docs fixpoint; analyzer clean; valid shapes differ from rc8 in
   9 list rows only; both reviewers: no finding.
 - 2026-10-22: rc9 published. The maintainer merged #131 (`823c814`, 08:13Z; its
-  tree equals the validated `696ac38`; the CI of the PR ran 2,162 cases per
-  configuration on the runner, equal to the local run in all four
-  configurations) and #132 (`f2bcd9d`, 10:15Z), and tagged `823c814` at about
-  08:37Z. The CI run `39749188259` of the tag passed, Release without an
-  approval step; GitHub 08:51:19Z. `Test-PublishedRelease.ps1`: identity
-  verified at 10:54Z. Published bytes: `NTFSSecurity.dll` SHA-256
-  `464CAB365AD63CD22208B21012A5B7F0B8B630E819CF300019787A0172791198`, zip
-  `5A05BC008605D9B4B1EAB074FFC811B460FAF6D3549701D00ABA15D9208ED571`, nupkg
-  `5A05BC008605D9B4B1EAB074FFC811B460FAF6D3549701D00ABA15D9208ED571`, nupkg
-  `72CC5E28567BEC564DB052AF34C91F237ECFC9558FA2E981E201E02E16B4F8F3`. The
-  published bytes give the results of the validated build in the pathological,
-  `ToString`, and valid-shape probes (9 list rows differ from rc8). The lab
+  tree equals the validated `696ac38`; the runner's 2,162 cases per
+  configuration equal the local run) and #132 (`f2bcd9d`, 10:15Z) and tagged
+  `823c814` at about 08:37Z; the tag run `39749188259` passed without an
+  approval step (GitHub 08:51:19Z). The identity check passed at 10:54Z
+  (hashes: deployment notes) and the published bytes give the results of the
+  validated build in the probes (9 list rows differ from rc8). The lab
   acceptance chain started at 11:00:36Z; a planned shutdown of the host killed
-  it at 11:14:36Z after cell 1 of the matrix had passed (229/0/2 per edition);
-  the second attempt started on 2026-11-10 at 14:26:36Z.
+  it at 11:14:36Z, after cell 1 of the matrix had passed (229/0/2 per edition).
+- 2026-11-10: second attempt of the rc9 acceptance (14:26:36Z, cold start of
+  both labs; ready at the first attempt). The matrix stage stopped at the
+  readiness of cell 1 (OSWin11E: `secure channel False`, four minutes after its
+  cold start); the suites ran. He decided #34 (Decision 23, option 2: release
+  with the caveat) and said that he checked `PSGALLERY_API_KEY`; the stable
+  branch `ai/release-5.0.0` is prepared locally.
 
 ## Stable capabilities
 
