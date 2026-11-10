@@ -603,10 +603,10 @@ $fixtureScript = {
         [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
             'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Creates an object in memory only.'
         )]
-        param ([string] $Sid, [string] $Rights)
+        param ([string] $Sid, [string] $Rights, [string] $Type = 'Allow', [string] $Inheritance = 'ContainerInherit, ObjectInherit', [string] $Propagation = 'None')
 
         $identity = New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList $Sid
-        New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList $identity, $Rights, 'ContainerInherit, ObjectInherit', 'None', 'Allow'
+        New-Object -TypeName 'System.Security.AccessControl.FileSystemAccessRule' -ArgumentList $identity, $Rights, $Inheritance, $Propagation, $Type
     }
 
     function New-FixtureFolder {
@@ -614,7 +614,7 @@ $fixtureScript = {
             'PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Runs in the fixture that the script confirmed.'
         )]
         param ([string] $RelativePath, [object[]] $AccessRule = @(), [switch] $Protected, [switch] $RemoveInherited,
-            [switch] $Audit, [switch] $LegacyDacl, [switch] $InheritableAudit, [switch] $ProtectedAudit)
+            [switch] $Audit, [switch] $LegacyDacl, [switch] $InheritableAudit, [switch] $ProtectedAudit, [string] $AuditSid = 'S-1-1-0')
 
         $path = Join-Path -Path $root -ChildPath $RelativePath
         $null = New-Item -ItemType Directory -Path $path -Force
@@ -633,14 +633,14 @@ $fixtureScript = {
         [System.IO.Directory]::SetAccessControl($path, $acl)
         if ($Audit -or $InheritableAudit -or $ProtectedAudit) {
             $auditAcl = Get-Acl -LiteralPath $path -Audit
-            $everyone = New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList 'S-1-1-0'
+            $auditIdentity = New-Object -TypeName 'System.Security.Principal.SecurityIdentifier' -ArgumentList $AuditSid
             if ($Audit) {
-                $auditAcl.AddAuditRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList $everyone, 'Delete', 'None', 'None', 'Success'))
+                $auditAcl.AddAuditRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList $auditIdentity, 'Delete', 'None', 'None', 'Success'))
             }
 
             # An entry that the subfolders created afterwards inherit
             if ($InheritableAudit) {
-                $auditAcl.AddAuditRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList $everyone, 'Delete', 'ContainerInherit, ObjectInherit', 'None', 'Failure'))
+                $auditAcl.AddAuditRule((New-Object -TypeName 'System.Security.AccessControl.FileSystemAuditRule' -ArgumentList $auditIdentity, 'Delete', 'ContainerInherit, ObjectInherit', 'None', 'Failure'))
             }
 
             if ($ProtectedAudit) {
@@ -787,6 +787,57 @@ $fixtureScript = {
                     }
                 }
             }
+        }
+    }
+
+    # Case 11: the behavior that 5.0.0-rc9 changed. Administrators own the folders that the tests change, and the delegated
+    # group fully controls them. The account of the rows is the subject of case 3. The folders whose entry a test removes
+    # have a Deny entry for it, and the one where only the Deny entry may go has an Allow entry of other rights as well.
+    $null = New-FixtureFolder -RelativePath 'Case11' -AccessRule $delegatesFullControl
+    $subjectDeny = New-AccessRule -Sid $Sid.Subject -Rights 'ReadData' -Type 'Deny'
+    foreach ($name in 'ValidSimple', 'ValidComplex', 'BadFirst', 'BadList', 'BadThird', 'NamedNullPath', 'NamedNullFirst', 'NamedNullSecond') {
+        $null = New-FixtureFolder -RelativePath "Case11\Access\$name" -AccessRule $delegatesFullControl
+    }
+
+    $null = New-FixtureFolder -RelativePath 'Case11\Access\RemoveDeny' -AccessRule @($delegatesFullControl, $subjectDeny, (New-AccessRule -Sid $Sid.Subject -Rights 'ReadAndExecute'))
+    foreach ($name in 'AddFirst', 'AddSecond') {
+        $null = New-FixtureFolder -RelativePath "Case11\Descriptor\$name" -AccessRule $delegatesFullControl
+    }
+
+    foreach ($name in 'RemoveFirst', 'RemoveSecond') {
+        $null = New-FixtureFolder -RelativePath "Case11\Descriptor\$name" -AccessRule @($delegatesFullControl, $subjectDeny)
+    }
+
+    $null = New-FixtureFolder -RelativePath 'Case11\Library\AddByPath' -AccessRule $delegatesFullControl
+    foreach ($role in 'Admin', 'ServerAdmin') {
+        foreach ($name in 'AddValid', 'AddBad', 'AddAfterBad') {
+            $null = New-FixtureFolder -RelativePath "Case11\$role\Audit\$name" -AccessRule $delegatesFullControl
+        }
+
+        # The audit entry of the subject that Remove-NTFSAudit removes or leaves
+        foreach ($name in 'RemoveValid', 'RemoveBad') {
+            $null = New-FixtureFolder -RelativePath "Case11\$role\Audit\$name" -AccessRule $delegatesFullControl -Audit -AuditSid $Sid.Subject
+        }
+    }
+
+    # The handlers that retry as the owner. The folder Blocked denies the delegated group the right to change its DACL, which
+    # Full Control includes, so the first write of each handler fails. The group may take ownership, and an owner changes the DACL
+    # whatever a deny entry says, so the retry works; giving Administrators back fails for the delegated account. The folder Next
+    # is the same without the Deny entry. Clear-NTFSAccess and Remove-NTFSAccess need an entry to remove, and
+    # Enable-NTFSAccessInheritance a protected DACL.
+    $denyChangePermissions = New-AccessRule -Sid $Sid.NtfsLiveDelegates -Rights 'ChangePermissions' -Type 'Deny' -Inheritance 'None'
+    $everyoneEntry = New-AccessRule -Sid 'S-1-1-0' -Rights 'ReadAndExecute'
+    foreach ($handler in 'Clear-NTFSAccess', 'Disable-NTFSAccessInheritance', 'Enable-NTFSAccessInheritance', 'Set-NTFSInheritance',
+        'Set-NTFSSecurityDescriptor', 'Add-NTFSAccess', 'Remove-NTFSAccess') {
+        $rules = @($delegatesFullControl)
+        if ($handler -in 'Clear-NTFSAccess', 'Remove-NTFSAccess') {
+            $rules += $everyoneEntry
+        }
+
+        foreach ($style in 'Plain', 'Later') {
+            $isProtected = $handler -eq 'Enable-NTFSAccessInheritance'
+            $null = New-FixtureFolder -RelativePath "Case11\RestoreOwner\$handler-$style\Next" -AccessRule $rules -Protected:$isProtected
+            $null = New-FixtureFolder -RelativePath "Case11\RestoreOwner\$handler-$style\Blocked" -AccessRule ($rules + $denyChangePermissions) -Protected:$isProtected
         }
     }
 
