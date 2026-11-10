@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-21
+last-verified: 2026-11-10
 owner: active-agent
 source: current task evidence
 ---
@@ -35,8 +35,17 @@ evidence folder (`files\rc9\rc9-published-2`) and a heartbeat every 10 minutes.
 In it, the labs passed the readiness after the cold start at the first
 attempt, but the matrix stage stopped at the readiness of cell 1 (14:35Z):
 OSWin11E, started cold four minutes before, reported `secure channel False`, so
-no cell ran; the chain went on with the suites, and the three cells need a
-rerun once the channel is repaired (OSWin11E has an hour per start).
+no cell ran. The chain went on: the six suites passed (0 failed; 1,859 cases
+per configuration on OSFile19 and OSWin11E, 1,858 on the host) and the first
+lab passed (Desktop and Core each 245 passed, 0 failed, 1 skipped; its end
+state and that of the client are CLEAN). A first rerun of the matrix (tag
+`rc9m`) failed at the same readiness: the lab account got "Access is denied"
+from WinRM of OSWin11E while `Test-ComputerSecureChannel` in a session of the
+local account returned True (a stale answer). The second rerun (tag `rc9n`,
+15:36:36Z) repaired the channel with `Test-ComputerSecureChannel -Repair` and
+the lab account, judged it by a session of the lab account, and started the
+three cells at 15:37:56Z. The matrix lab still holds the fixture of
+2026-10-22 (OU `NTFSSecurityLive`) until the cleanup of the cells removes it.
 rc8 (tag `c719197`) was accepted on
 2026-10-20 (record `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`, #128).
 
@@ -124,12 +133,16 @@ Decisions 22 and 24 on 2026-10-19 and decided 23 on 2026-11-10 (option 2).
 ## Next step
 
 1. Lab acceptance of the published rc9: the second attempt started 2026-11-10
-   14:26:36Z (log `rc9-published-2\chain-published-rc9.log`; 68 minutes for
-   rc8; the first attempt, `rc9-published`, was killed by a host shutdown). A
+   14:26:36Z (log `rc9-published-2\chain-published-rc9.log`; the first attempt,
+   `rc9-published`, was killed by a host shutdown) and ended at 15:30Z except
+   for the matrix. Its rerun (tag `rc9n`, started 15:36Z, about 30 minutes;
+   scripts `Rerun-Matrix.ps1` and `Repair-ClientChannel2.ps1` in
+   `files\qg-unknowns\scripts`; logs `rerun-matrix-rc9n.log` and
+   `live-matrix-rc9n\rc9n-sequence.log`) ends with `Verify-Labs`. A
    detached chain does not survive a host shutdown: if it dies without a marker,
    read the System log (events 1074, 6006, 13, 41) and the newest file of the
    evidence folder, then start it again with a fresh folder. When the log ends
-   with `chain-published-rc9-DONE`, read the stage logs and the
+   with a `-DONE` marker, read the stage logs and the
    `Validate-LabResults.ps1` output, never the marker alone; save the machines
    again (`Save-VM`; `OSWin11E` is off after its hour); write
    `Tests/Lab/Acceptance-<date>-published-rc9.md` and update this file,

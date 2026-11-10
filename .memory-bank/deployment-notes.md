@@ -200,8 +200,19 @@ Local `-ModulePath` runs are validation; the gate needs the published bytes.
   unique names too.
 - `Wait-LabVM` waits for a heartbeat that a client may not report: retry
   `New-LabPSSession` instead of waiting longer. After an unplanned shutdown,
-  test a domain session, not `nltest /sc_verify` (it stays stale), and repair
-  with `Test-ComputerSecureChannel -Repair`.
+  test a domain session of the lab account, not `nltest /sc_verify` and not
+  `Test-ComputerSecureChannel` in a session of the local account (both stay
+  stale: on 2026-11-10 the latter returned True while the lab account got
+  "Access is denied" from WinRM). Repair with `Test-ComputerSecureChannel
+  -Repair -Credential <lab account>` from a session of the local account, and
+  judge the repair by a session of the lab account again; that worked at the
+  first attempt, 6.7 minutes after the boot.
+- A detached chain does not survive a shutdown of the host. On 2026-10-22 a
+  planned shutdown (System event 1074, started by `svchost` `ExHost`) ended the
+  first acceptance chain 14 minutes in, and the host stayed off for 19 days with
+  the 19 lab machines Off, not Saved. Ask for the host to stay on for the run;
+  after a death without a marker, start the whole chain again with a fresh
+  evidence folder.
 - Restart the evaluation client (`OSWin11E`) right before a sequence or a suite,
   not before several: it shuts down an hour after each start. The restart takes
   about two and a half minutes and may need the repair of the secure channel.
