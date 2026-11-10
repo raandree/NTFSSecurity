@@ -9,7 +9,26 @@ source: current task evidence
 
 ## Current focus
 
-State at 2026-11-10: the lab acceptance of the published 5.0.0-rc9 is complete,
+State at 2026-11-10, evening: the maintainer holds the stable 5.0.0 tag. A
+review in another chat (Handoff 6) found three of the five exit criteria of
+Decision 21 open for the final code, and I checked each against our records:
+criterion 3 (the C# coverage was last measured on 2026-10-11; 33 C# product
+files changed since, 35 files in rc9), criterion 4 (the known limits of Decision
+27 are not in the release notes), and criterion 2 (no test skipped in every
+configuration, not checked by row for the new tests). The live tests are the
+same Git blob since rc7 and don't exercise the rc9 changes. He chose the
+focused scope and accepted and listed every known limit, none fixed in an rc10.
+The work is on `ai/rc9-tests` (worktree `C:\Temp\ntfs-rc9\tests`, stacked on the
+record): list the limits (done: `204dbb6` on `ai/release-5.0.0`); measure the
+coverage of `823c814`, classify the unvisited points of the changed files, test
+the reachable gaps, re-measure, check the skips by row; add a time-boxed live
+case 11; prove that it fails on the published rc8; accept the published rc9
+again with the extended kit. Stop rule: a defect is reproduced on rc9, and he
+chooses rc10 or accept-and-list; the module, the help file, and the manifest
+stay as they are until then. The measurement chain of the coverage is
+`files\rc9-coverage\m1` in the session folder (`Chain-Coverage.ps1`).
+
+Earlier on 2026-11-10: the lab acceptance of the published 5.0.0-rc9 is complete,
 and its record is committed on `ai/acceptance-published-rc9`
 (`Tests/Lab/Acceptance-2026-11-10-published-rc9.md` with four tables; the
 maintainer pushes and merges). rc9 is the last prerelease before the stable
@@ -127,26 +146,21 @@ Decisions 22 and 24 on 2026-10-19 and decided 23 on 2026-11-10 (option 2).
 
 1. The acceptance record of rc9 (branch `ai/acceptance-published-rc9`: the
    record `Tests/Lab/Acceptance-2026-11-10-published-rc9.md` with four tables,
-   and the Memory Bank): the maintainer pushes it, opens the pull request, and
-   merges it with a merge commit before the stable pull request. A detached
-   chain does not survive a host shutdown: if it dies without a marker, read
-   the System log (events 1074, 6006, 13, 41) and the newest file of the
-   evidence folder, then start it again with a fresh folder. A defect that a
-   later run finds needs rc10.
-2. The stable pull request (branch `ai/release-5.0.0`, prepared locally on
-   2026-11-10 and reviewed by the built-in `code-review` agent, no finding; not
-   pushed; the body draft is
+   and the Memory Bank): the maintainer pushes it and merges it with a merge
+   commit first; it stays valid, and `ai/rc9-tests` stacks on it (Decision 15).
+2. The stable pull request (branch `ai/release-5.0.0`, local, three commits;
+   `204dbb6` lists the known limits; the review of `6715b82` found nothing, and
+   the delta of `204dbb6` is reviewed at the end; the body draft is
    `C:\Temp\ntfs-rc9\final-msgs\pr-stable-body.md`): no `Prerelease`,
-   `## [5.0.0] - <date>` with the caveat of #34 and an empty `[Unreleased]`
-   above it plus the links, and `5.0.0-rc9` in `$publishedVersions` (the list
-   ends at rc8). The maintainer merges it after the record is merged, sets the
-   date to the day of the tag (the Release job only warns about a different
-   day), and tags. After the release, run
+   `## [5.0.0] - <date>` with the caveat of #34, an empty `[Unreleased]`, the
+   links, and `5.0.0-rc9` in `$publishedVersions`. It opens only after the
+   program above, and its date is set to the day of the tag (the Release job
+   only warns about a different day). After the release, run
    `Test-PublishedRelease.ps1 -Version 5.0.0`; the module sources must differ
    from rc9 only in the manifest: `git diff --stat 5.0.0-rc9 5.0.0 --
    NTFSSecurity Security2 PrivilegeControl ProcessPrivileges Log` lists only
    `NTFSSecurity/NTFSSecurity.psd1` (the rebuilt DLL differs too; the build
-   isn't byte-reproducible).
+   isn't byte-reproducible). A defect that a later run finds needs rc10.
 3. #34: decided on 2026-11-10 (Decision 23, option 2; see the first paragraph
    of this section). The issue has no comment since 2026-10-19 and no tester
    result. The caveat names the file servers that the matrix tested (Windows

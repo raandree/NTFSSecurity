@@ -90,3 +90,22 @@ the decision on #34 (2026-11-02), and the key check. The stable build is new
 bytes: the stable change may touch only the label, the CHANGELOG, and
 `$publishedVersions`; any other product change needs rc9 and the same
 acceptance.
+
+### Status on 2026-11-10
+
+The published rc9 is accepted with the old live tests (record
+`Tests/Lab/Acceptance-2026-11-10-published-rc9.md`). A readiness check of the
+same day found criteria 2 to 4 open for the final code: the C# coverage was
+last measured on 2026-10-11 (33 C# product files changed since, 35 files in
+rc9), the by-row check of the skipped tests was not repeated for the new tests,
+and the known limits of Decision 27 were not in the release notes. The live
+tests, unchanged since rc7, don't exercise the rc9 changes. The maintainer held
+the stable tag and chose the focused scope (Handoff 6): the known limits are
+accepted and listed in the CHANGELOG, none fixed in an rc10; the coverage of
+`823c814` is measured, and every unvisited point of the changed files is tested
+or explained; a time-boxed case 11 of the live tests is added and must fail on
+the published rc8; the published rc9 is accepted again with the extended kit.
+A defect that this work finds is reproduced on the published rc9, and he
+chooses rc10 or accept-and-list. Criterion 4 asks for the listing in the
+release notes, so Decision 7 (user-visible changes only) doesn't keep a known
+limit out of the CHANGELOG.
