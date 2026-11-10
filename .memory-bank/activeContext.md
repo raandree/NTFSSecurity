@@ -20,10 +20,19 @@ appeared at 08:51:19Z. `Test-PublishedRelease.ps1` printed
 (the Gallery's SHA-512 matches the nupkg, the 11 module files are identical in
 the nupkg and the zip, the manifest says `5.0.0-rc9`); the pathological-input,
 `ToString`, and valid-shape probes give the results of the validated build on
-the published bytes. The lab acceptance of the published bytes runs since
-11:00:36Z in one detached chain (`Chain-Published.ps1 -Version 5.0.0-rc9 -Tag
-rc9`, evidence `files\rc9\rc9-published` in the session folder, expected end
-about 12:10Z, heartbeat every 10 minutes). rc8 (tag `c719197`) was accepted on
+the published bytes. The lab acceptance of the published bytes started on
+2026-10-22 at 11:00:36Z (`Chain-Published.ps1 -Version 5.0.0-rc9 -Tag rc9`,
+evidence `files\rc9\rc9-published` in the session folder) and a planned
+shutdown of the host killed it at 11:14:36Z (System event 1074, reason "Other
+(Planned)", started by `svchost` `ExHost`; no scheduled task of this host is
+the cause; the host stayed off until 2026-11-10 14:16Z). Cell 1 of the matrix
+(OSFile19 with OSWin11E) had passed in both editions (229 passed, 0 failed, 2
+skipped each, `LIVE_RESULT_VERIFIED`) and the Snapshot of its cleanup had just
+started, so its fixture may still be in the matrix lab. The 19 machines of the
+two labs were Off, not Saved, at the next start. The second attempt started on
+2026-11-10 at 14:26:36Z, the whole chain again in one detached run with a fresh
+evidence folder (`files\rc9\rc9-published-2`) and a heartbeat every 10 minutes.
+rc8 (tag `c719197`) was accepted on
 2026-10-20 (record `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`, #128).
 
 rc9 contains (36 commits over `d0cb57c`, head `696ac38`): the five piped parameters of `Add-` and
@@ -60,7 +69,8 @@ blank, `$null`, or `DBNull` value of the other parameter group is
 `AmbiguousParameterSet` (documented, not restructured).
 
 Open before the stable pull request: the end of the lab acceptance of the
-published rc9 and its record (agent); his decision on #34 on 2026-11-02; his
+published rc9 and its record (agent); his decision on #34 (the date 2026-11-02
+has passed without an answer; Decision 23: no answer keeps the gate open); his
 check of `PSGALLERY_API_KEY`. The stable change then touches only the label,
 the CHANGELOG, and `$publishedVersions` (add `5.0.0-rc9`; the list ends at rc8).
 
@@ -105,24 +115,29 @@ Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
 
 ## Next step
 
-1. Lab acceptance of the published rc9: the chain started 2026-10-22 11:00:36Z
-   (log `rc9-published\chain-published-rc9.log`; 68 minutes for rc8). When the
-   log ends with `chain-published-rc9-DONE`, read the stage logs and the
+1. Lab acceptance of the published rc9: the second attempt started 2026-11-10
+   14:26:36Z (log `rc9-published-2\chain-published-rc9.log`; 68 minutes for
+   rc8; the first attempt, `rc9-published`, was killed by a host shutdown). A
+   detached chain does not survive a host shutdown: if it dies without a marker,
+   read the System log (events 1074, 6006, 13, 41) and the newest file of the
+   evidence folder, then start it again with a fresh folder. When the log ends
+   with `chain-published-rc9-DONE`, read the stage logs and the
    `Validate-LabResults.ps1` output, never the marker alone; save the machines
-   again (`Save-VM`;
-   `OSWin11E` is off after its hour); write
-   `Tests/Lab/Acceptance-2026-10-22-published-rc9.md` and update this file,
+   again (`Save-VM`; `OSWin11E` is off after its hour); write
+   `Tests/Lab/Acceptance-<date>-published-rc9.md` and update this file,
    `progress.md`, and `deployment-notes.md` in one pull request (branch
-   `ai/acceptance-published-rc9`; the maintainer pushes and merges). A defect
-   that the chain finds needs rc10.
+   `ai/acceptance-published-rc9`; the maintainer pushes and merges). The record
+   names both attempts. A defect that the chain finds needs rc10.
 2. The stable pull request: no `Prerelease`, `## [5.0.0] - <date>` with an empty
    `[Unreleased]` and the links, and `5.0.0-rc9` in `$publishedVersions` (the
    list ends at rc8). The maintainer checks the expiry of `PSGALLERY_API_KEY`
    first, merges, and tags. Not before his decision on #34 (item 3).
-3. #34 waits for a tester until 2026-11-02 (Decision 23, option 3; checklist:
-   `Tests/Lab/Non-Windows-File-Server-Test.md`). On that date the maintainer
-   chooses between waiting longer and accepting the untested risk with a
-   release-note caveat. No agent can accept it.
+3. #34 waited for a tester until 2026-11-02 (Decision 23, option 3; checklist:
+   `Tests/Lab/Non-Windows-File-Server-Test.md`). On 2026-11-10 the issue has no
+   comment since the follow-up of 2026-10-19 and no tester result, and the
+   maintainer's choice between waiting longer and accepting the untested risk
+   with a release-note caveat is not recorded. No agent can accept it; no
+   answer keeps the gate open.
 4. Open housekeeping: keep or replace the matrix VMs (about 60 GB, saved between
    runs) and the evaluation client (it shuts down every hour; `OSWin11E` is
    off); a domain cell for Windows 11 26H1, whose client loses the secure

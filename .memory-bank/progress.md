@@ -130,10 +130,13 @@ WindowsAccessControl (Decision 18).
   verified at 10:54Z. Published bytes: `NTFSSecurity.dll` SHA-256
   `464CAB365AD63CD22208B21012A5B7F0B8B630E819CF300019787A0172791198`, zip
   `5A05BC008605D9B4B1EAB074FFC811B460FAF6D3549701D00ABA15D9208ED571`, nupkg
+  `5A05BC008605D9B4B1EAB074FFC811B460FAF6D3549701D00ABA15D9208ED571`, nupkg
   `72CC5E28567BEC564DB052AF34C91F237ECFC9558FA2E981E201E02E16B4F8F3`. The
   published bytes give the results of the validated build in the pathological,
   `ToString`, and valid-shape probes (9 list rows differ from rc8). The lab
-  acceptance chain started at 11:00:36Z.
+  acceptance chain started at 11:00:36Z; a planned shutdown of the host killed
+  it at 11:14:36Z after cell 1 of the matrix had passed (229/0/2 per edition);
+  the second attempt started on 2026-11-10 at 14:26:36Z.
 
 ## Stable capabilities
 
