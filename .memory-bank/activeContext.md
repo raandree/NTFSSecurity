@@ -110,7 +110,8 @@ Decisions 22 and 24 on 2026-10-19 and decided 23 on 2026-11-10 (option 2).
   and in the records and reports under `Tests/Lab` and `Tests/Coverage`.
 - Reviews: the custom `security-reviewer` can't start (its model is
   unavailable; no override); the built-in `code-review` agent reviewed the paths
-  work, the matrix, rc8, and rc9; the built-in `security-review` agent found no
+  work, the matrix, rc8, rc9, and (2026-11-10, "no finding") the stable change;
+  the built-in `security-review` agent found no
   exploitable vulnerability and two LOW items for the maintainer (Next step 5).
 - Raw evidence of the older gates is outside git: the session folder
   `4b12e2f4-d4c7-4a5d-883a-ddb7421c4848\files` (`qg-paths`, the matrix runs, the
@@ -133,7 +134,8 @@ Decisions 22 and 24 on 2026-10-19 and decided 23 on 2026-11-10 (option 2).
    evidence folder, then start it again with a fresh folder. A defect that a
    later run finds needs rc10.
 2. The stable pull request (branch `ai/release-5.0.0`, prepared locally on
-   2026-11-10, not pushed; the body draft is
+   2026-11-10 and reviewed by the built-in `code-review` agent, no finding; not
+   pushed; the body draft is
    `C:\Temp\ntfs-rc9\final-msgs\pr-stable-body.md`): no `Prerelease`,
    `## [5.0.0] - <date>` with the caveat of #34 and an empty `[Unreleased]`
    above it plus the links, and `5.0.0-rc9` in `$publishedVersions` (the list

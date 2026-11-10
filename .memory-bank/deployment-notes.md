@@ -223,3 +223,10 @@ Local `-ModulePath` runs are validation; the gate needs the published bytes.
   the other machines) passed the readiness checks of both labs at the first
   attempt, about five minutes after the start. `Start-LabMachines.ps1` restores
   them, and `Save-VM` puts them back after the run.
+- `Build-Release.ps1` of the session scripts links `packages` in a worktree to
+  `V:\Git\NTFSSecurity\packages` with a junction and keeps the Roslyn compiler
+  under `$env:TEMP\ntfs-build`; that cache was gone on 2026-11-10, after the
+  host's long power-off, so a later build must restore it first. Remove such a
+  junction with `cmd /c rmdir`, never with a recursive delete, before you remove
+  a worktree. The 13 junctions of the rc9 worktrees were removed on
+  2026-11-10, and the real folder is intact.
