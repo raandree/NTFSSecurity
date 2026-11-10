@@ -1415,6 +1415,13 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Cmdlet = 'Add-NTFSAccess'; Parameter = 'InheritanceFlags'; Shape = 'a generic list of one object whose ToString throws'; Value = [System.Collections.Generic.List[object]]::new([object[]] @($accessThrowingElement)); ValueText = 'System.Collections.Generic.List`1[System.Object]' }
         )
 
+        # An empty collection holds no value to convert, so the conversion rejects it, and the message names its type
+        # because there is no element to show. Every kind of collection counts, and so does every parameter.
+        $accessInvalidParameterCases += foreach ($parameterName in 'AccessType', 'InheritanceFlags', 'PropagationFlags', 'AppliesTo') {
+            @{ Cmdlet = 'Add-NTFSAccess'; Parameter = $parameterName; Shape = 'an empty array'; Value = @(); ValueText = 'System.Object[]' }
+            @{ Cmdlet = 'Remove-NTFSAccess'; Parameter = $parameterName; Shape = 'an empty list'; Value = [System.Collections.Generic.List[string]]::new(); ValueText = 'System.Collections.Generic.List`1[System.String]' }
+        }
+
         $accessSdInvalidParameterCases = foreach ($cmdlet in 'Add-NTFSAccess', 'Remove-NTFSAccess') {
             @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Value = 'Denyy'; ValueText = 'Denyy' }
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = 'Typoo'; ValueText = 'Typoo' }
@@ -1444,6 +1451,9 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = $accessDeepScope }
             @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Value = @($accessThrowingElement) }
             @{ Cmdlet = $cmdlet; Parameter = 'InheritanceFlags'; Value = @($accessThrowingElement) }
+            @{ Cmdlet = $cmdlet; Parameter = 'AccessType'; Value = @() }
+            @{ Cmdlet = $cmdlet; Parameter = 'AppliesTo'; Value = [System.Collections.ArrayList]::new() }
+            @{ Cmdlet = $cmdlet; Parameter = 'InheritanceFlags'; Value = @() }
         }
 
         # A named $null (a literal $null, a variable, an alias, splatting, or $PSDefaultParameterValues) must
@@ -1497,6 +1507,17 @@ Describe 'Invalid and valid values of AccessType, InheritanceFlags, PropagationF
             @{ Parameter = 'PropagationFlags'; Word = 'Inh'; ExpectedName = 'InheritOnly' }
             @{ Parameter = 'AppliesTo'; Word = 'ThisFolderO'; ExpectedName = 'ThisFolderOnly' }
         )
+
+        # PowerShell hands the completer a quoted word with its closing quote, also while the quote is still open, so
+        # a word without one, and a quote alone, reach the completer only when it is called by something else. The
+        # completers are public, so the same rules hold for them: both quotes come off before the match and go back
+        # on each name. The words have one letter, so that a quote that is taken off by mistake changes the names.
+        $accessDirectCompletionCases = foreach ($quote in "'", '"') {
+            @{ Completer = 'AccessControlTypeArgumentCompleter'; EnumTypeName = 'System.Security.AccessControl.AccessControlType'; Quote = $quote; Word = 'D' }
+            @{ Completer = 'InheritanceFlagsArgumentCompleter'; EnumTypeName = 'System.Security.AccessControl.InheritanceFlags'; Quote = $quote; Word = 'C' }
+            @{ Completer = 'PropagationFlagsArgumentCompleter'; EnumTypeName = 'System.Security.AccessControl.PropagationFlags'; Quote = $quote; Word = 'I' }
+            @{ Completer = 'ApplyToArgumentCompleter'; EnumTypeName = 'Security2.ApplyTo'; Quote = $quote; Word = 'F' }
+        }
 
         # In Turkish, a case-insensitive comparison of the culture of the thread treats I and i as different letters, so
         # a word typed in capitals completes only when the completers compare culture invariant.
@@ -1891,6 +1912,92 @@ namespace NtfsSecurityTests
         }
     }
 
+    # A sequence that cannot be read has no value to convert, and it cannot be told from a list either, so the
+    # conversion does not take it for one value; PowerShell cannot convert it, and it ends as a bad value. The
+    # message names its type, because its elements cannot be shown.
+    Context 'A sequence that cannot be read' {
+        BeforeAll {
+            if (-not ('NtfsSecurityTests.SequenceThatCannotBeRead' -as [type])) {
+                Add-Type -TypeDefinition @'
+namespace NtfsSecurityTests
+{
+    public sealed class SequenceThatCannotBeRead : System.Collections.IEnumerable
+    {
+        private readonly bool failsAtGetEnumerator;
+
+        public SequenceThatCannotBeRead(bool failsAtGetEnumerator)
+        {
+            this.failsAtGetEnumerator = failsAtGetEnumerator;
+        }
+
+        public System.Collections.IEnumerator GetEnumerator()
+        {
+            if (this.failsAtGetEnumerator)
+            {
+                throw new System.InvalidOperationException("The sequence cannot be enumerated.");
+            }
+
+            return new Enumerator();
+        }
+
+        private sealed class Enumerator : System.Collections.IEnumerator
+        {
+            public object Current
+            {
+                get { return null; }
+            }
+
+            public bool MoveNext()
+            {
+                throw new System.InvalidOperationException("The sequence cannot be read.");
+            }
+
+            public void Reset()
+            {
+            }
+        }
+    }
+}
+'@
+            }
+        }
+
+        It 'Should reject a sequence that fails at <Failure> for <Parameter> given as <Mode>, name its type, and change nothing' -ForEach @(
+            foreach ($mode in 'named', 'piped') {
+                foreach ($parameterName in 'AccessType', 'AppliesTo', 'InheritanceFlags') {
+                    @{ Mode = $mode; Parameter = $parameterName; Failure = 'GetEnumerator'; FailsAtGetEnumerator = $true }
+                    @{ Mode = $mode; Parameter = $parameterName; Failure = 'MoveNext'; FailsAtGetEnumerator = $false }
+                }
+            }
+        ) {
+            $folder = New-TestSandboxItem -Sandbox $sandbox -Name 'CannotBeRead' -Directory
+            $before = (Get-Acl -LiteralPath $folder).Sddl
+            $sequence = [NtfsSecurityTests.SequenceThatCannotBeRead]::new($FailsAtGetEnumerator)
+
+            $caught = $null
+            if ($Mode -eq 'named') {
+                $namedArguments = @{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData' }
+                $namedArguments[$Parameter] = $sequence
+                try {
+                    Add-NTFSAccess @namedArguments -ErrorAction Stop
+                }
+                catch {
+                    $caught = $_
+                }
+            }
+            else {
+                $properties = @{ Path = $folder; Account = 'S-1-1-0'; AccessRights = 'ReadData' }
+                $properties[$Parameter] = $sequence
+                [pscustomobject] $properties | Add-NTFSAccess -ErrorVariable pipelineErrors -ErrorAction SilentlyContinue
+                $caught = @($pipelineErrors)[0]
+            }
+
+            $caught.FullyQualifiedErrorId | Should -BeLike 'InvalidParameterValue,*'
+            $caught.Exception.Message | Should -Match ("The value 'NtfsSecurityTests\.SequenceThatCannotBeRead' for parameter -" + $Parameter + ' is not valid')
+            (Get-Acl -LiteralPath $folder).Sddl | Should -BeExactly $before
+        }
+    }
+
     # A typed parameter ends a named $null (for example a variable that misspells a property, such as -AccessType
     # $rule.AccessTpye) with a terminating ParameterBindingFailed; the object-typed parameter accepts it, so the
     # cmdlet must not keep the default silently. A named $null is reported the same way as a bad named value.
@@ -2101,6 +2208,18 @@ namespace NtfsSecurityTests
             $wildcard = $base + '*' + $ExpectedName.Substring($ExpectedName.Length - 3)
             $r4 = [System.Management.Automation.CommandCompletion]::CompleteInput($wildcard, $wildcard.Length, $null)
             @($r4.CompletionMatches.CompletionText) | Should -Contain $ExpectedName
+        }
+
+        It 'Should complete with <Completer> the word <Quote><Word> that has no closing quote, and a <Quote> quote alone' -ForEach $accessDirectCompletionCases {
+            $completer = New-Object -TypeName ('NTFSSecurity.' + $Completer)
+            $names = @([Enum]::GetNames([type] $EnumTypeName))
+
+            $open = @($completer.CompleteArgument('Add-NTFSAccess', 'Parameter', ($Quote + $Word), $null, @{}) | ForEach-Object -Process { $_.CompletionText })
+            $open | Should -BeExactly @($names | Where-Object -FilterScript { $_ -like ($Word + '*') } | ForEach-Object -Process { $Quote + $_ + $Quote })
+            $open.Count | Should -BeLessThan $names.Count -Because 'the word narrows the names down'
+
+            $alone = @($completer.CompleteArgument('Add-NTFSAccess', 'Parameter', $Quote, $null, @{}) | ForEach-Object -Process { $_.CompletionText })
+            $alone | Should -BeExactly @($names | ForEach-Object -Process { $Quote + $_ + $Quote })
         }
 
         It 'Should complete Add-NTFSAccess -<Parameter> for the word <Word> while the culture of the thread is Turkish' -ForEach $accessTurkishCompletionCases {
