@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-21
+last-verified: 2026-11-10
 owner: active-agent
 source: current task evidence
 ---
@@ -9,22 +9,32 @@ source: current task evidence
 
 ## Current focus
 
-State at 2026-10-22: 5.0.0-rc9 is published, the last prerelease before the
-stable 5.0.0 (Decision 27). The maintainer merged #131 (`823c814`, 08:13Z; its
-tree is byte-identical to the validated head `696ac38`) and the Memory Bank
-#132 (`f2bcd9d`, 10:15Z), and pushed the lightweight tag `5.0.0-rc9` at
-`823c814` at about 08:37Z. The CI run `39749188259` of the tag passed (Build
-and test, then Release without an approval step) and the GitHub prerelease
-appeared at 08:51:19Z. `Test-PublishedRelease.ps1` printed
-`PUBLISHED_IDENTITY_VERIFIED` at 10:54Z and again inside the chain at 11:02Z
-(the Gallery's SHA-512 matches the nupkg, the 11 module files are identical in
-the nupkg and the zip, the manifest says `5.0.0-rc9`); the pathological-input,
-`ToString`, and valid-shape probes give the results of the validated build on
-the published bytes. The lab acceptance of the published bytes runs since
-11:00:36Z in one detached chain (`Chain-Published.ps1 -Version 5.0.0-rc9 -Tag
-rc9`, evidence `files\rc9\rc9-published` in the session folder, expected end
-about 12:10Z, heartbeat every 10 minutes). rc8 (tag `c719197`) was accepted on
-2026-10-20 (record `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`, #128).
+State at 2026-11-10: the lab acceptance of the published 5.0.0-rc9 is complete,
+and its record is committed on `ai/acceptance-published-rc9`
+(`Tests/Lab/Acceptance-2026-11-10-published-rc9.md` with four tables; the
+maintainer pushes and merges). rc9 is the last prerelease before the stable
+5.0.0 (Decision 27). The maintainer merged #131 (`823c814`; its tree equals the
+validated head `696ac38`) and the Memory Bank #132 on 2026-10-22 and tagged
+`5.0.0-rc9` at `823c814`; the tag run `39749188259` passed (Gallery
+08:50:59Z, GitHub 08:51:19Z), and `Test-PublishedRelease.ps1` printed
+`PUBLISHED_IDENTITY_VERIFIED` on 2026-10-22 and again on 2026-11-10 (14:27Z).
+The acceptance came in four parts. A planned shutdown of the host (System event
+1074, 2026-10-22 11:14:36Z) killed the first attempt after cell 1 had passed.
+The second attempt (2026-11-10 from 14:26:36Z, cold start of both labs) passed
+the six suites (24 runs, 0 failed; 1,859 cases per configuration, 1,858 on the
+host) and the first lab (245 passed, 0 failed, 1 skipped per edition, CLEAN),
+but `OSWin11E` lost its secure channel after the cold start, so no cell ran.
+The first rerun failed at the same check (the lab account got "Access is
+denied" while a session of the local account still said True). The second rerun
+(15:36:36Z) repaired the channel with `Test-ComputerSecureChannel -Repair` and
+the lab account, judged it by a session of the lab account, and passed the
+three cells (229 / 0 / 2 per edition and cell, 1,374 / 0 / 12 in all; CLEAN).
+Both labs were CLEAN at 16:03Z, and the 18 machines other than `OSWin11E` were
+saved again at 16:10Z. The record names the deviations (suites before the
+cells; cell 1 on the accounts of the interrupted fixture). The outputs of the
+pathological-input probe on the published bytes weren't kept. rc8 (tag
+`c719197`) was accepted on 2026-10-20 (record
+`Tests/Lab/Acceptance-2026-10-20-published-rc8.md`, #128).
 
 rc9 contains (36 commits over `d0cb57c`, head `696ac38`): the five piped parameters of `Add-` and
 `Remove-NTFSAccess` and `-NTFSAudit` are `object`, converted in the cmdlet
@@ -59,10 +69,14 @@ ends the host through the three flags parameters, as in rc8 (known limit). A
 blank, `$null`, or `DBNull` value of the other parameter group is
 `AmbiguousParameterSet` (documented, not restructured).
 
-Open before the stable pull request: the end of the lab acceptance of the
-published rc9 and its record (agent); his decision on #34 on 2026-11-02; his
-check of `PSGALLERY_API_KEY`. The stable change then touches only the label,
-the CHANGELOG, and `$publishedVersions` (add `5.0.0-rc9`; the list ends at rc8).
+Open before the stable pull request: the maintainer merges the acceptance
+record of rc9 (the agent's part is done). Two gates closed on 2026-11-10, in
+answer to an explicit question: he accepts the untested risk of #34 (Decision
+23, option 2: release 5.0.0 with the caveat) and says that he checked
+`PSGALLERY_API_KEY` (valid, not expiring soon; the key is a secret that the
+agent cannot read, and nothing about it is recorded here). The stable change
+touches only the label, the CHANGELOG (with the caveat), and `$publishedVersions`
+(add `5.0.0-rc9`; the list ends at rc8).
 
 State at 2026-10-10: the maintainer integrated the release-gate stack into
 `master` (#116, #120, #118, #119, #121; `fa0701b`, CI green; GitHub closed #117
@@ -71,7 +85,7 @@ unmerged when the branch deletion removed its base, Decision 15) and tagged rc7
 (record `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`). The agent's
 delegated decisions of 2026-10-09 and 10 are D1 to D47 in
 `decisions-night-2026-10-09.md` of the session files; the maintainer accepted
-Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
+Decisions 22 and 24 on 2026-10-19 and decided 23 on 2026-11-10 (option 2).
 
 ## Evidence
 
@@ -81,9 +95,14 @@ Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
   (the head), the probes (`p-*.ps1`, `fixb-probe`, `shapes-r2`, `Run-Oracle.ps1`,
   `Run-Pathological.ps1`), the published rc8 (`rc8-published`), the published
   rc9 (`rc9-published-identity`: the nupkg, the zip, `Identity-5.0.0-rc9.json`;
-  `oracle-published-rc9`), the chain of the acceptance (`rc9-published`: log
-  `chain-published-rc9.log`, a stage folder and a result folder per stage), and
-  the analyzer and surface results. The review probes of the reviewers are in
+  `oracle-published-rc9`), the acceptance (`rc9-published`: the first attempt;
+  `rc9-published-2`: the second attempt and the reruns, with the log
+  `chain-published-rc9.log`, a stage folder per stage, `live-matrix-rc9n`,
+  `live-rc9`, `localsuite-rc9`, `tables`; `evidence-manifest.csv` lists the 618
+  files), and the analyzer and surface results. The helper scripts of the
+  acceptance (the driver, the restore, the checks, `Rerun-Matrix.ps1`,
+  `Repair-ClientChannel2.ps1`, `Build-RecordTables2.ps1`) are in
+  `files\qg-unknowns\scripts`. The review probes of the reviewers are in
   `C:\Temp\ntfs-rc9\review*-probes-*` (temporary). The worktrees under
   `C:\Temp\ntfs-rc9` are temporary too.
 - Milestones of earlier gates (rc6 and rc7 releases, handoff 1, the operating
@@ -91,7 +110,8 @@ Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
   and in the records and reports under `Tests/Lab` and `Tests/Coverage`.
 - Reviews: the custom `security-reviewer` can't start (its model is
   unavailable; no override); the built-in `code-review` agent reviewed the paths
-  work, the matrix, rc8, and rc9; the built-in `security-review` agent found no
+  work, the matrix, rc8, rc9, and (2026-11-10, "no finding") the stable change;
+  the built-in `security-review` agent found no
   exploitable vulnerability and two LOW items for the maintainer (Next step 5).
 - Raw evidence of the older gates is outside git: the session folder
   `4b12e2f4-d4c7-4a5d-883a-ddb7421c4848\files` (`qg-paths`, the matrix runs, the
@@ -105,24 +125,32 @@ Decisions 22 and 24 on 2026-10-19 and decides 23 on 2026-11-02.
 
 ## Next step
 
-1. Lab acceptance of the published rc9: the chain started 2026-10-22 11:00:36Z
-   (log `rc9-published\chain-published-rc9.log`; 68 minutes for rc8). When the
-   log ends with `chain-published-rc9-DONE`, read the stage logs and the
-   `Validate-LabResults.ps1` output, never the marker alone; save the machines
-   again (`Save-VM`;
-   `OSWin11E` is off after its hour); write
-   `Tests/Lab/Acceptance-2026-10-22-published-rc9.md` and update this file,
-   `progress.md`, and `deployment-notes.md` in one pull request (branch
-   `ai/acceptance-published-rc9`; the maintainer pushes and merges). A defect
-   that the chain finds needs rc10.
-2. The stable pull request: no `Prerelease`, `## [5.0.0] - <date>` with an empty
-   `[Unreleased]` and the links, and `5.0.0-rc9` in `$publishedVersions` (the
-   list ends at rc8). The maintainer checks the expiry of `PSGALLERY_API_KEY`
-   first, merges, and tags. Not before his decision on #34 (item 3).
-3. #34 waits for a tester until 2026-11-02 (Decision 23, option 3; checklist:
-   `Tests/Lab/Non-Windows-File-Server-Test.md`). On that date the maintainer
-   chooses between waiting longer and accepting the untested risk with a
-   release-note caveat. No agent can accept it.
+1. The acceptance record of rc9 (branch `ai/acceptance-published-rc9`: the
+   record `Tests/Lab/Acceptance-2026-11-10-published-rc9.md` with four tables,
+   and the Memory Bank): the maintainer pushes it, opens the pull request, and
+   merges it with a merge commit before the stable pull request. A detached
+   chain does not survive a host shutdown: if it dies without a marker, read
+   the System log (events 1074, 6006, 13, 41) and the newest file of the
+   evidence folder, then start it again with a fresh folder. A defect that a
+   later run finds needs rc10.
+2. The stable pull request (branch `ai/release-5.0.0`, prepared locally on
+   2026-11-10 and reviewed by the built-in `code-review` agent, no finding; not
+   pushed; the body draft is
+   `C:\Temp\ntfs-rc9\final-msgs\pr-stable-body.md`): no `Prerelease`,
+   `## [5.0.0] - <date>` with the caveat of #34 and an empty `[Unreleased]`
+   above it plus the links, and `5.0.0-rc9` in `$publishedVersions` (the list
+   ends at rc8). The maintainer merges it after the record is merged, sets the
+   date to the day of the tag (the Release job only warns about a different
+   day), and tags. After the release, run
+   `Test-PublishedRelease.ps1 -Version 5.0.0`; the module sources must differ
+   from rc9 only in the manifest: `git diff --stat 5.0.0-rc9 5.0.0 --
+   NTFSSecurity Security2 PrivilegeControl ProcessPrivileges Log` lists only
+   `NTFSSecurity/NTFSSecurity.psd1` (the rebuilt DLL differs too; the build
+   isn't byte-reproducible).
+3. #34: decided on 2026-11-10 (Decision 23, option 2; see the first paragraph
+   of this section). The issue has no comment since 2026-10-19 and no tester
+   result. The caveat names the file servers that the matrix tested (Windows
+   Server 2019, 2022, 2025) and says where to report after the archive.
 4. Open housekeeping: keep or replace the matrix VMs (about 60 GB, saved between
    runs) and the evaluation client (it shuts down every hour; `OSWin11E` is
    off); a domain cell for Windows 11 26H1, whose client loses the secure
