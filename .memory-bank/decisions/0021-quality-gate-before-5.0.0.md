@@ -158,8 +158,9 @@ before 5.0.0, each time with the recommended option of the form:
   notes of a prerelease, so the stable change shrinks to the label, the
   heading, and `$publishedVersions`. This confirms the six limits and that none
   is fixed (the empty rc10 field of 2026-11-10).
-- The agent pushes the branch and opens the pull request; he merges it and
-  pushes the tag.
+- He chose that the agent pushes the branch and opens the pull request, but
+  the hook of the house rules blocks an agent's push even then, so he runs
+  both commands; he merges the pull request and pushes the tag.
 
 rc9a is new bytes, so the stable tag waits for the acceptance of the published
 rc9a: the identity check, the three cells, the first lab with case 11, and the
