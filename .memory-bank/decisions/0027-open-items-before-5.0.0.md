@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-10-21
-last-verified: 2026-10-21
+last-verified: 2026-11-11
 owner: shared
 source: maintainer answers of 2026-10-21 (fix scope B, items 3 to 7 change, review on; designs chosen in the third form); probes of 2026-10-21 on the published rc8
 ---
@@ -14,6 +14,9 @@ source: maintainer answers of 2026-10-21 (fix scope B, items 3 to 7 change, revi
   is the last prerelease: a change after its acceptance needs rc10, and after
   5.0.0 the repository is archived (Decision 18). So this is the last moment
   to change any of the items below, and unchanged means accepted.
+- Update 2026-11-11: rc9 is no longer the last prerelease; the maintainer
+  chose `5.0.0-rc9a`, with rc9's code, before 5.0.0 (Decision 21, "Another
+  prerelease before stable").
 - Status: accepted. The scope and the designs are chosen (see "The
   maintainer's choices", both tables). Every recommendation in the tables is
   the agent's; the last column of the table of the other items stays empty,

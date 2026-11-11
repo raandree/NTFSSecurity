@@ -3,7 +3,7 @@ status: accepted
 date: 2026-10-08
 last-verified: 2026-11-11
 owner: shared
-source: maintainer decision of 2026-10-08; closing choices of 2026-10-19; status of 2026-10-20; Handoff 6 of 2026-11-10 to 11
+source: maintainer decision of 2026-10-08; closing choices of 2026-10-19; status of 2026-10-20; Handoff 6 of 2026-11-10 to 11; another prerelease, 2026-11-11
 ---
 
 # Decision 21: A quality gate before 5.0.0
@@ -141,3 +141,26 @@ explanations, the six limits, and the reading of the empty rc10 field (none);
 merge in the order of Decision 15; tag. The stable build is new bytes from the
 same source, so the acceptance of the last prerelease stands in for it, which
 the release procedure leaves to him.
+
+### Another prerelease before stable (maintainer, 2026-11-11)
+
+After #133 and #134 were merged, the maintainer chose one more prerelease
+before 5.0.0, each time with the recommended option of the form:
+
+- Label `rc9a`. The Gallery and PSResourceGet compare prerelease labels as
+  text: NuGet.Versioning 6.9.1.3 ranks `5.0.0-rc10` below `5.0.0-rc9`, so
+  `Install-Module -AllowPrerelease` and `Update-Module` would keep installing
+  rc9; `rc9a` and `rtm` rank above it. rc9 is no longer the last prerelease
+  (Decision 27).
+- Scope: rc9's code. The module folders, the help file, `Docs/Cmdlets`, and
+  `CHANGELOG.md` of `master` equal the rc9 tag; the note about #34 and the six
+  known limits of `ai/release-5.0.0` move verbatim into `[Unreleased]`, the
+  notes of a prerelease, so the stable change shrinks to the label, the
+  heading, and `$publishedVersions`. This confirms the six limits and that none
+  is fixed (the empty rc10 field of 2026-11-10).
+- The agent pushes the branch and opens the pull request; he merges it and
+  pushes the tag.
+
+rc9a is new bytes, so the stable tag waits for the acceptance of the published
+rc9a: the identity check, the three cells, the first lab with case 11, and the
+suite in 24 runs (about 1.5 hours on 2026-11-10 to 11).

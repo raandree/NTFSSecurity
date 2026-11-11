@@ -9,30 +9,36 @@ source: current task evidence
 
 ## Current focus
 
-State at 2026-11-11: Handoff 6, the focused scope, is done and waits for the
-maintainer. On 2026-11-10 a review found three of the five exit criteria of
-Decision 21 open for the final code (criterion 3: the C# coverage was last
-measured at `2112ee3`; criterion 4: the known limits of Decision 27 were not in
-the release notes; criterion 2: the by-row check of the skipped tests was not
-repeated for the new tests), and the live tests, unchanged since rc7, didn't
-exercise the rc9 changes. The maintainer held the stable 5.0.0 tag and chose the
-focused scope; the known limits are accepted and listed, none fixed in an rc10
-(the field of his form for limits to fix was empty, which I read as none:
-confirm). Nothing is pushed. The module, the help file, and the manifest are
-untouched: the shipped bytes are those of the published rc9 (`823c814`).
+State at 2026-11-11, 12:40 UTC: the maintainer merged #133 (the rc9 record,
+09:42Z) and #134 (`ai/rc9-tests`, 10:21Z; CI on `master` green at `2c88ce7`)
+and chose one more prerelease before the stable 5.0.0: `5.0.0-rc9a` (Decision
+21, "Another prerelease before stable"). The label sorts after rc9:
+NuGet.Versioning 6.9.1.3, the comparer of the Gallery and PSResourceGet, ranks
+`5.0.0-rc10` below `5.0.0-rc9`. The module, the help file, and `Docs/Cmdlets`
+equal the rc9 tag; the change is the label, `5.0.0-rc9` in
+`$publishedVersions`, and the release notes: the note about #34 and the six
+known limits, reviewed on `ai/release-5.0.0`, moved verbatim into
+`[Unreleased]`, the notes of a prerelease. Branch `ai/release-5.0.0-rc9a`
+(worktree `C:\Temp\ntfs-rc9a\release`) goes up with a pull request; the
+maintainer merges it and pushes the tag. `ai/release-5.0.0` (`c7cad81`, local)
+is superseded: it conflicts with rc9a in all three files.
 
-- **Limits (criterion 4).** `### Known limits` with six items is in the
-  `[5.0.0]` section of the CHANGELOG on `ai/release-5.0.0` (worktree
-  `C:\Temp\ntfs-rc9\stable`). Five were reproduced on the published rc9 in both
+Handoff 6 (2026-11-10 to 11) closed criteria 2 to 4 of Decision 21 for the
+code of rc9, which rc9a ships unchanged:
+
+- **Limits (criterion 4).** `### Known limits` with six items is in
+  `[Unreleased]` on `ai/release-5.0.0-rc9a`, copied from `ai/release-5.0.0`
+  (`c7cad81`). Five were reproduced on the published rc9 in both
   editions, with exit codes and output kept in `E\rc9-coverage\probes`; the
   sixth, `PrivilegeEnabler`, a public class of `ProcessPrivileges.dll` that no
   cmdlet uses, I read from the source of the tag. Two first drafts were wrong
   and are corrected: `PrivilegeEnabler` named `Security2.dll` and said that the
   cmdlets dispose their enablers; the collection that contains itself said
   "stack overflow" for both editions, but PowerShell 7 ends the process without
-  a message (exit code 0xC0000005). The date is 2026-11-11, the planned tag day.
-- **Coverage and skips (criteria 3 and 2).** Branch `ai/rc9-tests` (worktree
-  `C:\Temp\ntfs-rc9\tests`, stacked on the record): the tag measured in four
+  a message (exit code 0xC0000005). His choice of rc9a with rc9's code
+  (2026-11-11) confirms the six limits and that none is fixed.
+- **Coverage and skips (criteria 3 and 2).** Branch `ai/rc9-tests` (#134,
+  merged): the tag measured in four
   configurations, 3,666 of 4,074 sequence points; 52 new unit cases (suite 2,214
   per configuration), 3,672 of 4,074 (90.13%); 169 unvisited methods (402
   points, 88 explicit branch points) classified by 35 rules, none open, ten
@@ -83,7 +89,7 @@ maintainer merged #131 (`823c814`) and #132 on 2026-10-22 and tagged
 2026-10-10. The acceptance of the published rc9 with the live tests of rc7 and
 rc8 came in four parts, after a host shutdown and a lost secure channel of
 `OSWin11E`; it is recorded on `ai/acceptance-published-rc9`
-(`Tests/Lab/Acceptance-2026-11-10-published-rc9.md`, merge first).
+(`Tests/Lab/Acceptance-2026-11-10-published-rc9.md`, merged as #133).
 
 Two gates closed on 2026-11-10, in answer to an explicit question: he accepts
 the untested risk of #34 (Decision 23, option 2: release 5.0.0 with the
@@ -128,26 +134,33 @@ session files.
 
 ## Next step
 
-1. Merge order (Decision 15: the branches stack, merge commits): the record
-   (`ai/acceptance-published-rc9`), then `ai/rc9-tests` (open its pull request
-   only after the record is merged), then the stable pull request, then tag
-   `5.0.0`. The body drafts are in `C:\Temp\ntfs-rc9\final-msgs`.
-2. The stable pull request (`ai/release-5.0.0`, local, six commits at the end
-   of Handoff 6, tip `c7cad81`): no `Prerelease`, `## [5.0.0] - 2026-11-11`
-   with the caveat of #34 and the six known limits, an empty `[Unreleased]`,
-   the links, and `5.0.0-rc9` in `$publishedVersions`. The Release job only
-   warns when the tag is pushed on another day. After the release, run
-   `Test-PublishedRelease.ps1 -Version 5.0.0`; `git diff --stat 5.0.0-rc9 5.0.0
-   -- NTFSSecurity Security2 PrivilegeControl ProcessPrivileges Log` lists only
-   `NTFSSecurity/NTFSSecurity.psd1` (the rebuilt DLL differs too; the build
-   isn't byte-reproducible). A defect that a later run finds needs rc10.
-3. #34: decided on 2026-11-10 (Decision 23, option 2). The issue has no comment
+1. The rc9a pull request (`ai/release-5.0.0-rc9a`: `Prerelease = 'rc9a'`,
+   `5.0.0-rc9` in `$publishedVersions`, the note and the limits in
+   `[Unreleased]`): after its CI, he merges it with a merge commit and pushes
+   the lightweight tag `5.0.0-rc9a` on the merge commit
+   (`Docs/Contributing/05-Releasing.md`); the tag run publishes. Then
+   `Test-PublishedRelease.ps1 -Version 5.0.0-rc9a`; `git diff --stat 5.0.0-rc9
+   5.0.0-rc9a -- NTFSSecurity Security2 PrivilegeControl ProcessPrivileges Log`
+   lists only `NTFSSecurity/NTFSSecurity.psd1` (the rebuilt DLL differs too;
+   the build isn't byte-reproducible).
+2. The acceptance of the published rc9a (new bytes, so the cells again): the
+   identity check, the three cells and the first lab with the kit of the tag
+   (case 11 is in it since #134), the module's suite in 24 runs, and the
+   checks of both labs; about 1.5 hours (chains a1 and a2 of Handoff 6). The
+   host stays on, and `OSWin11E` restarts right before the cells. A record
+   under `Tests/Lab`; a defect that it finds needs another prerelease.
+3. Then the stable pull request, made again from `master`: no `Prerelease`,
+   `[Unreleased]` renamed to `## [5.0.0] - <tag day>` with a new empty
+   `[Unreleased]` and the links (as on `ai/release-5.0.0`), and `5.0.0-rc9a`
+   in `$publishedVersions`; merge, tag `5.0.0`, `Test-PublishedRelease.ps1
+   -Version 5.0.0`, and the same diff check from `5.0.0-rc9a`.
+4. #34: decided on 2026-11-10 (Decision 23, option 2). The issue has no comment
    since 2026-10-19 and no tester result. The caveat names the file servers that
    the matrix tested (Windows Server 2019, 2022, 2025) and says where to report
    after the archive.
-4. His to confirm: the explanations of the 169 methods (the report's open
-   items), the six known limits, and the reading of the empty rc10 field.
-5. Open housekeeping: keep or replace the matrix VMs (about 60 GB, saved between
+5. His to confirm: the explanations of the 169 methods (the report's open
+   items).
+6. Open housekeeping: keep or replace the matrix VMs (about 60 GB, saved between
    runs) and the evaluation client (it shuts down an hour after each start;
    `OSWin11E` is off); a domain cell for Windows 11 26H1, whose client loses the
    secure channel to the Server 2025 domain controller; the cleanup list before
@@ -157,5 +170,5 @@ session files.
    errors are fixed in rc8; he still decides the ACL of the stage folders under
    `C:\` in the lab kit (they inherit Authenticated Users: Modify; protecting
    them is a design change of the controller and needs a new acceptance).
-6. Known limits for the archive are in the CHANGELOG now (Decision 27 has the
+7. Known limits for the archive are in the CHANGELOG now (Decision 27 has the
    reasoning). Do not equate a percentage with gate closure.
