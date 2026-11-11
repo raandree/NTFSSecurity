@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-20
+last-verified: 2026-11-11
 owner: active-agent
 source: repository and executable evidence
 ---
@@ -68,11 +68,12 @@ source: repository and executable evidence
   explicit-PID watcher. No foreground sleep/poll loop. Long payloads use
   a script file: nested Base64 encoding can exceed Windows command limits.
 - Helpers live in the session folder `qg-unknowns\scripts`, not in TEMP (TEMP was
-  cleaned once): `Invoke-Build.ps1`, `Start-FocusedRuns.ps1` (four
-  configurations), `Run-FullSuite.ps1` (the CI test steps), `Check-Docs.ps1`.
-  Restore the pinned compiler (Microsoft.Net.Compilers 4.2.0 from NuGet) into
-  TEMP `ntfs-build` and platyPS 0.14.2 and MarkdownLinkCheck 0.2.0 (`Save-Module`
-  in Windows PowerShell) into TEMP `ntfs-docs-tools\modules`.
+  cleaned twice): `Invoke-Build.ps1`, `Start-FocusedRuns.ps1`,
+  `Run-FullSuite.ps1` (the CI test steps), `Check-Docs.ps1`, and
+  `Restore-BuildTools.ps1` (compiler 4.2.0 into TEMP `ntfs-build`, AltCover into
+  `ntfs-coverage-tools`: run it before the first build). platyPS 0.14.2 and
+  MarkdownLinkCheck 0.2.0 (`Save-Module`, Windows PowerShell) go into TEMP
+  `ntfs-docs-tools\modules`.
 - actionlint 1.7.12 checks the workflow. Script changes use AST parse and
   PSScriptAnalyzer; prose Markdown uses MD013 and changelog siblings-only
   repeated-heading allowance. Native error codes must be checked explicitly.
@@ -88,70 +89,65 @@ source: repository and executable evidence
 - `.github/scripts/Invoke-TestsAsBasicUser.ps1` launches a SAFER Normal User
   token. Result paths may be absolute or repository-relative: Path.Combine
   then GetFullPath, not Join-Path with a rooted child.
-- Packaging needs Compress-PSResource (Core 7.4+). New-ModulePackage copies
-  only FileList, validates the manifest, creates nupkg plus NTFSSecurity.zip.
-  Check package/file hashes and test the extracted artifact, not build extras.
-- Release runs only for validated version tags in powershell-gallery; the API
-  key is the environment secret PSGALLERY_API_KEY. The rules of
-  `Publish-ModulePackage` are in `systemPatterns.md`. Read status through
-  `gh pr checks` and `gh run view --log-failed`. A successful Gallery upload
-  followed by HTTP 409 does not prove its retry chronology.
+- Packaging needs Compress-PSResource (Core 7.4+); New-ModulePackage copies
+  only FileList, validates the manifest, creates nupkg plus NTFSSecurity.zip:
+  check the hashes and test the extracted artifact (Decision 12). Release runs
+  only for validated version tags (`PSGALLERY_API_KEY`; the rules of
+  `Publish-ModulePackage` are in `systemPatterns.md`). Read status through
+  `gh pr checks` and `gh run view --log-failed`.
 
 ## Coverage and test eligibility
 
-- AltCover 9.0.145 net472 instruments a copied Release build with PDBs,
-  OpenCover format, localSource, excluding AlphaFS/System.Management.Automation.
-  Do not use --save: collection previously retained only one process's hits.
-- Freeze a git worktree, instrument its NTFSSecurity\bin\Release, run all
-  four configurations sequentially with the real CI wrappers, then
-  AltCover runner --collect recalculates the report. Compute option paths
-  before passing native arguments, not inline Join-Path expressions.
+- AltCover 9.0.145 net472 instruments a copied Release build with PDBs
+  (OpenCover, localSource, excluding AlphaFS/System.Management.Automation;
+  never --save: collection kept one process's hits). Freeze a worktree,
+  instrument its Release output, run the four configurations sequentially with
+  the CI wrappers, then `runner --collect`. Compute option paths first.
 - Report sequence points, not unique source lines. Four-run baselines:
-  `3442194` 2,641/3,559 (74.21%); `5a5d58b` 3,192/3,634 (87.84%); `fa0701b`
-  (rc7) 3,198/3,649 (87.64%); `61e936e` 3,258/3,664 (88.92%). The code
-  changes the denominators: never present these as same-source increments.
-  The branch summary of the tool adds a point to most methods (never visited
-  for the 626 without a branch): report the explicit branch points
-  (1,090/1,168, 93.32%), not the summary percentage. Suite at `61e936e`: 1,459
-  per configuration, zero failures (skipped: 26 and 57 elevated, 276 and 307
-  basic, Desktop and Core).
-- NUnit skipped ForEach names retain placeholders and parameter tuples,
-  executed names expand them: raw-name intersection and positional alignment
-  are invalid. Check skip eligibility by row: run the suite once per
-  configuration with Pester PassThru and match skipped with executed rows by
-  file, line, path, name, and data (discovery alone misses tests that skip
-  while running; write primitives, as `ConvertTo-Json` of rich rows hangs).
+  `3442194` 2,641/3,559 (74.21%); `fa0701b` (rc7) 3,198/3,649; `2112ee3`
+  3,266/3,668; `823c814` (rc9) 3,666/4,074 with the tests of the tag and
+  3,672/4,074 (90.13%) with 52 new cases. The code changes the denominators:
+  never present these as same-source increments. The branch summary of the
+  tool adds a point to most methods: report the explicit branch points
+  (1,322/1,410, 93.76% at rc9). Suite at rc9: 2,214 cases per configuration
+  (skipped: 27 and 58 elevated, 359 and 390 basic, Desktop and Core).
+- NUnit skipped ForEach names keep placeholders and executed names expand
+  them: raw-name intersection and positional alignment are invalid. Check skip
+  eligibility by row: run the suite once per configuration with Pester PassThru
+  and match skipped with executed rows by file, line, path, name, and data
+  (discovery misses tests that skip while running; write primitives only).
 - Live and domain-member coverage: instrument a copy of the package without
-  `--portable`, with an absolute report path outside the payload
-  (`C:\NtfsMatrixProbe\Coverage`, `icacls` Authenticated Users modify) and a
-  SYSTEM task that snapshots the report after each process (a role that is not
-  an administrator of the client can't write next to the module). It counts
-  only when its counts equal the uninstrumented acceptance and every role
-  logged a flush. Merge by position, never by `uspid`. PowerShell reads the
-  getter of a parameter that it binds from a piped object: unvisited getters
-  point at missing pipeline tests.
-- Remaining inventory at `61e936e`: 406 points in 187 methods, classified by
-  rule (`Tests/Coverage`). Preserve raw XML, row CSVs, logs, commit identity,
-  and build hashes: the frozen Build rewrites its hash file, so save the
-  hashes of the measured assemblies (AltCover `__Saved` copies) first.
+  `--portable`, with an absolute report path outside the payload and a SYSTEM
+  task that snapshots the report after each process (a non-administrator can't
+  write next to the module). It counts only when its counts equal the
+  uninstrumented acceptance and every role logged a flush; merge by position,
+  never by `uspid`. PowerShell reads the getter of a piped parameter: unvisited
+  getters point at missing pipeline tests.
+- Remaining inventory at rc9: 402 points in 169 methods, classified by 35 rules
+  (`Tests/Coverage`; the first matching rule wins, so check the rows of a rule
+  you edit). Keep raw XML, row CSVs, logs, and build hashes. To add tests to a
+  measured tag, lay them over the same pristine bytes (check the hashes) and
+  analyze with `-SourceRoot` of the first tree (the PDBs hold its paths). The
+  package has no PDBs: compare the IL of the build with it (Mono.Cecil; ten
+  benign differences at rc9).
 - Mutation proofs: bounded one-statement changes on a second frozen worktree,
-  source restored exactly and rebuilt (an escape can be an overlap, an
-  equivalent mutant, or a masked case: check before changing a test). Red/green
+  rebuilt and restored exactly (an escape can be an overlap, an equivalent
+  mutant, or a masked case: check before changing a test). A mutation run is a
+  sample: keep the full list of failed tests, not the first two names. Red/green
   matrix for a fix: build each state in its own Release worktree, lay the
   final `Tests` over it, count failed rows per name in all four
-  configurations, and keep logs and hashes (Handoff 1's first red runs were
-  deleted and could not be reproduced).
+  configurations, and keep logs and hashes.
 
 ## Lab acceptance
 
 - Defaults: F1ADC1 (domain), F1AFile2 (server), F1AFile1 (client), all in
-  a.forest1.net. Foreign accounts use F1BDC1, F2DC1, F3DC1 and existing trusts.
-  Controller accepts alternate machines; changing topology/OS scope waits
-  for a maintainer decision. Do not repurpose another project's shared VMs.
+  a.forest1.net; foreign accounts use F1BDC1, F2DC1, F3DC1. The controller
+  accepts alternate machines; a change of topology or OS scope waits for a
+  maintainer decision. Do not repurpose another project's shared VMs.
 - Before a run: authenticated WinRM, LDAP RootDSE, Kerberos tickets, member
-  secure channels, clocks; checkpoint only approved targets. New checkpoints
-  report Standard even after a successful ProductionOnly request (policy
-  restored, no rollback): Production is unverified, not a passed safety check.
+  secure channels, clocks; checkpoint only approved targets (a new checkpoint
+  reports Standard even after a successful ProductionOnly request: Production
+  is unverified, not a passed safety check).
 - Run Tests\Lab\Invoke-NTFSSecurityLabTest.ps1 in elevated Desktop with
   -Version for hash-checked Gallery packages or -ModulePath for the extracted
   build artifact, both editions. Per version/edition: Delegate, ServerAdmin,
@@ -162,18 +158,21 @@ source: repository and executable evidence
   full Describe-prefixed names. Never gate cleanup on the global Error.Count
   (it includes handled errors); verify the footprint independently.
 - Remote Authz answers administrators and Access Control Assistance
-  Operators (S-1-5-32-579); other accounts get access denied (check the
-  firewall when its RPC fails). Expected rights use S4U tokens. A domain
-  member offers the remote interface to every caller, so the default
-  `-ServerName localhost` was denied for a non-administrator; hosts outside a
-  domain don't, so the host and CI missed it. Since `fdd7a8b` the local
-  manager answers for a name of this computer; another computer stays denied.
+  Operators (S-1-5-32-579); other accounts get access denied. Expected rights
+  use S4U tokens. A domain member offers the remote interface to every caller,
+  so the default `-ServerName localhost` was denied for a non-administrator;
+  hosts outside a domain don't, so the host and CI missed it. Since `fdd7a8b`
+  the local manager answers for a name of this computer.
 - A live test is evidence of a fix only when it fails on the build without
-  the fix: run the same tests, controller, and lab against the candidate and
-  the base, a new process per edition, and join the results by edition, role,
-  and full test name; tests that pass on both are controls (record of
-  2026-10-09). PowerShell variables ignore case: `$edition` overwrote
-  `$Edition`.
+  the fix: run the same kit against the published base and the candidate
+  (`-Version`, a new process per edition) and join by edition, role, and full
+  test name (`Compare-Detect.ps1`). At rc9, 79 of the 191 tests of case 11 per
+  edition fail on rc8 and pass on rc9, each for the documented reason; 112
+  pass on both. Variable names ignore case: `$detectVersions` overwrote the
+  `[string] $DetectVersions` parameter, so `[0]` was a character, not a version.
+- The delegated account has no Restore privilege on the file server: it can
+  take an owner and can't give Administrators back (error 1307), the lab's one
+  way to a `RestoreOwnerError` (7 of the 17 handlers; the rest can't be driven).
 - RemoveFixture after the run; verify OUs/accounts, share, folders, local
   memberships, and test profiles removed. Credentials must never be printed.
 
@@ -191,10 +190,11 @@ source: repository and executable evidence
   as multisets against the host. Hash each candidate and its package: builds
   aren't byte-reproducible.
 - The 26H1 client can't keep its secure channel to a Server 2025 DC (suite
-  only); the 22H2 evaluation client shuts down every hour: keep a run under an
-  hour and test a domain session, not `nltest /sc_verify`.
+  only). The 22H2 evaluation client shuts down an hour after each start: test a
+  domain session, not `nltest /sc_verify`. With case 11 the three cells take
+  about 25 minutes and a suite 11 to 33, so run the suites in a second window
+  (stop and start the client, gate on a lab-account session; no repair needed).
 - A fixture that re-creates an account name gets stale answers for about ten
-  minutes, for the baseline and the candidate alike (mechanism unknown; no
-  remedy but waiting). The controller names the case-3 account anew for each
-  fixture; the replay and the model are in the record. `Test-MatrixCleanup.ps1`
-  verifies and repairs the probe's profiles and group entries.
+  minutes (mechanism unknown; no remedy but waiting). The controller names the
+  case-3 account anew for each fixture. `Test-MatrixCleanup.ps1` verifies and
+  repairs the probe's profiles and group entries.

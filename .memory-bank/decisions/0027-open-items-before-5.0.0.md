@@ -239,4 +239,9 @@ Known limits, kept and to be stated to the maintainer:
   real input builds such an object, a guard for the flags parameters would
   need a visited-set walk of every argument, and a regression test would end
   the Pester process before the fix. Named in the pull request text, not in
-  the CHANGELOG (user-visible changes only).
+  the CHANGELOG (user-visible changes only). Update 2026-11-11: it is listed in
+  the CHANGELOG all the same, because criterion 4 of Decision 21 asks for every
+  accepted limit. On the published rc9 (probes in the session evidence),
+  Windows PowerShell 5.1 prints the stack overflow, and PowerShell 7 ends the
+  process without a message (exit code 0xC0000005), also for a plain typed
+  parameter without the module.
