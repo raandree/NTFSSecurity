@@ -100,6 +100,37 @@ The release notes of a prerelease are the `[Unreleased]` section of
    --stat <previous tag> <tag> -- NTFSSecurity Security2 PrivilegeControl
    ProcessPrivileges Log` should list only the manifest.
 
+## Publish the stable release with a live-tested artifact
+
+Decision 21, "Live proof of the stable bytes" (2026-11-11). The scripts are in
+the session files `f097ed24-…\files\scripts`; the release-gate chains stay in
+`816cf47d-…\files\qg-unknowns\scripts`.
+
+1. The maintainer adds himself as a required reviewer of the environment
+   `powershell-gallery` (Settings, Environments; self-review stays allowed),
+   merges the stable pull request, and pushes the tag. The tag run builds,
+   runs the unit suite in four configurations, uploads the artifact
+   `packages`, and the job Release waits for the approval.
+2. `Prepare-ArtifactAcceptance.ps1 -RunId <run> -Evidence <fresh folder>`
+   (PowerShell 7) downloads the artifact, checks that the run is the push of
+   the tag and built its commit, that the module files of the zip and the
+   nupkg are equal, and that the manifest is `5.0.0` without a label, freezes
+   the kit of the tag in `<evidence>\worktree`, and writes
+   `artifact-identity.json`.
+3. `Run-ArtifactAcceptance.ps1 -Evidence <folder>` (Windows PowerShell 5.1,
+   detached, about 80 minutes; `-DryRun` logs the commands only) runs the
+   cells with `Run-MatrixSequence.ps1 -ModulePath`, the first lab with
+   `Run-LiveAcceptance.ps1 -ModulePath`, the checks of both labs,
+   `Chain-SuiteOnly2.ps1`, and the check of the matrix lab. With
+   `-ModulePath`, the controller labels the runs `local`.
+4. Pass: he approves the deployment (the run page, or `gh api -X POST
+   repos/raandree/NTFSSecurity/actions/runs/<run>/pending_deployments` with
+   the environment id and `state=approved`). Then `Test-PublishedRelease.ps1
+   -Version 5.0.0`; the SHA-256 of its nupkg must equal `ArtifactNupkgSha256`.
+   Fail: he rejects, deletes the tag, and the fix goes through a prerelease.
+5. The date of `[5.0.0]` in the CHANGELOG is the day of the approval (the job
+   Release compares it in UTC and only warns).
+
 ## Accept a published package
 
 Local `-ModulePath` runs are validation; the gate needs the published bytes.

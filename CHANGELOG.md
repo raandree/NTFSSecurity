@@ -8,6 +8,8 @@ The format is based on
 
 ## [Unreleased]
 
+## [5.0.0] - 2026-11-11
+
 > Note for users of file servers that aren't Windows: the fix for
 > [#34](https://github.com/raandree/NTFSSecurity/issues/34), which writes only
 > the section of the security descriptor that a command changes, was tested on
@@ -625,4 +627,5 @@ archived after this release.
   caller never disposes keeps its privileges enabled until the process ends; no
   cmdlet of the module uses this class
 
-[Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD
+[Unreleased]: https://github.com/raandree/NTFSSecurity/compare/5.0.0...HEAD
+[5.0.0]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...5.0.0
