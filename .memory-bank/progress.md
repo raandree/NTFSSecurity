@@ -133,9 +133,9 @@ archive in favor of WindowsAccessControl (Decision 18).
 
 1. Decision 21 gate: the published rc7, rc8, rc9, and rc9a are accepted
    (records), rc9 and rc9a with case 11. Next: the record of rc9a, then the
-   stable pull request, made again on top of rc9a (remove the label, date
-   `[5.0.0]`, add `5.0.0-rc9a` to `$publishedVersions`, never the version of
-   the manifest), and the tag through CI (`Docs/Contributing/05-Releasing.md`).
+   stable pull request on top of rc9a (`ai/release-5.0.0-final`), the tag,
+   and the live proof of the stable artifact before its approval (Decision
+   21, "Live proof of the stable bytes"; `Docs/Contributing/05-Releasing.md`).
 2. Issues: #110's seven items were addressed by rc6, but #115 deliberately
    used no closing keyword. #34 stays open for non-Windows owner feedback
    or maintainer acceptance. #16, #21, #45, #89 await reporters. #68 tracks

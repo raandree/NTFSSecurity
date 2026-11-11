@@ -9,7 +9,7 @@ source: current task evidence
 
 ## Current focus
 
-State at 2026-11-11, 18:00 UTC: 5.0.0-rc9a is published and accepted. The
+State at 2026-11-11, 19:30 UTC: 5.0.0-rc9a is published and accepted. The
 maintainer merged #135 (`c135062`, 13:58Z) and pushed the tag `5.0.0-rc9a`;
 the tag run `43039152538` published it (Gallery 14:42:14Z, GitHub 14:42:22Z),
 and `Test-PublishedRelease.ps1` verified it at 14:57Z. rc9a is the code of rc9
@@ -24,7 +24,10 @@ suite in 24 runs 0 failed (1,911 cases per configuration, the host 1,910; no
 skip differs from the host), every end state CLEAN; the counts equal those of
 rc9 with case 11. Record `Tests/Lab/Acceptance-2026-11-11-published-rc9a.md`
 on `ai/acceptance-published-rc9a` (worktree `C:\Temp\ntfs-rc9a\acceptance`);
-the maintainer pushes and merges it. The lab machines are saved again.
+the maintainer pushes and merges it. The lab machines are saved again. At
+19:20 UTC he chose to prove the stable bytes live before they are published
+(Next step 2); the stable branch `ai/release-5.0.0-final` (worktree
+`C:\Temp\ntfs-rc9a\stable`) is prepared locally.
 
 Handoff 6 (2026-11-10 to 11) closed criteria 2 to 4 of Decision 21 for the
 code of rc9, which rc9a ships unchanged:
@@ -73,26 +76,13 @@ code of rc9, which rc9a ships unchanged:
 - **No new product defect** was found by the tests, the probes, or the reviews,
   beyond the six accepted limits; a defect would need rc10 (the stop rule).
 
-rc9 contains (36 commits over `d0cb57c`, head `696ac38`): the five piped
-parameters of `Add-` and `Remove-NTFSAccess` and `-NTFSAudit` are `object`,
-converted in the cmdlet, so a typo for `Deny` no longer creates an Allow entry
-and a list for `-AccessType` or `-AppliesTo` is rejected; the
-`-SecurityDescriptor` sets report a failing descriptor and go on; the 17
-owner-restore handlers pass
-on what a later command raises; `Get-ChildItem2 -Filter` has one matcher with
-the Windows PowerShell 5.1 rules; the library fixes 3.1 to 3.3 and 3.10;
-`Get-NTFSOrphanedAccess` writes an error; `-SecurityDescriptor` of
-`Set-NTFSSecurityDescriptor` at position 1; label `rc9`. The full suite on
-`696ac38`: 2,162 cases in each CI configuration, 0 failed; two review rounds
-(Decision 27, "Built in rc9") ended with "no finding" on `696ac38`. The
-maintainer merged #131 (`823c814`) and #132 on 2026-10-22 and tagged
-`5.0.0-rc9`; the Gallery has it since 08:50:59Z, and the identity check printed
-`PUBLISHED_IDENTITY_VERIFIED` on 2026-10-22 and 2026-11-10. rc8
-(tag `c719197`) and rc7 (tag `fa0701b`) were accepted on 2026-10-20 and
-2026-10-10. The acceptance of the published rc9 with the live tests of rc7 and
-rc8 came in four parts, after a host shutdown and a lost secure channel of
-`OSWin11E`; it is recorded on `ai/acceptance-published-rc9`
-(`Tests/Lab/Acceptance-2026-11-10-published-rc9.md`, merged as #133).
+rc9 (and so rc9a) contains the changes of Decision 27 ("Built in rc9": the
+five piped parameters as `object`, the descriptor sets that go on, the 17
+owner-restore handlers, the one-matcher filter, the library fixes, the error of
+`Get-NTFSOrphanedAccess`, position 1 of `-SecurityDescriptor`); its suite and
+two review rounds ended with "no finding" on `696ac38`. The earlier
+acceptances are rc7 (2026-10-10), rc8 (2026-10-20), and rc9 (2026-11-10, in
+four parts; with case 11 on 2026-11-11); see `progress.md` and `Tests/Lab`.
 
 Two gates closed on 2026-11-10, in answer to an explicit question: he accepts
 the untested risk of #34 (Decision 23, option 2: release 5.0.0 with the
@@ -138,18 +128,22 @@ session files.
 ## Next step
 
 1. The record of the acceptance of rc9a (`ai/acceptance-published-rc9a`, the
-   record, its four tables, and this Memory Bank): he pushes it, opens the pull
+   record, its four tables, and the Memory Bank): he pushes it, opens the pull
    request, and merges it with a merge commit before the stable pull request.
-2. The stable pull request, made again from `master` after the record: no
-   `Prerelease`, `[Unreleased]` renamed to `## [5.0.0] - <tag day>` with a new
-   empty `[Unreleased]` and the links (as on `ai/release-5.0.0`, `c7cad81`,
-   which is superseded: it conflicts with rc9a in all three files), and
-   `5.0.0-rc9a` in `$publishedVersions`; merge, tag `5.0.0`,
-   `Test-PublishedRelease.ps1 -Version 5.0.0`, and `git diff --stat 5.0.0-rc9a
-   5.0.0 -- NTFSSecurity Security2 PrivilegeControl ProcessPrivileges Log`
-   (only `NTFSSecurity/NTFSSecurity.psd1`; the rebuilt DLL differs too, the
-   build isn't byte-reproducible). A defect found before the tag needs another
-   prerelease.
+2. The stable bytes are proven live before they are published (Decision 21,
+   "Live proof of the stable bytes"): he adds a required reviewer to the
+   environment `powershell-gallery`, merges the stable pull request
+   (`ai/release-5.0.0-final`, stacked on the record: no `Prerelease`,
+   `## [5.0.0] - 2026-11-11`, `5.0.0-rc9a` in `$publishedVersions`; the
+   CHANGELOG and the manifest equal the reviewed `c7cad81`), and pushes the
+   tag `5.0.0`. The tag run builds and tests, then waits. The agent runs
+   `Prepare-ArtifactAcceptance.ps1 -RunId <run>` and
+   `Run-ArtifactAcceptance.ps1` (deployment notes) on the artifact `packages`
+   and writes the record. If it passes, he approves, and the agent compares
+   the published nupkg with the tested one (`Test-PublishedRelease.ps1
+   -Version 5.0.0`); if it fails, he rejects, deletes the tag, and the fix
+   goes through another prerelease. The date in the CHANGELOG must be the day
+   of the approval (UTC).
 3. Unchanged since the rc9 acceptance with case 11: what the lab can't show
    (ten of the 17 handlers that retry as the owner, the new `ReadSecurityError`
    of `Get-NTFSOrphanedAccess`, the changes that don't depend on where the item

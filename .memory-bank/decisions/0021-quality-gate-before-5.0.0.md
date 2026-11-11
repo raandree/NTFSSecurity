@@ -175,3 +175,19 @@ without a failure, every end state CLEAN, all counts equal to rc9 with case 11.
 The exit criterion "the published package passes the live tests on every
 operating system of the matrix" is met for rc9a. What remains is the stable
 change on top of rc9a and its tag.
+
+### Live proof of the stable bytes (maintainer, 2026-11-11)
+
+Asked whether a stable release is proven live, the maintainer chose the
+recommended option: test the exact bytes of 5.0.0 in the lab before they are
+published, not only the last prerelease (the release procedure accepts the
+stable release through it). The build isn't byte-reproducible (rc9 and rc9a
+have different DLLs from the same source), so no lab run would otherwise see
+the bytes that ship. He adds a required reviewer to the environment
+`powershell-gallery` (it had no protection rule); the run of the tag `5.0.0`
+builds, runs the unit suite, and packages as before, then waits. The agent
+downloads its artifact `packages` (read-only), checks its identity, and runs
+the acceptance with `-ModulePath` (the cells, the first lab, the suite on six
+machines, the checks of the end states). He approves only after it passes,
+and the published nupkg must equal the tested one. A failure means: reject,
+delete the tag, fix through another prerelease.
