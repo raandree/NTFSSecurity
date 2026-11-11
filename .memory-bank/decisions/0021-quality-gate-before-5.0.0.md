@@ -165,3 +165,13 @@ before 5.0.0, each time with the recommended option of the form:
 rc9a is new bytes, so the stable tag waits for the acceptance of the published
 rc9a: the identity check, the three cells, the first lab with case 11, and the
 suite in 24 runs (about 1.5 hours on 2026-11-10 to 11).
+
+### Status on 2026-11-11, evening
+
+rc9a is published (tag `c135062`, Gallery 14:42:14Z) and accepted with the kit
+of its tag (record `Tests/Lab/Acceptance-2026-11-11-published-rc9a.md`): three
+cells 2,520 / 0 / 12, first lab 436 / 0 / 1 per edition, the suite in 24 runs
+without a failure, every end state CLEAN, all counts equal to rc9 with case 11.
+The exit criterion "the published package passes the live tests on every
+operating system of the matrix" is met for rc9a. What remains is the stable
+change on top of rc9a and its tag.

@@ -9,13 +9,12 @@ source: repository and validation evidence
 
 ## Current status
 
-5.0.0-rc9 is the newest version on the Gallery and GitHub (2026-10-22, tag at
-`823c814`; rc8 and rc7 before it); the stable Gallery version is still 4.2.6.
-The published rc7, rc8, and rc9 passed their lab acceptance, rc9 also with the
-live tests of case 11 (Handoff 6, #133 and #134, merged on 2026-11-11). On
-2026-11-11 the maintainer chose one more prerelease before 5.0.0,
-`5.0.0-rc9a`, with rc9's code and the final release notes (Decision 21). After
-5.0.0, archive in favor of WindowsAccessControl (Decision 18).
+5.0.0-rc9a is the newest version on the Gallery and GitHub (2026-11-11, tag at
+`c135062`; rc9, rc8, and rc7 before it); the stable Gallery version is still
+4.2.6. The published rc7, rc8, rc9, and rc9a passed their lab acceptance, rc9
+and rc9a with the live tests of case 11. rc9a is the code of rc9 with the
+final release notes (Decision 21); the stable 5.0.0 follows it. After 5.0.0,
+archive in favor of WindowsAccessControl (Decision 18).
 
 ## Recent milestones
 
@@ -115,6 +114,11 @@ live tests of case 11 (Handoff 6, #133 and #134, merged on 2026-11-11). On
   help; the note about #34 and the six known limits of `ai/release-5.0.0` moved
   verbatim into `[Unreleased]` (branch `ai/release-5.0.0-rc9a`), which
   supersedes `ai/release-5.0.0`.
+- 2026-11-11: rc9a published (#135 `c135062`, tag run `43039152538`, Gallery
+  14:42:14Z) and accepted from 16:29 to 17:51 UTC with the kit of its tag: three
+  cells 2,520 / 0 / 12, first lab 436 / 0 / 1 per edition, suite 24 runs 0
+  failed, every end state CLEAN; counts equal to rc9 with case 11 (record
+  `Tests/Lab/Acceptance-2026-11-11-published-rc9a.md`).
 
 ## Stable capabilities
 
@@ -127,9 +131,8 @@ live tests of case 11 (Handoff 6, #133 and #134, merged on 2026-11-11). On
 
 ## Open work
 
-1. Decision 21 gate: the published rc7, rc8, and rc9 are accepted (records),
-   rc9 also with case 11 (Handoff 6); #133 and #134 are merged. Next: the rc9a
-   pull request, its tag, and the acceptance of the published rc9a; then the
+1. Decision 21 gate: the published rc7, rc8, rc9, and rc9a are accepted
+   (records), rc9 and rc9a with case 11. Next: the record of rc9a, then the
    stable pull request, made again on top of rc9a (remove the label, date
    `[5.0.0]`, add `5.0.0-rc9a` to `$publishedVersions`, never the version of
    the manifest), and the tag through CI (`Docs/Contributing/05-Releasing.md`).

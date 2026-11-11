@@ -7,16 +7,31 @@ source: release gates of 5.0.0 (lab acceptance, OS matrix, publication plan), re
 
 # Deployment notes
 
-## Publish the next prerelease (rc9a is next)
+## Publish the next prerelease (rc9a is published)
 
-State on 2026-11-11: the next prerelease is `5.0.0-rc9a`, with rc9's code and
-the final release notes (Decision 21). A label after `rc9` has to sort after
-it: the Gallery and PSResourceGet compare labels as text, and NuGet.Versioning
-6.9.1.3 ranks `5.0.0-rc10` below `5.0.0-rc9` and `rc9a` and `rtm` above it, so
-with `rc10`, `Install-Module -AllowPrerelease` and `Update-Module` would keep
-installing rc9. `Get-ReleaseInfo.ps1` and `Publish-ModulePackage.ps1` accept a
-label of letters, digits, and hyphens that starts with a letter; the lab
-scripts accept letters and digits.
+State on 2026-11-11: `5.0.0-rc9a` is published and accepted (record
+`Tests/Lab/Acceptance-2026-11-11-published-rc9a.md`). #135 (`c135062`, merged
+13:58Z) carries rc9's code and the final release notes (Decision 21); the
+maintainer pushed the lightweight tag, and the CI run `43039152538` of the tag
+passed (Build and test, then Release). The Gallery has rc9a since 14:42:14Z,
+GitHub since 14:42:22Z; `Test-PublishedRelease.ps1 -Version 5.0.0-rc9a`
+verified the identity at 14:57Z and again in the chain. The published bytes of
+rc9a:
+
+- `NTFSSecurity.dll` SHA-256
+  `EBA00A6738E9B9323F0E113582BCFFF288D152F5788A36F95D6828DC2B444BC5`
+- `NTFSSecurity.zip` SHA-256 (equals the GitHub asset digest)
+  `3B72CB20A1C4DA82D4BAC17E61F82AA8351732F6942D84662F482452D8447B9F`
+- nupkg SHA-256
+  `60436BD4636E0C218D6C94D3D081671878372E8B986336F9C007ED245A355BA8`
+
+A label after `rc9` has to sort after it: the Gallery and PSResourceGet compare
+labels as text, and NuGet.Versioning 6.9.1.3 ranks `5.0.0-rc10` below
+`5.0.0-rc9` and `rc9a` and `rtm` above it, so with `rc10`, `Install-Module
+-AllowPrerelease` and `Update-Module` would keep installing rc9.
+`Get-ReleaseInfo.ps1` and `Publish-ModulePackage.ps1` accept a label of
+letters, digits, and hyphens that starts with a letter; the lab scripts accept
+letters and digits.
 
 State on 2026-11-10: rc9 is published. #131
 (`823c814`, merged 2026-10-22 08:13Z; the tree equals the validated head
@@ -70,13 +85,13 @@ The release notes of a prerelease are the `[Unreleased]` section of
 `CHANGELOG.md`.
 
 1. Accept the published package (next section): done for rc7 (2026-10-10),
-   rc8 (2026-10-20), and rc9 (2026-11-10, in four parts after a host shutdown
-   and a lost secure channel); the records are
-   `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`,
-   `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`, and
-   `Tests/Lab/Acceptance-2026-11-10-published-rc9.md`. A build of 5.0.0 that
-   differs by more than the label needs the same cells again, so rc9a, new
-   bytes from rc9's source, needs its own acceptance before the stable tag.
+   rc8 (2026-10-20), rc9 (2026-11-10, in four parts after a host shutdown
+   and a lost secure channel), and rc9a (2026-11-11, in one driver); the
+   records are `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`,
+   `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`,
+   `Tests/Lab/Acceptance-2026-11-10-published-rc9.md`, and
+   `Tests/Lab/Acceptance-2026-11-11-published-rc9a.md`. A build of 5.0.0 that
+   differs by more than the label needs the same cells again.
 2. The rc9a change adds `5.0.0-rc9` to `$publishedVersions` in
    `Tests/Repository.Tests.ps1` (the list ended at rc8), and the stable change
    adds `5.0.0-rc9a`, as `Docs/Contributing/05-Releasing.md` says. The test
@@ -144,6 +159,22 @@ Local `-ModulePath` runs are validation; the gate needs the published bytes.
    coverage tables with PowerShell 7 (5.1 adds a BOM and orders ties
    differently) and the manifest with `Build-EvidenceManifest.ps1`. All in the
    session files `qg-unknowns\scripts`, not in the kit.
+6. One driver for the whole acceptance (2026-11-11, rc9a, 82 minutes):
+   `Run-PublishedAcceptance.ps1 -Evidence <fresh folder> -Version <v>` in the
+   session files `f097ed24-…\files\scripts` runs, in Windows PowerShell 5.1,
+   `Chain-Extended.ps1` (machines, identity, readiness), the start of
+   `OSWin11E` and the gate of its channel (`Repair-ClientChannel2.ps1`) before
+   the cells, `Chain-Extended.ps1` (matrix, first-lab, verify),
+   `Chain-SuiteOnly2.ps1`, and `Chain-Extended.ps1 -Tag a2 -SidTag a1 -Stage
+   verify-matrix`. Create the worktree of the kit (`<evidence>\worktree`)
+   before it: when `Chain-Extended.ps1` creates it, git's "Preparing worktree"
+   on stderr under `$ErrorActionPreference = 'Stop'` ends the chain in 5.1.
+   `Start-Process -Wait` of 5.1 also waits for the children that a chain
+   starts. For the suites of `Chain-SuiteOnly2.ps1` (folders
+   `s-<tag>-<machine>-<machine>`), `Export-MatrixResults.ps1` needs
+   `-ReferenceMachine <tag>-LOCAL-LOCAL`; `LOCAL` matches nothing and leaves
+   the comparison of the skipped tests empty. `Build-PublishedRecordTables.ps1`
+   (same folder) writes the four tables of the record.
 
 ## Lab lessons
 

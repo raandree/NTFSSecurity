@@ -9,19 +9,22 @@ source: current task evidence
 
 ## Current focus
 
-State at 2026-11-11, 12:40 UTC: the maintainer merged #133 (the rc9 record,
-09:42Z) and #134 (`ai/rc9-tests`, 10:21Z; CI on `master` green at `2c88ce7`)
-and chose one more prerelease before the stable 5.0.0: `5.0.0-rc9a` (Decision
-21, "Another prerelease before stable"). The label sorts after rc9:
-NuGet.Versioning 6.9.1.3, the comparer of the Gallery and PSResourceGet, ranks
-`5.0.0-rc10` below `5.0.0-rc9`. The module, the help file, and `Docs/Cmdlets`
-equal the rc9 tag; the change is the label, `5.0.0-rc9` in
-`$publishedVersions`, and the release notes: the note about #34 and the six
-known limits, reviewed on `ai/release-5.0.0`, moved verbatim into
-`[Unreleased]`, the notes of a prerelease. Branch `ai/release-5.0.0-rc9a`
-(worktree `C:\Temp\ntfs-rc9a\release`) goes up with a pull request; the
-maintainer merges it and pushes the tag. `ai/release-5.0.0` (`c7cad81`, local)
-is superseded: it conflicts with rc9a in all three files.
+State at 2026-11-11, 18:00 UTC: 5.0.0-rc9a is published and accepted. The
+maintainer merged #135 (`c135062`, 13:58Z) and pushed the tag `5.0.0-rc9a`;
+the tag run `43039152538` published it (Gallery 14:42:14Z, GitHub 14:42:22Z),
+and `Test-PublishedRelease.ps1` verified it at 14:57Z. rc9a is the code of rc9
+built again (the module folders differ from `5.0.0-rc9` only in the manifest)
+with the final release notes: the note about #34 and the six known limits in
+`[Unreleased]` (Decision 21, "Another prerelease before stable"). Its label
+sorts after rc9 (NuGet.Versioning ranks `5.0.0-rc10` below `5.0.0-rc9`). The
+lab acceptance of the published bytes, with the kit of the tag (case 11), ran
+from 16:29 to 17:51 UTC in one detached driver: the three cells 2,520 / 0 / 12
+(420 / 0 / 2 per edition and cell), the first lab 436 / 0 / 1 per edition, the
+suite in 24 runs 0 failed (1,911 cases per configuration, the host 1,910; no
+skip differs from the host), every end state CLEAN; the counts equal those of
+rc9 with case 11. Record `Tests/Lab/Acceptance-2026-11-11-published-rc9a.md`
+on `ai/acceptance-published-rc9a` (worktree `C:\Temp\ntfs-rc9a\acceptance`);
+the maintainer pushes and merges it. The lab machines are saved again.
 
 Handoff 6 (2026-11-10 to 11) closed criteria 2 to 4 of Decision 21 for the
 code of rc9, which rc9a ships unchanged:
@@ -134,26 +137,24 @@ session files.
 
 ## Next step
 
-1. The rc9a pull request (`ai/release-5.0.0-rc9a`: `Prerelease = 'rc9a'`,
-   `5.0.0-rc9` in `$publishedVersions`, the note and the limits in
-   `[Unreleased]`): after its CI, he merges it with a merge commit and pushes
-   the lightweight tag `5.0.0-rc9a` on the merge commit
-   (`Docs/Contributing/05-Releasing.md`); the tag run publishes. Then
-   `Test-PublishedRelease.ps1 -Version 5.0.0-rc9a`; `git diff --stat 5.0.0-rc9
-   5.0.0-rc9a -- NTFSSecurity Security2 PrivilegeControl ProcessPrivileges Log`
-   lists only `NTFSSecurity/NTFSSecurity.psd1` (the rebuilt DLL differs too;
-   the build isn't byte-reproducible).
-2. The acceptance of the published rc9a (new bytes, so the cells again): the
-   identity check, the three cells and the first lab with the kit of the tag
-   (case 11 is in it since #134), the module's suite in 24 runs, and the
-   checks of both labs; about 1.5 hours (chains a1 and a2 of Handoff 6). The
-   host stays on, and `OSWin11E` restarts right before the cells. A record
-   under `Tests/Lab`; a defect that it finds needs another prerelease.
-3. Then the stable pull request, made again from `master`: no `Prerelease`,
-   `[Unreleased]` renamed to `## [5.0.0] - <tag day>` with a new empty
-   `[Unreleased]` and the links (as on `ai/release-5.0.0`), and `5.0.0-rc9a`
-   in `$publishedVersions`; merge, tag `5.0.0`, `Test-PublishedRelease.ps1
-   -Version 5.0.0`, and the same diff check from `5.0.0-rc9a`.
+1. The record of the acceptance of rc9a (`ai/acceptance-published-rc9a`, the
+   record, its four tables, and this Memory Bank): he pushes it, opens the pull
+   request, and merges it with a merge commit before the stable pull request.
+2. The stable pull request, made again from `master` after the record: no
+   `Prerelease`, `[Unreleased]` renamed to `## [5.0.0] - <tag day>` with a new
+   empty `[Unreleased]` and the links (as on `ai/release-5.0.0`, `c7cad81`,
+   which is superseded: it conflicts with rc9a in all three files), and
+   `5.0.0-rc9a` in `$publishedVersions`; merge, tag `5.0.0`,
+   `Test-PublishedRelease.ps1 -Version 5.0.0`, and `git diff --stat 5.0.0-rc9a
+   5.0.0 -- NTFSSecurity Security2 PrivilegeControl ProcessPrivileges Log`
+   (only `NTFSSecurity/NTFSSecurity.psd1`; the rebuilt DLL differs too, the
+   build isn't byte-reproducible). A defect found before the tag needs another
+   prerelease.
+3. Unchanged since the rc9 acceptance with case 11: what the lab can't show
+   (ten of the 17 handlers that retry as the owner, the new `ReadSecurityError`
+   of `Get-NTFSOrphanedAccess`, the changes that don't depend on where the item
+   is), case 9 only in the first lab, no live cell for Windows 11 26H1, and no
+   file server that isn't Windows (#34 caveat).
 4. #34: decided on 2026-11-10 (Decision 23, option 2). The issue has no comment
    since 2026-10-19 and no tester result. The caveat names the file servers that
    the matrix tested (Windows Server 2019, 2022, 2025) and says where to report
