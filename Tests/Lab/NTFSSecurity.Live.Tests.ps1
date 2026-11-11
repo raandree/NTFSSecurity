@@ -1560,7 +1560,8 @@ Describe 'Privileges when a later command takes the debug messages of the cmdlet
 # server.
 #
 # These have no live test, because the file server plays no part in them:
-# - -SecurityDescriptor at position 1 of the access and audit cmdlets: only the binder decides, whatever the location of the item.
+# - -SecurityDescriptor of Set-NTFSSecurityDescriptor at position 1 (it was at position 2): only the binder decides, whatever the
+#   location of the item.
 # - The EnablePrivileges setting: a setting of the client, independent of the file server.
 # - The account list of RemoveFileSystemAccessRuleAll and RemoveFileSystemAuditRuleAll: a library API that no cmdlet calls with a
 #   list.
