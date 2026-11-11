@@ -129,6 +129,85 @@ BeforeDiscovery {
             @{ StateRole = $stateRole }
         }
     )
+
+    # Case 11: the handlers that retry as the owner, each in the two styles that the tests run it in, and the entries that the runs
+    # on the client leave for the file server to check.
+    $restoreOwnerCases = @(
+        foreach ($handler in 'Clear-NTFSAccess', 'Disable-NTFSAccessInheritance', 'Enable-NTFSAccessInheritance',
+            'Set-NTFSInheritance', 'Set-NTFSSecurityDescriptor', 'Add-NTFSAccess', 'Remove-NTFSAccess') {
+            foreach ($style in 'Plain', 'Later') {
+                @{ Handler = $handler; Style = $style; Folder = 'Case11\RestoreOwner\{0}-{1}' -f $handler, $style; NextChanged = $style -eq 'Plain' }
+            }
+        }
+    )
+    $restoreOwnerPlainCases = @($restoreOwnerCases | Where-Object -FilterScript { $_.Style -eq 'Plain' })
+    $restoreOwnerLaterCases = @($restoreOwnerCases | Where-Object -FilterScript { $_.Style -eq 'Later' })
+    $ownedFolders += @(
+        foreach ($name in 'ValidSimple', 'ValidComplex', 'BadFirst', 'BadList', 'BadThird', 'NamedNullPath', 'NamedNullFirst',
+            'NamedNullSecond', 'RemoveDeny') {
+            @{ Folder = "Case11\Access\$name" }
+        }
+        foreach ($name in 'AddFirst', 'AddSecond', 'RemoveFirst', 'RemoveSecond') {
+            @{ Folder = "Case11\Descriptor\$name" }
+        }
+        @{ Folder = 'Case11\Library\AddByPath' }
+        foreach ($auditRole in 'Admin', 'ServerAdmin') {
+            foreach ($name in 'AddValid', 'AddBad', 'AddAfterBad', 'RemoveValid', 'RemoveBad') {
+                @{ Folder = "Case11\$auditRole\Audit\$name" }
+            }
+        }
+        foreach ($case in $restoreOwnerCases) {
+            @{ Folder = '{0}\Next' -f $case.Folder }
+        }
+    )
+    $subjectEntryExpectations = @(
+        @{ Folder = 'Case11\Access\ValidSimple'; Types = 'Deny' }
+        @{ Folder = 'Case11\Access\ValidComplex'; Types = 'Deny' }
+        @{ Folder = 'Case11\Access\BadFirst'; Types = '' }
+        @{ Folder = 'Case11\Access\BadList'; Types = '' }
+        @{ Folder = 'Case11\Access\BadThird'; Types = 'Deny' }
+        @{ Folder = 'Case11\Access\NamedNullPath'; Types = '' }
+        @{ Folder = 'Case11\Access\NamedNullFirst'; Types = '' }
+        @{ Folder = 'Case11\Access\NamedNullSecond'; Types = '' }
+        @{ Folder = 'Case11\Access\RemoveDeny'; Types = 'Allow' }
+        @{ Folder = 'Case11\Descriptor\AddFirst'; Types = '' }
+        @{ Folder = 'Case11\Descriptor\AddSecond'; Types = 'Deny' }
+        @{ Folder = 'Case11\Descriptor\RemoveFirst'; Types = 'Deny' }
+        @{ Folder = 'Case11\Descriptor\RemoveSecond'; Types = '' }
+        @{ Folder = 'Case11\Library\AddByPath'; Types = 'Allow' }
+    )
+    $auditRowExpectations = @(
+        foreach ($auditRole in 'Admin', 'ServerAdmin') {
+            @{ Folder = "Case11\$auditRole\Audit\AddValid"; Flags = 'Failure' }
+            @{ Folder = "Case11\$auditRole\Audit\AddBad"; Flags = '' }
+            @{ Folder = "Case11\$auditRole\Audit\AddAfterBad"; Flags = 'Failure' }
+            @{ Folder = "Case11\$auditRole\Audit\RemoveValid"; Flags = '' }
+            @{ Folder = "Case11\$auditRole\Audit\RemoveBad"; Flags = 'Success' }
+        }
+    )
+
+    # Case 11: what Get-ChildItem2 -Filter returns for the items of the folder that the tests create, pinned as literal data, and
+    # the patterns that the file server's own matching answers for Windows PowerShell 5.1.
+    $filterRuleCases = @(
+        @{ Filter = '*.??'; Expected = @('a', 'ab', 'abc', 'a.b', 'ab.c', 'abc.de', 'archive.tar.gz', 'jquery.min.js', 'Report', 'Other') }
+        @{ Filter = 'Report.*'; Expected = @('Report', 'Report.txt') }
+        @{ Filter = 'report.*'; Expected = @('Report', 'Report.txt') }
+        @{ Filter = 'REPORT.*'; Expected = @('Report', 'Report.txt') }
+        @{ Filter = 'Report.'; Expected = @('Report') }
+        @{ Filter = '*.'; Expected = @('a', 'ab', 'abc', 'Report', 'Other') }
+        @{ Filter = '?'; Expected = @('a') }
+        @{ Filter = '*.txt'; Expected = @('Report.txt', 'UPPER.TXT', 'LongFileName.txt') }
+        @{ Filter = ''; Expected = @('a', 'ab', 'abc', 'a.b', 'ab.c', 'abc.de', 'archive.tar.gz', 'jquery.min.js', 'Report', 'Report.txt', 'Other', 'UPPER.TXT', 'LongFileName.txt') }
+        @{ Filter = 'LONGFI~1*'; Expected = @() }
+    )
+    $filterComparisonPatterns = '*', '*.*', '*.', '*.?', '*.??', '?', 'a?', '*a*', '*e*e*', '*.*.*', 'Report.*', 'Report.', 'Rep*.', 'a.*', '*.txt', 'UPPER*'
+    $filterComparisonCases = @(
+        foreach ($pattern in $filterComparisonPatterns) {
+            @{ Pattern = $pattern }
+        }
+    )
+    # The three documented differences come last: an 8.3 short name, a blank at the end of the pattern, and two dots.
+    $filterReferenceData = @{ Patterns = @($filterComparisonPatterns) + @('LONGFI~1*', 'Report.* ', '..') }
 }
 
 BeforeAll {
@@ -190,6 +269,47 @@ BeforeAll {
 
         # .NET adds Synchronize to every allow entry that it creates.
         '0x{0:X}' -f (([long]$Right) -bor $synchronize)
+    }
+
+    function Format-LabAccessRule {
+        param ([object[]] $Rule)
+
+        # The type, the rights, and the scope of each entry, in one line
+        foreach ($entry in $Rule) {
+            if ($null -ne $entry) {
+                '{0} 0x{1:X} {2}/{3}' -f $entry.AccessControlType, [long]$entry.FileSystemRights, $entry.InheritanceFlags, $entry.PropagationFlags
+            }
+        }
+    }
+
+    function Get-LabErrorPath {
+        param ([System.Management.Automation.ErrorRecord] $ErrorRecord)
+
+        # Set-NTFSSecurityDescriptor names the item of the descriptor as the target; the other cmdlets name the path.
+        if ($ErrorRecord.TargetObject -is [string]) {
+            $ErrorRecord.TargetObject
+        }
+        else {
+            $ErrorRecord.TargetObject.FullName
+        }
+    }
+
+    function Test-LabRestoreOwnerAction {
+        param ([string] $Handler, [string] $Path)
+
+        # Whether the change of the handler shows on the folder. The fixture gives the folders the state that the handler changes:
+        # an entry for Everyone that Clear-NTFSAccess and Remove-NTFSAccess remove, and a protected DACL for
+        # Enable-NTFSAccessInheritance; the others add the entry or protect the DACL.
+        switch ($Handler) {
+            'Clear-NTFSAccess' { @(Get-LabExplicitAccessRule -Path $Path -Sid $everyone).Count -eq 0 }
+            'Remove-NTFSAccess' { @(Get-LabExplicitAccessRule -Path $Path -Sid $everyone).Count -eq 0 }
+            'Add-NTFSAccess' { @(Get-LabExplicitAccessRule -Path $Path -Sid $everyone).Count -eq 1 }
+            'Set-NTFSSecurityDescriptor' { @(Get-LabExplicitAccessRule -Path $Path -Sid $everyone).Count -eq 1 }
+            'Enable-NTFSAccessInheritance' { -not (Get-Acl -LiteralPath $Path).AreAccessRulesProtected }
+            'Disable-NTFSAccessInheritance' { (Get-Acl -LiteralPath $Path).AreAccessRulesProtected }
+            'Set-NTFSInheritance' { (Get-Acl -LiteralPath $Path).AreAccessRulesProtected }
+            default { throw "No check for the handler '$Handler'." }
+        }
     }
 }
 
@@ -1433,6 +1553,540 @@ Describe 'Privileges when a later command takes the debug messages of the cmdlet
     }
 }
 
+# Case 11: the behavior that 5.0.0-rc9 changed and that the lab can observe. The comments name what an earlier build did; the tests
+# that pin it fail on 5.0.0-rc8, and the others pin what rc9 keeps. Administrators own the folders that the fixture creates below
+# Case11, and the delegated group fully controls them. The account of the rows is the subject of case 3. Audit entries need the
+# Security privilege on the file server, which the delegated account lacks, so the audit rows run as the administrators of the file
+# server.
+#
+# These have no live test, because the file server plays no part in them:
+# - -SecurityDescriptor of Set-NTFSSecurityDescriptor at position 1 (it was at position 2): only the binder decides, whatever the
+#   location of the item.
+# - The EnablePrivileges setting: a setting of the client, independent of the file server.
+# - The account list of RemoveFileSystemAccessRuleAll and RemoveFileSystemAuditRuleAll: a library API that no cmdlet calls with a
+#   list.
+# - The argument completers of AccessType, InheritanceFlags, PropagationFlags, AppliesTo, and AuditFlags: they run on the client
+#   and don't look at a share.
+Describe 'Access cmdlets with rows piped by property name on share folders' -Tag 'Delegate' -Skip:(-not $configured) {
+    # A row is an object whose properties the cmdlet binds by name, like a row of a CSV file. The subject is given by its name.
+    # Before 5.0.0-rc9, the binder dropped a property that it could not convert, and the cmdlet used the default of the parameter.
+    BeforeAll {
+        $folder = Get-LabPath -RelativePath 'Case11\Access'
+        $subjectName = $configuration.Accounts.Subject.Name
+        $subjectSid = $configuration.Accounts.Subject.Sid
+    }
+
+    It 'Should start with folders that Administrators own, and entries of the subject only on the folder where one is removed' {
+        foreach ($name in 'ValidSimple', 'ValidComplex', 'BadFirst', 'BadList', 'BadThird', 'NamedNullPath', 'NamedNullFirst', 'NamedNullSecond') {
+            $path = Join-Path -Path $folder -ChildPath $name
+            Get-LabOwner -Path $path | Should -Be $administrators -Because $name
+            Get-LabExplicitAccessRule -Path $path -Sid $subjectSid | Should -BeNullOrEmpty -Because $name
+        }
+
+        $removeDeny = Join-Path -Path $folder -ChildPath 'RemoveDeny'
+        Get-LabOwner -Path $removeDeny | Should -Be $administrators
+        @(Get-LabExplicitAccessRule -Path $removeDeny -Sid $subjectSid) | Should -HaveCount 2
+    }
+
+    It 'Add-NTFSAccess should add the entry of a valid row of the Simple set and of one of the Complex set, and keep the owner' {
+        $simple = Join-Path -Path $folder -ChildPath 'ValidSimple'
+        $complex = Join-Path -Path $folder -ChildPath 'ValidComplex'
+        $rows = @(
+            [pscustomobject]@{ Path = $simple; Account = $subjectName; AccessRights = 'ReadData'; AccessType = 'Deny'; AppliesTo = 'ThisFolderAndFiles' }
+            [pscustomobject]@{ Path = $complex; Account = $subjectName; AccessRights = 'ReadData'; AccessType = 'Deny'; InheritanceFlags = 'ContainerInherit, ObjectInherit'; PropagationFlags = 'InheritOnly' }
+        )
+
+        $rows | Add-NTFSAccess -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        Format-LabAccessRule -Rule (Get-LabExplicitAccessRule -Path $simple -Sid $subjectSid) | Should -BeExactly 'Deny 0x1 ObjectInherit/None'
+        Format-LabAccessRule -Rule (Get-LabExplicitAccessRule -Path $complex -Sid $subjectSid) | Should -BeExactly 'Deny 0x1 ContainerInherit, ObjectInherit/InheritOnly'
+        Get-LabOwner -Path $simple | Should -Be $administrators
+        Get-LabOwner -Path $complex | Should -Be $administrators
+    }
+
+    # Before rc9, the row with AccessType = 'Denyy' added an Allow entry, the default, and PowerShell combined the numbers of
+    # 'Allow, Deny' bit by bit, so that one of the two values won silently.
+    It 'Add-NTFSAccess should write an InvalidParameterValue error for each row with a bad AccessType, change nothing for it, and apply the next row' {
+        $first = Join-Path -Path $folder -ChildPath 'BadFirst'
+        $list = Join-Path -Path $folder -ChildPath 'BadList'
+        $third = Join-Path -Path $folder -ChildPath 'BadThird'
+        $rows = @(
+            [pscustomobject]@{ Path = $first; Account = $subjectName; AccessRights = 'ReadData'; AccessType = 'Denyy' }
+            [pscustomobject]@{ Path = $list; Account = $subjectName; AccessRights = 'ReadData'; AccessType = 'Allow, Deny' }
+            [pscustomobject]@{ Path = $third; Account = $subjectName; AccessRights = 'ReadData'; AccessType = 'Deny' }
+        )
+
+        $rows | Add-NTFSAccess -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+        $written = (Format-LabError -ErrorRecord $operationErrors) -join ' | '
+        @($operationErrors) | Should -HaveCount 2 -Because "the cmdlet wrote: $written"
+        foreach ($index in 0, 1) {
+            $operationErrors[$index].FullyQualifiedErrorId | Should -BeLike 'InvalidParameterValue,*'
+            $operationErrors[$index].CategoryInfo.Category | Should -Be 'InvalidArgument'
+        }
+
+        $operationErrors[0].TargetObject | Should -Be $first
+        $operationErrors[1].TargetObject | Should -Be $list
+        foreach ($path in $first, $list) {
+            Get-LabExplicitAccessRule -Path $path -Sid $subjectSid | Should -BeNullOrEmpty -Because "the row for $path has a bad value"
+            Get-LabOwner -Path $path | Should -Be $administrators
+        }
+
+        Format-LabAccessRule -Rule (Get-LabExplicitAccessRule -Path $third -Sid $subjectSid) | Should -BeExactly 'Deny 0x1 ContainerInherit, ObjectInherit/None'
+        Get-LabOwner -Path $third | Should -Be $administrators
+    }
+
+    # A named $null is a terminating error that the cmdlet raises, before it processes the first piped object. Before rc9, the
+    # binder ended it with an error of another ID.
+    It 'Add-NTFSAccess should stop with an InvalidParameterValue error for a named $null AccessType, and change nothing' {
+        $path = Join-Path -Path $folder -ChildPath 'NamedNullPath'
+
+        $caught = $null
+        try {
+            Add-NTFSAccess -Path $path -Account $subjectName -AccessRights ReadData -AccessType $null -ErrorAction Stop
+        }
+        catch {
+            $caught = $_
+        }
+
+        $caught.FullyQualifiedErrorId | Should -BeLike 'InvalidParameterValue,*'
+        Get-LabExplicitAccessRule -Path $path -Sid $subjectSid | Should -BeNullOrEmpty
+        Get-LabOwner -Path $path | Should -Be $administrators
+    }
+
+    It 'Add-NTFSAccess should stop before the first piped path for a named $null AccessType, and change nothing' {
+        $first = Join-Path -Path $folder -ChildPath 'NamedNullFirst'
+        $second = Join-Path -Path $folder -ChildPath 'NamedNullSecond'
+
+        $caught = $null
+        try {
+            $first, $second | Add-NTFSAccess -Account $subjectName -AccessRights ReadData -AccessType $null -ErrorAction Stop
+        }
+        catch {
+            $caught = $_
+        }
+
+        $caught.FullyQualifiedErrorId | Should -BeLike 'InvalidParameterValue,*'
+        foreach ($path in $first, $second) {
+            Get-LabExplicitAccessRule -Path $path -Sid $subjectSid | Should -BeNullOrEmpty
+            Get-LabOwner -Path $path | Should -Be $administrators
+        }
+    }
+
+    # The type of the row decides which entry goes: the Deny row takes the Deny entry away and leaves the Allow entry of the other
+    # rights.
+    It 'Remove-NTFSAccess should remove only the Deny entry for a piped Deny row, and keep the Allow entry and the owner' {
+        $path = Join-Path -Path $folder -ChildPath 'RemoveDeny'
+        $row = [pscustomobject]@{ Path = $path; Account = $subjectName; AccessRights = 'ReadData'; AccessType = 'Deny'; InheritanceFlags = 'ContainerInherit, ObjectInherit'; PropagationFlags = 'None' }
+
+        $row | Remove-NTFSAccess -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        Format-LabAccessRule -Rule (Get-LabExplicitAccessRule -Path $path -Sid $subjectSid) | Should -BeExactly 'Allow 0x1200A9 ContainerInherit, ObjectInherit/None'
+        Get-LabOwner -Path $path | Should -Be $administrators
+    }
+}
+
+Describe 'Access cmdlets with security descriptors whose first change fails, on share folders' -Tag 'Delegate' -Skip:(-not $configured) {
+    # A Deny entry without rights can't be built, so the change of the first descriptor of a set throws. Before 5.0.0-rc9, the
+    # exception ended the cmdlet, and the descriptors after the failing one stayed unchanged; now the cmdlet writes an AddAceError
+    # or a RemoveAceError for that descriptor and goes on with the next one. Set-NTFSSecurityDescriptor writes the changed
+    # descriptor, and only its DACL, so that Administrators stay the owner.
+    BeforeAll {
+        $folder = Get-LabPath -RelativePath 'Case11\Descriptor'
+        $subjectName = $configuration.Accounts.Subject.Name
+        $subjectSid = $configuration.Accounts.Subject.Sid
+    }
+
+    It 'Add-NTFSAccess should write an AddAceError for the first descriptor and add the entry to the second one' {
+        $first = Join-Path -Path $folder -ChildPath 'AddFirst'
+        $second = Join-Path -Path $folder -ChildPath 'AddSecond'
+        $descriptors = @(Get-NTFSSecurityDescriptor -Path $first, $second -ErrorAction Stop)
+        $rows = @(
+            [pscustomobject]@{ SecurityDescriptor = $descriptors[0]; Account = $subjectName; AccessRights = 'None'; AccessType = 'Deny' }
+            [pscustomobject]@{ SecurityDescriptor = $descriptors[1]; Account = $subjectName; AccessRights = 'ReadData'; AccessType = 'Deny' }
+        )
+
+        $rows | Add-NTFSAccess -ErrorVariable addErrors -ErrorAction SilentlyContinue
+        Set-NTFSSecurityDescriptor -SecurityDescriptor $descriptors -ErrorVariable setErrors -ErrorAction SilentlyContinue
+
+        $written = (Format-LabError -ErrorRecord $addErrors) -join ' | '
+        @($addErrors) | Should -HaveCount 1 -Because "the cmdlet wrote: $written"
+        $addErrors[0].FullyQualifiedErrorId | Should -BeLike 'AddAceError,*'
+        $addErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+        $addErrors[0].TargetObject | Should -Be $descriptors[0]
+        Format-LabError -ErrorRecord $setErrors | Should -BeNullOrEmpty
+        Get-LabExplicitAccessRule -Path $first -Sid $subjectSid | Should -BeNullOrEmpty
+        Format-LabAccessRule -Rule (Get-LabExplicitAccessRule -Path $second -Sid $subjectSid) | Should -BeExactly 'Deny 0x1 ContainerInherit, ObjectInherit/None'
+        Get-LabOwner -Path $first | Should -Be $administrators
+        Get-LabOwner -Path $second | Should -Be $administrators
+    }
+
+    It 'Remove-NTFSAccess should write a RemoveAceError for the first descriptor and remove the entry from the second one' {
+        $first = Join-Path -Path $folder -ChildPath 'RemoveFirst'
+        $second = Join-Path -Path $folder -ChildPath 'RemoveSecond'
+        $descriptors = @(Get-NTFSSecurityDescriptor -Path $first, $second -ErrorAction Stop)
+        $rows = @(
+            [pscustomobject]@{ SecurityDescriptor = $descriptors[0]; Account = $subjectName; AccessRights = 'None'; AccessType = 'Deny' }
+            [pscustomobject]@{ SecurityDescriptor = $descriptors[1]; Account = $subjectName; AccessRights = 'ReadData'; AccessType = 'Deny' }
+        )
+
+        $rows | Remove-NTFSAccess -ErrorVariable removeErrors -ErrorAction SilentlyContinue
+        Set-NTFSSecurityDescriptor -SecurityDescriptor $descriptors -ErrorVariable setErrors -ErrorAction SilentlyContinue
+
+        $written = (Format-LabError -ErrorRecord $removeErrors) -join ' | '
+        @($removeErrors) | Should -HaveCount 1 -Because "the cmdlet wrote: $written"
+        $removeErrors[0].FullyQualifiedErrorId | Should -BeLike 'RemoveAceError,*'
+        $removeErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+        $removeErrors[0].TargetObject | Should -Be $descriptors[0]
+        Format-LabError -ErrorRecord $setErrors | Should -BeNullOrEmpty
+        Format-LabAccessRule -Rule (Get-LabExplicitAccessRule -Path $first -Sid $subjectSid) | Should -BeExactly 'Deny 0x1 ContainerInherit, ObjectInherit/None'
+        Get-LabExplicitAccessRule -Path $second -Sid $subjectSid | Should -BeNullOrEmpty
+        Get-LabOwner -Path $first | Should -Be $administrators
+        Get-LabOwner -Path $second | Should -Be $administrators
+    }
+}
+
+Describe 'The overload of AddFileSystemAccessRule that takes a path, on a share folder' -Tag 'Delegate' -Skip:(-not $configured) {
+    # The library writes only the DACL, like the cmdlets do, so that the delegated account, which may not assign Administrators as
+    # the owner, leaves the owner as it is.
+    It 'Should add the entry and keep Administrators as the owner' {
+        $path = Get-LabPath -RelativePath 'Case11\Library\AddByPath'
+        $subjectSid = $configuration.Accounts.Subject.Sid
+
+        $rule = [Security2.FileSystemAccessRule2]::AddFileSystemAccessRule(
+            $path,
+            [Security2.IdentityReference2]$subjectSid,
+            [Security2.FileSystemRights2]::ReadData,
+            [System.Security.AccessControl.AccessControlType]::Allow,
+            [System.Security.AccessControl.InheritanceFlags]::None,
+            [System.Security.AccessControl.PropagationFlags]::None
+        )
+
+        $rule.Account.Sid | Should -BeExactly $subjectSid
+        Format-LabAccessRule -Rule (Get-LabExplicitAccessRule -Path $path -Sid $subjectSid) | Should -BeExactly 'Allow 0x100001 None/None'
+        Get-LabOwner -Path $path | Should -Be $administrators
+    }
+}
+
+Describe 'Audit cmdlets with rows piped by property name on share folders' -Tag 'ServerAdmin', 'Admin' -Skip:(-not $configured) {
+    # The administrators of the file server add and remove audit entries over SMB (case 2). A row whose AuditFlags is misspelled
+    # writes an error for its path and changes nothing, and the rows after it are applied. Before 5.0.0-rc9, the binder dropped the
+    # AuditFlags that it could not convert, and the cmdlet used its default, Success and Failure: Add-NTFSAudit added an entry for
+    # both, and Remove-NTFSAudit removed the entry. The role Server reads the audit entries that the runs left, without the module.
+    BeforeAll {
+        $folder = Get-LabPath -RelativePath "Case11\$Role\Audit"
+        $subjectSid = $configuration.Accounts.Subject.Sid
+
+        function Get-LabSubjectAuditFlag {
+            param ([string] $Path)
+
+            # The flags of the explicit audit entries of the subject, joined
+            @(Get-NTFSAudit -Path $Path -ExcludeInherited -ErrorAction Stop |
+                    Where-Object -FilterScript { $_.Account.Sid -eq $subjectSid } |
+                    ForEach-Object -Process { [string]$_.AuditFlags }) -join ','
+        }
+    }
+
+    It 'Add-NTFSAudit should add the entry of a valid row, write an InvalidParameterValue error for a misspelled AuditFlags, and apply the next row' {
+        $valid = Join-Path -Path $folder -ChildPath 'AddValid'
+        $bad = Join-Path -Path $folder -ChildPath 'AddBad'
+        $after = Join-Path -Path $folder -ChildPath 'AddAfterBad'
+        $rows = @(
+            [pscustomobject]@{ Path = $valid; Account = $subjectSid; AccessRights = 'Delete'; AuditFlags = 'Failure'; InheritanceFlags = 'None'; PropagationFlags = 'None' }
+            [pscustomobject]@{ Path = $bad; Account = $subjectSid; AccessRights = 'Delete'; AuditFlags = 'Sucess'; InheritanceFlags = 'None'; PropagationFlags = 'None' }
+            [pscustomobject]@{ Path = $after; Account = $subjectSid; AccessRights = 'Delete'; AuditFlags = 'Failure'; InheritanceFlags = 'None'; PropagationFlags = 'None' }
+        )
+
+        $rows | Add-NTFSAudit -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+        $written = (Format-LabError -ErrorRecord $operationErrors) -join ' | '
+        @($operationErrors) | Should -HaveCount 1 -Because "the cmdlet wrote: $written"
+        $operationErrors[0].FullyQualifiedErrorId | Should -BeLike 'InvalidParameterValue,*'
+        $operationErrors[0].CategoryInfo.Category | Should -Be 'InvalidArgument'
+        $operationErrors[0].TargetObject | Should -Be $bad
+        Get-LabSubjectAuditFlag -Path $valid | Should -BeExactly 'Failure'
+        Get-LabSubjectAuditFlag -Path $bad | Should -BeNullOrEmpty
+        Get-LabSubjectAuditFlag -Path $after | Should -BeExactly 'Failure'
+        foreach ($path in $valid, $bad, $after) {
+            Get-LabOwner -Path $path | Should -Be $administrators
+        }
+    }
+
+    It 'Remove-NTFSAudit should write an InvalidParameterValue error for a misspelled AuditFlags and leave the entry, and remove the entry of a valid row' {
+        $bad = Join-Path -Path $folder -ChildPath 'RemoveBad'
+        $valid = Join-Path -Path $folder -ChildPath 'RemoveValid'
+        foreach ($path in $bad, $valid) {
+            Get-LabSubjectAuditFlag -Path $path | Should -BeExactly 'Success' -Because 'the fixture gives the folder the entry that the row removes'
+        }
+
+        $rows = @(
+            [pscustomobject]@{ Path = $bad; Account = $subjectSid; AccessRights = 'Delete'; AuditFlags = 'Sucess'; InheritanceFlags = 'None'; PropagationFlags = 'None' }
+            [pscustomobject]@{ Path = $valid; Account = $subjectSid; AccessRights = 'Delete'; AuditFlags = 'Success'; InheritanceFlags = 'None'; PropagationFlags = 'None' }
+        )
+
+        $rows | Remove-NTFSAudit -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+        $written = (Format-LabError -ErrorRecord $operationErrors) -join ' | '
+        @($operationErrors) | Should -HaveCount 1 -Because "the cmdlet wrote: $written"
+        $operationErrors[0].FullyQualifiedErrorId | Should -BeLike 'InvalidParameterValue,*'
+        $operationErrors[0].CategoryInfo.Category | Should -Be 'InvalidArgument'
+        $operationErrors[0].TargetObject | Should -Be $bad
+        Get-LabSubjectAuditFlag -Path $bad | Should -BeExactly 'Success'
+        Get-LabSubjectAuditFlag -Path $valid | Should -BeNullOrEmpty
+        foreach ($path in $bad, $valid) {
+            Get-LabOwner -Path $path | Should -Be $administrators
+        }
+    }
+}
+
+Describe 'A later command and the owner that a handler cannot give back on share folders' -Tag 'Delegate' -Skip:(-not $configured) {
+    # The seventeen handlers that retry as the owner take ownership of an item when the first write fails, run the action, and give
+    # the previous owner back; a failure to give it back is a RestoreOwnerError. Seven handlers have a row here. The folder Blocked
+    # denies the delegated group the right to change its DACL, so the first write fails. The group has Take Ownership, and an owner
+    # changes the DACL whatever a plain deny entry says, so the retry works. The account holds no Restore privilege on the file
+    # server, and the server accepts only the account itself as the owner that it sets, so giving Administrators back fails. The
+    # folder Next has no deny entry, so the handler changes it at once. Before 5.0.0-rc9, a later command that threw at the
+    # RestoreOwnerError record was taken for an error of the folder: the cmdlet reported its own error, went on with Next, and the
+    # caller never saw the throw.
+    #
+    # The ten others have no row, each for a reason of Windows:
+    # - Get-NTFSAccess, Get-NTFSOrphanedAccess, Get-NTFSEffectiveAccess, and Get-NTFSInheritance read the security descriptor first,
+    #   and so does the first statement of InvokeAsOwner (FileSystemOwner.GetOwner), which needs the same right ReadPermissions: a
+    #   denial that fails the read fails the retry before ownership is taken.
+    # - Add-NTFSAudit, Remove-NTFSAudit, Clear-NTFSAudit, Enable-NTFSAuditInheritance, and Disable-NTFSAuditInheritance write the
+    #   SACL, which doesn't depend on the DACL, so the action never fails first.
+    # - Get-FileHash2 needs the data of the file, not its permissions, so that taking ownership doesn't help.
+    BeforeAll {
+        $delegateSid = $configuration.Accounts.Delegate.Sid
+        $restoreRoot = Get-LabPath -RelativePath 'Case11\RestoreOwner'
+
+        function Get-LabRestoreParameter {
+            param ([string] $Handler, [string[]] $Path)
+
+            switch ($Handler) {
+                'Set-NTFSSecurityDescriptor' {
+                    # The entry is added in memory, so that writing the descriptors has something to do
+                    $descriptors = @(Get-NTFSSecurityDescriptor -Path $Path -ErrorAction Stop)
+                    Add-NTFSAccess -SecurityDescriptor $descriptors -Account $everyone -AccessRights ReadData -ErrorAction Stop
+                    @{ SecurityDescriptor = $descriptors }
+                }
+                'Set-NTFSInheritance' { @{ Path = $Path; AccessInheritanceEnabled = $false } }
+                'Add-NTFSAccess' { @{ Path = $Path; Account = $everyone; AccessRights = 'ReadData' } }
+                'Remove-NTFSAccess' { @{ Path = $Path; Account = $everyone; AccessRights = 'ReadAndExecute'; InheritanceFlags = 'ContainerInherit, ObjectInherit'; PropagationFlags = 'None' } }
+                default { @{ Path = $Path } }
+            }
+        }
+    }
+
+    It 'Should start with folders that Administrators own, and a folder in each pair whose DACL the delegated group may not change' {
+        $pairs = @(Get-ChildItem -LiteralPath $restoreRoot -Directory -ErrorAction Stop)
+
+        $pairs | Should -HaveCount 14 -Because 'seven handlers run in two styles'
+        foreach ($pair in $pairs) {
+            $blocked = Join-Path -Path $pair.FullName -ChildPath 'Blocked'
+            Get-LabOwner -Path $blocked | Should -Be $administrators -Because $pair.Name
+            Get-LabOwner -Path (Join-Path -Path $pair.FullName -ChildPath 'Next') | Should -Be $administrators -Because $pair.Name
+            $denied = @((Get-Acl -LiteralPath $blocked).GetAccessRules($true, $false, $sidType) |
+                    Where-Object -FilterScript { $_.AccessControlType -eq 'Deny' -and $_.FileSystemRights -eq 'ChangePermissions' })
+            $denied | Should -HaveCount 1 -Because $pair.Name
+        }
+    }
+
+    It '<Handler> should write one RestoreOwnerError for the folder whose owner it took, and change both folders' -ForEach $restoreOwnerPlainCases {
+        $blocked = Get-LabPath -RelativePath "$Folder\Blocked"
+        $next = Get-LabPath -RelativePath "$Folder\Next"
+        $parameters = Get-LabRestoreParameter -Handler $Handler -Path $blocked, $next
+
+        & $Handler @parameters -ErrorVariable operationErrors -ErrorAction SilentlyContinue
+
+        $written = (Format-LabError -ErrorRecord $operationErrors) -join ' | '
+        @($operationErrors) | Should -HaveCount 1 -Because "the cmdlet wrote: $written"
+        $operationErrors[0].FullyQualifiedErrorId | Should -BeLike 'RestoreOwnerError,*'
+        $operationErrors[0].CategoryInfo.Category | Should -Be 'WriteError'
+        Get-LabErrorPath -ErrorRecord $operationErrors[0] | Should -Be $blocked
+        Get-LabOwner -Path $blocked | Should -Be $delegateSid
+        Test-LabRestoreOwnerAction -Handler $Handler -Path $blocked | Should -BeTrue
+        Get-LabOwner -Path $next | Should -Be $administrators
+        Test-LabRestoreOwnerAction -Handler $Handler -Path $next | Should -BeTrue
+    }
+
+    # The later command throws only for the RestoreOwnerError record, as an exception of its own that the caller has to see. The
+    # cmdlet must not report it as an error of the item and go on with Next.
+    It '<Handler> should pass on what a later command throws at the RestoreOwnerError record, and leave the next folder as it was' -ForEach $restoreOwnerLaterCases {
+        $blocked = Get-LabPath -RelativePath "$Folder\Blocked"
+        $next = Get-LabPath -RelativePath "$Folder\Next"
+        $parameters = Get-LabRestoreParameter -Handler $Handler -Path $blocked, $next
+
+        $caught = $null
+        try {
+            & $Handler @parameters -ErrorAction Continue 2>&1 | ForEach-Object -Process {
+                if ($_ -is [System.Management.Automation.ErrorRecord] -and $_.FullyQualifiedErrorId -like 'RestoreOwnerError,*') {
+                    throw 'case 11 later command'
+                }
+
+                $_
+            }
+        }
+        catch {
+            $caught = $_
+        }
+
+        $caught.Exception.Message | Should -BeExactly 'case 11 later command'
+        Get-LabOwner -Path $blocked | Should -Be $delegateSid
+        Test-LabRestoreOwnerAction -Handler $Handler -Path $blocked | Should -BeTrue
+        Get-LabOwner -Path $next | Should -Be $administrators
+        Test-LabRestoreOwnerAction -Handler $Handler -Path $next | Should -BeFalse
+    }
+}
+
+# The rules of Windows PowerShell 5.1 for -Filter, as the page of the cmdlet describes them. The folder holds names without a dot,
+# with one, and with two, names that differ from a pattern in case, and names that 8.3 doesn't allow, to which a file server that
+# creates short names gives a short name as well.
+Describe 'Get-ChildItem2 -Filter on a share folder with the dot rules of Windows PowerShell 5.1' -Tag 'Delegate', 'ServerAdmin', 'Admin' -Skip:(-not $configured) {
+    BeforeAll {
+        $folder = Get-LabPath -RelativePath "Case11\$Role\Filter"
+        $null = New-Item -ItemType Directory -Path $folder -Force
+        foreach ($name in 'a', 'ab', 'abc', 'a.b', 'ab.c', 'abc.de', 'archive.tar.gz', 'jquery.min.js', 'Report', 'Report.txt', 'UPPER.TXT', 'LongFileName.txt') {
+            Set-Content -LiteralPath (Join-Path -Path $folder -ChildPath $name) -Value $name -NoNewline
+        }
+
+        $null = New-Item -ItemType Directory -Path (Join-Path -Path $folder -ChildPath 'Other')
+    }
+
+    # The literal results are the oracle. Before 5.0.0-rc9, the cmdlet compared each name with the pattern again as a wildcard of
+    # PowerShell, so that a name without a dot didn't match a pattern with a dot token (Report.*, *.??, a dot at the end). No item
+    # matches by its 8.3 short name, before and now.
+    It 'Should return the items that Windows PowerShell 5.1 returns for -Filter "<Filter>"' -ForEach $filterRuleCases {
+        $result = @(Get-ChildItem2 -Path $folder -Filter $Filter -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+        Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+        $names = @($result | ForEach-Object -Process { $_.Name } | Sort-Object -CaseSensitive)
+        ($names -join '|') | Should -BeExactly (($Expected | Sort-Object -CaseSensitive) -join '|')
+    }
+
+    Context 'Compared with Get-ChildItem of Windows PowerShell 5.1' -ForEach @($filterReferenceData) {
+        # Windows PowerShell 5.1 runs in a child process as the account of the run and lists the folder on the share, so that the
+        # file server's own matching answers. The module folders of that edition are the module path of the child: from PowerShell 7,
+        # it would inherit the module path of PowerShell 7, and its first command from a module would stop.
+        BeforeAll {
+            function Get-LabWindowsPowerShellFilterResult {
+                param ([string] $Path, [string[]] $Pattern)
+
+                $literals = foreach ($value in $Pattern) { "'{0}'" -f $value.Replace("'", "''") }
+                $template = @'
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+$path = '__PATH__'
+foreach ($pattern in @(__PATTERNS__)) {
+    $names = @()
+    $errorId = ''
+    try {
+        $names = @(Get-ChildItem -LiteralPath $path -Filter $pattern -Force | ForEach-Object -Process { $_.Name })
+    }
+    catch {
+        $errorId = $_.FullyQualifiedErrorId
+    }
+
+    [pscustomobject]@{ Pattern = $pattern; Names = $names; ErrorId = $errorId } | ConvertTo-Json -Compress
+}
+'@
+                $script = $template.Replace('__PATH__', $Path.Replace("'", "''")).Replace('__PATTERNS__', ($literals -join ', '))
+                $executable = Join-Path -Path $env:windir -ChildPath 'System32\WindowsPowerShell\v1.0\powershell.exe'
+                $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($script))
+                $savedModulePath = $env:PSModulePath
+                $env:PSModulePath = (
+                    [System.IO.Path]::Combine([Environment]::GetFolderPath('MyDocuments'), 'WindowsPowerShell\Modules'),
+                    (Join-Path -Path $env:ProgramFiles -ChildPath 'WindowsPowerShell\Modules'),
+                    (Join-Path -Path $env:windir -ChildPath 'System32\WindowsPowerShell\v1.0\Modules')
+                ) -join ';'
+                # A line on the error stream of the child would end the function at once under Stop, because 2>&1 turns it into an error
+                $ErrorActionPreference = 'Continue'
+                try {
+                    $output = @(& $executable -NoProfile -NonInteractive -EncodedCommand $encoded 2>&1 | ForEach-Object -Process { "$_" })
+                    $exitCode = $LASTEXITCODE
+                }
+                finally {
+                    $env:PSModulePath = $savedModulePath
+                }
+
+                $rows = @{}
+                foreach ($line in $output) {
+                    if ($line.StartsWith('{')) {
+                        $row = ConvertFrom-Json -InputObject $line
+                        $rows[$row.Pattern] = $row
+                    }
+                }
+
+                if ($rows.Count -ne @($Pattern).Count) {
+                    throw ('Windows PowerShell 5.1 answered {0} of {1} patterns (exit code {2}): {3}' -f $rows.Count, @($Pattern).Count, $exitCode, ($output -join ' | '))
+                }
+
+                $rows
+            }
+
+            $reference = Get-LabWindowsPowerShellFilterResult -Path $folder -Pattern $Patterns
+        }
+
+        It 'Should return the names that Windows PowerShell 5.1 returns for -Filter "<Pattern>"' -ForEach $filterComparisonCases {
+            $windows = $reference[$Pattern]
+            $windows.ErrorId | Should -BeNullOrEmpty -Because 'Windows PowerShell 5.1 accepts the pattern'
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter $Pattern -Force -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+            Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+            $names = @($result | ForEach-Object -Process { $_.Name } | Sort-Object -CaseSensitive)
+            ($names -join '|') | Should -BeExactly ((@($windows.Names) | Sort-Object -CaseSensitive) -join '|')
+        }
+
+        # Documented difference: Windows PowerShell 5.1 matches the 8.3 short name that a file server creates, and Get-ChildItem2
+        # matches only the real name.
+        It 'Should not match an 8.3 short name, which Windows PowerShell 5.1 matches' {
+            $shortName = (New-Object -ComObject 'Scripting.FileSystemObject').GetFile((Join-Path -Path $folder -ChildPath 'LongFileName.txt')).ShortName
+            if ($shortName -notlike '*~*') {
+                Set-ItResult -Skipped -Because 'the file server creates no 8.3 short name for the file'
+                return
+            }
+
+            $windows = $reference['LONGFI~1*']
+            $windows.ErrorId | Should -BeNullOrEmpty
+            (@($windows.Names) -join '|') | Should -BeExactly 'LongFileName.txt' -Because "the short name of the file is $shortName"
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter 'LONGFI~1*' -Force -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+            Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+            $result | Should -BeNullOrEmpty
+        }
+
+        # Documented difference: Windows PowerShell 5.1 drops blanks at the end of the pattern, and Get-ChildItem2 keeps them as part
+        # of the pattern, so that no name matches.
+        It 'Should keep a blank at the end of the pattern, which Windows PowerShell 5.1 drops' {
+            $windows = $reference['Report.* ']
+            $windows.ErrorId | Should -BeNullOrEmpty
+            ((@($windows.Names) | Sort-Object -CaseSensitive) -join '|') | Should -BeExactly 'Report|Report.txt'
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter 'Report.* ' -Force -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+            Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+            $result | Should -BeNullOrEmpty
+        }
+
+        # Documented difference: Windows PowerShell 5.1 stops with an error for a pattern that ends in two dots, and Get-ChildItem2
+        # accepts it and returns nothing, because no name can come before the dot.
+        It 'Should accept a pattern of two dots, with which Windows PowerShell 5.1 stops with an error' {
+            $windows = $reference['..']
+            $windows.ErrorId | Should -BeLike '*DirArgumentError*'
+            @($windows.Names) | Should -BeNullOrEmpty
+
+            $result = @(Get-ChildItem2 -Path $folder -Filter '..' -Force -ErrorVariable operationErrors -ErrorAction SilentlyContinue)
+
+            Format-LabError -ErrorRecord $operationErrors | Should -BeNullOrEmpty
+            $result | Should -BeNullOrEmpty
+        }
+    }
+}
+
 Describe 'Security descriptors on the file server after the runs on the client' -Tag 'Server' -Skip:(-not $configured) {
     It 'Should keep Administrators as the owner of <Folder>' -ForEach $ownedFolders {
         Get-LabOwner -Path (Get-LabPath -RelativePath $Folder) | Should -Be $administrators
@@ -1524,5 +2178,34 @@ Describe 'Security descriptors on the file server after the runs on the client' 
             $writtenAtVerbose = Join-Path -Path $root -ChildPath "SetDescriptor-Verbose$slug"
             Get-LabExplicitAccessRule -Path (Join-Path -Path $writtenAtVerbose -ChildPath 'Second.txt') -Sid $everyone | Should -BeNullOrEmpty -Because "Set-NTFSSecurityDescriptor left the second item at the verbose message ($slug)"
         }
+    }
+
+    # Case 11: the entry types of the subject that the rows, the descriptors, and the library call left. The first test of this
+    # Describe checks that Administrators still own the folders.
+    It 'Should have the entry types "<Types>" for the subject on <Folder>' -ForEach $subjectEntryExpectations {
+        $entries = @(Get-LabExplicitAccessRule -Path (Get-LabPath -RelativePath $Folder) -Sid $configuration.Accounts.Subject.Sid)
+
+        (@($entries | ForEach-Object -Process { [string]$_.AccessControlType }) -join ',') | Should -BeExactly $Types
+    }
+
+    # Case 11: the administrators of the file server added and removed audit entries of the subject, and left the ones that a
+    # misspelled AuditFlags would have changed.
+    It 'Should have the audit flags "<Flags>" for the subject on <Folder>' -ForEach $auditRowExpectations {
+        $acl = Get-Acl -LiteralPath (Get-LabPath -RelativePath $Folder) -Audit
+        $entries = @($acl.GetAuditRules($true, $false, $sidType) | Where-Object -FilterScript { $_.IdentityReference.Value -eq $configuration.Accounts.Subject.Sid })
+
+        (@($entries | ForEach-Object -Process { [string]$_.AuditFlags }) -join ',') | Should -BeExactly $Flags
+    }
+
+    # Case 11: each handler took the owner of Blocked for the delegated account and could not give it back, and changed Blocked.
+    # It changed Next too, except when a later command ended the pipeline at the error of Blocked.
+    It 'Should have the owners and the changes that <Handler> left in the <Style> style on <Folder>' -ForEach $restoreOwnerCases {
+        $blocked = Get-LabPath -RelativePath "$Folder\Blocked"
+        $next = Get-LabPath -RelativePath "$Folder\Next"
+
+        Get-LabOwner -Path $blocked | Should -Be $configuration.Accounts.Delegate.Sid -Because 'the delegated account took the ownership and could not give it back'
+        Test-LabRestoreOwnerAction -Handler $Handler -Path $blocked | Should -BeTrue -Because "$Handler changed the folder as its owner"
+        Get-LabOwner -Path $next | Should -Be $administrators
+        Test-LabRestoreOwnerAction -Handler $Handler -Path $next | Should -Be $NextChanged
     }
 }

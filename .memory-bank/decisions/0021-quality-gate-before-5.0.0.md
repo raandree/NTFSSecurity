@@ -1,9 +1,9 @@
 ---
 status: accepted
 date: 2026-10-08
-last-verified: 2026-10-21
+last-verified: 2026-11-11
 owner: shared
-source: maintainer decision of 2026-10-08; closing choices of 2026-10-19; status of 2026-10-20
+source: maintainer decision of 2026-10-08; closing choices of 2026-10-19; status of 2026-10-20; Handoff 6 of 2026-11-10 to 11
 ---
 
 # Decision 21: A quality gate before 5.0.0
@@ -90,3 +90,54 @@ the decision on #34 (2026-11-02), and the key check. The stable build is new
 bytes: the stable change may touch only the label, the CHANGELOG, and
 `$publishedVersions`; any other product change needs rc9 and the same
 acceptance.
+
+### Status on 2026-11-10
+
+The published rc9 is accepted with the old live tests (record
+`Tests/Lab/Acceptance-2026-11-10-published-rc9.md`). A readiness check of the
+same day found criteria 2 to 4 open for the final code: the C# coverage was
+last measured on 2026-10-11 (33 C# product files changed since, 35 files in
+rc9), the by-row check of the skipped tests was not repeated for the new tests,
+and the known limits of Decision 27 were not in the release notes. The live
+tests, unchanged since rc7, don't exercise the rc9 changes. The maintainer held
+the stable tag and chose the focused scope (Handoff 6): the known limits are
+accepted and listed in the CHANGELOG, none fixed in an rc10; the coverage of
+`823c814` is measured, and every unvisited point of the changed files is tested
+or explained; a time-boxed case 11 of the live tests is added and must fail on
+the published rc8; the published rc9 is accepted again with the extended kit.
+A defect that this work finds is reproduced on the published rc9, and he
+chooses rc10 or accept-and-list. Criterion 4 asks for the listing in the
+release notes, so Decision 7 (user-visible changes only) doesn't keep a known
+limit out of the CHANGELOG.
+
+### Status on 2026-11-11
+
+Handoff 6 addressed criteria 2 to 4 for the published rc9, locally and for the
+maintainer's approval (nothing is pushed), and changed nothing in the module,
+the help file, or the manifest.
+Criterion 3: the tag `823c814` is measured in four configurations, 3,666 of
+4,074 sequence points (89.99%), and 3,672 (90.13%) with the 52 new unit cases.
+Each of the 169 methods with an unvisited point (402 sequence points) is
+classified by one of 35 rules, with its source, caller evidence, reason, and
+residual risk; none is open, and the difference from `2112ee3` is explained
+(report `Tests/Coverage/Quality-Gate-rc9-2026-11-10.md`). Criterion 2: of 8,856
+rows, 834 are skipped, 417 distinct rows of 214 tests, each executed in two
+other configurations. Criterion 4: the six known limits are in the `[5.0.0]`
+section of the CHANGELOG on `ai/release-5.0.0`; five were reproduced on the
+published rc9 in both editions, and one was read from the source. Criterion 5,
+for what rc9 changed: case 11 of the live tests (191 tests per edition) fails
+in 79 tests on the published rc8, each for the documented reason, and passes
+on the published rc9 in the first lab (436 / 0 / 1 per edition) and in the
+three cells (2,520 / 0 / 12); the module's suite passed in 24 runs (1,911
+cases per configuration, the host 1,910), and every end state is CLEAN
+(addendum `Tests/Lab/Acceptance-2026-11-10-published-rc9-case-11.md`). The
+final unit suite on the tip passed in four configurations (2,214 cases each).
+The built-in `code-review` agent read the work three times; its findings
+(a probe gap and a missing cmdlet list in the release notes, a stale commit
+count, and claims that said more than the evidence) are fixed. No new product
+defect was found beyond the six accepted limits. Open for the maintainer:
+confirm the 169
+explanations, the six limits, and the reading of the empty rc10 field (none);
+merge in the order of Decision 15; tag. The stable build is new bytes from the
+same source, so the acceptance of the last prerelease stands in for it, which
+the release procedure leaves to him.

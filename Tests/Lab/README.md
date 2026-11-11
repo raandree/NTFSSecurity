@@ -23,7 +23,8 @@ without a lab they skip every test.
 | Long paths | Admin | `Get-ChildItem2` and `Get-NTFSAccess` with a share path longer than 260 characters. |
 | [#108][issue-108] | Admin | `Copy-Item2` and `Move-Item2` with `-WhatIf` onto an existing file on the share write no error. |
 | 10 | Delegate, ServerAdmin, Admin | The behavior that the quality-gate fixes before 5.0.0 changed, and that the lab can observe. The delegated account, which owns the items it creates, clears and protects the DACL of an item whose OWNER RIGHTS entry denies it the right to change the DACL, and the cmdlets report no `RestoreOwnerError` for the unchanged owner. `InheritedFrom` names an `unknown parent` for entries that Windows can't resolve, for a deleted file and below a folder whose permissions the account can't read, and no source for an explicit entry. A later command that stops the pipeline with `Select-Object -First 1` or throws leaves the second item of `Remove-Item2`, `Copy-Item2`, `Move-Item2`, `Set-NTFSOwner`, and `Set-NTFSSecurityDescriptor` as it was, also when it takes the verbose messages of `Set-NTFSSecurityDescriptor` or the debug messages of `Set-NTFSOwner`, and `Get-FileHash2` writes no error when it takes its verbose messages. `Get-ChildItem2` passes on what a later command throws for the error of a folder it can't read, and a `break` of that command leaves the caller's loop. `Get-ChildItem2 -Filter` finds a name with brackets, returns every item for `*.*`, and rejects `$null`. The privileges that the cmdlets enable are disabled again when a later command stops the pipeline or throws at a debug message. |
-| State | Server | After the runs on the client, the file server checks the owners, the audit entries, the items, the links, the entries of the foreign accounts, and which items a later command changed, itself, without the module. |
+| 11 | Delegate, ServerAdmin, Admin | The behavior that 5.0.0-rc9 changed. A valid row that is piped by property name to `Add-NTFSAccess`, `Remove-NTFSAccess`, `Add-NTFSAudit`, or `Remove-NTFSAudit` is applied (the delegated account runs the access cmdlets, the administrators of the file server the audit cmdlets); a row with a bad `AccessType` or `AuditFlags`, also a list such as `Allow, Deny`, writes one `InvalidParameterValue` error for its path and changes nothing, and the next row is applied; a named `$null` stops the cmdlet before the first path. In a set of security descriptors, a change that throws for one descriptor writes an `AddAceError` or a `RemoveAceError`, and the cmdlet goes on with the next descriptor. For the seven handlers that retry as the owner (`Clear-NTFSAccess`, the three inheritance cmdlets, `Set-NTFSSecurityDescriptor`, `Add-NTFSAccess`, and `Remove-NTFSAccess`), the delegated account takes ownership of a folder whose DACL it may not change and can't give Administrators back (`RestoreOwnerError`); a later command that throws at that record reaches the caller, and the next folder stays as it was. `Get-ChildItem2 -Filter` follows the dot rules of Windows PowerShell 5.1 (`Report.*` returns `Report`, `*.??` reaches `archive.tar.gz`), and for a list of patterns it returns the names that `Get-ChildItem` of Windows PowerShell 5.1 returns on the share, except for the three documented differences: an 8.3 short name, a blank at the end of the pattern, and a pattern of two dots. The overload of `AddFileSystemAccessRule` that takes a path keeps the owner. `-SecurityDescriptor` of `Set-NTFSSecurityDescriptor` at position 1, the `EnablePrivileges` setting, the account list of `RemoveFileSystemAccessRuleAll` and `RemoveFileSystemAuditRuleAll`, and the argument completers have no live test, because the file server plays no part in them. |
+| State | Server | After the runs on the client, the file server checks the owners, the audit entries, the items, the links, the entries of the foreign accounts, which items a later command changed, and the entries, the audit entries, and the owners that case 11 left, itself, without the module. |
 
 Case 1 uses two kinds of folders. Before 5.0.0-rc3, the cmdlets wrote back the
 owner that Windows returns with a DACL without the auto-inherit flag, and the
@@ -154,6 +155,17 @@ on the share with the terminating error (50). A build without the fixes of the
 quality gate before 5.0.0 fails case 10 and the matching test of the State
 role: 74 of the 244 tests of each edition (see the
 [record of that run](Acceptance-2026-10-09-quality-gate-paths.md)).
+
+A version before 5.0.0-rc9 fails the tests of case 11 that pin what rc9
+changed, and the matching tests of the State role: the rows with a bad
+`AccessType` or `AuditFlags` (the binder dropped the value, and the cmdlet used
+its default), the named `$null` (another error ID), a failing change in a set
+of descriptors (the exception ended the cmdlet), a later command that throws at
+the `RestoreOwnerError` of each of the seven handlers (the cmdlet reported its
+own error and went on with the next folder), and the `-Filter` patterns whose
+rules the wildcards of PowerShell don't have, such as `Report.*`, `*.??`, and
+`a?`. It passes the valid rows, the runs without a later command, and the
+overload that takes a path.
 
 ## Acceptance of a release candidate
 

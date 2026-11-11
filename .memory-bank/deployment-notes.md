@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-10-20
+last-verified: 2026-11-11
 owner: software-engineer
 source: release gates of 5.0.0 (lab acceptance, OS matrix, publication plan), repository evidence
 ---
@@ -120,6 +120,20 @@ Local `-ModulePath` runs are validation; the gate needs the published bytes.
    F3DC1 -Machine F1AFile1, F1AFile2` for the existing lab).
 4. If the published binary changes, repeat the cells; never combine runs of
    different binaries into one matrix.
+5. Extended kit (Handoff 6, 2026-11-10): the files of a commit instead of the
+   tag. `Chain-Extended.ps1 -Version <v> -Tag <t> -Evidence <fresh folder>
+   -KitRevision <commit> [-Lab First,Matrix] [-Stage ...]` runs the published
+   module with that kit and logs both identities; `-DetectVersions a,b` with
+   `-DetectCandidate first|none|<version>` runs the stage `detect`, and
+   `Compare-Detect.ps1` joins two runs per edition, role, and test. The hour of
+   the 22H2 client holds the three cells (about 25 minutes with case 11) but
+   not the suites as planned (33 minutes in the earlier record, 17 in a2): run
+   them in a second chain (`Chain-SuiteOnly2.ps1` restarts the client, gates on
+   a lab-account session, and starts the six suites 75 seconds apart), then
+   `Chain-Extended.ps1 -Tag a2 -SidTag a1 -Stage verify-matrix`. Write the
+   coverage tables with PowerShell 7 (5.1 adds a BOM and orders ties
+   differently) and the manifest with `Build-EvidenceManifest.ps1`. All in the
+   session files `qg-unknowns\scripts`, not in the kit.
 
 ## Lab lessons
 

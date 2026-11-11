@@ -139,6 +139,16 @@ Describe 'Get-ChildItem2' {
                 Assert-TestSandboxPath -Sandbox $sandbox -Path $path
                 New-Item -ItemType Directory -Path $path | Out-Null
             }
+
+            # The fixture for the patterns with several asterisks, also 8.3-compliant. With names such as aab and abab,
+            # a pattern such as *a*a*b reaches the same position of a name from more than one asterisk, and the
+            # matcher answers from what it has already worked out for that position instead of working it out again.
+            $filterRevisitFolder = New-TestSandboxItem -Sandbox $sandbox -Name 'FilterRevisit' -Directory
+            foreach ($name in 'aab', 'aaab', 'abab', 'bab', 'a', 'b', 'ba', 'aaaaaaaa', 'a.b', 'ab.ab') {
+                $path = Join-Path -Path $filterRevisitFolder -ChildPath $name
+                Assert-TestSandboxPath -Sandbox $sandbox -Path $path
+                Set-Content -LiteralPath $path -Value $name
+            }
         }
 
         It 'Should return the exact tree for <Case>' -ForEach @(
@@ -337,6 +347,13 @@ Describe 'Get-ChildItem2' {
             @{ Filter = 'a??'; Expected = @('a', 'ab', 'abc') }
             @{ Filter = 'c.c'; Expected = @('c.c') }
             @{ Filter = 'ca?'; Expected = @() }
+            @{ Filter = '.'; Expected = @('1cb', 'a', 'a.b', 'a.bcd', 'a1.b2', 'a2.b1', 'ab', 'ab.c', 'abc', 'abc.de', 'abcdefgh', 'abcdefgh.ijk', 'bca', 'bcabcabc', 'bdir', 'bdir.cd', 'c.c', 'cab.cd', 'ccc', 'fo.ld', 'fold', 'x.y') }
+            @{ Filter = '...'; Expected = @() }
+            @{ Filter = 'a...'; Expected = @('a') }
+            @{ Filter = '*...'; Expected = @('1cb', 'a', 'ab', 'abc', 'abcdefgh', 'bca', 'bcabcabc', 'bdir', 'ccc', 'fold') }
+            @{ Filter = '*a*a*b'; Expected = @() }
+            @{ Filter = '*a*b*a*b'; Expected = @() }
+            @{ Filter = '*b*b'; Expected = @() }
         ) {
             $folder = $filterTruthTableFolder
 
@@ -372,6 +389,40 @@ Describe 'Get-ChildItem2' {
             }
 
             $result = @(Get-ChildItem2 -Path $folder -Filter $Filter -Force -ErrorAction Stop)
+
+            ($result.Name | Sort-Object) -join ',' | Should -BeExactly (($Expected | Sort-Object) -join ',')
+        }
+
+        # A pattern with several asterisks asks the same question about the same position of a name more than once,
+        # and the answer must not change when the matcher takes it from what it has already worked out: the first
+        # pattern here matches nothing, the others match names that a second asterisk reaches by another way.
+        # Pinned with the literal result of Windows PowerShell 5.1's Get-ChildItem, like the truth table above.
+        It 'Should match -Filter "<Filter>", which meets the same position of a name again, the way Windows PowerShell 5.1 does' -ForEach @(
+            @{ Filter = '*a*a*c'; Expected = @() }
+            @{ Filter = '*a*a*a*c'; Expected = @() }
+            @{ Filter = '*a*b*a*c'; Expected = @() }
+            @{ Filter = '*a*a*b'; Expected = @('aaab', 'aab', 'ab.ab', 'abab') }
+            @{ Filter = 'a*a*b'; Expected = @('aaab', 'aab', 'ab.ab', 'abab') }
+            @{ Filter = '*a*b*a*b'; Expected = @('ab.ab', 'abab') }
+        ) {
+            $result = @(Get-ChildItem2 -Path $filterRevisitFolder -Filter $Filter -Force -ErrorAction Stop)
+
+            ($result.Name | Sort-Object) -join ',' | Should -BeExactly (($Expected | Sort-Object) -join ',')
+        }
+
+        # A run of dots at the end of the pattern counts as one dot. Windows PowerShell 5.1 stops with an error for a
+        # run of an even number of dots (Search pattern cannot contain ".." to move up directories), so these values
+        # are those of the same pattern with one dot, which Windows PowerShell 5.1 answers (the truth table above);
+        # an even run is accepted here, as the page of the cmdlet says. A pattern of dots alone has no name in front
+        # of the dot, so it matches nothing (a single dot is the one pattern of dots that returns every item).
+        It 'Should accept -Filter "<Filter>", which ends in an even number of dots, and treat the run as one dot' -ForEach @(
+            @{ Filter = '..'; Expected = @() }
+            @{ Filter = '....'; Expected = @() }
+            @{ Filter = 'a..'; Expected = @('a') }
+            @{ Filter = 'a.b..'; Expected = @('a.b') }
+            @{ Filter = '*..'; Expected = @('1cb', 'a', 'ab', 'abc', 'abcdefgh', 'bca', 'bcabcabc', 'bdir', 'ccc', 'fold') }
+        ) {
+            $result = @(Get-ChildItem2 -Path $filterTruthTableFolder -Filter $Filter -Force -ErrorAction Stop)
 
             ($result.Name | Sort-Object) -join ',' | Should -BeExactly (($Expected | Sort-Object) -join ',')
         }
