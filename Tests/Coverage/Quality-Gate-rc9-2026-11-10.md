@@ -7,7 +7,8 @@ rc8 and rc9 was never measured. This report measures the published
 5.0.0-rc9, classifies what the tests leave unvisited, tests what a test can
 reach, and checks by row that no test is skipped in every configuration. It
 does not close the gate: a coverage percentage never closes a gate, the stable
-5.0.0 stays held, and the live tests are the subject of the addendum to the
+5.0.0 stays held, and the live tests are the subject of the
+[case 11 addendum](../Lab/Acceptance-2026-11-10-published-rc9-case-11.md) to the
 [rc9 acceptance](../Lab/Acceptance-2026-11-10-published-rc9.md).
 The agent pushed, merged, tagged, and published nothing, and changed nothing in
 the module, its help file, or its manifest.
@@ -54,11 +55,11 @@ The work is on `ai/rc9-tests`, stacked on the record of the rc9 acceptance
   (2,214 each). 834 rows are skipped, 417 distinct rows of 214 tests, each
   skipped in two configurations and executed in the other two: 0 skipped rows
   without an executed counterpart.
-- **No product defect.** None of the new tests, the probes, or the review of
-  the unvisited code found one. The known limits of Decision 27 are listed in
-  the `[5.0.0]` section of the CHANGELOG on `ai/release-5.0.0`; five of the
-  six were reproduced on the published rc9 in both editions (the probes are in
-  the evidence), and the sixth is a property of the .NET API.
+- **No new product defect.** None of the new tests, the probes, or the review of
+  the unvisited code found one beyond the known limits of Decision 27. They are
+  listed in the `[5.0.0]` section of the CHANGELOG on `ai/release-5.0.0`; five
+  of the six were reproduced on the published rc9 in both editions (the probes
+  are in the evidence), and the sixth is a property of the .NET API.
 
 ## Tables
 
@@ -429,7 +430,8 @@ What this does not show: a coverage run of the published bytes themselves.
    the lab can reach and the unit suite leaves unvisited; Handoff 5 measured
    that they add 9 sequence points and 4 branch points, all of the
    effective-access code. The case 11 runs of the lab are the subject of the
-   addendum to the acceptance record.
+   [addendum](../Lab/Acceptance-2026-11-10-published-rc9-case-11.md) to the
+   acceptance record.
 6. **Corrected explanations.** Three rules of the 2026-10-10 classification
    said that the initialization errors of the authorization manager are
    swallowed. That stopped being true in rc8 (`25fe775`); the rules say what
@@ -455,9 +457,12 @@ What this does not show: a coverage run of the published bytes themselves.
   read) were probed over SMB without a trigger.
 - **The mutations** ran in Windows PowerShell 5.1, elevated, one at a time; the
   new tests run in all four configurations.
-- **A domain member.** The unit suite ran on the Hyper-V host (not a domain
-  member). The suite on the machines of the matrix lab is part of the
-  addendum to the acceptance record.
+- **A domain member.** The unit suite of the coverage ran on the Hyper-V host
+  (not a domain member). The suite also ran on the five machines of the matrix
+  lab, 20 runs with 1,911 cases each, all passed, and again on the host in the
+  same chain, 4 runs with 1,910 cases (see the
+  [addendum](../Lab/Acceptance-2026-11-10-published-rc9-case-11.md)); those runs
+  measure no coverage.
 - **The by-row skip check** uses the unit suite on the host; the live tests in
   `Tests\Lab` are excluded from the suite and are skipped without a lab.
 - **A mutation run is a sample.** The eight mutations show that the new tests
@@ -476,5 +481,5 @@ file with its size and SHA-256, among them:
 | `E\qg-unknowns\rc9-r1` | the second measurement: the same bytes under `2bfcefd`, the analysis, the changed-code tables, the IL comparison and the dumps of the ten differences |
 | `E\qg-unknowns\eligibility-rc9-r1` | the rows of the four configurations and the comparison |
 | `E\rc9-coverage\mut-1`, `E\rc9-coverage\mut-2` | the mutation runs |
-| `E\rc9-coverage\probes` | the probes of the filter and the conversion, the known limits on a FAT32 volume and a NULL DACL, and the logs |
+| `E\rc9-coverage\probes` | the probes of the filter and the conversion, the known limits on a FAT32 volume and a NULL DACL, the five cmdlets that read `GetInheritedFrom` (`p-limits3*`), the collection that contains itself (`p-limits2*` outputs, driver logs, and exit codes, on the published rc9 in both editions), and the logs |
 | `E\qg-unknowns\scripts` | the tools of the measurement and the analysis (inspect before reuse; they are not part of the kit) |
