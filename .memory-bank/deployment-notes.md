@@ -7,9 +7,18 @@ source: release gates of 5.0.0 (lab acceptance, OS matrix, publication plan), re
 
 # Deployment notes
 
-## Publish the next prerelease (rc9 is published)
+## Publish the next prerelease (rc9a is next)
 
-State on 2026-11-10: rc9, the last prerelease before 5.0.0, is published. #131
+State on 2026-11-11: the next prerelease is `5.0.0-rc9a`, with rc9's code and
+the final release notes (Decision 21). A label after `rc9` has to sort after
+it: the Gallery and PSResourceGet compare labels as text, and NuGet.Versioning
+6.9.1.3 ranks `5.0.0-rc10` below `5.0.0-rc9` and `rc9a` and `rtm` above it, so
+with `rc10`, `Install-Module -AllowPrerelease` and `Update-Module` would keep
+installing rc9. `Get-ReleaseInfo.ps1` and `Publish-ModulePackage.ps1` accept a
+label of letters, digits, and hyphens that starts with a letter; the lab
+scripts accept letters and digits.
+
+State on 2026-11-10: rc9 is published. #131
 (`823c814`, merged 2026-10-22 08:13Z; the tree equals the validated head
 `696ac38`) and #132 are merged, and the maintainer pushed the lightweight tag
 `5.0.0-rc9` at `823c814` at about 08:37Z. The CI run `39749188259` of the tag
@@ -66,14 +75,15 @@ The release notes of a prerelease are the `[Unreleased]` section of
    `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`,
    `Tests/Lab/Acceptance-2026-10-20-published-rc8.md`, and
    `Tests/Lab/Acceptance-2026-11-10-published-rc9.md`. A build of 5.0.0 that
-   differs by more than the label needs the same cells again.
-2. The stable change adds `5.0.0-rc9` to `$publishedVersions` in
-   `Tests/Repository.Tests.ps1` (the list ends at rc8), as
-   `Docs/Contributing/05-Releasing.md` says. The test "Should not reuse a
-   version that the PowerShell Gallery already has" fails when the list holds
-   the version of the manifest. After the tag, `git diff --stat 5.0.0-rc9
-   5.0.0 -- NTFSSecurity Security2 PrivilegeControl ProcessPrivileges Log`
-   should list only the manifest.
+   differs by more than the label needs the same cells again, so rc9a, new
+   bytes from rc9's source, needs its own acceptance before the stable tag.
+2. The rc9a change adds `5.0.0-rc9` to `$publishedVersions` in
+   `Tests/Repository.Tests.ps1` (the list ended at rc8), and the stable change
+   adds `5.0.0-rc9a`, as `Docs/Contributing/05-Releasing.md` says. The test
+   "Should not reuse a version that the PowerShell Gallery already has" fails
+   when the list holds the version of the manifest. After each tag, `git diff
+   --stat <previous tag> <tag> -- NTFSSecurity Security2 PrivilegeControl
+   ProcessPrivileges Log` should list only the manifest.
 
 ## Accept a published package
 

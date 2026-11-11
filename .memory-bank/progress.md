@@ -9,63 +9,33 @@ source: repository and validation evidence
 
 ## Current status
 
-5.0.0-rc9 is published on the Gallery and GitHub (2026-10-22, tag at `823c814`);
-rc8 (2026-10-20, tag at `c719197`) and rc7 (2026-10-10, tag at `fa0701b`) are the
-ones before it. On 2026-10-10 the maintainer merged the stack of #116, #120,
-#118, #119, and #121 into `master` (CI green; the milestones have the details).
-On 2026-10-19 he merged #125 (Handoff 5) and #124 (Dependabot) and decided the
-path to stable (Decision 21, "Closing the gate"); on 2026-10-20 he merged #126
-(the decisions) and #127 (the rc8 fix and label) and tagged rc8; on 2026-10-21
-he merged #128 (the rc8 record), #129 (tests), and #130 (this file); on
-2026-10-22 he merged #131 (rc9) and #132 (the Memory Bank) and tagged rc9. The
-published rc7, rc8, and rc9 passed their lab acceptance in the matrix and in the
-first lab. On 2026-11-10 he held the stable tag: Handoff 6 (see the milestones)
-addressed criteria 2 to 4 of Decision 21 locally, for his approval, and its
-branches
-(`ai/acceptance-published-rc9`, `ai/rc9-tests`, `ai/release-5.0.0`) wait for his
-push and merge (`activeContext.md`). Stable Gallery version: 4.2.6. After 5.0.0,
-archive in favor of WindowsAccessControl (Decision 18).
+5.0.0-rc9 is the newest version on the Gallery and GitHub (2026-10-22, tag at
+`823c814`; rc8 and rc7 before it); the stable Gallery version is still 4.2.6.
+The published rc7, rc8, and rc9 passed their lab acceptance, rc9 also with the
+live tests of case 11 (Handoff 6, #133 and #134, merged on 2026-11-11). On
+2026-11-11 the maintainer chose one more prerelease before 5.0.0,
+`5.0.0-rc9a`, with rc9's code and the final release notes (Decision 21). After
+5.0.0, archive in favor of WindowsAccessControl (Decision 18).
 
 ## Recent milestones
 
-- 2026-10-02 to 2026-10-09: documentation and help aligned with the source, CI
-  and wiki on GitHub Actions, release automation, and rc1 to rc6 published
-  (rc5: the remote effective-access fallback, Decision 20; rc6 and the rc7
-  candidate: Phase 2 and the behavior changes of Decision 22). #114 (`fcb370e`)
-  and #115 (`b51d970`) merged. The rc6 release run failed with HTTP 409 after
-  Gallery publication and attempt 2 succeeded (GitHub prerelease 2026-10-09
-  07:01:34Z). Detail: git, `CHANGELOG.md`, `Docs/Version-History.md`,
-  Decisions 1 to 22.
-- 2026-10-09 to 10: the quality gate. The autonomous follow-up (#117, then
-  #120) and handoff 1 (#118) took the suite from 202 cases above rc7 to 1,310
-  per configuration (3,192/3,634 sequence points, 87.84%) and fixed eleven
-  defects, ten with a guard that is red before the fix; lab acceptance
-  `83149ee` against `f11ff41`: 486 passed against 338 passed, 148 failed
-  (`Tests/Lab/Acceptance-2026-10-09-quality-gate-paths.md`). Handoffs 2 to 4
-  (decisions D1 to D47 in the night log of the session files) built the matrix
-  lab `NtfsSecurityOsMatrixLab` (Server 2019, 2022, 2025, Windows 11 22H2; 26H1
-  suite only), which found three module defects, fixed in `962887a` and
-  `fdd7a8b`; the final candidate passed the suite on every machine (24 runs),
-  the three cells (1,374/0/12), and the first lab (245/0/1 per edition); the
-  built-in security review found no exploitable vulnerability and two LOW items
-  (`Tests/Lab/Acceptance-2026-10-10-os-matrix.md`).
-- 2026-10-10: the maintainer integrated the stack (#116 `8a6be9f`, #120
-  `bdb9981`, #118 `03bef2c`, #119 `fa0701b`; his branch deletion made GitHub
-  close #117 unmerged, Decision 15) and tagged rc7 (Gallery 12:30:57Z; identity
-  passed; hashes in the deployment notes). Gate 3 on the published rc7 (14:29
-  to 15:30 UTC): three cells 1,374/0/12, the suite in 24 runs, the first lab
-  245/0/1 per edition, every end state CLEAN (record
-  `Tests/Lab/Acceptance-2026-10-10-published-rc7.md`).
-- 2026-10-10 to 2026-10-11: Handoff 5, the coverage unknowns (branch
-  `ai/coverage-unknowns`, merged as #125 on 2026-10-19). rc7 measured at
-  `fa0701b`: 3,198/3,649 sequence points; the live suite and the suite on a
-  domain member add 9 sequence and 4 explicit branch points (`fdd7a8b`); two
-  `tr-TR` defects fixed test-first; 101 `It` blocks added; the piped
-  `AppliesTo` that a path dropped fixed (`93ed2c7`, `9783d2a`, Decision 26).
-  Final `2112ee3`: 1,492 cases per configuration, 3,266/3,668 points; the labs
-  accepted the package (first lab 245/0/1 per edition, three cells 229/0/2 per
-  edition, every end state clean). Report
-  `Tests/Coverage/Quality-Gate-Unknowns-2026-10-10.md`.
+- 2026-10-02 to 2026-10-09: docs and help aligned with the source, CI and wiki
+  on GitHub Actions, release automation, rc1 to rc6 (#114, #115). Detail: git,
+  `CHANGELOG.md`, `Docs/Version-History.md`, Decisions 1 to 22.
+- 2026-10-09 to 10: the quality gate (#117 then #120, #118; Handoffs 2 to 4):
+  the suite to 1,310 cases per configuration, eleven defects fixed (ten with a
+  guard that is red before the fix), and the matrix lab
+  `NtfsSecurityOsMatrixLab` (Server 2019, 2022, 2025, Windows 11), which found
+  three more (`962887a`, `fdd7a8b`). Records
+  `Tests/Lab/Acceptance-2026-10-09-quality-gate-paths.md` and
+  `Tests/Lab/Acceptance-2026-10-10-os-matrix.md`.
+- 2026-10-10: the stack merged (#116, #120, #118, #119, #121; GitHub closed #117
+  when its base branch was deleted, Decision 15); rc7 tagged at `fa0701b` and
+  accepted (`Tests/Lab/Acceptance-2026-10-10-published-rc7.md`).
+- 2026-10-10 to 11: Handoff 5, the coverage unknowns (#125, merged 2026-10-19):
+  two `tr-TR` defects and the piped `AppliesTo` fixed test-first (Decision 26);
+  final `2112ee3`: 1,492 cases per configuration, 3,266/3,668 points (report
+  `Tests/Coverage/Quality-Gate-Unknowns-2026-10-10.md`).
 - 2026-10-19: #125 (Handoff 5) and #124 merged, CI on `master` green. The
   maintainer decided the path to stable (Decision 21): Decisions 22 and 24
   accepted, 23 option 3 with the decision date 2026-11-02 (the #34 follow-up
@@ -138,6 +108,13 @@ archive in favor of WindowsAccessControl (Decision 18).
   the release notes; and a stale commit count, wording that said more than the
   evidence, and unlisted probe files in the records (all fixed). No new product
   defect beyond the six accepted limits.
+- 2026-11-11: the maintainer merged #133 (09:42Z) and #134 (10:21Z; CI on
+  `master` green at `2c88ce7`) and chose one more prerelease before 5.0.0:
+  `5.0.0-rc9a`, because NuGet.Versioning 6.9.1.3 (the comparer of the Gallery
+  and PSResourceGet) ranks `5.0.0-rc10` below `5.0.0-rc9`. rc9's code and
+  help; the note about #34 and the six known limits of `ai/release-5.0.0` moved
+  verbatim into `[Unreleased]` (branch `ai/release-5.0.0-rc9a`), which
+  supersedes `ai/release-5.0.0`.
 
 ## Stable capabilities
 
@@ -150,14 +127,12 @@ archive in favor of WindowsAccessControl (Decision 18).
 
 ## Open work
 
-1. Decision 21 gate: the published rc7, rc8, and rc9 are accepted in the matrix
-   and the first lab (records), and the published rc9 again with the live tests
-   of case 11 (Handoff 6); stable follows rc9 (Decision 27). The decision on #34
-   and the key check closed on 2026-11-10. Do not release 5.0.0 before the rc9
-   record, `ai/rc9-tests`, and the stable pull request are merged, in that
-   order. Release steps: `Docs/Contributing/05-Releasing.md`; remove the
-   prerelease label, date `[5.0.0]`, add the last prerelease (rc9) to
-   `$publishedVersions` (never the version of the manifest), tag through CI.
+1. Decision 21 gate: the published rc7, rc8, and rc9 are accepted (records),
+   rc9 also with case 11 (Handoff 6); #133 and #134 are merged. Next: the rc9a
+   pull request, its tag, and the acceptance of the published rc9a; then the
+   stable pull request, made again on top of rc9a (remove the label, date
+   `[5.0.0]`, add `5.0.0-rc9a` to `$publishedVersions`, never the version of
+   the manifest), and the tag through CI (`Docs/Contributing/05-Releasing.md`).
 2. Issues: #110's seven items were addressed by rc6, but #115 deliberately
    used no closing keyword. #34 stays open for non-Windows owner feedback
    or maintainer acceptance. #16, #21, #45, #89 await reporters. #68 tracks
@@ -191,9 +166,8 @@ archive in favor of WindowsAccessControl (Decision 18).
    missing, different, or unverifiable outcomes. The agent published nothing,
    so the recovery has never run against the Gallery.
 9. Operating-system matrix (Decision 24, accepted 2026-10-19): the lab and the
-   cells exist and the published rc7 and rc8 pass them (records). #34: the
-   follow-up went up on 2026-10-19, no reply yet; the decision date is
-   2026-11-02.
+   cells exist, and the published rc7, rc8, and rc9 pass them (records). #34
+   is decided (Decision 23, option 2, 2026-11-10): release with the caveat.
 10. Lab rollback evidence: new checkpoints report Standard even after a
     successful temporary ProductionOnly probe; original VM policy restored, no
     checkpoint restored. Don't represent them as verified Production snapshots.

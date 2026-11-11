@@ -8,6 +8,16 @@ The format is based on
 
 ## [Unreleased]
 
+> Note for users of file servers that aren't Windows: the fix for
+> [#34](https://github.com/raandree/NTFSSecurity/issues/34), which writes only
+> the section of the security descriptor that a command changes, was tested on
+> Windows file servers (Windows Server 2019, 2022, and 2025). NetApp, EMC, and
+> IBM ESS file servers weren't available for 5.0.0, and no tester reported a
+> result. If a command still fails there with error 1307, `icacls` is the
+> fallback. NTFSSecurity will be archived after 5.0.0; report such a failure in
+> #34 or, after the archive, in the issues of
+> [WindowsAccessControl](https://github.com/raandree/WindowsAccessControl).
+
 ### Added
 
 - Publish the documentation in the
@@ -582,5 +592,37 @@ The format is based on
   Turkish culture (`tr-TR`), which dropped the items whose names differ from
   the filter in the case of an `I`, such as `Index.txt` for `-Filter 'index*'`
   or `SETTINGS.INI` for `-Filter '*.ini'`
+
+### Known limits
+
+These limits are known. They are not fixed in 5.0.0, and NTFSSecurity will be
+archived after this release.
+
+- `Get-NTFSEffectiveAccess` writes the error `ReadEffectivePermissionError`,
+  an `ArgumentOutOfRangeException`, and no result for an item on a FAT32
+  volume and for an item whose DACL is NULL, which grants everyone full access
+- `Get-FileHash2` uses SHA256 without a message when a piped object has an
+  `Algorithm` property that is not a valid algorithm, where `-Algorithm` with
+  that value is a parameter error; check the property before you pipe the
+  objects
+- `Get-NTFSAccess`, `Get-NTFSAudit`, `Get-NTFSOrphanedAccess`,
+  `Get-NTFSOrphanedAudit`, and `Get-NTFSSimpleAccess` (the setting
+  `GetInheritedFrom`) and `Get-ChildItem2` (the settings
+  `GetFileSystemModeProperty` and `IdentifyHardLinks`) fail with an
+  `InvalidCastException` or a `NullReferenceException` when the value of the
+  setting is not `$true` or `$false`; only `EnablePrivileges` reports a clear
+  error
+- In PowerShell 7, `Get-ChildItem2 -Filter` folds the case of a few uncommon
+  letters that NTFS keeps apart: a filter with the Georgian `ა` (U+10D0) also
+  returns the item named with `Ა` (U+1C90); Windows PowerShell 5.1 and
+  `Get-ChildItem` follow NTFS
+- A collection that contains itself, given to `-InheritanceFlags`,
+  `-PropagationFlags`, or `-AuditFlags`, ends the PowerShell process (Windows
+  PowerShell 5.1 reports a stack overflow, PowerShell 7.6 ends without a
+  message), as PowerShell does for a parameter that is typed as a flags
+  enumeration; `-AccessType` and `-AppliesTo` reject such a collection
+- In the .NET API of `ProcessPrivileges.dll`, a `PrivilegeEnabler` that its
+  caller never disposes keeps its privileges enabled until the process ends; no
+  cmdlet of the module uses this class
 
 [Unreleased]: https://github.com/raandree/NTFSSecurity/compare/4.2.6...HEAD
