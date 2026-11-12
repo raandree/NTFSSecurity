@@ -30,17 +30,18 @@ $result.CommitOnMaster = ($compare.status -in 'identical', 'behind')
 $result.CompareStatus = $compare.status
 if (-not $result.CommitOnMaster) { $problems.Add("The commit $sha of the tag isn't on master (compare status: $($compare.status)).") }
 
-# 2. The CI run of the tag: the tag push has the tag as its branch name
-$runs = @((Invoke-RestMethod -Uri "$api/actions/runs?head_sha=$sha&per_page=30" -Headers $headers).workflow_runs | Where-Object -FilterScript { $_.event -eq 'push' -and $_.head_branch -eq $Version })
-if ($runs.Count -eq 0) { $problems.Add("No CI run of the tag push for $Version.") }
+# 2. The CI runs of the tag: the tag push has the tag as its branch name, and so has a manual run (workflow_dispatch) on the tag, which
+# replaces the run of the push when GitHub loses it. The latest Release job is that of the newest run and its newest attempt.
+$runs = @((Invoke-RestMethod -Uri "$api/actions/runs?head_sha=$sha&per_page=30" -Headers $headers).workflow_runs | Where-Object -FilterScript { $_.event -in @('push', 'workflow_dispatch') -and $_.head_branch -eq $Version })
+if ($runs.Count -eq 0) { $problems.Add("No CI run of the tag $Version.") }
 $jobs = @()
 foreach ($run in ($runs | Sort-Object -Property run_number)) {
     $jobs += @((Invoke-RestMethod -Uri "$api/actions/runs/$($run.id)/jobs?per_page=50" -Headers $headers).jobs | ForEach-Object -Process {
-            [pscustomobject]@{ Run = $run.id; Attempt = $run.run_attempt; Job = $_.name; Status = $_.status; Conclusion = $_.conclusion }
+            [pscustomobject]@{ Run = $run.id; RunNumber = $run.run_number; Event = $run.event; Attempt = $run.run_attempt; Job = $_.name; Status = $_.status; Conclusion = $_.conclusion }
         })
 }
 $result.CiJobs = $jobs
-$latestRelease = @($jobs | Where-Object -FilterScript { $_.Job -match 'Release' } | Sort-Object -Property Attempt | Select-Object -Last 1)
+$latestRelease = @($jobs | Where-Object -FilterScript { $_.Job -match 'Release' } | Sort-Object -Property RunNumber, Attempt | Select-Object -Last 1)
 if ($latestRelease.Count -eq 0 -or $latestRelease[0].Conclusion -ne 'success') { $problems.Add('The latest Release job of the tag did not succeed.') }
 
 # 3. The GitHub release and its zip

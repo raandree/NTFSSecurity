@@ -1,9 +1,9 @@
 ---
 status: accepted
 date: 2026-10-08
-last-verified: 2026-11-11
+last-verified: 2026-11-12
 owner: shared
-source: maintainer decision of 2026-10-08; closing choices of 2026-10-19; status of 2026-10-20; Handoff 6 of 2026-11-10 to 11; another prerelease, 2026-11-11
+source: maintainer decision of 2026-10-08; closing choices of 2026-10-19; status of 2026-10-20; Handoff 6 of 2026-11-10 to 11; another prerelease, 2026-11-11; live proof of the stable bytes, 2026-11-11 to 12
 ---
 
 # Decision 21: A quality gate before 5.0.0
@@ -191,3 +191,18 @@ the acceptance with `-ModulePath` (the cells, the first lab, the suite on six
 machines, the checks of the end states). He approves only after it passes,
 and the published nupkg must equal the tested one. A failure means: reject,
 delete the tag, fix through another prerelease.
+
+### Status on 2026-11-12: 5.0.0 is published
+
+The artifact of the run of the tag `5.0.0` (CI #98, a manual run on the tag,
+because GitHub lost the run of the push in an outage) passed the acceptance
+before the approval: three cells 2,520 / 0 / 12, the first lab 436 / 0 / 1 per
+edition, the suite in 24 runs without a failure, every end state CLEAN, every
+count equal to the published rc9a (record
+`Tests/Lab/Acceptance-2026-11-12-artifact-5.0.0.md`). The maintainer approved;
+the Gallery has 5.0.0 since 13:13:47Z, and the package that it serves is the
+tested nupkg (SHA-256 and SHA-512 equal). The exit criterion "the published
+package passes the live tests on every operating system of the matrix" is
+met for the stable bytes, and the gate is closed by the release. What the lab
+can't show stays in the limits of the record; the six known limits are in the
+release notes.
