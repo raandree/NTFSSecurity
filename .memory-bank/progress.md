@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-11-11
+last-verified: 2026-11-12
 owner: active-agent
 source: repository and validation evidence
 ---
@@ -9,37 +9,28 @@ source: repository and validation evidence
 
 ## Current status
 
-5.0.0-rc9a is the newest version on the Gallery and GitHub (2026-11-11, tag at
-`c135062`; rc9, rc8, and rc7 before it); the stable Gallery version is still
-4.2.6. The published rc7, rc8, rc9, and rc9a passed their lab acceptance, rc9
-and rc9a with the live tests of case 11. rc9a is the code of rc9 with the
-final release notes (Decision 21); the stable 5.0.0 follows it. After 5.0.0,
-archive in favor of WindowsAccessControl (Decision 18).
+5.0.0 is the stable version on the Gallery and GitHub (2026-11-12, tag at
+`bff4f61`; 4.2.6 before it). Its bytes passed the lab acceptance before they
+were published, and the published package is the tested one (record
+`Tests/Lab/Acceptance-2026-11-12-artifact-5.0.0.md`). The published rc7, rc8,
+rc9, and rc9a passed their lab acceptance, rc9 and rc9a with the live tests
+of case 11; 5.0.0 ships the code of rc9 and rc9a. Next: the archive in favor
+of WindowsAccessControl (Decision 18).
 
 ## Recent milestones
 
-- 2026-10-02 to 2026-10-09: docs and help aligned with the source, CI and wiki
-  on GitHub Actions, release automation, rc1 to rc6 (#114, #115). Detail: git,
-  `CHANGELOG.md`, `Docs/Version-History.md`, Decisions 1 to 22.
-- 2026-10-09 to 10: the quality gate (#117 then #120, #118; Handoffs 2 to 4):
-  the suite to 1,310 cases per configuration, eleven defects fixed (ten with a
-  guard that is red before the fix), and the matrix lab
-  `NtfsSecurityOsMatrixLab` (Server 2019, 2022, 2025, Windows 11), which found
-  three more (`962887a`, `fdd7a8b`). Records
-  `Tests/Lab/Acceptance-2026-10-09-quality-gate-paths.md` and
-  `Tests/Lab/Acceptance-2026-10-10-os-matrix.md`.
-- 2026-10-10: the stack merged (#116, #120, #118, #119, #121; GitHub closed #117
-  when its base branch was deleted, Decision 15); rc7 tagged at `fa0701b` and
-  accepted (`Tests/Lab/Acceptance-2026-10-10-published-rc7.md`).
-- 2026-10-10 to 11: Handoff 5, the coverage unknowns (#125, merged 2026-10-19):
-  two `tr-TR` defects and the piped `AppliesTo` fixed test-first (Decision 26);
-  final `2112ee3`: 1,492 cases per configuration, 3,266/3,668 points (report
-  `Tests/Coverage/Quality-Gate-Unknowns-2026-10-10.md`).
-- 2026-10-19: #125 (Handoff 5) and #124 merged, CI on `master` green. The
-  maintainer decided the path to stable (Decision 21): Decisions 22 and 24
-  accepted, 23 option 3 with the decision date 2026-11-02 (the #34 follow-up
-  went up at 12:09 UTC), rc8 with the fix of `GetEffectiveAccess`, and a
-  tests-only round for the plain test gaps until 2026-11-02.
+- 2026-10-02 to 10: docs, help, CI, the wiki, and release automation; rc1 to
+  rc6 (#114, #115); the quality gate (#117, #120, #118; Handoffs 2 to 4: eleven
+  defects fixed, the matrix lab `NtfsSecurityOsMatrixLab`, three more found);
+  the stack merged and rc7 tagged at `fa0701b` and accepted. Detail: git,
+  `CHANGELOG.md`, Decisions 1 to 22, and the records of 2026-10-09 and 10 in
+  `Tests/Lab`.
+- 2026-10-10 to 19: Handoff 5, the coverage unknowns (#125): two `tr-TR`
+  defects and the piped `AppliesTo` fixed test-first (Decision 26; report
+  `Tests/Coverage/Quality-Gate-Unknowns-2026-10-10.md`). On 2026-10-19 #125
+  and #124 merged, and the maintainer set the path to stable (Decision 21):
+  Decisions 22 and 24 accepted, 23 option 3, rc8 with the fix of
+  `GetEffectiveAccess`, and a tests-only round.
 - 2026-10-20: rc8. The maintainer merged #126 and #127 (`c719197`: the fix of
   the swallowed initialization errors of `GetEffectiveAccess`, the hard-link
   limit in the pages, label `rc8`) and tagged `5.0.0-rc8` at about 10:28Z
@@ -55,17 +46,11 @@ archive in favor of WindowsAccessControl (Decision 18).
   merged #129 and #130; 24 lab runs passed. A probe then found that piped
   optional parameters ignore a bad value (a typo for Deny creates an Allow
   entry): Decision 27 sets the scope of rc9.
-- 2026-10-21: rc9 built and reviewed (Decision 27; branch `ai/rc9`, 36 commits
-  over `d0cb57c`, head `696ac38`). Four implementers worked test-first in
-  worktrees (the five piped parameters, the 17 handlers and three
-  inconsistencies, the library items, the filter). Round 1 (three read-only
-  reviewers) found a Blocker (the last-dot rule of the filter) and two Major
-  findings; round 2 (two reviewers, five checks) found only Minor findings and
-  Nits (among them a list for `-AccessType` or `-AppliesTo`, which PowerShell
-  combines bit by bit; he chose to reject it). Final suite on `696ac38`: 2,162
-  cases per configuration, 0 failed in four configurations (rc8: 1,615); docs
-  fixpoint; analyzer clean; valid shapes differ from rc8 in 9 list rows only;
-  both reviewers: no finding.
+- 2026-10-21: rc9 built and reviewed (Decision 27; branch `ai/rc9`, head
+  `696ac38`): four implementers worked test-first in worktrees; round 1 of
+  the reviews found a Blocker and two Major findings, round 2 only Minor
+  findings and Nits. Final suite: 2,162 cases per configuration, 0 failed in
+  four configurations; both reviewers: no finding.
 - 2026-10-22: rc9 published. The maintainer merged #131 (`823c814`; its tree
   equals the validated `696ac38`, and the runner's 2,162 cases per configuration
   equal the local run) and #132 (`f2bcd9d`) and tagged `823c814` (tag run
@@ -119,6 +104,15 @@ archive in favor of WindowsAccessControl (Decision 18).
   cells 2,520 / 0 / 12, first lab 436 / 0 / 1 per edition, suite 24 runs 0
   failed, every end state CLEAN; counts equal to rc9 with case 11 (record
   `Tests/Lab/Acceptance-2026-11-11-published-rc9a.md`).
+- 2026-11-11 to 12: 5.0.0 published with the live proof of its bytes
+  (Decision 21). #136 and #137 merged, a required reviewer on
+  `powershell-gallery`, the tag `5.0.0` at `bff4f61`; GitHub lost its run in
+  an Actions outage, and the manual run on the tag (CI #98) built the
+  artifact. The lab passed it before the approval (11:45 to 13:07 UTC, every
+  count equal to rc9a, every end state CLEAN); the Gallery has 5.0.0 since
+  13:13:47Z, and its package is the tested nupkg. `Test-PublishedRelease.ps1`
+  now accepts a manual run on the tag (record
+  `Tests/Lab/Acceptance-2026-11-12-artifact-5.0.0.md`).
 
 ## Stable capabilities
 
@@ -131,11 +125,13 @@ archive in favor of WindowsAccessControl (Decision 18).
 
 ## Open work
 
-1. Decision 21 gate: the published rc7, rc8, rc9, and rc9a are accepted
-   (records), rc9 and rc9a with case 11. Next: the record of rc9a, then the
-   stable pull request on top of rc9a (`ai/release-5.0.0-final`), the tag,
-   and the live proof of the stable artifact before its approval (Decision
-   21, "Live proof of the stable bytes"; `Docs/Contributing/05-Releasing.md`).
+1. Decision 21 gate: closed by the release. The published rc7, rc8, rc9, and
+   rc9a and the artifact of 5.0.0 are accepted (records), rc9, rc9a, and 5.0.0
+   with case 11. Open: the record branch of 5.0.0
+   (`ai/acceptance-stable-5.0.0`), the maintainer's choice about the required
+   reviewer of `powershell-gallery` and about adopting the acceptance of the
+   artifact in `Docs/Contributing/05-Releasing.md`, and the stuck runs CI #94
+   to #97.
 2. Issues: #110's seven items were addressed by rc6, but #115 deliberately
    used no closing keyword. #34 stays open for non-Windows owner feedback
    or maintainer acceptance. #16, #21, #45, #89 await reporters. #68 tracks
@@ -169,8 +165,9 @@ archive in favor of WindowsAccessControl (Decision 18).
    missing, different, or unverifiable outcomes. The agent published nothing,
    so the recovery has never run against the Gallery.
 9. Operating-system matrix (Decision 24, accepted 2026-10-19): the lab and the
-   cells exist, and the published rc7, rc8, and rc9 pass them (records). #34
-   is decided (Decision 23, option 2, 2026-11-10): release with the caveat.
+   cells exist, and the published rc7, rc8, rc9, and rc9a and the artifact of
+   5.0.0 pass them (records). #34 is decided (Decision 23, option 2,
+   2026-11-10): released with the caveat.
 10. Lab rollback evidence: new checkpoints report Standard even after a
     successful temporary ProductionOnly probe; original VM policy restored, no
     checkpoint restored. Don't represent them as verified Production snapshots.

@@ -1,11 +1,46 @@
 ---
 status: current
-last-verified: 2026-11-11
+last-verified: 2026-11-12
 owner: software-engineer
 source: release gates of 5.0.0 (lab acceptance, OS matrix, publication plan), repository evidence
 ---
 
 # Deployment notes
+
+## The stable release (5.0.0 is published)
+
+State on 2026-11-12: 5.0.0 is published, and the lab accepted its artifact
+before the approval (record `Tests/Lab/Acceptance-2026-11-12-artifact-5.0.0.md`;
+procedure in the section "Publish the stable release with a live-tested
+artifact"). The tag `5.0.0` is at `bff4f61` (the merge of #137); the run of
+its push (CI #97) was lost in a GitHub Actions outage, and the manual run on
+the tag, CI #98 (`43209324498`), built the artifact and published it after
+the approval (job Release 13:13:29 to 13:13:58Z; Gallery 13:13:47Z, GitHub
+13:13:54Z). `Test-PublishedRelease.ps1 -Version 5.0.0` verified the identity
+at 13:16:43Z with the fix of `ai/acceptance-stable-5.0.0`. The published
+bytes of 5.0.0, equal to the tested artifact:
+
+- `NTFSSecurity.dll` SHA-256
+  `217AA6AC12916439307EE915868EB00B8EAF455DBFEA22EFB55562325E292234`
+- `NTFSSecurity.zip` SHA-256 (equals the GitHub asset digest)
+  `16B9B39B6A2F8EBA125F0C532598AEA96638D6508591F1B7EA2D65072239B5C5`
+- nupkg SHA-256 (equals the package that the Gallery serves)
+  `D9F387EF5E625CAF8A5A0F2B72565BFC5E817DCF98EC09AC3DCB514C75E4A596`
+
+Lessons of the release:
+
+- After a push of a tag, check that its run got jobs. A run that GitHub lost
+  stays queued without a job: cancel says completed, rerun says running, and
+  delete answers 403. Start the workflow on the tag instead
+  (`gh workflow run ci.yml --ref <tag>`): the job Release runs for a tag ref
+  of any event, and the lost run of the same concurrency group doesn't hold
+  it back.
+- `Test-PublishedRelease.ps1` counts the push of the tag and a manual run on
+  it (`workflow_dispatch`, branch name = tag), and reads the job Release of
+  the newest run and attempt; before the fix it saw only the push.
+- The job Release compares the date of the version in the CHANGELOG with the
+  day of the release (UTC) and only warns; 5.0.0 says 2026-11-11 and was
+  released on 2026-11-12.
 
 ## Publish the next prerelease (rc9a is published)
 
@@ -102,34 +137,38 @@ The release notes of a prerelease are the `[Unreleased]` section of
 
 ## Publish the stable release with a live-tested artifact
 
-Decision 21, "Live proof of the stable bytes" (2026-11-11). The scripts are in
-the session files `f097ed24-…\files\scripts`; the release-gate chains stay in
-`816cf47d-…\files\qg-unknowns\scripts`.
+Decision 21, "Live proof of the stable bytes" (2026-11-11); done for 5.0.0 on
+2026-11-12. The scripts are in the session files `f097ed24-…\files\scripts`;
+the release-gate chains stay in `816cf47d-…\files\qg-unknowns\scripts`.
 
 1. The maintainer adds himself as a required reviewer of the environment
    `powershell-gallery` (Settings, Environments; self-review stays allowed),
    merges the stable pull request, and pushes the tag. The tag run builds,
    runs the unit suite in four configurations, uploads the artifact
-   `packages`, and the job Release waits for the approval.
+   `packages`, and the job Release waits for the approval. If the run stays
+   queued without a job, he starts the workflow on the tag by hand (section
+   "The stable release").
 2. `Prepare-ArtifactAcceptance.ps1 -RunId <run> -Evidence <fresh folder>`
-   (PowerShell 7) downloads the artifact, checks that the run is the push of
-   the tag and built its commit, that the module files of the zip and the
-   nupkg are equal, and that the manifest is `5.0.0` without a label, freezes
-   the kit of the tag in `<evidence>\worktree`, and writes
-   `artifact-identity.json`.
+   (PowerShell 7) downloads the artifact, checks that the run is a run of the
+   tag (its push or a manual run on it) and built its commit, that the module
+   files of the zip and the nupkg are equal, and that the manifest is `5.0.0`
+   without a label, freezes the kit of the tag in `<evidence>\worktree`, and
+   writes `artifact-identity.json`.
 3. `Run-ArtifactAcceptance.ps1 -Evidence <folder>` (Windows PowerShell 5.1,
    detached, about 80 minutes; `-DryRun` logs the commands only) runs the
    cells with `Run-MatrixSequence.ps1 -ModulePath`, the first lab with
    `Run-LiveAcceptance.ps1 -ModulePath`, the checks of both labs,
    `Chain-SuiteOnly2.ps1`, and the check of the matrix lab. With
-   `-ModulePath`, the controller labels the runs `local`.
+   `-ModulePath`, the controller labels the runs `local`. 5.0.0: 82 minutes,
+   then `Export-MatrixResults.ps1 -ReferenceMachine a2-LOCAL-LOCAL` and
+   `Build-PublishedRecordTables.ps1 -Kind artifact`.
 4. Pass: he approves the deployment (the run page, or `gh api -X POST
    repos/raandree/NTFSSecurity/actions/runs/<run>/pending_deployments` with
    the environment id and `state=approved`). Then `Test-PublishedRelease.ps1
    -Version 5.0.0`; the SHA-256 of its nupkg must equal `ArtifactNupkgSha256`.
    Fail: he rejects, deletes the tag, and the fix goes through a prerelease.
-5. The date of `[5.0.0]` in the CHANGELOG is the day of the approval (the job
-   Release compares it in UTC and only warns).
+5. The date of `[5.0.0]` in the CHANGELOG should be the day of the approval
+   (the job Release compares it in UTC and only warns).
 
 ## Accept a published package
 
