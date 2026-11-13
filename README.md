@@ -1,5 +1,27 @@
 # NTFSSecurity
 
+| Branch | Build | Last commit | Latest release |
+| --- | --- | --- | --- |
+| master | [![CI status of master][ci-badge]][ci-runs] | [![Last commit on master][last-commit-badge]][commits] | [![Latest GitHub release][release-badge]][latest-release] [![PowerShell Gallery version][gallery-version-badge]][gallery] |
+
+[![Open issues][issues-badge]][issues]
+[![GitHub release downloads][github-downloads-badge]][releases]
+[![PowerShell Gallery downloads][gallery-downloads-badge]][gallery]
+
+[ci-badge]: https://github.com/raandree/NTFSSecurity/actions/workflows/ci.yml/badge.svg?branch=master
+[ci-runs]: https://github.com/raandree/NTFSSecurity/actions/workflows/ci.yml?query=branch%3Amaster
+[last-commit-badge]: https://img.shields.io/github/last-commit/raandree/NTFSSecurity/master
+[commits]: https://github.com/raandree/NTFSSecurity/commits/master
+[release-badge]: https://img.shields.io/github/v/release/raandree/NTFSSecurity
+[latest-release]: https://github.com/raandree/NTFSSecurity/releases/latest
+[gallery-version-badge]: https://img.shields.io/powershellgallery/v/NTFSSecurity
+[gallery]: https://www.powershellgallery.com/packages/NTFSSecurity
+[issues-badge]: https://img.shields.io/github/issues/raandree/NTFSSecurity
+[issues]: https://github.com/raandree/NTFSSecurity/issues
+[github-downloads-badge]: https://img.shields.io/github/downloads/raandree/NTFSSecurity/total?label=GitHub%20downloads
+[releases]: https://github.com/raandree/NTFSSecurity/releases
+[gallery-downloads-badge]: https://img.shields.io/powershellgallery/dt/NTFSSecurity?label=PowerShell%20Gallery%20downloads
+
 > [!IMPORTANT]
 > NTFSSecurity will be archived soon. Please move to
 > [WindowsAccessControl](https://github.com/raandree/WindowsAccessControl),
