@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-11-12
+last-verified: 2026-11-13
 owner: active-agent
 source: repository and validation evidence
 ---
@@ -113,6 +113,11 @@ of WindowsAccessControl (Decision 18).
   13:13:47Z, and its package is the tested nupkg. `Test-PublishedRelease.ps1`
   now accepts a manual run on the tag (record
   `Tests/Lab/Acceptance-2026-11-12-artifact-5.0.0.md`).
+- 2026-11-13: #138 (the record of 5.0.0) merged at `75cb374`; CI #100 on
+  `master` passed. The README shows status and statistics badges like the
+  AutomatedLab README (`ai/readme-badges`, `bde8c9f`): CI of `master`, last
+  commit, GitHub release, Gallery version, open issues, and downloads from
+  GitHub and the Gallery. No CHANGELOG entry (Decision 7).
 
 ## Stable capabilities
 
@@ -127,11 +132,10 @@ of WindowsAccessControl (Decision 18).
 
 1. Decision 21 gate: closed by the release. The published rc7, rc8, rc9, and
    rc9a and the artifact of 5.0.0 are accepted (records), rc9, rc9a, and 5.0.0
-   with case 11. Open: the record branch of 5.0.0
-   (`ai/acceptance-stable-5.0.0`), the maintainer's choice about the required
-   reviewer of `powershell-gallery` and about adopting the acceptance of the
-   artifact in `Docs/Contributing/05-Releasing.md`, and the stuck runs CI #94
-   to #97.
+   with case 11; the record of 5.0.0 is merged (#138). Open: the maintainer's
+   choice about the required reviewer of `powershell-gallery` and about
+   adopting the acceptance of the artifact in
+   `Docs/Contributing/05-Releasing.md`, and the stuck runs CI #94 to #97.
 2. Issues: #110's seven items were addressed by rc6, but #115 deliberately
    used no closing keyword. #34 stays open for non-Windows owner feedback
    or maintainer acceptance. #16, #21, #45, #89 await reporters. #68 tracks

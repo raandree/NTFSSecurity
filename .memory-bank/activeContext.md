@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-11-12
+last-verified: 2026-11-13
 owner: active-agent
 source: current task evidence
 ---
@@ -8,6 +8,15 @@ source: current task evidence
 # Active context
 
 ## Current focus
+
+State at 2026-11-13: the maintainer merged #138, the record of 5.0.0
+(`75cb374`; CI #100 on `master` passed). The README now shows status and
+statistics badges like the AutomatedLab README (branch `ai/readme-badges`,
+`bde8c9f`): the CI of `master` (the workflow `ci.yml`, not AppVeyor), the
+last commit, the latest GitHub release and Gallery version, the open issues,
+and the downloads from GitHub and the Gallery. Every badge rendered a live
+value (2026-11-13: passing, v5.0.0, 10 open, 12k, 7.8M); no CHANGELOG entry
+(Decision 7). The release state below is unchanged.
 
 State at 2026-11-12, 13:30 UTC: 5.0.0 is published, and its bytes are proven
 live. The maintainer merged #136 (the record of rc9a) and #137 (the stable
@@ -38,8 +47,8 @@ record branch `ai/acceptance-stable-5.0.0` (worktree
 `C:\Temp\ntfs-stable\record`) fixes it (a manual run on the tag counts; the
 newest run and attempt decide) and verifies 5.0.0 (PowerShell 7 and Windows
 PowerShell 5.1) and rc9a again. It also carries the record
-`Tests/Lab/Acceptance-2026-11-12-artifact-5.0.0.md` with four tables and this
-Memory Bank update; the maintainer pushes and merges it. The lab machines are
+`Tests/Lab/Acceptance-2026-11-12-artifact-5.0.0.md` with four tables and a
+Memory Bank update; the maintainer merged it as #138. The lab machines are
 saved again, `OSWin11E` is off.
 
 The earlier acceptances of published prereleases are rc7 (2026-10-10), rc8
@@ -80,8 +89,9 @@ code unchanged, with the six known limits in the CHANGELOG.
 
 ## Next step
 
-1. The record of 5.0.0 (`ai/acceptance-stable-5.0.0`): he pushes it, opens
-   the pull request, and merges it with a merge commit.
+1. The README badges (`ai/readme-badges`): he pushes the branch, opens the
+   pull request, and merges it with a merge commit. The record of 5.0.0 is
+   merged (#138).
 2. His decisions after the release: keep or remove the required reviewer of
    `powershell-gallery` (while it stays, every tag run waits for an
    approval), and whether `Docs/Contributing/05-Releasing.md` adopts the
